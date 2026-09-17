@@ -1,4 +1,5 @@
 import { toast } from "sonner"
+import { isSessionExpiryToastWindow } from "@/lib/backend-client"
 
 export const showToast = {
   success: (message: string, description?: string) => {
@@ -7,11 +8,16 @@ export const showToast = {
     })
   },
   error: (message: string, description?: string) => {
+    // Swallowed: a real session expiry already surfaces its own single
+    // "Session Expired" toast (see AuthGuard), and every request failing at
+    // once because of it would otherwise flood the user with duplicates.
+    if (isSessionExpiryToastWindow()) return
     toast.error(message, {
       description,
     })
   },
   warning: (message: string, description?: string) => {
+    if (isSessionExpiryToastWindow()) return
     toast.warning(message, {
       description,
     })

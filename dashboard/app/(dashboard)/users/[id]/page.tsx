@@ -28,6 +28,7 @@ export default function UserProfilePage() {
   React.useEffect(() => {
     if (!error) return
     const err = error as { status?: number; message?: string }
+    if (err?.status === 401) return // session expiry is handled globally by AuthGuard
     let title = "Load Failed"
     let message = "Could not load user data"
     if (err?.status === 404) {
@@ -36,9 +37,6 @@ export default function UserProfilePage() {
     } else if (err?.status === 403) {
       title = "Access Denied"
       message = "You do not have permission to view this user"
-    } else if (err?.status === 401) {
-      title = "Authentication Required"
-      message = "Please log in to continue"
     } else if (err?.message?.includes("Failed to fetch")) {
       title = "Connection Error"
       message = "Could not connect to the server. Please check your connection."

@@ -83,8 +83,9 @@ export function useBackendTable<TData extends BaseRecord = BaseRecord>(
 
   useEffect(() => {
     if (!query.error) return
-    const err = query.error as Error
+    const err = query.error as Error & { status?: number }
     if (err.message?.includes("autocancelled")) return
+    if (err.status === 401) return // session expiry is handled globally by AuthGuard
     const error: TableError = {
       type: 'fetch',
       message: err.message || 'Failed to fetch data',

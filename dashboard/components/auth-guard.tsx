@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { canAccessDashboard, getBackendClient } from '@/lib/backend-client'
 
 interface AuthGuardProps {
@@ -14,9 +15,10 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
   useEffect(() => {
     let active = true
+    const client = getBackendClient()
 
     const checkAuth = async () => {
-      const hasSession = await getBackendClient().ensureSession()
+      const hasSession = await client.ensureSession()
       if (!active) return
 
       if (!hasSession || !canAccessDashboard()) {
@@ -26,9 +28,18 @@ export default function AuthGuard({ children }: AuthGuardProps) {
       setIsChecking(false)
     }
 
+    const unsubscribe = client.onSessionExpired(() => {
+      if (!active) return
+      // Calls sonner directly: showToast.error would be silenced by the
+      // session-expiry suppression window this same event just opened.
+      toast.error('Session Expired', { description: 'Please log in again to continue' })
+      router.replace('/login')
+    })
+
     void checkAuth()
     return () => {
       active = false
+      unsubscribe()
     }
   }, [router])
 

@@ -5,6 +5,7 @@ const AUTH_COOKIE_NAME = "mediguide_auth"
 const AUTH_STORAGE_KEY = "mediguide.auth.v1"
 const AUTH_SNAPSHOT_VERSION = 1
 const EXPIRY_CLOCK_SKEW_MS = 30_000
+const SESSION_EXPIRY_TOAST_SUPPRESS_MS = 4_000
 type JsonRecord = Record<string, any>
 
 export class BackendRequestError extends Error {
@@ -139,6 +140,9 @@ export class BackendAuthStore {
 export class BackendClient {
   readonly baseUrl = API_BASE_URL
   readonly authStore = new BackendAuthStore()
+  private refreshPromise: Promise<boolean> | null = null
+  private sessionExpiredListeners = new Set<() => void>()
+  private sessionExpiredUntil = 0
   readonly files = {
     getURL: (record: JsonRecord, field: string) => {
       const value = record?.[field]
@@ -175,6 +179,42 @@ export class BackendClient {
       body: JSON.stringify({ refresh_token: this.authStore.refreshToken }),
     })
     return this.saveSession(session)
+  }
+
+  onSessionExpired(listener: () => void) {
+    this.sessionExpiredListeners.add(listener)
+    return () => {
+      this.sessionExpiredListeners.delete(listener)
+    }
+  }
+
+  private emitSessionExpired() {
+    // Suppresses the flood of unrelated "Error" toasts that in-flight requests
+    // across the app would otherwise fire in the same moment as this one
+    // canonical "Session Expired" toast (see AuthGuard).
+    this.sessionExpiredUntil = Date.now() + SESSION_EXPIRY_TOAST_SUPPRESS_MS
+    for (const listener of this.sessionExpiredListeners) {
+      listener()
+    }
+  }
+
+  isInSessionExpiredWindow() {
+    return Date.now() < this.sessionExpiredUntil
+  }
+
+  private async refreshOnce(): Promise<boolean> {
+    if (!this.authStore.refreshToken || this.authStore.isRefreshTokenExpired()) {
+      return false
+    }
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.refreshAuth()
+        .then(() => true)
+        .catch(() => false)
+        .finally(() => {
+          this.refreshPromise = null
+        })
+    }
+    return this.refreshPromise
   }
 
   async ensureSession() {
@@ -222,7 +262,7 @@ export class BackendClient {
     }
   }
 
-  async request<T = any>(path: string, options: RequestOptions = {}) {
+  async request<T = any>(path: string, options: RequestOptions = {}, isRetry = false): Promise<T> {
     const url = new URL(path, this.baseUrl)
     const query = options.query || options.params || {}
     for (const [key, value] of Object.entries(query)) {
@@ -244,6 +284,16 @@ export class BackendClient {
     })
 
     if (!response.ok) {
+      const isAuthEndpoint = path.startsWith("/api/v2/auth/")
+      if (response.status === 401 && !isRetry && !isAuthEndpoint) {
+        const refreshed = await this.refreshOnce()
+        if (refreshed) {
+          return this.request<T>(path, options, true)
+        }
+        this.authStore.clear()
+        this.emitSessionExpired()
+      }
+
       const errorPayload = await extractError(response)
       const retryAfterSeconds = parseRetryAfter(response.headers.get("Retry-After"))
       const message =
@@ -322,6 +372,11 @@ export const backendClient = getBackendClient()
 if (typeof window !== "undefined") {
   ;(window as unknown as { __backendClient: unknown }).__backendClient =
     backendClient
+}
+
+export function isSessionExpiryToastWindow(): boolean {
+  if (typeof window === "undefined") return false
+  return getBackendClient().isInSessionExpiredWindow()
 }
 
 export function isAuthenticated(): boolean {

@@ -174,9 +174,14 @@ export default function EditUserPage() {
           return
         }
         
+        if (error && typeof error === 'object' && 'status' in error &&
+            (error as { status: number }).status === 401) {
+          return // session expiry is handled globally by AuthGuard
+        }
+
         let errorMessage = 'Could not load user data'
         let errorTitle = 'Load Failed'
-        
+
         if (error && typeof error === 'object') {
           if ('status' in error) {
             const status = (error as { status: number }).status
@@ -186,9 +191,6 @@ export default function EditUserPage() {
             } else if (status === 403) {
               errorTitle = 'Access Denied'
               errorMessage = 'You do not have permission to view this user'
-            } else if (status === 401) {
-              errorTitle = 'Authentication Required'
-              errorMessage = 'Please log in to continue'
             }
           }
           
