@@ -8,9 +8,7 @@ export const showToast = {
     })
   },
   error: (message: string, description?: string) => {
-    // Swallowed: a real session expiry already surfaces its own single
-    // "Session Expired" toast (see AuthGuard), and every request failing at
-    // once because of it would otherwise flood the user with duplicates.
+    // Suppresses duplicate error toasts during a session-expiry event
     if (isSessionExpiryToastWindow()) return
     toast.error(message, {
       description,

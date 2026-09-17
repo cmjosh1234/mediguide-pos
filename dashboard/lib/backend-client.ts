@@ -189,9 +189,7 @@ export class BackendClient {
   }
 
   private emitSessionExpired() {
-    // Suppresses the flood of unrelated "Error" toasts that in-flight requests
-    // across the app would otherwise fire in the same moment as this one
-    // canonical "Session Expired" toast (see AuthGuard).
+    // Marks the session-expiry window so in-flight requests' error toasts get suppressed
     this.sessionExpiredUntil = Date.now() + SESSION_EXPIRY_TOAST_SUPPRESS_MS
     for (const listener of this.sessionExpiredListeners) {
       listener()
