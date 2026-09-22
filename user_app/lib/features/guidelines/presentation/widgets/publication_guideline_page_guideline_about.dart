@@ -44,8 +44,8 @@ class _GuidelineAbout extends StatelessWidget {
 
           const SizedBox(height: 4),
 
-          Text(
-            fact.$2,
+          AppMarkdownBody(
+            data: fact.$2,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.4),
           ),
 
@@ -76,7 +76,12 @@ class _GuidelineAbout extends StatelessWidget {
 
                   AppSpacing.hGapSm,
 
-                  Expanded(child: Text(block.payload.content)),
+                  Expanded(
+                    child: AppMarkdownBody(
+                      data: block.payload.content,
+                      compact: true,
+                    ),
+                  ),
                 ],
               ),
             ),

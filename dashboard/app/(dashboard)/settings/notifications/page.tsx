@@ -19,8 +19,8 @@ import { emptyNotificationAction, NotificationActionFields } from "@/components/
 import { hasBackendPermission } from "@/lib/backend-client"
 import { usePermissionContext } from "@/lib/permission-context"
 import { showToast } from "@/lib/toast"
-import { withDashboardBasePath } from "@/lib/dashboard-path"
 import { firebaseService, type FirebaseStatus } from "@/services/firebase.service"
+import { outbreaksService, situationReportsService } from "@/services/outbreaks.service"
 import { notificationsService, type NotificationAction, type NotificationAudienceDefinition, type NotificationAudienceEstimate, type NotificationCampaignDto, type NotificationCampaignInput, type NotificationDeliveryAnalytics, type NotificationDeliveryDto, type NotificationOutboxJobDto, type NotificationPreferenceAggregates, type NotificationPriority, type NotificationTemplateDto, type NotificationTemplateInput, type NotificationTemplateVersionDto, type NotificationType } from "@/services/notifications.service"
 
 type FirebaseState = "configured" | "disabled" | "unavailable"
@@ -68,6 +68,8 @@ export default function NotificationAdministrationPage() {
   const [editingTemplateId, setEditingTemplateId] = React.useState<string | null>(null)
   const [templateHistory, setTemplateHistory] = React.useState<{ name: string; versions: NotificationTemplateVersionDto[] } | null>(null)
   const [templatePreview, setTemplatePreview] = React.useState<{ name: string; title: string; body: string; action: NotificationAction } | null>(null)
+  const [templateTest, setTemplateTest] = React.useState<{ name: string; title: string; body: string; action: NotificationAction } | null>(null)
+  const [testSending, setTestSending] = React.useState(false)
   const [campaignOpen, setCampaignOpen] = React.useState(false)
   const [editingCampaignId, setEditingCampaignId] = React.useState<string | null>(null)
   const [templateForm, setTemplateForm] = React.useState({ name: "", templateKey: "", channel: "in-app" as NotificationTemplateInput["channel"], title: "", body: "", category: "Content Updates", locale: "en", schema: "{}" })
@@ -205,18 +207,29 @@ export default function NotificationAdministrationPage() {
   }
 
   async function previewTemplate(template: NotificationTemplateDto) {
-    const variables = Object.fromEntries(Object.entries(template.version.variable_schema).map(([key, rule]) => [key, rule.sample_value ?? (rule.type === "number" ? 1 : rule.type === "boolean" ? true : key)]))
-    try { const preview = await notificationsService.previewTemplateVersion(template.version.id, variables); setTemplatePreview({ name: template.name, ...preview }) }
+    try { const preview = await notificationsService.previewTemplateVersion(template.version.id, await templateSampleVariables(template)); setTemplatePreview({ name: template.name, ...preview }) }
     catch (error) { showToast.error("Template preview", error instanceof Error ? error.message : "Unable to render preview") }
   }
 
   async function testTemplate(template: NotificationTemplateDto) {
-    const variables = Object.fromEntries(Object.entries(template.version.variable_schema).map(([key, rule]) => [key, rule.sample_value ?? (rule.type === "number" ? 1 : rule.type === "boolean" ? true : key)]))
     try {
-      const preview = await notificationsService.previewTemplateVersion(template.version.id, variables)
-      const query = new URLSearchParams({ title: preview.title, body: preview.body, action: JSON.stringify(preview.action) })
-      window.location.assign(withDashboardBasePath(`/settings/firebase?${query}`))
+      const preview = await notificationsService.previewTemplateVersion(template.version.id, await templateSampleVariables(template))
+      setTemplateTest({ name: template.name, ...preview })
     } catch (error) { showToast.error("Template test", error instanceof Error ? error.message : "Unable to validate template") }
+  }
+
+  async function sendTemplateTest(dryRun: boolean) {
+    if (!templateTest) return
+    setTestSending(true)
+    try {
+      const result = await firebaseService.sendTestPush({ current_user: true, title: templateTest.title, body: templateTest.body, action: templateTest.action, dry_run: dryRun })
+      if (result.attempted === 0) showToast.warning("No devices to test", "Your account has no active device. Sign in to the mobile app with notifications enabled, then try again.")
+      else showToast.success(dryRun ? "Push validation completed" : "Test push sent", dryRun
+        ? `${result.validated} accepted by validation and ${result.failed} rejected across ${result.attempted} devices. No push was sent.`
+        : `${result.accepted} accepted by FCM and ${result.failed} rejected across ${result.attempted} devices. Device delivery is not confirmed.`)
+      if (!dryRun && result.attempted > 0) setTemplateTest(null)
+    } catch (error) { showToast.error("Template test", error instanceof Error ? error.message : "Push test failed") }
+    finally { setTestSending(false) }
   }
 
   async function saveCampaign(event: React.FormEvent<HTMLFormElement>) {
@@ -368,6 +381,7 @@ export default function NotificationAdministrationPage() {
         </TabsContent>
       </Tabs>
       <Dialog open={templateHistory !== null} onOpenChange={(open) => { if (!open) setTemplateHistory(null) }}><DialogContent><DialogHeader><DialogTitle>{templateHistory?.name} version history</DialogTitle><DialogDescription>Published versions are immutable and campaigns retain their selected version.</DialogDescription></DialogHeader><div className="space-y-2">{templateHistory?.versions.map((version) => <div key={version.id} className="flex items-center justify-between rounded border p-3"><span>Version {version.version} · {version.channel}</span><Badge variant="outline">{version.status}</Badge></div>)}</div></DialogContent></Dialog>
+      <Dialog open={templateTest !== null} onOpenChange={(open) => { if (!open && !testSending) setTemplateTest(null) }}><DialogContent><DialogHeader><DialogTitle>Test {templateTest?.name}</DialogTitle><DialogDescription>Sends this rendered push to your own registered devices. To test another recipient, use the <Link href="/settings/firebase" className="underline">Firebase settings</Link> page.</DialogDescription></DialogHeader><div className="space-y-3 rounded border p-4"><h3 className="font-semibold">{templateTest?.title || "(no channel title)"}</h3><p className="whitespace-pre-wrap text-sm">{templateTest?.body}</p><Badge variant="outline">Action: {templateTest?.action.type}</Badge></div><DialogFooter><Button variant="outline" disabled={testSending} onClick={() => void sendTemplateTest(true)}>Validate only</Button><Button disabled={testSending} onClick={() => void sendTemplateTest(false)}>{testSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}Send to me</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={templatePreview !== null} onOpenChange={(open) => { if (!open) setTemplatePreview(null) }}><DialogContent><DialogHeader><DialogTitle>{templatePreview?.name} preview</DialogTitle><DialogDescription>Rendered with the declared sample variables.</DialogDescription></DialogHeader><div className="space-y-3 rounded border p-4"><h3 className="font-semibold">{templatePreview?.title || "(no channel title)"}</h3><p className="whitespace-pre-wrap text-sm">{templatePreview?.body}</p><Badge variant="outline">Action: {templatePreview?.action.type}</Badge></div></DialogContent></Dialog>
     </div>
   )
@@ -404,6 +418,26 @@ function AudienceFields({ form, estimate, estimating, onChange, onEstimate }: {
     {!form.allEligible ? <div className="grid gap-3 sm:grid-cols-2">{fields.map(([key, label, placeholder]) => <Field key={key} label={label}><Input value={String(form[key])} placeholder={placeholder} onChange={(event) => onChange({ [key]: event.target.value })} /></Field>)}</div> : null}
     <div className="flex flex-wrap items-center gap-3"><Button type="button" variant="outline" disabled={estimating} onClick={onEstimate}>{estimating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Estimate audience</Button>{estimate ? <p className="text-sm"><strong>{estimate.eligible_users}</strong> eligible users · <strong>{estimate.active_devices}</strong> active devices</p> : null}</div>
   </div>
+}
+
+// Resource actions must reference a real record: the preview rejects non-UUID
+// IDs and the test push rejects IDs that do not exist.
+const sampleResourceLookups: Partial<Record<NotificationAction["type"], { label: string; find: () => Promise<string | undefined> }>> = {
+  guideline: { label: "published guideline", find: async () => (await outbreaksService.listPublishedGuidelines()).items[0]?.id },
+  outbreak: { label: "published outbreak", find: async () => (await outbreaksService.list({ per_page: 50 })).items.find((item) => item.published_at && !item.withdrawn_at)?.id },
+  situation_report: { label: "published situation report", find: async () => (await situationReportsService.list({ status: "published", per_page: 50 })).items.find((item) => !item.withdrawn_at)?.id },
+}
+
+async function templateSampleVariables(template: NotificationTemplateDto): Promise<Record<string, unknown>> {
+  const variables: Record<string, unknown> = Object.fromEntries(Object.entries(template.version.variable_schema).map(([key, rule]) => [key, rule.sample_value ?? (rule.type === "number" ? 1 : rule.type === "boolean" ? true : key)]))
+  const action = template.version.action_template
+  const resourceVariable = action.resource_id?.match(/^\{\{\s*(\w+)\s*\}\}$/)?.[1]
+  const lookup = sampleResourceLookups[action.type]
+  if (!resourceVariable || !lookup || template.version.variable_schema[resourceVariable]?.sample_value !== undefined) return variables
+  const id = await lookup.find()
+  if (!id) throw new Error(`Publish a ${lookup.label} first; this template's tap action needs a real record to open.`)
+  variables[resourceVariable] = id
+  return variables
 }
 
 function csvValues(value: string): string[] | undefined {

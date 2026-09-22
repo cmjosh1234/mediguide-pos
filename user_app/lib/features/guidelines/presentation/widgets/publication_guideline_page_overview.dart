@@ -31,7 +31,7 @@ class _Overview extends StatelessWidget {
           if (publication.description.isNotEmpty) ...[
             AppSpacing.gapSm,
 
-            Text(publication.description),
+            AppMarkdownBody(data: publication.description, compact: true),
           ],
 
           AppSpacing.gapMd,

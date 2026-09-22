@@ -11,6 +11,7 @@ import 'package:user_app/core/widgets/app_loading_view.dart';
 import 'package:user_app/features/guidelines/data/models/guideline_publication.dart';
 import 'package:user_app/features/guidelines/presentation/controllers/publication_guideline_controller.dart';
 import 'package:user_app/features/guidelines/presentation/widgets/responsive_clinical_table.dart';
+import 'package:user_app/shared/widgets/app_markdown_body.dart';
 
 class PublicationTablePage extends ConsumerWidget {
   const PublicationTablePage({
@@ -344,8 +345,9 @@ class _TableFootnotes extends StatelessWidget {
           ),
           AppSpacing.gapSm,
           for (var index = 0; index < footnotes.length; index++) ...[
-            SelectableText(
-              footnotes[index],
+            AppMarkdownBody(
+              data: footnotes[index],
+              compact: true,
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
@@ -505,8 +507,9 @@ class _AlgorithmNodeView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      SelectableText(
-                        node.label,
+                      AppMarkdownBody(
+                        data: node.label,
+                        compact: true,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),

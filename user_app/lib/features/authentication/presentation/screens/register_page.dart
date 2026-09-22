@@ -83,7 +83,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final license = value?.trim() ?? '';
 
     if (license.isEmpty) {
-      return 'License number is required';
+      return null;
     }
 
     if (license.length < 3) {
@@ -172,7 +172,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
           'specialization': values[_specializationField]?.toString().trim(),
 
-          'preferred_language': PreferredLanguage.english.name,
+          'preferred_language': PreferredLanguage.english.label,
         }..removeWhere(
           (_, value) => value == null || (value is String && value.isEmpty),
         );
@@ -531,9 +531,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                                               TextCapitalization.characters,
                                           decoration: _inputDecoration(
                                             context,
-                                            label: 'License number',
+                                            label: 'License number (optional)',
                                             hint:
-                                                'Enter professional license number',
+                                                'Enter your professional license number',
                                             icon: LucideIcons.badgeCheck,
                                           ),
                                           validator: _licenseNumberValidator,

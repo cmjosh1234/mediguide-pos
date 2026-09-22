@@ -27,6 +27,7 @@ import 'package:user_app/features/guidelines/presentation/widgets/publication_bl
 import 'package:user_app/features/guidelines/presentation/widgets/publication_guideline_page_empty_section.dart';
 import 'package:user_app/features/library/presentation/widgets/save_to_collection_sheet.dart';
 import 'package:user_app/features/library/presentation/utils/collection_messages.dart';
+import 'package:user_app/shared/widgets/app_markdown_body.dart';
 
 part '../widgets/publication_guideline_page_guideline_menu_action.dart';
 part '../widgets/publication_guideline_page_guideline_content_search_delegate.dart';
@@ -102,7 +103,15 @@ class _PublicationGuidelinePageState
 
   @override
   Widget build(BuildContext context) {
-    final content = ref.watch(publicationGuidelineProvider(widget.guidelineId));
+    final completeContent = ref.watch(
+      publicationGuidelineProvider(widget.guidelineId),
+    );
+    final summaryContent = ref.watch(
+      publicationGuidelineSummaryProvider(widget.guidelineId),
+    );
+    final content = widget.readerOnly || completeContent.valueOrNull != null
+        ? completeContent
+        : summaryContent;
 
     final progress = ref
         .watch(publicationReadingProgressProvider(widget.guidelineId))
@@ -211,6 +220,9 @@ class _PublicationGuidelinePageState
           error: error,
           onRetry: () {
             ref.invalidate(publicationGuidelineProvider(widget.guidelineId));
+            ref.invalidate(
+              publicationGuidelineSummaryProvider(widget.guidelineId),
+            );
           },
         ),
         data: (value) {
@@ -489,7 +501,7 @@ class _PublicationGuidelinePageState
       );
     }
 
-    final sections = value.sections;
+    final sections = value.readerSections;
 
     _scheduleInitialProgress(sections);
 
@@ -504,9 +516,18 @@ class _PublicationGuidelinePageState
         ? sections.where((section) => selectedIds.contains(section.id)).toList()
         : sections;
 
-    final rootSections = sections
+    final navigationSections = sections
+        .where((section) => !value.isDocumentTitleWrapper(section))
+        .toList(growable: false);
+    final navigationSectionIds = navigationSections
+        .map((section) => section.id)
+        .toSet();
+    final rootSections = navigationSections
         .where(
-          (section) => section.parentId == null || section.parentId!.isEmpty,
+          (section) =>
+              section.parentId == null ||
+              section.parentId!.isEmpty ||
+              !navigationSectionIds.contains(section.parentId),
         )
         .toList(growable: false);
 
@@ -611,7 +632,8 @@ class _PublicationGuidelinePageState
               itemBuilder: (_, index) {
                 final section = visibleSections[index];
 
-                final blocks = value.blocksFor(section.id);
+                final blocks = value.displayBlocksFor(section);
+                final showSectionTitle = !value.isDocumentTitleWrapper(section);
 
                 _sectionKeys.putIfAbsent(section.id, GlobalKey.new);
 
@@ -624,13 +646,14 @@ class _PublicationGuidelinePageState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Semantics(
-                          header: true,
-                          child: Text(
-                            section.title,
-                            style: Theme.of(context).textTheme.headlineSmall,
+                        if (showSectionTitle)
+                          Semantics(
+                            header: true,
+                            child: Text(
+                              section.title,
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
                           ),
-                        ),
 
                         if (section.pageLabel.isNotEmpty)
                           Text(

@@ -14,9 +14,11 @@ import {
   buildMarkdownSearchIndex,
   searchMarkdown,
 } from "../../../lib/markdown/search";
+import { splitMarkdownForProgressiveRendering } from "../../../lib/markdown/progressive";
 import { SecureMarkdown } from "./SecureMarkdown";
 import { GuidelineAssistant } from "./GuidelineAssistant";
 import { bookReaderPublicationGuidance } from "./book-reader-publication-guidance";
+import { removeLeadingDocumentTitle } from "./reader-presentation";
 
 export type SupplementalReaderView =
   | "overview"
@@ -52,11 +54,39 @@ export function BookGuidelineReader({
   const [fontScale, setFontScale] = useState(1);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
-  const headings = useMemo(() => getMarkdownHeadings(markdown.content), [markdown.content]);
-  const searchIndex = useMemo(() => buildMarkdownSearchIndex(markdown.content), [markdown.content]);
+  const loadMoreSentinel = useRef<HTMLDivElement>(null);
+  const content = useMemo(() => removeLeadingDocumentTitle(markdown.content), [markdown.content]);
+  const headings = useMemo(() => getMarkdownHeadings(content), [content]);
+  const searchIndex = useMemo(() => buildMarkdownSearchIndex(content), [content]);
   const results = useMemo(() => searchMarkdown(searchIndex, query), [query, searchIndex]);
-  const content = useMemo(() => removeLeadingTitle(markdown.content, guideline.title), [guideline.title, markdown.content]);
+  const renderChunks = useMemo(() => splitMarkdownForProgressiveRendering(content), [content]);
+  const [visibleChunkCount, setVisibleChunkCount] = useState(() => {
+    const initial = Math.min(3, renderChunks.length);
+    if (typeof window === "undefined" || !window.location.hash) return initial;
+    let target = window.location.hash.slice(1);
+    try { target = decodeURIComponent(target); } catch { /* Keep the literal hash. */ }
+    const targetChunk = renderChunks.findIndex((chunk) => chunk.headingIds.includes(target));
+    return targetChunk < 0 ? initial : Math.max(initial, targetChunk + 1);
+  });
   const publicationGuidance = bookReaderPublicationGuidance(partial, manifest?.has_original_pdf === true);
+
+  useEffect(() => {
+    const sentinel = loadMoreSentinel.current;
+    if (!sentinel || visibleChunkCount >= renderChunks.length || !("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setVisibleChunkCount((value) => Math.min(value + 3, renderChunks.length));
+      }
+    }, { rootMargin: "800px 0px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [renderChunks.length, visibleChunkCount]);
+
+  useEffect(() => {
+    const expandForPrint = () => setVisibleChunkCount(renderChunks.length);
+    window.addEventListener("beforeprint", expandForPrint);
+    return () => window.removeEventListener("beforeprint", expandForPrint);
+  }, [renderChunks.length]);
 
   useEffect(() => {
     const elements = headings
@@ -71,7 +101,7 @@ export function BookGuidelineReader({
     }, { rootMargin: "-15% 0px -72%", threshold: [0, 1] });
     elements.forEach((element) => observer.observe(element));
     return () => observer.disconnect();
-  }, [headings]);
+  }, [headings, visibleChunkCount]);
 
   const openSearch = () => {
     setSidebarOpen(true);
@@ -80,7 +110,11 @@ export function BookGuidelineReader({
 
   const visitHeading = (id: string) => {
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${encodeURIComponent(id)}`);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const chunkIndex = renderChunks.findIndex((chunk) => chunk.headingIds.includes(id));
+    if (chunkIndex >= visibleChunkCount) setVisibleChunkCount(chunkIndex + 1);
+    requestAnimationFrame(() => requestAnimationFrame(() =>
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    ));
     setActiveHeading(id);
     setSidebarOpen(false);
   };
@@ -149,7 +183,22 @@ export function BookGuidelineReader({
             </div>
           </header>
           {publicationGuidance.partialNotice && <div className="partial-extraction-notice" role="status">{publicationGuidance.partialNotice}</div>}
-          <div className="markdown-content book-markdown"><SecureMarkdown content={content} /></div>
+          <div className="markdown-content book-markdown">
+            {renderChunks.slice(0, visibleChunkCount).map((chunk, index) => (
+              <SecureMarkdown
+                content={chunk.content}
+                headingIds={chunk.headingIds}
+                key={`${markdown.etag ?? "markdown"}-${index}`}
+              />
+            ))}
+            {visibleChunkCount < renderChunks.length && (
+              <div className="progressive-markdown-more" ref={loadMoreSentinel}>
+                <button type="button" onClick={() => setVisibleChunkCount((value) => Math.min(value + 3, renderChunks.length))}>
+                  Load more chapters
+                </button>
+              </div>
+            )}
+          </div>
         </article>
       </main>
       {!assistantOpen && <button className="assistant-fab" type="button" aria-label="Ask AI about this guideline" onClick={() => setAssistantOpen(true)}><SparkleIcon /><span>Ask AI</span></button>}
@@ -170,13 +219,6 @@ function formatDate(value?: string) {
 
 function viewLabel(view: SupplementalReaderView) {
   return view === "chapters" ? "Reviewed chapters" : `Reviewed ${view}`;
-}
-
-function removeLeadingTitle(content: string, title: string) {
-  const match = /^\s*#\s+(.+?)\s*#*\r?\n+/.exec(content);
-  if (!match) return content;
-  const normalize = (value: string) => value.replace(/[*_`~]/g, "").trim().toLocaleLowerCase();
-  return normalize(match[1]) === normalize(title) ? content.slice(match[0].length) : content;
 }
 
 function MenuIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M4 12h16M4 17h16" /></svg>; }

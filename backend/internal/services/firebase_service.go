@@ -237,7 +237,8 @@ func (s FirebaseService) SearchTestRecipients(search string) ([]FirebaseTestReci
 	}
 	items := make([]FirebaseTestRecipient, 0, len(rows))
 	for _, row := range rows {
-		var platforms []string
+		// Encode as [] rather than null so clients can treat platforms as a list.
+		platforms := []string{}
 		if row.Platforms != "" {
 			platforms = strings.Split(row.Platforms, ",")
 		}

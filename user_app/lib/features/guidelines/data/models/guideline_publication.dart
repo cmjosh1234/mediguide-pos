@@ -370,4 +370,50 @@ final class GuidelinePublicationContent {
           .where((block) => block.sectionId == sectionId)
           .toList(growable: false)
         ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+
+  /// Blocks shown beneath a section title in the reader.
+  ///
+  /// Extraction keeps a heading block for search, provenance, and RAG. The
+  /// section itself already renders that heading, so showing the first matching
+  /// heading block would duplicate every heading in the reader.
+  List<GuidelineBlock> displayBlocksFor(PublicationSection section) {
+    final sectionBlocks = blocksFor(section.id);
+    if (sectionBlocks.isEmpty) return sectionBlocks;
+    final first = sectionBlocks.first;
+    if (first is HeadingGuidelineBlock &&
+        _publicationTitleKey(first.text) ==
+            _publicationTitleKey(section.title)) {
+      return sectionBlocks.skip(1).toList(growable: false);
+    }
+    return sectionBlocks;
+  }
+
+  /// True when [section] is the Markdown H1 that wraps the actual chapters.
+  bool isDocumentTitleWrapper(PublicationSection section) {
+    if (section.level != 1 ||
+        (section.parentId != null && section.parentId!.isNotEmpty) ||
+        _publicationTitleKey(section.title) !=
+            _publicationTitleKey(publication.title)) {
+      return false;
+    }
+    return sections.any((candidate) => candidate.parentId == section.id);
+  }
+
+  /// Reader sections with an empty document-title wrapper removed.
+  ///
+  /// A wrapper containing real reviewed prose is retained, but its title can be
+  /// suppressed by the presentation because the publication header owns H1.
+  List<PublicationSection> get readerSections => sections
+      .where(
+        (section) =>
+            !isDocumentTitleWrapper(section) ||
+            displayBlocksFor(section).isNotEmpty,
+      )
+      .toList(growable: false);
 }
+
+String _publicationTitleKey(String value) => value
+    .replaceAll(RegExp(r'[*_`~#]'), '')
+    .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
+    .trim()
+    .toLowerCase();

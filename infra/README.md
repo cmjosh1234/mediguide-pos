@@ -15,7 +15,9 @@ Guidelines Platform.
 - `docker-compose.yml` is the production-oriented base stack. The Guidelines
   Platform is built as static assets and served by unprivileged Nginx.
 - `docker-compose.dev.yml` adds local database ports and replaces the
-  Guidelines service with Vite, source mounting, and hot reload.
+  Guidelines service with Vite, and the Dashboard service with the Next.js
+  dev server (`dashboard/Dockerfile.dev`), both with source mounting and hot
+  reload.
 - `development.env` contains safe local defaults.
 - `staging.env.example` documents the staging values. Copy it to the ignored
   `staging.env` and replace all placeholders.

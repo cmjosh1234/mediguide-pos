@@ -35,6 +35,16 @@ describe("GuidelineDocumentsService", () => {
     )
   })
 
+  it("deletes a guideline document through the v2 endpoint", async () => {
+    request.mockResolvedValue(undefined)
+
+    await GuidelineDocumentsService.deleteDocument("document-1")
+
+    expect(request).toHaveBeenCalledWith("/api/v2/guidelines/document-1", {
+      method: "DELETE",
+    })
+  })
+
   it("normalizes nullable review workspace collections from historical rows", async () => {
     request.mockResolvedValue({
       version: { id: "version-1", version: "1" },

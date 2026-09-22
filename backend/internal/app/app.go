@@ -601,6 +601,7 @@ func New(cfg config.Config) (*App, error) {
 		protected.GET("/guidelines", middleware.RequireAnyPermission("guideline.write", "guideline.markdown.read"), guidelineH.List)
 		protected.GET("/guidelines/:id", middleware.RequireAnyPermission("guideline.write", "guideline.markdown.read"), guidelineH.Get)
 		protected.PATCH("/guidelines/:id", middleware.RequirePermission("guideline.write"), guidelineH.Update)
+		protected.DELETE("/guidelines/:id", middleware.RequirePermission("guideline.write"), middleware.RequirePermission("guideline.publish"), guidelineH.Delete)
 		protected.POST("/guidelines/:id/versions", middleware.RequirePermission("guideline.write"), guidelineH.CreateVersion)
 		protected.POST("/guideline-versions/:id/upload", middleware.RequirePermission("guideline.markdown.upload"), rateLimiter.Limit(middleware.Policy("guideline-upload", 10, time.Hour, 0), middleware.UserIdentity), rateLimiter.Concurrency("guideline-upload", 1, 15*time.Minute, middleware.UserIdentity), guidelineH.UploadPDF)
 		protected.POST("/guideline-versions/:id/publish", middleware.RequirePermission("guideline.publish"), rateLimiter.Limit(middleware.Policy("guideline-publish", 10, time.Hour, 0), middleware.UserIdentity), guidelineH.Publish)

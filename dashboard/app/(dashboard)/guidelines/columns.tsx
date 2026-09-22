@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { BellPlus, Eye, FilePlus2, Pencil, Upload } from "lucide-react"
+import { BellPlus, Eye, FilePlus2, Pencil, Trash2, Upload } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,21 +15,25 @@ import {
 interface GuidelineColumnActions {
   canUpdate: boolean
   canNotify: boolean
+  canDelete: boolean
   onView: (document: GuidelineDocumentRecord) => void
   onEdit: (document: GuidelineDocumentRecord) => void
   onNewVersion: (document: GuidelineDocumentRecord) => void
   onUpload: (document: GuidelineDocumentRecord) => void
   onNotify: (document: GuidelineDocumentRecord) => void
+  onDelete: (document: GuidelineDocumentRecord) => void
 }
 
 export function createGuidelinesColumns({
   canUpdate,
   canNotify,
+  canDelete,
   onView,
   onEdit,
   onNewVersion,
   onUpload,
   onNotify,
+  onDelete,
 }: GuidelineColumnActions): ColumnDef<GuidelineDocumentRecord>[] {
   return [
     {
@@ -102,9 +106,9 @@ export function createGuidelinesColumns({
     {
       id: "actions",
       enableHiding: false,
-      size: 190,
+      size: 250,
       cell: ({ row }) => (
-        <div className="flex min-w-[176px] justify-end gap-1">
+        <div className="flex min-w-[236px] justify-end gap-1">
           <Button variant="ghost" size="icon" title="View" onClick={() => onView(row.original)}>
             <Eye className="h-4 w-4" />
           </Button>
@@ -141,6 +145,17 @@ export function createGuidelinesColumns({
               onClick={() => onNotify(row.original)}
             >
               <BellPlus className="h-4 w-4" />
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Delete guideline"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => onDelete(row.original)}
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
           )}
         </div>

@@ -16,6 +16,7 @@ import 'package:user_app/features/conversations/presentation/controllers/chat_in
 import 'package:user_app/features/conversations/presentation/controllers/chat_interface_state.dart';
 
 import 'package:user_app/shared/widgets/user_avatar.dart';
+import 'package:user_app/shared/widgets/app_markdown_body.dart';
 
 part '../widgets/chat_interface_page_chat_app_bar_title.dart';
 part '../widgets/chat_interface_page_date_separator.dart';

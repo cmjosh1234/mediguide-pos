@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/shared/widgets/app_markdown_body.dart';
 
 const supportedClinicalCallouts = <String>{
   'recommendation',
@@ -152,15 +153,16 @@ class ClinicalCalloutCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
+            AppMarkdownBody(
+              data: label,
+              compact: true,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: accent,
               ),
             ),
             const SizedBox(height: 8),
-            Text(callout.content),
+            AppMarkdownBody(data: callout.content),
             if (callout.severity?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
               Text(

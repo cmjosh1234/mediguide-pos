@@ -1,6 +1,7 @@
 import 'package:user_app/core/network/api_client.dart';
 import 'package:user_app/core/network/contracts/generated/backend_contracts.dart';
 import 'package:user_app/core/config/app_config.dart';
+import 'package:user_app/core/utils/markdown_text.dart';
 import 'package:user_app/core/storage/local_cache_service.dart';
 import 'package:user_app/features/guidelines/data/models/guideline_publication.dart';
 import 'package:user_app/shared/models/paginated_response.dart';
@@ -124,6 +125,10 @@ final class GuidelinePublicationRepository {
       );
       var manifest = _manifestFromContract(_data(manifestResponse));
       requestedManifest = manifest;
+      final cachedContent = await _cachedContent(manifest);
+      if (cachedContent != null) {
+        return cachedContent;
+      }
       final results = await Future.wait<Map<String, dynamic>>([
         _public('/api/public/guidelines/$id'),
         _structuredContent(id),
@@ -233,6 +238,25 @@ final class GuidelinePublicationRepository {
     }
   }
 
+  /// Loads the small publication pointer used to paint the overview shell.
+  /// The complete reviewed projection continues through [content].
+  Future<GuidelinePublicationContent> summary(String guidelineId) async {
+    final id = guidelineId.trim();
+    if (id.isEmpty) {
+      throw ArgumentError.value(guidelineId, 'guidelineId', 'is required');
+    }
+    final results = await Future.wait<Map<String, dynamic>>([
+      _public('/api/public/guidelines/$id'),
+      _public('/api/public/guidelines/$id/manifest'),
+    ]);
+    return GuidelinePublicationContent(
+      publication: _publicationFromContract(_data(results[0])),
+      manifest: _manifestFromContract(_data(results[1])),
+      sections: const [],
+      blocks: const [],
+    );
+  }
+
   Future<GuidelineAsset?> originalDocument(String guidelineId) =>
       _asset('/api/public/guidelines/$guidelineId/original');
 
@@ -316,6 +340,38 @@ final class GuidelinePublicationRepository {
 
   Future<Map<String, dynamic>> _structuredContent(String guidelineId) =>
       _public('/api/public/guidelines/$guidelineId/content');
+
+  Future<GuidelinePublicationContent?> _cachedContent(
+    GuidelineManifest manifest,
+  ) async {
+    try {
+      final cacheId = _publicationIdentity(manifest);
+      final index = await _cache.get(
+        type: _contentIndexType,
+        id: manifest.guidelineId,
+        scope: _cacheScope,
+      );
+      if (index?['cache_id']?.toString() != cacheId) return null;
+      final cached = await _cache.get(
+        type: _contentType,
+        id: cacheId,
+        scope: _cacheScope,
+      );
+      if (cached == null) return null;
+      return GuidelinePublicationContent(
+        publication: GuidelinePublication.fromJson(_map(cached['publication'])),
+        manifest: GuidelineManifest.fromJson(_map(cached['manifest'])),
+        sections: _maps(
+          cached['sections'],
+        ).map(PublicationSection.fromJson).toList(growable: false),
+        blocks: _maps(
+          cached['blocks'],
+        ).map(GuidelineBlock.fromJson).toList(growable: false),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<Map<String, dynamic>> _public(
     String path, {
@@ -406,7 +462,7 @@ GuidelinePublication _publicationFromContract(Map<String, dynamic> json) {
   return GuidelinePublication(
     id: dto.id ?? '',
     slug: dto.slug ?? '',
-    title: dto.title ?? '',
+    title: markdownLabel(dto.title ?? ''),
     description: dto.description ?? '',
     country: dto.country ?? '',
     sourceOrganization: dto.sourceOrg ?? '',
@@ -467,7 +523,7 @@ PublicationSection _sectionFromContract(Map<String, dynamic> json) {
   return PublicationSection(
     id: dto.id ?? '',
     parentId: dto.parentId,
-    title: dto.title ?? '',
+    title: markdownLabel(dto.title ?? ''),
     slug: dto.slug ?? '',
     level: dto.level ?? 1,
     pageStart: dto.pageStart,
@@ -522,7 +578,7 @@ GuidelineBlock _block(ServicesPublicGuidelineBlock dto, GuidelineAsset? asset) {
         id: id,
         sectionId: sectionId,
         sortOrder: sortOrder,
-        text: content['text']?.toString() ?? '',
+        text: markdownLabel(content['text']?.toString() ?? ''),
         level: _integer(content['level'], 2),
         pageStart: pageStart,
         pageEnd: pageEnd,
@@ -552,7 +608,10 @@ GuidelineBlock _block(ServicesPublicGuidelineBlock dto, GuidelineAsset? asset) {
         id: id,
         sectionId: sectionId,
         sortOrder: sortOrder,
-        payload: GuidelineTablePayload.fromJson(content),
+        payload: GuidelineTablePayload.fromJson({
+          ...content,
+          'title': markdownLabel(content['title']?.toString() ?? ''),
+        }),
         pageStart: pageStart,
         pageEnd: pageEnd,
       );
@@ -571,7 +630,10 @@ GuidelineBlock _block(ServicesPublicGuidelineBlock dto, GuidelineAsset? asset) {
         id: id,
         sectionId: sectionId,
         sortOrder: sortOrder,
-        payload: GuidelineAlgorithmPayload.fromJson(content),
+        payload: GuidelineAlgorithmPayload.fromJson({
+          ...content,
+          'title': markdownLabel(content['title']?.toString() ?? ''),
+        }),
         pageStart: pageStart,
         pageEnd: pageEnd,
       );
@@ -610,7 +672,10 @@ GuidelineBlock _block(ServicesPublicGuidelineBlock dto, GuidelineAsset? asset) {
         sectionId: sectionId,
         sortOrder: sortOrder,
         blockType: type,
-        payload: GuidelineCalloutPayload.fromJson(content),
+        payload: GuidelineCalloutPayload.fromJson({
+          ...content,
+          'title': markdownLabel(content['title']?.toString() ?? ''),
+        }),
         pageStart: pageStart,
         pageEnd: pageEnd,
       );

@@ -66,11 +66,22 @@ Map<String, dynamic> _normalizeUser(Map<String, dynamic> json) {
     'postal_code': json['postal_code'] ?? json['postalCode'] ?? '',
     'license_number': json['license_number'] ?? json['licenseNumber'] ?? '',
     'job_title': json['job_title'] ?? json['jobTitle'] ?? '',
+    'specialization': _specializationFromJson(json['specialization']),
     'preferred_language':
         json['preferred_language'] ?? json['preferredLanguage'],
     'created_at': json['created_at'] ?? json['created'],
     'updated_at': json['updated_at'] ?? json['updated'],
   };
+}
+
+String _specializationFromJson(Object? value) {
+  if (value is List) {
+    return value
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .join(', ');
+  }
+  return value?.toString() ?? '';
 }
 
 T? _enumValue<T extends Enum>(List<T> values, Object? raw) {

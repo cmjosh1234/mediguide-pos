@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 type SecureMarkdownProps = {
   content: string;
   resolveImage?: (source: string | undefined) => string | undefined;
+  headingIds?: readonly string[];
 };
 
 function isExternalUrl(value: string | undefined) {
@@ -19,15 +20,29 @@ function safeImageSource(value: string | undefined) {
   return undefined;
 }
 
-export function SecureMarkdown({ content, resolveImage }: SecureMarkdownProps) {
+export function SecureMarkdown({ content, resolveImage, headingIds }: SecureMarkdownProps) {
+  let headingIndex = 0;
+  const heading = (Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") =>
+    ({ children, ...properties }: ComponentProps<typeof Tag>) => {
+      const id = headingIds?.[headingIndex++];
+      return (
+        <Tag {...properties} id={id}>
+          {id ? <a href={`#${id}`}>{children}</a> : children}
+        </Tag>
+      );
+    };
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
-      rehypePlugins={[
-        rehypeSlug,
-        [rehypeAutolinkHeadings, { behavior: "wrap" }],
-      ]}
+      rehypePlugins={headingIds ? [] : [
+          rehypeSlug,
+          [rehypeAutolinkHeadings, { behavior: "wrap" }],
+        ]}
       components={{
+        ...(headingIds ? {
+          h1: heading("h1"), h2: heading("h2"), h3: heading("h3"),
+          h4: heading("h4"), h5: heading("h5"), h6: heading("h6"),
+        } : {}),
         a: ({ href, children, ...properties }) => (
           <a
             href={href}

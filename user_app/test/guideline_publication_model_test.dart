@@ -84,6 +84,92 @@ void main() {
       ]);
     });
 
+    test(
+      'reader removes only the leading heading represented by its section',
+      () {
+        const section = PublicationSection(
+          id: 'section-1',
+          title: 'Clinical assessment',
+          level: 2,
+        );
+        final content = GuidelinePublicationContent(
+          publication: const GuidelinePublication(id: 'guideline-1'),
+          manifest: const GuidelineManifest(
+            guidelineId: 'guideline-1',
+            versionId: 'version-1',
+          ),
+          sections: const [section],
+          blocks: const [
+            GuidelineBlock.heading(
+              id: 'section-heading',
+              sectionId: 'section-1',
+              sortOrder: 0,
+              text: 'Clinical assessment',
+              level: 2,
+            ),
+            GuidelineBlock.paragraph(
+              id: 'body',
+              sectionId: 'section-1',
+              sortOrder: 1,
+              text: 'Reviewed body.',
+            ),
+            GuidelineBlock.heading(
+              id: 'nested-heading',
+              sectionId: 'section-1',
+              sortOrder: 2,
+              text: 'Clinical assessment',
+              level: 3,
+            ),
+          ],
+        );
+
+        expect(content.displayBlocksFor(section).map((block) => block.id), [
+          'body',
+          'nested-heading',
+        ]);
+      },
+    );
+
+    test(
+      'reader removes an empty H1 document wrapper but keeps its chapters',
+      () {
+        const title = PublicationSection(
+          id: 'title',
+          title: 'Diabetes Guideline 2026',
+          level: 1,
+        );
+        const chapter = PublicationSection(
+          id: 'chapter-1',
+          parentId: 'title',
+          title: 'Introduction',
+          level: 2,
+        );
+        final content = GuidelinePublicationContent(
+          publication: const GuidelinePublication(
+            id: 'guideline-1',
+            title: 'Diabetes Guideline 2026',
+          ),
+          manifest: const GuidelineManifest(
+            guidelineId: 'guideline-1',
+            versionId: 'version-1',
+          ),
+          sections: const [title, chapter],
+          blocks: const [
+            GuidelineBlock.heading(
+              id: 'title-heading',
+              sectionId: 'title',
+              sortOrder: 0,
+              text: '# Diabetes Guideline 2026',
+              level: 1,
+            ),
+          ],
+        );
+
+        expect(content.isDocumentTitleWrapper(title), isTrue);
+        expect(content.readerSections, [chapter]);
+      },
+    );
+
     test('chapter cards promote children of a single document-title root', () {
       const title = PublicationSection(
         id: 'title',

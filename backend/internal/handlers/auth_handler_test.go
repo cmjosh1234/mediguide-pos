@@ -61,6 +61,57 @@ func TestAuthHandlerLoginUsesV2Contract(t *testing.T) {
 	}
 }
 
+func TestAuthHandlerRegisterAcceptsMissingLicenseAndNormalizesMobilePayload(t *testing.T) {
+	handler := testAuthHandler(t)
+	router := gin.New()
+	router.POST("/api/v2/auth/register", handler.Register)
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v2/auth/register",
+		strings.NewReader(`{
+			"name":"Mobile User",
+			"email":"Mobile.User@Example.Test",
+			"password":"Password8",
+			"preferred_language":"english",
+			"specialization":["Internal Medicine"]
+		}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("unexpected status %d: %s", response.Code, response.Body.String())
+	}
+	var envelope struct {
+		Success bool        `json:"success"`
+		Data    models.User `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if !envelope.Success {
+		t.Fatalf("unexpected registration response: %#v", envelope)
+	}
+	if envelope.Data.Email != "mobile.user@example.test" {
+		t.Fatalf("email was not normalized: %q", envelope.Data.Email)
+	}
+	if envelope.Data.LicenseNumber != nil {
+		t.Fatalf("expected an omitted license number, got %q", *envelope.Data.LicenseNumber)
+	}
+	if envelope.Data.PreferredLanguage == nil || *envelope.Data.PreferredLanguage != "English" {
+		t.Fatalf("preferred language was not normalized: %#v", envelope.Data.PreferredLanguage)
+	}
+	if len(envelope.Data.Specialization) != 1 || envelope.Data.Specialization[0] != "Internal Medicine" {
+		t.Fatalf("unexpected specialization: %#v", envelope.Data.Specialization)
+	}
+
+	if _, err := handler.Service.Login(" MOBILE.USER@EXAMPLE.TEST ", "Password8", services.RequestMetadata{}); err != nil {
+		t.Fatalf("expected normalized email login to succeed: %v", err)
+	}
+}
+
 func TestAuthHandlerEmailVerificationUsesNeutralTypedContract(t *testing.T) {
 	handler := testAuthHandler(t)
 	user, err := handler.Service.Register(services.RegisterInput{

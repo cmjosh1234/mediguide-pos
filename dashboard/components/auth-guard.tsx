@@ -30,8 +30,6 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
     const unsubscribe = client.onSessionExpired(() => {
       if (!active) return
-      // Calls sonner directly: showToast.error would be silenced by the
-      // session-expiry suppression window this same event just opened.
       toast.error('Session Expired', { description: 'Please log in again to continue' })
       router.replace('/login')
     })

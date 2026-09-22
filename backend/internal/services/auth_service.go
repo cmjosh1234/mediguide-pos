@@ -261,7 +261,7 @@ func (s AuthService) Register(in RegisterInput) (*models.User, error) {
 	}
 	u := models.User{
 		Name:              strings.TrimSpace(in.Name),
-		Email:             strings.TrimSpace(in.Email),
+		Email:             strings.ToLower(strings.TrimSpace(in.Email)),
 		Phone:             strings.TrimSpace(in.Phone),
 		AlternativePhone:  optionalString(in.AlternativePhone),
 		PasswordHash:      hash,
@@ -275,7 +275,7 @@ func (s AuthService) Register(in RegisterInput) (*models.User, error) {
 		Organization:      optionalString(in.Organization),
 		Department:        optionalString(in.Department),
 		JobTitle:          optionalString(in.JobTitle),
-		PreferredLanguage: optionalString(in.PreferredLanguage),
+		PreferredLanguage: optionalString(normalizePreferredLanguage(in.PreferredLanguage)),
 		Timezone:          optionalString(in.Timezone),
 		Notes:             optionalString(in.Notes),
 		Specialization:    models.StringList(in.Specialization),
@@ -289,9 +289,32 @@ func (s AuthService) Register(in RegisterInput) (*models.User, error) {
 	return &u, nil
 }
 
+func normalizePreferredLanguage(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "en", "english":
+		return "English"
+	case "fr", "french":
+		return "French"
+	case "es", "spanish":
+		return "Spanish"
+	case "pt", "portuguese":
+		return "Portuguese"
+	case "ar", "arabic":
+		return "Arabic"
+	case "sw", "swahili":
+		return "Swahili"
+	case "am", "amharic":
+		return "Amharic"
+	default:
+		return strings.TrimSpace(value)
+	}
+}
+
 func (s AuthService) Login(email, password string, meta RequestMetadata) (*LoginResult, error) {
 	var u models.User
-	if err := s.DB.Preload("Roles.Permissions").Where("email = ?", email).First(&u).Error; err != nil {
+	if err := s.DB.Preload("Roles.Permissions").
+		Where("lower(email) = ? AND deleted_at IS NULL", strings.ToLower(strings.TrimSpace(email))).
+		First(&u).Error; err != nil {
 		return nil, errors.New("invalid credentials")
 	}
 	if !u.IsActive || !security.CheckPassword(u.PasswordHash, password) {

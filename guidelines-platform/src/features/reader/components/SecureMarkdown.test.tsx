@@ -32,4 +32,16 @@ describe("SecureMarkdown", () => {
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
   });
+
+  it("uses document-wide heading ids for a progressive chunk", () => {
+    const html = renderToStaticMarkup(
+      <SecureMarkdown
+        content={"## Treatment\n\nReviewed guidance."}
+        headingIds={["treatment-4"]}
+      />,
+    );
+
+    expect(html).toContain('id="treatment-4"');
+    expect(html).toContain('href="#treatment-4"');
+  });
 });

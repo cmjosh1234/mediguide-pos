@@ -559,10 +559,9 @@ export async function getPublicGuidelineContent(
 }
 
 export function listPublicGuidelineSections(id: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ page: "1", per_page: "500", sort: "sort_order", order: "asc" });
-  const url = publicUrl(`/guidelines/${encodeURIComponent(id)}/sections`, query);
-  const load = () => requestConditionalJson(url, isSectionPage, signal);
-  return signal ? load() : deduplicated(`sections:${url}`, load);
+  const path = `/guidelines/${encodeURIComponent(id)}/sections`;
+  const load = () => listEveryPublicContentPage(path, 500, isSectionPage, signal);
+  return signal ? load() : deduplicated(`sections:${path}`, load);
 }
 
 export async function getPublicGuidelineSection(id: string, sectionId: string, manifest: PublicGuidelineManifest, signal?: AbortSignal) {
@@ -598,10 +597,38 @@ function listTypedContent<T>(
   validate: (value: unknown) => value is PublicGuidelinePageOf<T>,
   signal?: AbortSignal,
 ) {
-  const query = new URLSearchParams({ page: "1", per_page: "200", sort: "sort_order", order: "asc" });
-  const url = publicUrl(`/guidelines/${encodeURIComponent(id)}/${kind}`, query);
-  const load = () => requestConditionalJson(url, validate, signal);
-  return signal ? load() : deduplicated(`${kind}:${url}`, load);
+  const path = `/guidelines/${encodeURIComponent(id)}/${kind}`;
+  const load = () => listEveryPublicContentPage(path, 200, validate, signal);
+  return signal ? load() : deduplicated(`${kind}:${path}`, load);
+}
+
+async function listEveryPublicContentPage<T>(
+  path: string,
+  perPage: number,
+  validate: (value: unknown) => value is PublicGuidelinePageOf<T>,
+  signal?: AbortSignal,
+): Promise<PublicGuidelinePageOf<T>> {
+  const pageUrl = (page: number) =>
+    publicUrl(
+      path,
+      new URLSearchParams({
+        page: String(page),
+        per_page: String(perPage),
+        sort: "sort_order",
+        order: "asc",
+      }),
+    );
+  const first = await requestConditionalJson(pageUrl(1), validate, signal);
+  if (first.total_pages <= 1) return first;
+  const remaining = await Promise.all(
+    Array.from({ length: first.total_pages - 1 }, (_, index) =>
+      requestConditionalJson(pageUrl(index + 2), validate, signal),
+    ),
+  );
+  return {
+    ...first,
+    items: [first, ...remaining].flatMap((page) => page.items),
+  };
 }
 
 export function getPublicGuidelineOriginal(id: string, signal?: AbortSignal) {

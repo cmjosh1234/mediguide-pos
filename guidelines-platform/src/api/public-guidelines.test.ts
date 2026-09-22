@@ -6,6 +6,7 @@ import {
   getPublicGuidelineManifest,
   getPublicGuidelineContent,
   getPublicGuidelineMarkdown,
+  listPublicGuidelineSections,
   listPublicGuidelines,
   searchPublicContent,
 } from "./public-guidelines";
@@ -33,6 +34,30 @@ describe("public guideline API client", () => {
     expect(url).toContain("search=maternal+%26+child");
     expect(url).toContain("program_area=Care");
     expect(url).not.toContain("/markdown");
+  });
+
+  it("loads every section page for publications larger than the API page cap", async () => {
+    const page = (number: number, items: Array<Record<string, unknown>>) =>
+      new Response(JSON.stringify({
+        success: true,
+        data: {
+          items,
+          page: number,
+          per_page: 500,
+          total_items: 501,
+          total_pages: 2,
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(page(1, [{ id: "section-1", title: "One", slug: "one", level: 1, sort_order: 1 }]))
+      .mockResolvedValueOnce(page(2, [{ id: "section-501", title: "Last", slug: "last", level: 2, sort_order: 501 }]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await listPublicGuidelineSections("guideline-id");
+
+    expect(result.items.map((item) => item.id)).toEqual(["section-1", "section-501"]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1][0])).toContain("page=2");
   });
 
   it("sends every disease and hub discovery filter to unified public search", async () => {

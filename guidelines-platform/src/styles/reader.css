@@ -202,6 +202,9 @@
 .book-reader .book-markdown :not(pre) > code { color: var(--color-ink); background: var(--color-soft); }
 .book-reader .book-markdown th { background: var(--color-soft); }
 .book-reader .book-markdown th, .book-reader .book-markdown td { border-color: var(--color-line); }
+.progressive-markdown-more { display: flex; justify-content: center; padding: 2rem 0 1rem; }
+.progressive-markdown-more button { min-height: 2.75rem; padding: 0 1.1rem; color: var(--primary); background: var(--color-surface); border: 1px solid var(--primary); border-radius: 999px; font: inherit; font-weight: 750; cursor: pointer; }
+.progressive-markdown-more button:hover { background: var(--color-soft); }
 .reader-font-button { font-family: Georgia, serif; font-size: 1.05rem; font-weight: 700; }
 .reader-ai-button { min-height: 2.25rem; display: inline-flex; gap: .4rem; align-items: center; padding: 0 .75rem; color: var(--primary-foreground); background: var(--primary); border: 1px solid var(--primary); border-radius: var(--radius-sm); font-size: .68rem; font-weight: 750; cursor: pointer; }
 .reader-ai-button svg { width: 1rem; height: 1rem; }
@@ -264,7 +267,7 @@
   .book-reader .guideline-metadata h1 { font-size: clamp(2rem, 11vw, 3.25rem); }
 }
 @media print {
-  .book-reader .reader-header, .book-reader .reader-sidebar, .book-reader .reader-scrim, .book-reader-links, .assistant-fab, .assistant-scrim, .guideline-assistant { display: none !important; }
+  .book-reader .reader-header, .book-reader .reader-sidebar, .book-reader .reader-scrim, .book-reader-links, .progressive-markdown-more, .assistant-fab, .assistant-scrim, .guideline-assistant { display: none !important; }
   .book-reader .reader-main { margin: 0; padding: 0; }
   .book-reader .reader-column { width: 100%; }
 }

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 
+import { ConfirmDialog } from "@/components/dialogs/confirm-dialog"
 import { DataTable } from "@/components/ui/data-table"
 import { LoadingState } from "@/components/ui/loading-state"
 import { PageHeader } from "@/components/ui/page-header"
@@ -32,9 +33,12 @@ export default function GuidelinesPage() {
   const { hasPermission, loading: permissionsLoading } = usePermissionContext()
   const canUpdate = hasPermission("content", "update:any")
   const canNotify = hasBackendPermission("notification.campaign.manage")
+  // Mirrors the DELETE /api/v2/guidelines/:id route guard.
+  const canDelete = hasBackendPermission("guideline.write") && hasBackendPermission("guideline.publish")
   const [versionDocument, setVersionDocument] = React.useState<GuidelineDocumentRecord | null>(null)
   const [uploadVersion, setUploadVersion] = React.useState<GuidelineVersionRecord | null>(null)
   const [notificationDocument, setNotificationDocument] = React.useState<GuidelineDocumentRecord | null>(null)
+  const [deletingDocument, setDeletingDocument] = React.useState<GuidelineDocumentRecord | null>(null)
   const [submitting, setSubmitting] = React.useState(false)
 
   React.useEffect(() => {
@@ -56,6 +60,7 @@ export default function GuidelinesPage() {
       createGuidelinesColumns({
         canUpdate,
         canNotify,
+        canDelete,
         onView: (document) => router.push(`/guidelines/${document.id}`),
         onEdit: (document) => router.push(`/guidelines/${document.id}/edit`),
         onNewVersion: setVersionDocument,
@@ -64,8 +69,9 @@ export default function GuidelinesPage() {
           if (version) setUploadVersion(version)
         },
         onNotify: setNotificationDocument,
+        onDelete: setDeletingDocument,
       }),
-    [canNotify, canUpdate, router]
+    [canDelete, canNotify, canUpdate, router]
   )
 
   async function createVersion(payload: CreateGuidelineVersionInput) {
@@ -93,6 +99,20 @@ export default function GuidelinesPage() {
       showToast.success("Source uploaded", "Document extraction and indexing have been queued.")
     } catch (error) {
       showToast.error("Upload failed", error instanceof Error ? error.message : "Unknown error")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function deleteGuideline() {
+    if (!deletingDocument) return
+    setSubmitting(true)
+    try {
+      await GuidelineDocumentsService.deleteDocument(deletingDocument.id)
+      await refresh()
+      showToast.success("Guideline deleted", `"${deletingDocument.title}" is no longer available to users.`)
+    } catch (error) {
+      showToast.error("Delete failed", error instanceof Error ? error.message : "Unknown error")
     } finally {
       setSubmitting(false)
     }
@@ -152,6 +172,16 @@ export default function GuidelinesPage() {
         document={notificationDocument}
         open={Boolean(notificationDocument)}
         onOpenChange={(open) => !open && setNotificationDocument(null)}
+      />
+      <ConfirmDialog
+        open={Boolean(deletingDocument)}
+        onOpenChange={(open) => !open && setDeletingDocument(null)}
+        title="Delete guideline"
+        description={`Delete "${deletingDocument?.title ?? ""}"? It will be removed from the public library, the mobile app and search immediately. Version history is kept for audit.`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={deleteGuideline}
+        loading={submitting}
       />
     </div>
   )

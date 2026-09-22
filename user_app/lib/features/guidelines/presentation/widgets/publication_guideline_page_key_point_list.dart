@@ -29,7 +29,10 @@ class _KeyPointList extends StatelessWidget {
               title: Text(
                 block.payload.title.isEmpty ? 'Key point' : block.payload.title,
               ),
-              subtitle: Text(block.payload.content),
+              subtitle: AppMarkdownBody(
+                data: block.payload.content,
+                compact: true,
+              ),
             ),
           ),
       ],

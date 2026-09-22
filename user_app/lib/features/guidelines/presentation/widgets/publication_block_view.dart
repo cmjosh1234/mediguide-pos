@@ -8,6 +8,7 @@ import 'package:user_app/core/constants/app_spacing.dart';
 import 'package:user_app/core/utils/app_message.dart';
 import 'package:user_app/features/guidelines/data/models/guideline_publication.dart';
 import 'package:user_app/features/guidelines/presentation/widgets/responsive_clinical_table.dart';
+import 'package:user_app/shared/widgets/app_markdown_body.dart';
 
 class PublicationBlockView extends StatelessWidget {
   const PublicationBlockView({
@@ -75,7 +76,7 @@ class PublicationBlockView extends StatelessWidget {
     ReferenceGuidelineBlock(:final citation, :final url) => ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(LucideIcons.bookMarked),
-      title: Text(citation),
+      title: AppMarkdownBody(data: citation, compact: true),
       subtitle: url.isEmpty ? null : Text(url),
       onTap: url.isEmpty ? null : () => _openReference(context, url),
     ),
@@ -143,7 +144,7 @@ class _TextBlock extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      SelectableText(text, style: Theme.of(context).textTheme.bodyLarge),
+      AppMarkdownBody(data: text, style: Theme.of(context).textTheme.bodyLarge),
       if (pageStart != null)
         Padding(
           padding: const EdgeInsets.only(top: AppSpacing.xs),
@@ -173,7 +174,9 @@ class _ListBlock extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(width: 28, child: Text(ordered ? '${index + 1}.' : '•')),
-              Expanded(child: SelectableText(items[index])),
+              Expanded(
+                child: AppMarkdownBody(data: items[index], compact: true),
+              ),
             ],
           ),
         ),
@@ -201,7 +204,11 @@ class _TableBlock extends StatelessWidget {
       children: [
         ResponsiveClinicalTable(payload: payload, showTitle: true),
         for (final footnote in payload.footnotes)
-          Text(footnote, style: Theme.of(context).textTheme.bodySmall),
+          AppMarkdownBody(
+            data: footnote,
+            style: Theme.of(context).textTheme.bodySmall,
+            compact: true,
+          ),
         if (onOpen != null)
           Align(
             alignment: Alignment.centerRight,
@@ -242,7 +249,7 @@ class _FigureBlock extends StatelessWidget {
         if (payload.caption.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
-            child: Text(payload.caption),
+            child: AppMarkdownBody(data: payload.caption, compact: true),
           ),
       ],
     ),
@@ -295,7 +302,7 @@ class _CalloutBlock extends StatelessWidget {
                 ],
               ),
               AppSpacing.gapSm,
-              SelectableText(payload.content),
+              AppMarkdownBody(data: payload.content),
               if (payload.evidenceGrade.isNotEmpty)
                 Text('Evidence: ${payload.evidenceGrade}'),
               if (payload.source.isNotEmpty) Text('Source: ${payload.source}'),
@@ -333,7 +340,7 @@ class _AlgorithmBlock extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(LucideIcons.workflow),
-              title: Text(node.label),
+              title: AppMarkdownBody(data: node.label, compact: true),
               subtitle: node.kind.isEmpty ? null : Text(node.kind),
             ),
           if (pageStart != null) Text('Source page $pageStart'),

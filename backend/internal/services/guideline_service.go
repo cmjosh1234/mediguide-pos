@@ -177,6 +177,29 @@ func (s GuidelineService) UpdateDocument(id uuid.UUID, in UpdateGuidelineInput) 
 	return result, err
 }
 
+// DeleteDocument soft-deletes a guideline document. Versions, content and
+// stored sources are retained for audit; public, search and RAG reads all
+// require guideline_documents.deleted_at IS NULL, so the guideline leaves
+// every client at once.
+func (s GuidelineService) DeleteDocument(id, actorID uuid.UUID, ip string) error {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		var document models.GuidelineDocument
+		if err := tx.First(&document, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&document).Error; err != nil {
+			return err
+		}
+		return writeGuidelineAudit(tx, actorID, "guideline.document.deleted", "guideline_document", id, ip, map[string]any{
+			"title": document.Title, "current_version_id": document.CurrentVersionID,
+		})
+	})
+	if err == nil {
+		s.invalidatePublishedCaches(context.Background())
+	}
+	return err
+}
+
 func activeGuidelineCategories(tx *gorm.DB, ids []uuid.UUID) ([]models.GuidelineCategory, error) {
 	unique := make(map[uuid.UUID]struct{}, len(ids))
 	for _, id := range ids {

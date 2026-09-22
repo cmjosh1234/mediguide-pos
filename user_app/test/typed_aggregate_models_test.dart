@@ -46,6 +46,7 @@ void main() {
     final user = User.fromJson({
       'id': 'user-1',
       'preferred_language': 'en',
+      'specialization': ['Internal Medicine', 'Emergency Medicine'],
       'roles': [
         {'role_key': 'clinician'},
       ],
@@ -72,6 +73,7 @@ void main() {
 
     expect(user.role, UserRole.healthcareProvider);
     expect(user.preferredLanguage, PreferredLanguage.english);
+    expect(user.specialization, 'Internal Medicine, Emergency Medicine');
     expect(ticket.status, TicketStatus.inProgress);
     expect(ticket.isUrgent, isTrue);
     expect(message.senderUser?.id, 'user-1');

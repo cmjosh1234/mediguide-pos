@@ -158,6 +158,37 @@ func (h GuidelineHandler) Update(c *gin.Context) {
 	httpx.OK(c, document)
 }
 
+// Delete godoc
+// @Summary Delete a guideline document
+// @Description Soft-deletes the document, removing it from the public library, search and RAG. Versions and sources are retained for audit.
+// @Tags guidelines
+// @Security BearerAuth
+// @Param id path string true "Document ID" format(uuid)
+// @Success 204
+// @Failure 400 {object} handlers.ErrorResponse
+// @Failure 401 {object} handlers.ErrorResponse
+// @Failure 403 {object} handlers.ErrorResponse
+// @Failure 404 {object} handlers.ErrorResponse
+// @Failure 500 {object} handlers.ErrorResponse
+// @Router /api/v2/guidelines/{id} [delete]
+func (h GuidelineHandler) Delete(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.Error(c, http.StatusBadRequest, "invalid id")
+		return
+	}
+	claims := c.MustGet(middleware.ClaimsKey).(*security.Claims)
+	if err := h.Service.DeleteDocument(id, claims.UserID, c.ClientIP()); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			httpx.Error(c, http.StatusNotFound, "not found")
+			return
+		}
+		httpx.Error(c, http.StatusInternalServerError, "failed to delete guideline")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 // CreateVersion godoc
 // @Summary Create a guideline version
 // @Tags guidelines

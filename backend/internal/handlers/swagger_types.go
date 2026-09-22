@@ -21,7 +21,7 @@ type RegisterRequest struct {
 	City              string   `json:"city" example:"Kampala"`
 	Country           string   `json:"country" example:"Uganda"`
 	PostalCode        string   `json:"postal_code" example:"256"`
-	LicenseNumber     string   `json:"license_number" example:"MD-12345"`
+	LicenseNumber     string   `json:"license_number,omitempty" example:"MD-12345"`
 	Organization      string   `json:"organization" example:"Mulago Hospital"`
 	Department        string   `json:"department" example:"Emergency"`
 	JobTitle          string   `json:"job_title" example:"Medical Officer"`

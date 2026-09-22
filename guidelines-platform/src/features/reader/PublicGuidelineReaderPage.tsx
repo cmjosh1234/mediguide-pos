@@ -8,12 +8,14 @@ import {
 
 import {
   getPublicGuideline,
-  getPublicGuidelineContent,
   getPublicGuidelineManifest,
   getPublicGuidelineMarkdown,
   getPublicGuidelineOriginal,
   getPublicGuidelineSection,
+  listPublicGuidelineAlgorithms,
   listPublicGuidelineFigures,
+  listPublicGuidelineSections,
+  listPublicGuidelineTables,
   PublicApiError,
   type PublicGuideline,
   type PublicAICitation,
@@ -40,6 +42,12 @@ import {
 } from "./components/GuidelineBlockRenderer";
 import { EmptyReviewedSection } from "./components/EmptyReviewedSection";
 import { reviewedDescendants } from "./components/empty-reviewed-section";
+import {
+  isDocumentTitleWrapper,
+  readerBlocks,
+  readerNavigationSections,
+  readerSections,
+} from "./components/reader-presentation";
 
 type ReaderView = "read" | SupplementalReaderView;
 
@@ -79,12 +87,13 @@ export function PublicGuidelineReaderPage() {
   });
   const selectedSectionId = searchParams.get("section") ?? "";
   const requestedView = parseView(searchParams.get("view"));
+  const requestId = `${guidelineId}:${requestedView}`;
 
   useEffect(() => {
     const controller = new AbortController();
-    loadReaderData(guidelineId, controller.signal)
+    loadReaderData(guidelineId, requestedView, controller.signal)
       .then((data) =>
-        setState({ status: "ready", requestId: guidelineId, data }),
+        setState({ status: "ready", requestId, data }),
       )
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -95,17 +104,17 @@ export function PublicGuidelineReaderPage() {
         }
         setState(
           error instanceof PublicApiError && error.kind === "not-found"
-            ? { status: "not-found", requestId: guidelineId }
-            : { status: "error", requestId: guidelineId },
+            ? { status: "not-found", requestId }
+            : { status: "error", requestId },
         );
       });
     return () => controller.abort();
-  }, [guidelineId, reloadKey]);
+  }, [guidelineId, reloadKey, requestId, requestedView]);
 
   useEffect(() => {
     if (
       state.status !== "ready" ||
-      state.requestId !== guidelineId ||
+      state.requestId !== requestId ||
       !selectedSectionId
     )
       return;
@@ -132,7 +141,7 @@ export function PublicGuidelineReaderPage() {
           setSectionState({ status: "error", sectionId: selectedSectionId });
       });
     return () => controller.abort();
-  }, [guidelineId, selectedSectionId, state]);
+  }, [guidelineId, requestId, selectedSectionId, state]);
 
   useEffect(() => {
     if (state.status !== "ready") return;
@@ -149,7 +158,7 @@ export function PublicGuidelineReaderPage() {
     return () => cancelAnimationFrame(frame);
   }, [location.hash, sectionState, state]);
 
-  if (state.status === "loading" || state.requestId !== guidelineId)
+  if (state.status === "loading" || state.requestId !== requestId)
     return <PageLoading label="Loading published clinical guidance…" />;
   if (state.status === "not-found")
     return (
@@ -178,7 +187,17 @@ export function PublicGuidelineReaderPage() {
   }
 
   const { data } = state;
-  const tabs = availableViews(data);
+  const displayedSections = readerSections(
+    data.guideline,
+    data.sections,
+    data.blocks,
+  );
+  const navigationSections = readerNavigationSections(
+    data.guideline,
+    displayedSections,
+  );
+  const displayedData = { ...data, sections: displayedSections };
+  const tabs = availableViews(data, requestedView);
   const view = tabs.includes(requestedView) ? requestedView : tabs[0];
   const selectView = (nextView: ReaderView) => {
     const next = new URLSearchParams(searchParams);
@@ -196,6 +215,7 @@ export function PublicGuidelineReaderPage() {
   if (view === "read" && data.markdown) {
     return (
       <BookGuidelineReader
+        key={`${data.guideline.id}:${data.markdown.etag ?? data.manifest?.checksum ?? "markdown"}`}
         guideline={data.guideline}
         manifest={data.manifest}
         markdown={data.markdown}
@@ -266,7 +286,7 @@ export function PublicGuidelineReaderPage() {
         >
           {view === "chapters" && (
             <SectionNavigation
-              sections={data.sections}
+              sections={navigationSections}
               selectedId={selectedSectionId}
               onSelect={selectSection}
             />
@@ -277,12 +297,13 @@ export function PublicGuidelineReaderPage() {
             )}
             {view === "chapters" && (
               <SectionReader
-                data={data}
+                data={displayedData}
                 state={sectionDisplayState(
                   sectionState,
                   selectedSectionId,
-                  data.sections,
+                  navigationSections,
                 )}
+                firstSectionId={navigationSections[0]?.id}
                 onSelect={selectSection}
                 onOpenSourcePage={(page) => openOriginal(guidelineId, page)}
                 onOpenOriginal={() => openOriginal(guidelineId)}
@@ -315,12 +336,13 @@ export function PublicGuidelineReaderPage() {
 
 async function loadReaderData(
   id: string,
+  requestedView: ReaderView,
   signal: AbortSignal,
 ): Promise<ReaderData> {
-  // Metadata, publication identity, and Markdown are independent. Starting them
-  // together removes two avoidable network round trips on a cold reader load.
+  // A published document can contain thousands of reviewed blocks. Load only
+  // the projection required by the selected view so opening the reader never
+  // downloads the complete structured bundle and Markdown at the same time.
   const manifestRequest = attempt(getPublicGuidelineManifest(id, signal));
-  const markdownRequest = attempt(getPublicGuidelineMarkdown(id, signal));
   const [guideline, manifestResult] = await Promise.all([
     getPublicGuideline(id, signal),
     manifestRequest,
@@ -343,52 +365,46 @@ async function loadReaderData(
     manifest.section_count > 0;
   let sections: PublicGuidelineSection[] = [];
   let tables: PublicGuidelineTable[] = [];
-  let blocks: PublicGuidelineBlock[] = [];
+  const blocks: PublicGuidelineBlock[] = [];
   let figures: PublicGuidelineFigure[] = [];
   let algorithms: PublicGuidelineAlgorithm[] = [];
   if (structured && manifest) {
-    const requests: Array<Promise<unknown>> = [getPublicGuidelineContent(id, manifest, signal)];
-    if (manifest.has_figures)
-      requests.push(listPublicGuidelineFigures(id, signal));
-    const identityCheckIndex = requests.length;
-    requests.push(getPublicGuidelineManifest(id, signal, true));
-    const results = await Promise.allSettled(requests);
-    const contentResult = results[0];
-    if (contentResult.status === "fulfilled") {
-      const content = contentResult.value as Awaited<ReturnType<typeof getPublicGuidelineContent>>;
-      sections = content.sections;
-      blocks = content.blocks;
-      tables = content.blocks.filter((block) => block.type === "table").map(tableFromBlock);
-      algorithms = content.blocks.filter((block) => block.type === "algorithm").map(algorithmFromBlock);
-    } else {
+    try {
+      if (requestedView === "chapters") {
+        sections = (await listPublicGuidelineSections(id, signal)).items;
+      } else if (requestedView === "tables" && manifest.has_tables) {
+        tables = (await listPublicGuidelineTables(id, signal)).items;
+      } else if (requestedView === "figures" && manifest.has_figures) {
+        figures = (await listPublicGuidelineFigures(id, signal)).items;
+      } else if (requestedView === "algorithms" && manifest.has_algorithms) {
+        algorithms = (await listPublicGuidelineAlgorithms(id, signal)).items;
+      }
+      if (requestedView !== "read" && requestedView !== "overview") {
+        const currentManifest = await getPublicGuidelineManifest(id, signal, true);
+        if (publicationIdentity(currentManifest) !== publicationIdentity(manifest)) {
+          throw new PublicApiError("invalid-response");
+        }
+      }
+    } catch (error) {
+      if (signal.aborted || error instanceof PublicApiError && error.kind === "rate-limited") {
+        throw error;
+      }
       partial = true;
-    }
-    if (manifest.has_figures) {
-      const result = results[1];
-      if (result.status === "fulfilled")
-        figures = (
-          result.value as Awaited<ReturnType<typeof listPublicGuidelineFigures>>
-        ).items;
-      else partial = true;
-    }
-    const identityResult = results[identityCheckIndex];
-    if (identityResult.status === "rejected") throw identityResult.reason;
-    const currentManifest = identityResult.value as PublicGuidelineManifest;
-    if (publicationIdentity(currentManifest) !== publicationIdentity(manifest)) {
-      throw new PublicApiError("invalid-response");
     }
   }
   let markdown: PublicMarkdown | undefined;
-  const markdownResult = await markdownRequest;
-  if (markdownResult.ok) {
-    markdown = markdownResult.value;
-  } else {
-    const error = markdownResult.error;
-    if (signal.aborted) throw error;
-    if (error instanceof PublicApiError && error.kind === "rate-limited")
-      throw error;
-    if (!(error instanceof PublicApiError) || error.kind !== "not-found")
-      partial = true;
+  if (requestedView === "read") {
+    const markdownResult = await attempt(getPublicGuidelineMarkdown(id, signal));
+    if (markdownResult.ok) {
+      markdown = markdownResult.value;
+    } else {
+      const error = markdownResult.error;
+      if (signal.aborted) throw error;
+      if (error instanceof PublicApiError && error.kind === "rate-limited")
+        throw error;
+      if (!(error instanceof PublicApiError) || error.kind !== "not-found")
+        partial = true;
+    }
   }
   return {
     guideline,
@@ -588,12 +604,14 @@ function SectionNavigation({
 function SectionReader({
   data,
   state,
+  firstSectionId,
   onSelect,
   onOpenSourcePage,
   onOpenOriginal,
 }: {
   data: ReaderData;
   state: SectionDisplayState;
+  firstSectionId?: string;
   onSelect: (id: string) => void;
   onOpenSourcePage: (page: number) => void;
   onOpenOriginal: () => void;
@@ -618,12 +636,14 @@ function SectionReader({
           This publication has {data.manifest?.section_count ?? data.sections.length} section
           {(data.manifest?.section_count ?? data.sections.length) === 1 ? "" : "s"}, including {data.manifest?.reviewed_section_count ?? 0} with reviewed content. Its navigation follows the structure of the uploaded document.
         </p>
-        <button
-          className="button button-primary"
-          onClick={() => onSelect(data.sections[0].id)}
-        >
-          Open first section
-        </button>
+        {firstSectionId && (
+          <button
+            className="button button-primary"
+            onClick={() => onSelect(firstSectionId)}
+          >
+            Open first section
+          </button>
+        )}
       </section>
     );
   if (state.status === "loading")
@@ -640,6 +660,12 @@ function SectionReader({
       />
     );
   const figures = new Map(data.figures.map((figure) => [figure.id, figure]));
+  const blocks = readerBlocks(state.detail.section, state.detail.blocks);
+  const documentTitleWrapper = isDocumentTitleWrapper(
+    data.guideline,
+    state.detail.section,
+    data.sections,
+  );
   const descendants = reviewedDescendants(
     state.detail.section.id,
     data.sections,
@@ -647,17 +673,19 @@ function SectionReader({
   );
   return (
     <article className="structured-section">
-      <header>
-        <span className="eyebrow">
-          {sourcePages(
-            state.detail.section.page_start,
-            state.detail.section.page_end,
-          )}
-        </span>
-        <h2>{state.detail.section.title}</h2>
-      </header>
-      {state.detail.blocks.length > 0 ? (
-        state.detail.blocks.map((block) => (
+      {!documentTitleWrapper && (
+        <header>
+          <span className="eyebrow">
+            {sourcePages(
+              state.detail.section.page_start,
+              state.detail.section.page_end,
+            )}
+          </span>
+          <h2>{state.detail.section.title}</h2>
+        </header>
+      )}
+      {blocks.length > 0 ? (
+        blocks.map((block) => (
           <GuidelineBlockRenderer
             block={block}
             figure={figures.get(block.id)}
@@ -820,36 +848,6 @@ function publicationIdentity(manifest: PublicGuidelineManifest) {
   return `${manifest.guideline_id}:${manifest.version_id}:${manifest.package_version}:${manifest.checksum}`;
 }
 
-function tableFromBlock(block: PublicGuidelineBlock): PublicGuidelineTable {
-  return {
-    id: block.id, section_id: block.section_id, sort_order: block.sort_order,
-    page_start: block.page_start, page_end: block.page_end,
-    content: {
-      type: "table",
-      title: typeof block.content.title === "string" ? block.content.title : undefined,
-      columns: Array.isArray(block.content.columns) ? block.content.columns.map(String) : [],
-      rows: Array.isArray(block.content.rows) ? block.content.rows.map((row) => Array.isArray(row) ? row.map(String) : []) : [],
-      footnotes: Array.isArray(block.content.footnotes) ? block.content.footnotes.map(String) : [],
-    },
-  };
-}
-
-function algorithmFromBlock(block: PublicGuidelineBlock): PublicGuidelineAlgorithm {
-  const nodes = Array.isArray(block.content.nodes) ? block.content.nodes : [];
-  return {
-    id: block.id, section_id: block.section_id, sort_order: block.sort_order,
-    page_start: block.page_start, page_end: block.page_end,
-    content: {
-      type: "algorithm",
-      title: typeof block.content.title === "string" ? block.content.title : undefined,
-      nodes: nodes.filter((node): node is Record<string, unknown> => typeof node === "object" && node !== null).map((node) => ({
-        id: String(node.id ?? ""), label: String(node.label ?? ""), kind: String(node.kind ?? ""),
-        next: Array.isArray(node.next) ? node.next.map(String) : undefined,
-      })),
-    },
-  };
-}
-
 function Meta({ label, value }: { label: string; value?: string }) {
   return value ? (
     <div>
@@ -878,12 +876,12 @@ function ReaderMessage({
   );
 }
 
-function availableViews(data: ReaderData): ReaderView[] {
-  const views: ReaderView[] = data.markdown?.content.trim()
-    ? ["read", "overview"]
-    : ["overview"];
-  if (data.manifest?.has_chapters && data.sections.length)
-    views.push("chapters");
+function availableViews(data: ReaderData, requestedView: ReaderView): ReaderView[] {
+  const views: ReaderView[] =
+    requestedView !== "read" || data.markdown?.content.trim()
+      ? ["read", "overview"]
+      : ["overview"];
+  if (data.manifest?.has_chapters) views.push("chapters");
   if (data.manifest?.has_tables) views.push("tables");
   if (data.manifest?.has_figures) views.push("figures");
   if (data.manifest?.has_algorithms) views.push("algorithms");

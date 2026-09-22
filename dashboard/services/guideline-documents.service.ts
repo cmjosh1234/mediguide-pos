@@ -480,6 +480,13 @@ export class GuidelineDocumentsService {
     );
   }
 
+  static async deleteDocument(documentId: string): Promise<void> {
+    await getBackendClient().request<void>(
+      `/api/v2/guidelines/${documentId}`,
+      { method: "DELETE" },
+    );
+  }
+
   static async createVersion(
     documentId: string,
     payload: CreateGuidelineVersionInput,

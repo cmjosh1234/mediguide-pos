@@ -46,14 +46,14 @@ import type { PermissionAction } from "@/types/permissions"
 function findActiveMenuItem(pathname: string, navItems: typeof data.navMain) {
   for (let i = 0; i < navItems.length; i++) {
     const item = navItems[i]
-    
+
     // Check if any sub-item matches the current pathname (exact match)
     if (item.items) {
       const hasActiveChild = item.items.some(subItem => pathname === subItem.url)
       if (hasActiveChild) {
         return i
       }
-      
+
       // Check if current pathname starts with any sub-item URL (for nested routes)
       const hasNestedActiveChild = item.items.some(subItem => {
         if (subItem.url === "/") return false // Skip root to avoid matching everything
@@ -63,12 +63,12 @@ function findActiveMenuItem(pathname: string, navItems: typeof data.navMain) {
         return i
       }
     }
-    
+
     // Check if the main item URL matches (for overview pages)
     if (pathname === item.url && item.url !== "#") {
       return i
     }
-    
+
     // Check if current pathname starts with the main item URL (for nested routes)
     if (item.url !== "#" && item.url !== "/" && pathname.startsWith(item.url + "/")) {
       return i
@@ -100,7 +100,7 @@ const data: { navMain: NavItem[] } = {
       title: "Dashboard",
       url: "/",
       icon: BarChart3,
-      // always visible to all dashboard roles
+
     },
     {
       title: "Clinical Guidelines",
@@ -110,29 +110,13 @@ const data: { navMain: NavItem[] } = {
       items: [
         { title: "All Guidelines", url: "/guidelines" },
         { title: "Create Guideline", url: "/guidelines/create", permission: { resource: "content", action: "create:any" } },
-        { title: "Index", url: "/guidelines/index" },
+        // { title: "Index", url: "/guidelines/index" },
         { title: "Categories", url: "/guidelines/categories" },
         { title: "Diseases", url: "/diseases", backendPermissions: ["disease.taxonomy.read", "disease.taxonomy.manage"] },
         { title: "Content Hubs", url: "/content-hubs", backendPermissions: ["content_hub.read", "content_hub.manage"] },
         { title: "Tags", url: "/guidelines/tags" },
         { title: "Abbreviations", url: "/guidelines/abbreviations" },
       ],
-    },
-    {
-      title: "Pages",
-      url: "#",
-      icon: FileText,
-      permission: { resource: "content", action: "read:any" },
-      items: [
-        { title: "All Pages", url: "/pages" },
-        { title: "Create Page", url: "/pages/create", permission: { resource: "content", action: "create:any" } },
-      ],
-    },
-    {
-      title: "Lab Test Menu",
-      url: "/lab-test-menu",
-      icon: TestTube,
-      permission: { resource: "content", action: "read:any" },
     },
     {
       title: "Drug Index",
@@ -143,17 +127,6 @@ const data: { navMain: NavItem[] } = {
         { title: "All Drugs", url: "/drugs" },
         { title: "Categories", url: "/drugs/categories" },
         { title: "Tags", url: "/drugs/tags" },
-      ],
-    },
-    {
-      title: "Emergency Protocols",
-      url: "#",
-      icon: AlertTriangle,
-      permission: { resource: "content", action: "read:any" },
-      items: [
-        { title: "All Protocols", url: "/emergency-protocols" },
-        { title: "Resuscitation", url: "/emergency-protocols/resuscitation" },
-        { title: "Trauma", url: "/emergency-protocols/trauma" },
       ],
     },
     {
@@ -268,29 +241,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   // Find which menu item should be active/open based on current pathname
   const activeMenuIndex = findActiveMenuItem(pathname, visibleNav)
-  
+
   // State to track which menu items are open
   const [openItems, setOpenItems] = React.useState<Set<number>>(() => {
     const initialOpen = new Set<number>()
-    
+
     // Always open the dashboard (index 0) by default
     initialOpen.add(0)
-    
+
     // Open the menu item that contains the active route
     if (activeMenuIndex !== -1) {
       initialOpen.add(activeMenuIndex)
     }
-    
+
     return initialOpen
   })
-  
+
   // Update open items when pathname changes
   React.useEffect(() => {
     if (activeMenuIndex !== -1) {
       setOpenItems(prev => new Set(prev).add(activeMenuIndex))
     }
   }, [activeMenuIndex])
-  
+
   // Handle toggle of menu items
   const toggleMenuItem = React.useCallback((index: number) => {
     setOpenItems(prev => {
@@ -333,7 +306,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {visibleNav.map((item, index) => {
+            {visibleNav?.map((item, index) => {
               // If item has no subitems and a direct URL, render as direct link
               if (!item.items?.length && item.url !== "#") {
                 return (

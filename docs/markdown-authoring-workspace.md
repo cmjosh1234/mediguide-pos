@@ -213,6 +213,15 @@ figure caption:
 ![Alternative text](guideline-asset://00000000-0000-0000-0000-000000000000 "Figure caption")
 ```
 
+The dashboard asset library accepts multiple selected, dropped or pasted images
+and stages them in a metadata queue before upload. It calculates each file's
+SHA-256 checksum in the browser, identifies binaries already present in the
+current version, uploads new files sequentially, and retains failed items for
+individual retry. After upload, editors can search by filename or governed
+metadata and filter images by Used, Unused, Pending review, Reviewed, Rejected,
+or Broken reference. Uploading does not insert an image into the document;
+place the cursor in Markdown and select **Insert** on each required asset.
+
 Alternative text is required before upload or insertion. The editor separates
 the figure from adjacent blocks with blank lines and includes available source,
 attribution and licence information immediately after it. During regeneration,

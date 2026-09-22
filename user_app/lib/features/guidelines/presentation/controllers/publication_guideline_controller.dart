@@ -6,6 +6,13 @@ import 'package:user_app/features/authentication/presentation/controllers/auth_c
 
 part 'publication_guideline_controller.g.dart';
 
+final publicationGuidelineSummaryProvider = FutureProvider.autoDispose
+    .family<GuidelinePublicationContent, String>((ref, guidelineId) {
+      return ref
+          .watch(guidelinePublicationRepositoryProvider)
+          .summary(guidelineId);
+    });
+
 @riverpod
 Future<GuidelinePublicationContent> publicationGuideline(
   PublicationGuidelineRef ref,

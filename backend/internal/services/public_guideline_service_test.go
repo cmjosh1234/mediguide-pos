@@ -412,6 +412,60 @@ func TestPublishedMarkdownEndToEndUsesCurrentVersionAndChangesETag(t *testing.T)
 	}
 }
 
+func TestDeleteDocumentRemovesPublishedGuidelineAndAudits(t *testing.T) {
+	db := publicGuidelineTestDB(t)
+	ctx := context.Background()
+	document := models.GuidelineDocument{Title: "Malaria in Adults", Language: "en"}
+	if err := db.Create(&document).Error; err != nil {
+		t.Fatal(err)
+	}
+	version := models.GuidelineVersion{DocumentID: document.ID, Version: "1.0", Status: "published"}
+	if err := db.Create(&version).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Model(&document).Update("current_version_id", version.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	public := PublicGuidelineService{DB: db}
+	filter := PublicGuidelineFilter{Page: PageInput{Page: 1, PerPage: 20}}
+	before, err := public.List(ctx, filter)
+	if err != nil || before.TotalItems != 1 {
+		t.Fatalf("published guideline was not listed before delete: %#v %v", before, err)
+	}
+
+	admin := GuidelineService{DB: db}
+	actor := uuid.New()
+	if err := admin.DeleteDocument(document.ID, actor, "127.0.0.1"); err != nil {
+		t.Fatal(err)
+	}
+
+	after, err := public.List(ctx, filter)
+	if err != nil || after.TotalItems != 0 {
+		t.Fatalf("deleted guideline is still public: %#v %v", after, err)
+	}
+	if _, err := public.Get(ctx, document.ID); !errors.Is(err, ErrPublicGuidelineNotFound) {
+		t.Fatalf("deleted guideline was exposed: %v", err)
+	}
+	if _, err := admin.GetDocument(document.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("deleted guideline is still returned to admins: %v", err)
+	}
+	var retained models.GuidelineVersion
+	if err := db.First(&retained, "id = ?", version.ID).Error; err != nil {
+		t.Fatalf("version history was not retained: %v", err)
+	}
+	var audit models.AuditLog
+	if err := db.First(&audit, "action = ? AND entity_id = ?", "guideline.document.deleted", document.ID.String()).Error; err != nil {
+		t.Fatalf("delete was not audited: %v", err)
+	}
+	if audit.ActorID != actor.String() {
+		t.Fatalf("audit actor = %q, want %q", audit.ActorID, actor)
+	}
+	if err := admin.DeleteDocument(document.ID, actor, "127.0.0.1"); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("deleting twice should report not found, got %v", err)
+	}
+}
+
 func publicGuidelineTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file:"+uuid.NewString()+"?mode=memory&cache=shared"), &gorm.Config{})

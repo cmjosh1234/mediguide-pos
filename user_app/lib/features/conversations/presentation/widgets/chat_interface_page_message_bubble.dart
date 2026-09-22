@@ -64,8 +64,9 @@ class _MessageBubble extends StatelessWidget {
                   // =========================================================
                   // CONTENT
                   // =========================================================
-                  SelectableText(
-                    message.content,
+                  AppMarkdownBody(
+                    data: message.content,
+                    compact: true,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: textColor,
                       height: 1.4,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:user_app/core/constants/app_spacing.dart';
 import 'package:user_app/features/guidelines/data/models/guideline_publication.dart';
+import 'package:user_app/shared/widgets/app_markdown_body.dart';
 
 /// Renders reviewed clinical tables without requiring horizontal scrolling.
 ///
@@ -34,9 +35,10 @@ class ResponsiveClinicalTable extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (showTitle && payload.title.trim().isNotEmpty) ...[
-              Text(
-                payload.title.trim(),
+              AppMarkdownBody(
+                data: payload.title.trim(),
                 style: Theme.of(context).textTheme.titleMedium,
+                compact: true,
               ),
               AppSpacing.gapSm,
             ],
@@ -133,11 +135,12 @@ class _TableRowCards extends StatelessWidget {
                             ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
-                      SelectableText(
-                        columnIndex < rows[rowIndex].length
+                      AppMarkdownBody(
+                        data: columnIndex < rows[rowIndex].length
                             ? rows[rowIndex][columnIndex]
                             : '',
                         style: Theme.of(context).textTheme.bodyMedium,
+                        compact: true,
                       ),
                       if (columnIndex < columns.length - 1) ...[
                         AppSpacing.gapSm,
@@ -164,13 +167,14 @@ class _TableCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(AppSpacing.sm),
-    child: SelectableText(
-      text,
+    child: AppMarkdownBody(
+      data: text,
       style: isHeader
           ? Theme.of(
               context,
             ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w800)
           : Theme.of(context).textTheme.bodySmall,
+      compact: true,
     ),
   );
 }

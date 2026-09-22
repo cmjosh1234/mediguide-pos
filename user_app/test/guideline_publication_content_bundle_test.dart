@@ -19,6 +19,47 @@ void main() {
     expect(api.paths.where((path) => path.contains('/sections')), isEmpty);
   });
 
+  test(
+    'reuses a version-matched cached projection on a subsequent open',
+    () async {
+      final store = TestLocalStore();
+      addTearDown(store.close);
+      final api = _ContentBundleApi();
+      final repository = GuidelinePublicationRepository(api, store.cache);
+
+      await repository.content('guideline-1');
+      final cached = await repository.content('guideline-1');
+
+      expect(cached.blocks, hasLength(1));
+      expect(
+        api.paths.where((path) => path.endsWith('/content')),
+        hasLength(1),
+      );
+      expect(
+        api.paths.where((path) => path.endsWith('/manifest')),
+        hasLength(3),
+      );
+    },
+  );
+
+  test(
+    'loads a lightweight overview without the structured content bundle',
+    () async {
+      final store = TestLocalStore();
+      addTearDown(store.close);
+      final api = _ContentBundleApi();
+      final repository = GuidelinePublicationRepository(api, store.cache);
+
+      final summary = await repository.summary('guideline-1');
+
+      expect(summary.publication.title, 'Clinical guideline');
+      expect(summary.manifest.sectionCount, 2);
+      expect(summary.sections, isEmpty);
+      expect(summary.blocks, isEmpty);
+      expect(api.paths.where((path) => path.endsWith('/content')), isEmpty);
+    },
+  );
+
   test('rejects a stale content bundle from another version', () async {
     final store = TestLocalStore();
     addTearDown(store.close);
