@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -21,6 +22,9 @@ const (
 	ucgExpectedAliases    = 44
 	ucgExpectedCodes      = 281
 	ucgExpectedNotes      = 29
+	ucgExpectedCategories = 24
+	// Two subjects appear under two chapters, so they carry two links each.
+	ucgExpectedCategoryLinks = 394
 )
 
 func ucgTestPlan(t *testing.T) (ucgTaxonomyPlan, []ucgTaxonomyRow) {
@@ -72,6 +76,8 @@ func TestUCGTaxonomyFixtureTotals(t *testing.T) {
 		{"aliases", len(plan.Aliases), ucgExpectedAliases},
 		{"codes", len(plan.Codes), ucgExpectedCodes},
 		{"reconciliation notes", len(plan.Notes), ucgExpectedNotes},
+		{"categories", len(plan.Categories), ucgExpectedCategories},
+		{"category links", len(plan.CategoryLinks), ucgExpectedCategoryLinks},
 	} {
 		if check.got != check.want {
 			t.Errorf("%s = %d, want %d", check.name, check.got, check.want)
@@ -305,8 +311,8 @@ func TestUCGTaxonomyPlanIsDeterministic(t *testing.T) {
 }
 
 func TestUCGTaxonomyRejectsUnknownSeedAction(t *testing.T) {
-	const fixture = "chapter,section_number,depth,name,short_name,aliases,slug,parent_name,icd10_codes,seed_action\r\n" +
-		"1,1.1.1,3,Anaphylactic Shock,,,anaphylactic-shock,,T78.2,maybe\r\n"
+	const fixture = "chapter,chapter_title,section_number,depth,name,short_name,aliases,slug,parent_name,icd10_codes,seed_action\r\n" +
+		"1,Emergencies and Trauma,1.1.1,3,Anaphylactic Shock,,,anaphylactic-shock,,T78.2,maybe\r\n"
 	if _, err := parseUCGTaxonomyRows(fixture); err == nil {
 		t.Error("expected an error for an unrecognised seed_action")
 	}
@@ -316,5 +322,112 @@ func TestUCGTaxonomyRejectsMissingColumn(t *testing.T) {
 	const fixture = "chapter,section_number,depth,name,slug\r\n1,1.1.1,3,Anaphylactic Shock,anaphylactic-shock\r\n"
 	if _, err := parseUCGTaxonomyRows(fixture); err == nil {
 		t.Error("expected an error for a fixture missing required columns")
+	}
+}
+
+// Filtering by category only works if nothing is left out of one, so every
+// planned disease must be filed under a planned category.
+// ucgSlugPattern mirrors the slug check on the diseases table, which is the
+// stricter of the two tables a UCG slug lands in.
+var ucgSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+
+func TestUCGTaxonomyFilesEveryDiseaseUnderAChapter(t *testing.T) {
+	plan, _ := ucgTestPlan(t)
+
+	categorySlugs := map[string]bool{}
+	for index, category := range plan.Categories {
+		if categorySlugs[category.Slug] {
+			t.Errorf("category slug %q is planned twice", category.Slug)
+		}
+		categorySlugs[category.Slug] = true
+		if !ucgSlugPattern.MatchString(category.Slug) {
+			t.Errorf("category slug %q does not satisfy the slug pattern", category.Slug)
+		}
+		if want := (index + 1) * 10; category.SortOrder != want {
+			t.Errorf("category %q sort order = %d, want %d", category.Slug, category.SortOrder, want)
+		}
+	}
+
+	filed := map[uuid.UUID]bool{}
+	seen := map[string]bool{}
+	for _, link := range plan.CategoryLinks {
+		if !categorySlugs[link.CategorySlug] {
+			t.Errorf("disease %s is filed under unplanned category %q", link.DiseaseID, link.CategorySlug)
+		}
+		key := link.DiseaseID.String() + "/" + link.CategorySlug
+		if seen[key] {
+			t.Errorf("disease %s is filed under %q twice", link.DiseaseID, link.CategorySlug)
+		}
+		seen[key] = true
+		filed[link.DiseaseID] = true
+	}
+	for _, disease := range plan.Diseases {
+		if !filed[disease.ID] {
+			t.Errorf("disease %q is not filed under any category", disease.Slug)
+		}
+	}
+}
+
+func TestUCGTaxonomyCategoriesFollowChapterTitles(t *testing.T) {
+	plan, _ := ucgTestPlan(t)
+
+	for _, want := range []ucgPlannedCategory{
+		{Name: "Emergencies and Trauma", Slug: "emergencies-and-trauma", SortOrder: 10},
+		{Name: "Infectious Diseases", Slug: "infectious-diseases", SortOrder: 20},
+		{Name: "Family Planning (FP)", Slug: "family-planning-fp", SortOrder: 150},
+		{Name: "Ear, Nose & Throat Conditions", Slug: "ear-nose-throat-conditions", SortOrder: 210},
+	} {
+		found := false
+		for _, category := range plan.Categories {
+			if category.Slug != want.Slug {
+				continue
+			}
+			found = true
+			if category.Name != want.Name || category.SortOrder != want.SortOrder {
+				t.Errorf("category %q = %q at %d, want %q at %d",
+					want.Slug, category.Name, category.SortOrder, want.Name, want.SortOrder)
+			}
+			if category.ID != ucgTaxonomyID("category", want.Slug) {
+				t.Errorf("category %q has an unstable id", want.Slug)
+			}
+		}
+		if !found {
+			t.Errorf("category %q is not planned", want.Slug)
+		}
+	}
+}
+
+// A subject the guideline repeats under a second chapter merges into the first
+// row, but it must still be found when filtering by either chapter.
+func TestUCGTaxonomyFilesMergedSubjectsUnderBothChapters(t *testing.T) {
+	plan, _ := ucgTestPlan(t)
+
+	categoriesOf := map[uuid.UUID][]string{}
+	for _, link := range plan.CategoryLinks {
+		categoriesOf[link.DiseaseID] = append(categoriesOf[link.DiseaseID], link.CategorySlug)
+	}
+	got := categoriesOf[ucgTaxonomyID("disease", "pelvic-inflammatory-disease")]
+	want := []string{"hiv-aids-and-sexually-transmitted-infections", "gynaecological-conditions"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("pelvic inflammatory disease is filed under %v, want %v", got, want)
+	}
+
+	// A curated disease is filed under its chapter like any other.
+	got = categoriesOf[ucgCuratedDiseaseIDs["malaria"]]
+	if !reflect.DeepEqual(got, []string{"infectious-diseases"}) {
+		t.Errorf("malaria is filed under %v, want [infectious-diseases]", got)
+	}
+}
+
+func TestUCGTaxonomyRejectsConflictingChapterTitles(t *testing.T) {
+	header := "chapter,chapter_title,section_number,depth,name,short_name,aliases,slug,parent_name,icd10_codes,seed_action\n"
+	rows, err := parseUCGTaxonomyRows(header +
+		"1,Emergencies,1.1,2,Shock,,,shock,,,seed\n" +
+		"1,Trauma,1.2,2,Burns,,,burns,,,seed\n")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if _, err := planUCGDiseaseTaxonomy(rows); err == nil || !strings.Contains(err.Error(), "titled both") {
+		t.Errorf("err = %v, want a conflicting chapter title error", err)
 	}
 }

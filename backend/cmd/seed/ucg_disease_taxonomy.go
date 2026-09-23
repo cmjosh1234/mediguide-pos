@@ -9,9 +9,12 @@ import (
 	"strings"
 	"unicode"
 
+	"mediguide/internal/models"
+
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ucgDiseaseTaxonomyCSV is the candidate taxonomy extracted from the Uganda
@@ -57,6 +60,7 @@ var utf8BOM = string([]byte{0xEF, 0xBB, 0xBF})
 
 type ucgTaxonomyRow struct {
 	Chapter       int
+	ChapterTitle  string
 	SectionNumber string
 	Depth         int
 	Name          string
@@ -99,12 +103,32 @@ type ucgPlannedCode struct {
 	DisplayName string
 }
 
+// ucgPlannedCategory is a guideline category made from a UCG chapter. Its ID
+// is only used when no category with the slug exists yet; an existing one is
+// reused as it stands.
+type ucgPlannedCategory struct {
+	ID        uuid.UUID
+	Name      string
+	Slug      string
+	SortOrder int
+}
+
+type ucgPlannedCategoryLink struct {
+	DiseaseID    uuid.UUID
+	CategorySlug string
+}
+
 type ucgTaxonomyPlan struct {
 	// Diseases is ordered parents before children, which the hierarchy trigger
 	// requires: it rejects a parent row that does not yet exist or is not active.
 	Diseases []ucgPlannedDisease
 	Aliases  []ucgPlannedAlias
 	Codes    []ucgPlannedCode
+	// Categories holds one category per guideline chapter, in chapter order.
+	Categories []ucgPlannedCategory
+	// CategoryLinks files every disease under the chapter it appears in. A
+	// subject the guideline repeats under two chapters is filed under both.
+	CategoryLinks []ucgPlannedCategoryLink
 	// Notes records every reconciliation the planner had to make, so that a run
 	// can be checked against the review document.
 	Notes []string
@@ -145,7 +169,7 @@ func parseUCGTaxonomyRows(data string) ([]ucgTaxonomyRow, error) {
 		column[strings.TrimSpace(name)] = index
 	}
 	for _, required := range []string{
-		"chapter", "section_number", "depth", "name", "short_name",
+		"chapter", "chapter_title", "section_number", "depth", "name", "short_name",
 		"aliases", "slug", "parent_name", "icd10_codes", "seed_action",
 	} {
 		if _, ok := column[required]; !ok {
@@ -176,6 +200,7 @@ func parseUCGTaxonomyRows(data string) ([]ucgTaxonomyRow, error) {
 		}
 		rows = append(rows, ucgTaxonomyRow{
 			Chapter:       chapter,
+			ChapterTitle:  field(record, "chapter_title"),
 			SectionNumber: field(record, "section_number"),
 			Depth:         depth,
 			Name:          field(record, "name"),
@@ -202,6 +227,12 @@ func splitUCGList(value, separator string) []string {
 		}
 	}
 	return out
+}
+
+// ucgCategorySlug derives a category slug from a chapter title, such as
+// "family-planning-fp" from "Family Planning (FP)".
+func ucgCategorySlug(title string) string {
+	return strings.ReplaceAll(normalizeUCGTerm(title), " ", "-")
 }
 
 // planUCGDiseaseTaxonomy turns the reviewed rows into the exact set of records
@@ -383,6 +414,50 @@ func planUCGDiseaseTaxonomy(rows []ucgTaxonomyRow) (ucgTaxonomyPlan, error) {
 		}
 	}
 
+	// Categories follow the guideline chapters. Every seeded row is filed under
+	// its own chapter, including a row merged into an earlier one by rule 1.
+	titleByChapter := map[int]string{}
+	chapters := []int{}
+	seenLink := map[string]bool{}
+	for _, row := range rows {
+		if row.Action != "seed" {
+			continue
+		}
+		if row.ChapterTitle == "" {
+			return plan, fmt.Errorf("section %s: chapter title is required", row.SectionNumber)
+		}
+		if title, seen := titleByChapter[row.Chapter]; !seen {
+			titleByChapter[row.Chapter] = row.ChapterTitle
+			chapters = append(chapters, row.Chapter)
+		} else if title != row.ChapterTitle {
+			return plan, fmt.Errorf("chapter %d is titled both %q and %q", row.Chapter, title, row.ChapterTitle)
+		}
+		diseaseID, ok := idBySlug[row.Slug]
+		if !ok {
+			continue
+		}
+		categorySlug := ucgCategorySlug(row.ChapterTitle)
+		key := diseaseID.String() + "/" + categorySlug
+		if seenLink[key] {
+			continue
+		}
+		seenLink[key] = true
+		plan.CategoryLinks = append(plan.CategoryLinks, ucgPlannedCategoryLink{
+			DiseaseID:    diseaseID,
+			CategorySlug: categorySlug,
+		})
+	}
+	sort.Ints(chapters)
+	for _, chapter := range chapters {
+		slug := ucgCategorySlug(titleByChapter[chapter])
+		plan.Categories = append(plan.Categories, ucgPlannedCategory{
+			ID:        ucgTaxonomyID("category", slug),
+			Name:      titleByChapter[chapter],
+			Slug:      slug,
+			SortOrder: chapter * 10,
+		})
+	}
+
 	sort.Strings(plan.Notes)
 	return plan, nil
 }
@@ -458,6 +533,41 @@ func seedUCGDiseaseTaxonomy(database *gorm.DB, actorID uuid.UUID) error {
 		}
 	}
 
+	// A category that already exists under the slug, whether curated by an
+	// administrator or seeded by the demo, is reused and left untouched.
+	categoryIDs := map[string]uuid.UUID{}
+	createdCategories := 0
+	for _, category := range plan.Categories {
+		existingID, found, err := lookupRowIDByColumn(database, "guideline_categories", "slug", category.Slug)
+		if err != nil {
+			return fmt.Errorf("look up category %q: %w", category.Slug, err)
+		}
+		if found {
+			categoryIDs[category.Slug] = existingID
+			continue
+		}
+		row := map[string]any{
+			"id":         category.ID,
+			"name":       category.Name,
+			"slug":       category.Slug,
+			"sort_order": category.SortOrder,
+			"status":     "active",
+			"deleted_at": nil,
+		}
+		if err := upsertByID(database, "guideline_categories", row); err != nil {
+			return fmt.Errorf("seed category %q: %w", category.Slug, err)
+		}
+		categoryIDs[category.Slug] = category.ID
+		createdCategories++
+	}
+
+	for _, link := range plan.CategoryLinks {
+		row := models.DiseaseCategory{DiseaseID: link.DiseaseID, CategoryID: categoryIDs[link.CategorySlug]}
+		if err := database.Clauses(clause.OnConflict{DoNothing: true}).Create(&row).Error; err != nil {
+			return fmt.Errorf("file disease %s under %q: %w", link.DiseaseID, link.CategorySlug, err)
+		}
+	}
+
 	for _, note := range plan.Notes {
 		log.Info().Str("seed", "disease-taxonomy").Msg(note)
 	}
@@ -467,6 +577,9 @@ func seedUCGDiseaseTaxonomy(database *gorm.DB, actorID uuid.UUID) error {
 		Int("diseases_curated", len(plan.Diseases)-written).
 		Int("aliases", len(plan.Aliases)).
 		Int("codes", len(plan.Codes)).
+		Int("categories", len(plan.Categories)).
+		Int("categories_created", createdCategories).
+		Int("category_links", len(plan.CategoryLinks)).
 		Int("reconciliations", len(plan.Notes)).
 		Msg("UCG disease taxonomy seeded")
 	return nil

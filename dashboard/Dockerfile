@@ -5,7 +5,10 @@ WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
-FROM deps AS builder
+FROM node:22.18.0-alpine3.22 AS builder
+
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 
 ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 ARG NEXT_PUBLIC_DASHBOARD_BASE_PATH=/admin
@@ -14,7 +17,9 @@ ENV NEXT_PUBLIC_DASHBOARD_BASE_PATH=${NEXT_PUBLIC_DASHBOARD_BASE_PATH}
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY . .
-RUN bun run build
+# Keep Bun for locked dependency installation, but compile with the production
+# Node runtime: Bun's musl TypeScript worker can crash with SIGILL/SIGSEGV.
+RUN node node_modules/next/dist/bin/next build
 
 FROM node:22.18.0-alpine3.22 AS production
 

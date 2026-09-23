@@ -14,7 +14,7 @@ Seeding mutates PostgreSQL and, for demo clinical content, MinIO. Run it only ag
 | `demo` | Development and controlled demo/staging only | Demo users and permissions, facility baseline data, guidelines, drugs, calculators, notifications, outbreak content and repository-owned MinIO fixtures |
 | `admin` | Production | The configured administrator and system admin-role assignment |
 | `facilities` | Production | Ministry of Health geographic hierarchy, facility levels, ownership/authority metadata and the facility master dataset |
-| `disease-taxonomy` | Production | The reviewed Uganda Clinical Guidelines disease and condition taxonomy, with its aliases and ICD-10 codes |
+| `disease-taxonomy` | Production | The reviewed Uganda Clinical Guidelines disease and condition taxonomy, with its aliases and ICD-10 codes, filed under one guideline category per guideline chapter |
 | `notifications` | Development only | Demonstration notification records for the seeded clinician |
 | `clinical-tools-rehearsal` | Disposable rehearsal only | Synthetic actors and schema clinical tools for retirement validation |
 

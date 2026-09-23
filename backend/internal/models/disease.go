@@ -55,6 +55,17 @@ type DiseaseCode struct {
 
 func (DiseaseCode) TableName() string { return "disease_codes" }
 
+// DiseaseCategory files a disease under a guideline category, so the same
+// category can filter diseases and guidelines alike.
+type DiseaseCategory struct {
+	DiseaseID  uuid.UUID `gorm:"type:uuid;primaryKey" json:"disease_id"`
+	CategoryID uuid.UUID `gorm:"type:uuid;primaryKey" json:"category_id"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+func (DiseaseCategory) TableName() string { return "disease_categories" }
+
 // DiseaseTaxonomyMigrationReport is a non-destructive snapshot of how legacy
 // free-text fields resolve against the canonical taxonomy.
 type DiseaseTaxonomyMigrationReport struct {
