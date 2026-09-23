@@ -159,12 +159,12 @@ func (s ContentHubService) GetPublicOutbreakHub(ctx context.Context, outbreakID 
 	}
 	result.OutbreakID = &outbreakID
 	var outbreak models.Outbreak
-	if err := s.DB.WithContext(ctx).Where("id = ?", outbreakID).First(&outbreak).Error; err != nil {
+	if err := s.DB.WithContext(ctx).Model(&models.Outbreak{}).Select("outbreaks.*, (SELECT name FROM diseases WHERE diseases.id = outbreaks.disease_id) AS disease_name").Where("id = ?", outbreakID).First(&outbreak).Error; err != nil {
 		return nil, err
 	}
 	result.Outbreak = &PublicHubOutbreak{
 		ID: outbreak.ID, Title: outbreak.Title, Status: outbreak.Status,
-		DiseaseType: outbreak.DiseaseType, GeographicArea: outbreak.GeographicArea,
+		DiseaseType: outbreak.DiseaseName, GeographicArea: outbreak.GeographicArea,
 		Summary: outbreak.Summary, VisualTone: outbreak.VisualTone,
 		SourceOrganization: outbreak.SourceOrganization, DataAsOf: outbreak.DataAsOf,
 		LastVerifiedAt: outbreak.LastVerifiedAt, Metrics: outbreak.Metrics,
@@ -209,7 +209,9 @@ func (s ContentHubService) buildPublicHub(ctx context.Context, hub models.Conten
 	result := &PublicContentHub{ID: hub.ID, Name: hub.Name, Slug: hub.Slug, Description: hub.Description, Icon: hub.Icon, Color: hub.Color, Audience: hub.Audience, SortOrder: hub.SortOrder, PublishedAt: hub.PublishedAt, Diseases: make([]PublicHubDisease, 0, len(diseases))}
 	result.Diseases = append(result.Diseases, diseases...)
 	var outbreak models.Outbreak
-	outbreakErr := s.DB.WithContext(ctx).Joins("JOIN content_hub_outbreaks cho ON cho.outbreak_id = outbreaks.id").
+	outbreakErr := s.DB.WithContext(ctx).Model(&models.Outbreak{}).
+		Select("outbreaks.*, (SELECT name FROM diseases WHERE diseases.id = outbreaks.disease_id) AS disease_name").
+		Joins("JOIN content_hub_outbreaks cho ON cho.outbreak_id = outbreaks.id").
 		Where("cho.content_hub_id = ? AND outbreaks.deleted_at IS NULL AND outbreaks.published_at IS NOT NULL AND outbreaks.published_at <= ? AND outbreaks.withdrawn_at IS NULL AND outbreaks.status IN ?", hub.ID, now, []string{"published", "active", "monitoring", "contained", "closed"}).
 		Order("outbreaks.last_update DESC, outbreaks.id ASC").First(&outbreak).Error
 	if outbreakErr != nil && outbreakErr != gorm.ErrRecordNotFound {
@@ -219,7 +221,7 @@ func (s ContentHubService) buildPublicHub(ctx context.Context, hub models.Conten
 		result.OutbreakID = &outbreak.ID
 		result.Outbreak = &PublicHubOutbreak{
 			ID: outbreak.ID, Title: outbreak.Title, Status: outbreak.Status,
-			DiseaseType: outbreak.DiseaseType, GeographicArea: outbreak.GeographicArea,
+			DiseaseType: outbreak.DiseaseName, GeographicArea: outbreak.GeographicArea,
 			Summary: outbreak.Summary, VisualTone: outbreak.VisualTone,
 			SourceOrganization: outbreak.SourceOrganization, DataAsOf: outbreak.DataAsOf,
 			LastVerifiedAt: outbreak.LastVerifiedAt, Metrics: outbreak.Metrics,

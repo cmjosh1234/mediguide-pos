@@ -1123,7 +1123,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Title, summary, or disease type",
+                        "description": "Title, summary, or geographic area",
                         "name": "search",
                         "in": "query"
                     },
@@ -1135,7 +1135,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Exact disease type",
+                        "description": "Exact disease ID",
                         "name": "disease",
                         "in": "query"
                     },
@@ -14221,7 +14221,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Disease name",
+                        "description": "Disease ID",
                         "name": "disease",
                         "in": "query"
                     },
@@ -15099,6 +15099,38 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/outbreaks/{id}/metrics": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "outbreak-administration"
+                ],
+                "summary": "Update an outbreak's metrics regardless of its lifecycle status",
+                "parameters": [
+                    {
+                        "description": "Outbreak metrics",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.OutbreakMetricsInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.OutbreakAdminDTO"
                         }
                     }
                 }
@@ -24856,7 +24888,7 @@ const docTemplate = `{
                 "data_as_of": {
                     "type": "string"
                 },
-                "disease_type": {
+                "disease_id": {
                     "type": "string"
                 },
                 "district_id": {
@@ -29969,7 +30001,10 @@ const docTemplate = `{
                 "data_as_of": {
                     "type": "string"
                 },
-                "disease_type": {
+                "disease_id": {
+                    "type": "string"
+                },
+                "disease_name": {
                     "type": "string"
                 },
                 "district_id": {
@@ -30301,7 +30336,7 @@ const docTemplate = `{
                 "data_as_of": {
                     "type": "string"
                 },
-                "disease_type": {
+                "disease_id": {
                     "type": "string"
                 },
                 "district_id": {
@@ -30380,6 +30415,23 @@ const docTemplate = `{
                 },
                 "value": {
                     "type": "string"
+                }
+            }
+        },
+        "services.OutbreakMetricsInput": {
+            "type": "object",
+            "required": [
+                "metrics"
+            ],
+            "properties": {
+                "lock_version": {
+                    "type": "integer"
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.OutbreakMetric"
+                    }
                 }
             }
         },
@@ -32269,7 +32321,10 @@ const docTemplate = `{
                 "data_as_of": {
                     "type": "string"
                 },
-                "disease_type": {
+                "disease_id": {
+                    "type": "string"
+                },
+                "disease_name": {
                     "type": "string"
                 },
                 "district_id": {

@@ -24,9 +24,9 @@ type OutbreakHandler struct{ Service services.OutbreakService }
 // @Tags public-outbreaks
 // @Param page query int false "Page"
 // @Param per_page query int false "Items per page"
-// @Param search query string false "Title, summary, or disease type"
+// @Param search query string false "Title, summary, or geographic area"
 // @Param status query string false "active, monitoring, contained, or closed"
-// @Param disease query string false "Exact disease type"
+// @Param disease query string false "Exact disease ID"
 // @Param area query string false "Geographic area"
 // @Param region_id query string false "Region UUID"
 // @Param effective_from query string false "Effective at or after (RFC3339 or YYYY-MM-DD)"

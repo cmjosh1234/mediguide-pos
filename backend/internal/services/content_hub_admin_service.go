@@ -84,7 +84,20 @@ func (s ContentHubService) ConfigureOutbreakHub(actor ContentHubActor, outbreakI
 	if slug == "" {
 		slug = normalizeHubSlug("", outbreak.Title+" response hub "+outbreak.ID.String()[:8])
 	}
-	hub, err := s.CreateHub(actor, CreateContentHubInput{Name: name, Slug: slug, Description: "Curated, approved response resources for " + outbreak.Title + ".", Icon: "warning", Color: "critical", Audience: "all", OutbreakIDs: []uuid.UUID{outbreakID}})
+	// Carry the outbreak's disease over as a starting default; it doesn't
+	// restrict the hub, which can still have diseases added or removed
+	// afterward via the normal editor. A missing/inactive disease is skipped
+	// rather than failing hub creation, matching this function's documented
+	// best-effort, idempotent behavior.
+	diseaseIDs := []uuid.UUID{}
+	if outbreak.DiseaseID != nil {
+		if err := validateAssignableDisease(s.DB, *outbreak.DiseaseID); err == nil {
+			diseaseIDs = []uuid.UUID{*outbreak.DiseaseID}
+		} else if err != ErrContentDiseaseUnavailable {
+			return nil, err
+		}
+	}
+	hub, err := s.CreateHub(actor, CreateContentHubInput{Name: name, Slug: slug, Description: "Curated, approved response resources for " + outbreak.Title + ".", Icon: "warning", Color: "critical", Audience: "all", OutbreakIDs: []uuid.UUID{outbreakID}, DiseaseIDs: diseaseIDs})
 	if err != nil {
 		return nil, err
 	}

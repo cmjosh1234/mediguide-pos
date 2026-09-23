@@ -180,7 +180,7 @@ func (s SearchService) PublicSearchContextFiltered(ctx context.Context, q string
 	outbreakQuery := s.DB.WithContext(ctx).Table("outbreaks").
 		Select("CAST(id AS TEXT) AS id, title, summary AS snippet, source_organization AS source_name, status, last_verified_at, last_update AS sort_date").
 		Where("deleted_at IS NULL AND published_at IS NOT NULL AND published_at <= ? AND withdrawn_at IS NULL AND status IN ?", time.Now(), []string{"published", "active", "monitoring", "contained", "closed"}).
-		Where("lower(title) LIKE ? OR lower(summary) LIKE ? OR lower(disease_type) LIKE ? OR lower(geographic_area) LIKE ? OR lower(source_organization) LIKE ? OR lower(source_reference) LIKE ?", pattern, pattern, pattern, pattern, pattern, pattern)
+		Where("lower(title) LIKE ? OR lower(summary) LIKE ? OR lower(geographic_area) LIKE ? OR lower(source_organization) LIKE ? OR lower(source_reference) LIKE ?", pattern, pattern, pattern, pattern, pattern)
 	if diseaseID != nil {
 		outbreakQuery = outbreakQuery.Where(`EXISTS (SELECT 1 FROM content_disease_assignments cda
 			JOIN diseases d ON d.id = cda.disease_id

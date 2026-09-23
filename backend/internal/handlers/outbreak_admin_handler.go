@@ -58,7 +58,11 @@ func (h OutbreakAdminHandler) result(c *gin.Context, status int, value any, err 
 		c.JSON(status, value)
 		return
 	}
+	var validation *services.OutbreakValidationError
 	switch {
+	case errors.As(err, &validation):
+		// A specific, administrator-facing reason (for example which field to fix).
+		httpx.Error(c, http.StatusBadRequest, validation.Message)
 	case errors.Is(err, services.ErrOutbreakDocumentKind):
 		httpx.Error(c, http.StatusBadRequest, err.Error())
 	case errors.Is(err, services.ErrOutbreakInvalid):
@@ -80,7 +84,7 @@ func (h OutbreakAdminHandler) result(c *gin.Context, status int, value any, err 
 // @Security BearerAuth
 // @Param search query string false "Title, summary, or disease search"
 // @Param status query string false "Lifecycle status"
-// @Param disease query string false "Disease name"
+// @Param disease query string false "Disease ID"
 // @Param area query string false "Geographic text"
 // @Param region_id query string false "Region UUID"
 // @Param visual_tone query string false "Visual tone"
@@ -151,6 +155,27 @@ func (h OutbreakAdminHandler) UpdateOutbreak(c *gin.Context) {
 		return
 	}
 	v, e := h.Service.UpdateOutbreak(outbreakActor(c), id, in)
+	h.result(c, 200, v, e)
+}
+
+// UpdateMetrics godoc
+// @Summary Update an outbreak's metrics regardless of its lifecycle status
+// @Tags outbreak-administration
+// @Security BearerAuth
+// @Param payload body services.OutbreakMetricsInput true "Outbreak metrics"
+// @Success 200 {object} services.OutbreakAdminDTO
+// @Router /api/v2/outbreaks/{id}/metrics [patch]
+func (h OutbreakAdminHandler) UpdateMetrics(c *gin.Context) {
+	id, ok := outbreakAdminID(c, "id")
+	if !ok {
+		return
+	}
+	var in services.OutbreakMetricsInput
+	if c.ShouldBindJSON(&in) != nil {
+		httpx.Error(c, 400, "invalid request body")
+		return
+	}
+	v, e := h.Service.UpdateMetrics(outbreakActor(c), id, in)
 	h.result(c, 200, v, e)
 }
 

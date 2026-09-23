@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import type {
@@ -58,7 +58,8 @@ export function BookGuidelineReader({
   const content = useMemo(() => removeLeadingDocumentTitle(markdown.content), [markdown.content]);
   const headings = useMemo(() => getMarkdownHeadings(content), [content]);
   const searchIndex = useMemo(() => buildMarkdownSearchIndex(content), [content]);
-  const results = useMemo(() => searchMarkdown(searchIndex, query), [query, searchIndex]);
+  const deferredQuery = useDeferredValue(query);
+  const results = useMemo(() => searchMarkdown(searchIndex, deferredQuery), [deferredQuery, searchIndex]);
   const renderChunks = useMemo(() => splitMarkdownForProgressiveRendering(content), [content]);
   const [visibleChunkCount, setVisibleChunkCount] = useState(() => {
     const initial = Math.min(3, renderChunks.length);
@@ -150,11 +151,11 @@ export function BookGuidelineReader({
         <div className="reader-sidebar-brand"><Brand /><button className="sidebar-close icon-button" type="button" aria-label="Close contents" onClick={() => setSidebarOpen(false)}>×</button></div>
         <div className="sidebar-publication"><span>Published guideline</span><strong>{guideline.title}</strong><small>{guideline.source_org}{guideline.version ? ` · Version ${guideline.version}` : ""}</small></div>
         <label className="reader-search"><SearchIcon /><span className="visually-hidden">Search this guideline</span><input ref={searchInput} type="search" value={query} placeholder="Search this guideline…" onChange={(event) => setQuery(event.target.value)} /></label>
-        <nav className="contents-navigation" aria-label={query.trim() ? "Search results" : "Table of contents"}>
-          {query.trim() ? <div className="search-results">
+        <nav className="contents-navigation" aria-label={deferredQuery.trim() ? "Search results" : "Table of contents"}>
+          {deferredQuery.trim() ? <div className="search-results">
             <div className="results-label">{results.length} matching section{results.length === 1 ? "" : "s"}</div>
             {results.map((result) => <button type="button" key={result.id} onClick={() => visitHeading(result.id)}><small>{result.title}</small><span>{result.snippet || "Open this section"}</span></button>)}
-            {!results.length && <p className="empty-search">No section matches “{query}”. Try a condition, treatment, medicine, or phrase from the guideline.</p>}
+            {!results.length && <p className="empty-search">No section matches “{deferredQuery}”. Try a condition, treatment, medicine, or phrase from the guideline.</p>}
           </div> : <>
             <button type="button" className={`front-matter-link ${activeHeading ? "" : "active"}`} onClick={() => visitHeading("guideline-document")}>Guideline overview</button>
             {headings.map((heading) => <button type="button" className={`toc-link toc-depth-${heading.depth} ${activeHeading === heading.id ? "active" : ""}`} key={heading.id} aria-current={activeHeading === heading.id ? "location" : undefined} onClick={() => visitHeading(heading.id)}>{heading.text}</button>)}

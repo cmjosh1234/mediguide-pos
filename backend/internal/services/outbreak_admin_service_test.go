@@ -18,7 +18,7 @@ func outbreakAdminTestService(t *testing.T) OutbreakAdminService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.AuditLog{}, &models.Region{}, &models.HealthSubRegion{}, &models.District{}, &models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}, &models.SituationReportAsset{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.AuditLog{}, &models.Region{}, &models.HealthSubRegion{}, &models.District{}, &models.Disease{}, &models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}, &models.SituationReportAsset{}); err != nil {
 		t.Fatal(err)
 	}
 	seedDocumentKinds(t, db)
@@ -39,6 +39,51 @@ func TestOutbreakTypedMetricsRejectDuplicatesAndInvalidFreshness(t *testing.T) {
 	input.DataAsOf = &now
 	if _, err := service.CreateOutbreak(OutbreakActor{ID: uuid.New()}, input); !errors.Is(err, ErrOutbreakInvalid) {
 		t.Fatalf("verification older than data accepted: %v", err)
+	}
+}
+
+func TestOutbreakMetricsCanBeUpdatedRegardlessOfStatus(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	now := time.Now().UTC()
+	author := OutbreakActor{ID: uuid.New()}
+	reviewer := OutbreakActor{ID: uuid.New()}
+	publisher := OutbreakActor{ID: uuid.New()}
+	item, err := service.CreateOutbreak(author, validOutbreakDraftInput(now))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.TransitionOutbreak(author, item.ID, "submit", TransitionInput{LockVersion: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if item, err = service.TransitionOutbreak(reviewer, item.ID, "approve", TransitionInput{LockVersion: 2}); err != nil {
+		t.Fatal(err)
+	}
+	if item, err = service.TransitionOutbreak(publisher, item.ID, "publish", TransitionInput{LockVersion: 3, OperationalStatus: "active"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// The main update path is still immutable once published.
+	if _, err := service.UpdateOutbreak(author, item.ID, OutbreakInput{Title: ptr("New title"), LockVersion: &item.LockVersion}); !errors.Is(err, ErrOutbreakImmutable) {
+		t.Fatalf("expected published outbreak to remain immutable for general edits: %v", err)
+	}
+
+	metric := OutbreakMetric{Key: "confirmed_cases", Label: "Confirmed cases", Value: "34", NumericValue: ptr(34.0), Unit: "cases", AsOf: now, SourceReference: "WHO report 12", SortOrder: 1}
+	updated, err := service.UpdateMetrics(publisher, item.ID, OutbreakMetricsInput{Metrics: []OutbreakMetric{metric}, LockVersion: &item.LockVersion})
+	if err != nil {
+		t.Fatalf("metrics update should be allowed on a published outbreak: %v", err)
+	}
+	if updated.Status != "active" || len(updated.Metrics) != 1 || updated.Metrics[0].Key != "confirmed_cases" || updated.Metrics[0].Value != "34" {
+		t.Fatalf("metrics were not applied without changing status: %#v", updated)
+	}
+
+	// The stale lock version from before the metrics update is now rejected.
+	if _, err := service.UpdateMetrics(publisher, item.ID, OutbreakMetricsInput{Metrics: []OutbreakMetric{metric}, LockVersion: &item.LockVersion}); !errors.Is(err, ErrOutbreakConflict) {
+		t.Fatalf("expected a stale lock version to conflict: %v", err)
+	}
+
+	// Invalid metrics are still rejected.
+	if _, err := service.UpdateMetrics(publisher, item.ID, OutbreakMetricsInput{Metrics: []OutbreakMetric{metric, metric}, LockVersion: &updated.LockVersion}); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("duplicate metric key accepted: %v", err)
 	}
 }
 
@@ -63,7 +108,7 @@ func TestOutbreakGeographyAndResourceSafetyValidation(t *testing.T) {
 		t.Fatalf("cross-region district accepted: %v", err)
 	}
 
-	parent := models.Outbreak{Title: "Response", DiseaseType: "Ebola", Status: "draft", LastUpdate: time.Now(), VisualTone: "warning"}
+	parent := models.Outbreak{Title: "Response", Status: "draft", LastUpdate: time.Now(), VisualTone: "warning"}
 	if err := service.DB.Create(&parent).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -89,15 +134,16 @@ func TestOutbreakAdministrationFiltersAreTypedAndApplied(t *testing.T) {
 	if err := service.DB.Create(&region).Error; err != nil {
 		t.Fatal(err)
 	}
-	first := models.Outbreak{Base: models.Base{UpdatedAt: now}, Title: "Ebola response", DiseaseType: "Ebola", GeographicArea: "Kampala", RegionID: &region.ID, Status: "active", VisualTone: "critical", LastUpdate: now, EffectiveAt: &now, LockVersion: 1}
-	second := models.Outbreak{Base: models.Base{UpdatedAt: old}, Title: "Malaria update", DiseaseType: "Malaria", GeographicArea: "Gulu", Status: "monitoring", VisualTone: "info", LastUpdate: old, EffectiveAt: &old, LockVersion: 1}
+	ebolaDiseaseID, malariaDiseaseID := uuid.New(), uuid.New()
+	first := models.Outbreak{Base: models.Base{UpdatedAt: now}, Title: "Ebola response", DiseaseID: &ebolaDiseaseID, GeographicArea: "Kampala", RegionID: &region.ID, Status: "active", VisualTone: "critical", LastUpdate: now, EffectiveAt: &now, LockVersion: 1}
+	second := models.Outbreak{Base: models.Base{UpdatedAt: old}, Title: "Malaria update", DiseaseID: &malariaDiseaseID, GeographicArea: "Gulu", Status: "monitoring", VisualTone: "info", LastUpdate: old, EffectiveAt: &old, LockVersion: 1}
 	if err := service.DB.Create(&first).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := service.DB.Create(&second).Error; err != nil {
 		t.Fatal(err)
 	}
-	page, err := service.ListOutbreaks(OutbreakAdminQuery{Page: PageInput{Page: 1, PerPage: 20}, Disease: "ebola", RegionID: region.ID.String(), VisualTone: "critical", UpdatedFrom: now.Add(-time.Hour).Format(time.RFC3339), Sort: "effective_at", Order: "desc"})
+	page, err := service.ListOutbreaks(OutbreakAdminQuery{Page: PageInput{Page: 1, PerPage: 20}, Disease: ebolaDiseaseID.String(), RegionID: region.ID.String(), VisualTone: "critical", UpdatedFrom: now.Add(-time.Hour).Format(time.RFC3339), Sort: "effective_at", Order: "desc"})
 	if err != nil || page.TotalItems != 1 || page.Items[0].ID != first.ID {
 		t.Fatalf("typed filters returned %#v err=%v", page, err)
 	}
@@ -119,7 +165,7 @@ func ptr[T any](value T) *T { return &value }
 
 func validOutbreakDraftInput(now time.Time) OutbreakInput {
 	metrics := []OutbreakMetric{}
-	return OutbreakInput{Title: ptr("Ebola response"), DiseaseType: ptr("Ebola"), GeographicArea: ptr("Uganda"), Summary: ptr("Public health response"), LastUpdate: &now, VisualTone: ptr("critical"), SourceOrganization: ptr("Ministry of Health"), SourceReference: ptr("MOH-2026-01"), EffectiveAt: &now, DataAsOf: &now, LastVerifiedAt: &now, Metrics: &metrics}
+	return OutbreakInput{Title: ptr("Ebola response"), DiseaseID: ptr(uuid.New()), GeographicArea: ptr("Uganda"), Summary: ptr("Public health response"), LastUpdate: &now, VisualTone: ptr("critical"), SourceOrganization: ptr("Ministry of Health"), SourceReference: ptr("MOH-2026-01"), EffectiveAt: &now, DataAsOf: &now, LastVerifiedAt: &now, Metrics: &metrics}
 }
 
 func TestOutbreakLifecycleRequiresIndependentReviewerAndOptimisticLock(t *testing.T) {
@@ -240,7 +286,7 @@ func TestSituationReportPublicationValidatesStandaloneAndSource(t *testing.T) {
 func TestOutbreakDocumentLifecycleRequiresReviewAndPublishedParent(t *testing.T) {
 	service := outbreakAdminTestService(t)
 	now := time.Now().UTC().Truncate(time.Second)
-	parent := models.Outbreak{Title: "Ebola response", DiseaseType: "Ebola", Status: "active", PublishedAt: &now, LastUpdate: now, LockVersion: 1}
+	parent := models.Outbreak{Title: "Ebola response", Status: "active", PublishedAt: &now, LastUpdate: now, LockVersion: 1}
 	if err := service.DB.Create(&parent).Error; err != nil {
 		t.Fatal(err)
 	}

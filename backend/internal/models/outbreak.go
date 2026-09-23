@@ -10,7 +10,8 @@ import (
 type Outbreak struct {
 	Base
 	Title              string         `json:"title"`
-	DiseaseType        string         `json:"disease_type"`
+	DiseaseID          *uuid.UUID     `gorm:"type:uuid;index" json:"disease_id,omitempty"`
+	DiseaseName        string         `gorm:"->" json:"-"`
 	Status             string         `json:"status"`
 	GeographicArea     string         `json:"geographic_area"`
 	RegionID           *uuid.UUID     `gorm:"type:uuid;index" json:"region_id,omitempty"`

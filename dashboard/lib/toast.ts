@@ -7,11 +7,16 @@ export const showToast = {
       description,
     })
   },
-  error: (message: string, description?: string) => {
+  error: (
+    message: string,
+    description?: string,
+    options?: { richColors?: boolean }
+  ) => {
     // Suppresses duplicate error toasts during a session-expiry event
     if (isSessionExpiryToastWindow()) return
     toast.error(message, {
       description,
+      ...options,
     })
   },
   warning: (message: string, description?: string) => {

@@ -56,7 +56,7 @@ func testOutbreakCampaignInput(key string) OutbreakNotificationCampaignInput {
 func TestOutbreakCampaignRequiresPublishedContentAndCreatesDraftIdempotently(t *testing.T) {
 	service := outbreakNotificationTestService(t)
 	actor := uuid.New()
-	draft := models.Outbreak{Title: "Draft event", DiseaseType: "Ebola", GeographicArea: "Kampala", Status: "draft", LastUpdate: time.Now(), VisualTone: "critical", Metrics: datatypes.JSON(`[]`), LockVersion: 1}
+	draft := models.Outbreak{Title: "Draft event", GeographicArea: "Kampala", Status: "draft", LastUpdate: time.Now(), VisualTone: "critical", Metrics: datatypes.JSON(`[]`), LockVersion: 1}
 	if err := service.DB.Create(&draft).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestOutbreakCampaignRequiresPublishedContentAndCreatesDraftIdempotently(t *
 	}
 
 	now := time.Now().UTC()
-	published := models.Outbreak{Title: "Ebola", DiseaseType: "Ebola", GeographicArea: "Kampala", Status: "active", PublishedAt: &now, LastUpdate: now, VisualTone: "critical", Metrics: datatypes.JSON(`[]`), LockVersion: 1}
+	published := models.Outbreak{Title: "Ebola", GeographicArea: "Kampala", Status: "active", PublishedAt: &now, LastUpdate: now, VisualTone: "critical", Metrics: datatypes.JSON(`[]`), LockVersion: 1}
 	if err := service.DB.Create(&published).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestOutbreakCampaignRequiresPublishedContentAndCreatesDraftIdempotently(t *
 func TestSituationReportCampaignRequiresVisiblePublishedParent(t *testing.T) {
 	service := outbreakNotificationTestService(t)
 	now := time.Now().UTC()
-	parent := models.Outbreak{Title: "Private", DiseaseType: "Ebola", GeographicArea: "Kampala", Status: "draft", LastUpdate: now, VisualTone: "critical", Metrics: datatypes.JSON(`[]`), LockVersion: 1}
+	parent := models.Outbreak{Title: "Private", GeographicArea: "Kampala", Status: "draft", LastUpdate: now, VisualTone: "critical", Metrics: datatypes.JSON(`[]`), LockVersion: 1}
 	if err := service.DB.Create(&parent).Error; err != nil {
 		t.Fatal(err)
 	}

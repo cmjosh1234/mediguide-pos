@@ -46,7 +46,7 @@ func TestConfigureOutbreakHubMapsPublishedResourcesAndSurveillance(t *testing.T)
 		t.Fatal(err)
 	}
 	now := time.Now().UTC()
-	outbreak := models.Outbreak{Title: "Ebola", DiseaseType: "Ebola virus disease", Status: "active", LastUpdate: now, PublishedAt: &now}
+	outbreak := models.Outbreak{Title: "Ebola", Status: "active", LastUpdate: now, PublishedAt: &now}
 	if err := db.Create(&outbreak).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -87,6 +87,63 @@ func TestConfigureOutbreakHubMapsPublishedResourcesAndSurveillance(t *testing.T)
 	again, err := service.ConfigureOutbreakHub(ContentHubActor{}, outbreak.ID, ConfigureOutbreakHubInput{})
 	if err != nil || again.Hub.ID != workspace.Hub.ID {
 		t.Fatalf("configuration should be idempotent: %#v %v", again, err)
+	}
+}
+
+func TestConfigureOutbreakHubCarriesOverTheOutbreaksDisease(t *testing.T) {
+	db := contentHubTestDB(t)
+	template := models.ContentHubTemplate{Base: models.Base{ID: defaultOutbreakHubTemplateID}, Name: "Outbreak response", Slug: "outbreak-emergency-response", Status: models.ContentHubStatusActive}
+	if err := db.Create(&template).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&models.ContentHubTemplatePillar{TemplateID: template.ID, Name: "Overview", Slug: "overview", SortOrder: 10}).Error; err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	cholera := models.Disease{Name: "Cholera", Slug: "cholera", NormalizedName: "cholera", Status: models.DiseaseStatusActive}
+	archived := models.Disease{Name: "Old condition", Slug: "old-condition", NormalizedName: "old condition", Status: models.DiseaseStatusArchived}
+	if err := db.Create(&cholera).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&archived).Error; err != nil {
+		t.Fatal(err)
+	}
+	service := ContentHubService{DB: db}
+
+	withDisease := models.Outbreak{Title: "Cholera response", Status: "active", LastUpdate: now, PublishedAt: &now, DiseaseID: &cholera.ID}
+	if err := db.Create(&withDisease).Error; err != nil {
+		t.Fatal(err)
+	}
+	workspace, err := service.ConfigureOutbreakHub(ContentHubActor{}, withDisease.ID, ConfigureOutbreakHubInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(workspace.Hub.Diseases) != 1 || workspace.Hub.Diseases[0].ID != cholera.ID {
+		t.Fatalf("expected the outbreak's disease to carry over: hub=%#v", workspace.Hub)
+	}
+
+	withoutDisease := models.Outbreak{Title: "Unlinked response", Status: "active", LastUpdate: now, PublishedAt: &now}
+	if err := db.Create(&withoutDisease).Error; err != nil {
+		t.Fatal(err)
+	}
+	noDiseaseWorkspace, err := service.ConfigureOutbreakHub(ContentHubActor{}, withoutDisease.ID, ConfigureOutbreakHubInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(noDiseaseWorkspace.Hub.Diseases) != 0 {
+		t.Fatalf("outbreak without a disease should produce a hub without one: hub=%#v", noDiseaseWorkspace.Hub)
+	}
+
+	withArchivedDisease := models.Outbreak{Title: "Stale disease response", Status: "active", LastUpdate: now, PublishedAt: &now, DiseaseID: &archived.ID}
+	if err := db.Create(&withArchivedDisease).Error; err != nil {
+		t.Fatal(err)
+	}
+	archivedWorkspace, err := service.ConfigureOutbreakHub(ContentHubActor{}, withArchivedDisease.ID, ConfigureOutbreakHubInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(archivedWorkspace.Hub.Diseases) != 0 {
+		t.Fatalf("an archived disease should be skipped, not fail hub creation: hub=%#v", archivedWorkspace.Hub)
 	}
 }
 

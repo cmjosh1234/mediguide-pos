@@ -4267,7 +4267,7 @@ definitions:
         type: string
       data_as_of:
         type: string
-      disease_type:
+      disease_id:
         type: string
       district_id:
         type: string
@@ -7642,7 +7642,9 @@ definitions:
         type: string
       data_as_of:
         type: string
-      disease_type:
+      disease_id:
+        type: string
+      disease_name:
         type: string
       district_id:
         type: string
@@ -7862,7 +7864,7 @@ definitions:
     properties:
       data_as_of:
         type: string
-      disease_type:
+      disease_id:
         type: string
       district_id:
         type: string
@@ -7915,6 +7917,17 @@ definitions:
         type: string
       value:
         type: string
+    type: object
+  services.OutbreakMetricsInput:
+    properties:
+      lock_version:
+        type: integer
+      metrics:
+        items:
+          $ref: '#/definitions/services.OutbreakMetric'
+        type: array
+    required:
+    - metrics
     type: object
   services.OutbreakNotificationCampaignInput:
     properties:
@@ -9156,7 +9169,9 @@ definitions:
     properties:
       data_as_of:
         type: string
-      disease_type:
+      disease_id:
+        type: string
+      disease_name:
         type: string
       district_id:
         type: string
@@ -10833,7 +10848,7 @@ paths:
         in: query
         name: per_page
         type: integer
-      - description: Title, summary, or disease type
+      - description: Title, summary, or geographic area
         in: query
         name: search
         type: string
@@ -10841,7 +10856,7 @@ paths:
         in: query
         name: status
         type: string
-      - description: Exact disease type
+      - description: Exact disease ID
         in: query
         name: disease
         type: string
@@ -19078,7 +19093,7 @@ paths:
         in: query
         name: status
         type: string
-      - description: Disease name
+      - description: Disease ID
         in: query
         name: disease
         type: string
@@ -19624,6 +19639,25 @@ paths:
       summary: Submit, approve, publish, or withdraw an outbreak document
       tags:
       - outbreak-document-administration
+  /api/v2/outbreaks/{id}/metrics:
+    patch:
+      parameters:
+      - description: Outbreak metrics
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/services.OutbreakMetricsInput'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.OutbreakAdminDTO'
+      security:
+      - BearerAuth: []
+      summary: Update an outbreak's metrics regardless of its lifecycle status
+      tags:
+      - outbreak-administration
   /api/v2/outbreaks/{id}/notification-campaign:
     post:
       description: Creates a draft only; normal campaign review, approval and scheduling

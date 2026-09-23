@@ -19,7 +19,7 @@ func outbreakDocumentNotificationTestService(t *testing.T) (OutbreakAdminService
 	}
 	if err := database.AutoMigrate(
 		&models.User{}, &models.Role{}, &models.Permission{},
-		&models.Outbreak{}, &models.OutbreakResource{}, &models.AuditLog{},
+		&models.Disease{}, &models.Outbreak{}, &models.OutbreakResource{}, &models.AuditLog{},
 		&models.Notification{},
 	); err != nil {
 		t.Fatal(err)

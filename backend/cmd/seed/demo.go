@@ -57,6 +57,7 @@ func seedDemoData(ctx context.Context, database *gorm.DB, store storage.ObjectSt
 			func() error { return seedDemoDrugs(tx) },
 			func() error { return seedDemoGuidelines(ctx, tx, store, reviewer.ID) },
 			func() error { return seedDemoGuidelineReviewWorkflow(ctx, tx, store, admin.ID, reviewer.ID) },
+			func() error { return seedDemoDiseases(tx, admin.ID) },
 			func() error { return seedDemoOutbreaks(ctx, tx, store, admin.ID, clinician.ID) },
 			func() error { return seedDemoDiseaseHubs(tx, admin.ID) },
 			func() error { return seedDemoPeopleAndHelp(tx, admin.ID, clinician.ID) },
@@ -572,7 +573,7 @@ func seedDemoOutbreaks(ctx context.Context, database *gorm.DB, store storage.Obj
 	}
 	rows := []map[string]any{
 		{
-			"id": ebolaID, "title": "Bundibugyo virus disease response — Uganda", "disease_type": "Bundibugyo virus disease", "status": "monitoring",
+			"id": ebolaID, "title": "Bundibugyo virus disease response — Uganda", "disease_id": demoEbolaDiseaseID, "status": "monitoring",
 			"geographic_area": "Uganda and the Democratic Republic of the Congo border region",
 			"summary":         "Uganda entered the 42-day countdown toward ending its Ebola outbreak caused by Bundibugyo virus after the last confirmed patient was discharged. Cross-border surveillance and readiness remained necessary while transmission continued in the Democratic Republic of the Congo.",
 			"start_date":      startDate, "last_update": reportDate, "visual_tone": "warning", "source_organization": "Ministry of Health Uganda and WHO Regional Office for Africa", "published_at": publicationDate,

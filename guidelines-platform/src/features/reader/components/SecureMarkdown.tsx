@@ -1,4 +1,4 @@
-import { useState, type ComponentProps } from "react";
+import { memo, useMemo, useState, type ComponentProps } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeSlug from "rehype-slug";
@@ -20,48 +20,58 @@ function safeImageSource(value: string | undefined) {
   return undefined;
 }
 
-export function SecureMarkdown({ content, resolveImage, headingIds }: SecureMarkdownProps) {
-  let headingIndex = 0;
-  const heading = (Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") =>
-    ({ children, ...properties }: ComponentProps<typeof Tag>) => {
-      const id = headingIds?.[headingIndex++];
-      return (
-        <Tag {...properties} id={id}>
-          {id ? <a href={`#${id}`}>{children}</a> : children}
-        </Tag>
-      );
+const remarkPlugins = [remarkGfm];
+
+// Memoized so unrelated parent re-renders (e.g. typing in the reader search box)
+// don't re-parse and re-render the whole document.
+export const SecureMarkdown = memo(function SecureMarkdown({ content, resolveImage, headingIds }: SecureMarkdownProps) {
+  const rehypePlugins = useMemo<ComponentProps<typeof ReactMarkdown>["rehypePlugins"]>(
+    () => (headingIds ? [] : [rehypeSlug, [rehypeAutolinkHeadings, { behavior: "wrap" }]]),
+    [headingIds],
+  );
+
+  const components = useMemo<ComponentProps<typeof ReactMarkdown>["components"]>(() => {
+    let headingIndex = 0;
+    const heading = (Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") =>
+      ({ children, ...properties }: ComponentProps<typeof Tag>) => {
+        const id = headingIds?.[headingIndex++];
+        return (
+          <Tag {...properties} id={id}>
+            {id ? <a href={`#${id}`}>{children}</a> : children}
+          </Tag>
+        );
+      };
+    return {
+      ...(headingIds ? {
+        h1: heading("h1"), h2: heading("h2"), h3: heading("h3"),
+        h4: heading("h4"), h5: heading("h5"), h6: heading("h6"),
+      } : {}),
+      a: ({ href, children, ...properties }) => (
+        <a
+          href={href}
+          {...properties}
+          target={isExternalUrl(href) ? "_blank" : undefined}
+          rel={isExternalUrl(href) ? "noopener noreferrer" : undefined}
+        >
+          {children}
+        </a>
+      ),
+      img: (properties: ComponentProps<"img">) => (
+        <SafeMarkdownImage {...properties} resolveImage={resolveImage} />
+      ),
     };
+  }, [headingIds, resolveImage]);
+
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={headingIds ? [] : [
-          rehypeSlug,
-          [rehypeAutolinkHeadings, { behavior: "wrap" }],
-        ]}
-      components={{
-        ...(headingIds ? {
-          h1: heading("h1"), h2: heading("h2"), h3: heading("h3"),
-          h4: heading("h4"), h5: heading("h5"), h6: heading("h6"),
-        } : {}),
-        a: ({ href, children, ...properties }) => (
-          <a
-            href={href}
-            {...properties}
-            target={isExternalUrl(href) ? "_blank" : undefined}
-            rel={isExternalUrl(href) ? "noopener noreferrer" : undefined}
-          >
-            {children}
-          </a>
-        ),
-        img: (properties: ComponentProps<"img">) => (
-          <SafeMarkdownImage {...properties} resolveImage={resolveImage} />
-        ),
-      }}
+      remarkPlugins={remarkPlugins}
+      rehypePlugins={rehypePlugins}
+      components={components}
     >
       {content}
     </ReactMarkdown>
   );
-}
+});
 
 function SafeMarkdownImage({
   src,

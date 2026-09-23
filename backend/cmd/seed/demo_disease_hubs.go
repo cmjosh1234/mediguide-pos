@@ -19,13 +19,11 @@ var (
 	demoHypertensionDiseaseID = uuid.MustParse("90000000-0000-4000-8000-000000000007")
 )
 
-// seedDemoDiseaseHubs connects the existing reviewed demo publications to the
-// disease-aware discovery model. It deliberately runs only as part of the
-// guarded demo scope and owns deterministic IDs so reruns update, rather than
-// duplicate, local fixtures.
-func seedDemoDiseaseHubs(database *gorm.DB, adminID uuid.UUID) error {
-	publishedAt := time.Date(2026, time.July, 26, 12, 0, 0, 0, time.UTC)
-
+// seedDemoDiseases upserts the demo disease taxonomy rows. It runs ahead of
+// outbreak seeding because outbreaks.disease_id is a foreign key into
+// diseases, and again (idempotently) from seedDemoDiseaseHubs so that
+// function still seeds a complete taxonomy when invoked on its own.
+func seedDemoDiseases(database *gorm.DB, adminID uuid.UUID) error {
 	diseases := []map[string]any{
 		{"id": demoEbolaDiseaseID, "name": "Ebola virus disease", "normalized_name": "ebola virus disease", "slug": "ebola-virus-disease", "short_name": "EVD", "description": "Viral haemorrhagic fever guidance and approved response resources.", "icon": "shield-alert", "color": "#C62828", "status": "active", "sort_order": 10, "updated_by": adminID, "deleted_at": nil},
 		{"id": demoMalariaDiseaseID, "name": "Malaria", "normalized_name": "malaria", "slug": "malaria", "description": "Approved prevention, diagnosis and treatment resources for malaria.", "icon": "mosquito", "color": "#1565C0", "status": "active", "sort_order": 20, "updated_by": adminID, "deleted_at": nil},
@@ -38,6 +36,19 @@ func seedDemoDiseaseHubs(database *gorm.DB, adminID uuid.UUID) error {
 		if err := upsertByID(database, "diseases", row); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// seedDemoDiseaseHubs connects the existing reviewed demo publications to the
+// disease-aware discovery model. It deliberately runs only as part of the
+// guarded demo scope and owns deterministic IDs so reruns update, rather than
+// duplicate, local fixtures.
+func seedDemoDiseaseHubs(database *gorm.DB, adminID uuid.UUID) error {
+	publishedAt := time.Date(2026, time.July, 26, 12, 0, 0, 0, time.UTC)
+
+	if err := seedDemoDiseases(database, adminID); err != nil {
+		return err
 	}
 
 	aliases := []map[string]any{

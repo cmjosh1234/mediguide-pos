@@ -2583,7 +2583,7 @@ export interface ModelsOutbreak {
   author_id?: string;
   created_at?: string;
   data_as_of?: string;
-  disease_type?: string;
+  disease_id?: string;
   district_id?: string;
   effective_at?: string;
   geographic_area?: string;
@@ -4408,7 +4408,8 @@ export interface ServicesOutbreakAdminDTO {
   author_id?: string;
   created_at?: string;
   data_as_of?: string;
-  disease_type?: string;
+  disease_id?: string;
+  disease_name?: string;
   district_id?: string;
   effective_at?: string;
   geographic_area?: string;
@@ -4524,7 +4525,7 @@ export interface ServicesOutbreakDocumentSearchPreview {
 
 export interface ServicesOutbreakInput {
   data_as_of?: string;
-  disease_type?: string;
+  disease_id?: string;
   district_id?: string;
   effective_at?: string;
   geographic_area?: string;
@@ -4551,6 +4552,11 @@ export interface ServicesOutbreakMetric {
   source_reference?: string;
   unit?: string;
   value?: string;
+}
+
+export interface ServicesOutbreakMetricsInput {
+  lock_version?: number;
+  metrics: ServicesOutbreakMetric[];
 }
 
 export interface ServicesOutbreakNotificationCampaignInput {
@@ -5226,7 +5232,8 @@ export interface ServicesPublicHubOutbreak {
 
 export interface ServicesPublicOutbreak {
   data_as_of?: string;
-  disease_type?: string;
+  disease_id?: string;
+  disease_name?: string;
   district_id?: string;
   effective_at?: string;
   geographic_area?: string;

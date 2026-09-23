@@ -22,7 +22,7 @@ func outbreakTestService(t *testing.T) OutbreakService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}); err != nil {
+	if err := db.AutoMigrate(&models.Disease{}, &models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}); err != nil {
 		t.Fatal(err)
 	}
 	return OutbreakService{DB: db}
@@ -252,7 +252,7 @@ func TestOutbreakDocumentDownloadRedirectsOnlyValidatedExternalURLs(t *testing.T
 func TestOutbreakServiceDiscoversDocumentsAcrossPublishedOutbreaks(t *testing.T) {
 	service := outbreakTestService(t)
 	now := time.Now().UTC().Add(-time.Minute)
-	publicParent := models.Outbreak{Title: "Ebola response", DiseaseType: "EVD", GeographicArea: "Kampala", Status: "active", PublishedAt: &now, LastUpdate: now}
+	publicParent := models.Outbreak{Title: "Ebola response", GeographicArea: "Kampala", Status: "active", PublishedAt: &now, LastUpdate: now}
 	draftParent := models.Outbreak{Title: "Internal response", Status: "draft", LastUpdate: now}
 	if err := service.DB.Create(&publicParent).Error; err != nil {
 		t.Fatal(err)
@@ -289,7 +289,7 @@ func TestOutbreakDocumentDiscoveryEnforcesLifecycleAndSupersededVersionRules(t *
 	service := outbreakTestService(t)
 	now := time.Now().UTC().Truncate(time.Second)
 	past, future, expired := now.Add(-time.Hour), now.Add(time.Hour), now.Add(-time.Minute)
-	visibleParent := models.Outbreak{Title: "Visible response", DiseaseType: "EVD", Status: "active", PublishedAt: &past, LastUpdate: now}
+	visibleParent := models.Outbreak{Title: "Visible response", Status: "active", PublishedAt: &past, LastUpdate: now}
 	privateParent := models.Outbreak{Title: "Private response", Status: "draft", LastUpdate: now}
 	withdrawnParent := models.Outbreak{Title: "Withdrawn response", Status: "active", PublishedAt: &past, WithdrawnAt: &past, LastUpdate: now}
 	for _, parent := range []*models.Outbreak{&visibleParent, &privateParent, &withdrawnParent} {
@@ -337,7 +337,7 @@ func TestOutbreakDocumentDiscoveryEnforcesLifecycleAndSupersededVersionRules(t *
 func TestOutbreakDocumentDiscoveryFiltersPaginationPDFMatchAndSafeSort(t *testing.T) {
 	service := outbreakTestService(t)
 	now := time.Now().UTC().Add(-time.Hour)
-	parent := models.Outbreak{Title: "Ebola response", DiseaseType: "EVD", GeographicArea: "Kampala", Status: "active", PublishedAt: &now, LastUpdate: now}
+	parent := models.Outbreak{Title: "Ebola response", GeographicArea: "Kampala", Status: "active", PublishedAt: &now, LastUpdate: now}
 	if err := service.DB.Create(&parent).Error; err != nil {
 		t.Fatal(err)
 	}

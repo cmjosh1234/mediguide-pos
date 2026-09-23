@@ -49,7 +49,8 @@ type SituationReportQuery struct {
 type PublicOutbreak struct {
 	ID                 uuid.UUID        `json:"id"`
 	Title              string           `json:"title"`
-	DiseaseType        string           `json:"disease_type"`
+	DiseaseID          *uuid.UUID       `json:"disease_id,omitempty"`
+	DiseaseName        string           `json:"disease_name,omitempty"`
 	Status             string           `json:"status"`
 	GeographicArea     string           `json:"geographic_area"`
 	RegionID           *uuid.UUID       `json:"region_id,omitempty"`
@@ -127,10 +128,10 @@ func (s OutbreakService) List(in OutbreakQuery) (*PageResult[PublicOutbreak], er
 	query := s.DB.Model(&models.Outbreak{}).Where("published_at IS NOT NULL AND published_at <= ? AND withdrawn_at IS NULL AND status IN ?", time.Now(), []string{"published", "active", "monitoring", "contained", "closed"})
 	if search := strings.TrimSpace(in.Search); search != "" {
 		if s.DB.Dialector.Name() == "postgres" {
-			query = query.Where("to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(summary, '') || ' ' || coalesce(disease_type, '') || ' ' || coalesce(geographic_area, '') || ' ' || coalesce(source_organization, '')) @@ plainto_tsquery('simple', ?)", search)
+			query = query.Where("to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(summary, '') || ' ' || coalesce(geographic_area, '') || ' ' || coalesce(source_organization, '')) @@ plainto_tsquery('simple', ?)", search)
 		} else {
 			like := "%" + strings.ToLower(search) + "%"
-			query = query.Where("lower(title) LIKE ? OR lower(summary) LIKE ? OR lower(disease_type) LIKE ? OR lower(geographic_area) LIKE ? OR lower(source_organization) LIKE ?", like, like, like, like, like)
+			query = query.Where("lower(title) LIKE ? OR lower(summary) LIKE ? OR lower(geographic_area) LIKE ? OR lower(source_organization) LIKE ?", like, like, like, like)
 		}
 	}
 	if status := strings.TrimSpace(in.Status); status != "" {
@@ -140,7 +141,11 @@ func (s OutbreakService) List(in OutbreakQuery) (*PageResult[PublicOutbreak], er
 		query = query.Where("status = ?", status)
 	}
 	if disease := strings.TrimSpace(in.Disease); disease != "" {
-		query = query.Where("lower(disease_type) = ?", strings.ToLower(disease))
+		id, err := uuid.Parse(disease)
+		if err != nil {
+			return nil, ErrOutbreakInvalid
+		}
+		query = query.Where("disease_id = ?", id)
 	}
 	if area := strings.TrimSpace(in.Area); area != "" {
 		query = query.Where("lower(geographic_area) LIKE ?", "%"+strings.ToLower(area)+"%")
@@ -181,7 +186,7 @@ func (s OutbreakService) List(in OutbreakQuery) (*PageResult[PublicOutbreak], er
 		return nil, ErrOutbreakInvalid
 	}
 	var rows []models.Outbreak
-	if err := query.Order(column + " " + order + ", id " + order).Limit(page.PerPage).Offset(page.Offset()).Find(&rows).Error; err != nil {
+	if err := query.Select("outbreaks.*, (SELECT name FROM diseases WHERE diseases.id = outbreaks.disease_id) AS disease_name").Order(column + " " + order + ", id " + order).Limit(page.PerPage).Offset(page.Offset()).Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	items := make([]PublicOutbreak, len(rows))
@@ -193,7 +198,7 @@ func (s OutbreakService) List(in OutbreakQuery) (*PageResult[PublicOutbreak], er
 
 func (s OutbreakService) Get(id uuid.UUID) (*PublicOutbreak, error) {
 	var item models.Outbreak
-	if err := s.DB.Where("id = ? AND published_at IS NOT NULL AND published_at <= ? AND withdrawn_at IS NULL AND status IN ?", id, time.Now(), []string{"published", "active", "monitoring", "contained", "closed"}).First(&item).Error; err != nil {
+	if err := s.DB.Model(&models.Outbreak{}).Select("outbreaks.*, (SELECT name FROM diseases WHERE diseases.id = outbreaks.disease_id) AS disease_name").Where("id = ? AND published_at IS NOT NULL AND published_at <= ? AND withdrawn_at IS NULL AND status IN ?", id, time.Now(), []string{"published", "active", "monitoring", "contained", "closed"}).First(&item).Error; err != nil {
 		return nil, err
 	}
 	result := publicOutbreak(item)
@@ -506,7 +511,7 @@ func (s OutbreakService) PresignReportAsset(ctx context.Context, id uuid.UUID) (
 }
 
 func publicOutbreak(row models.Outbreak) PublicOutbreak {
-	return PublicOutbreak{row.ID, row.Title, row.DiseaseType, row.Status, row.GeographicArea, row.RegionID, row.DistrictID, row.Summary, row.StartDate, row.LastUpdate, row.VisualTone, row.SourceOrganization, row.PublishedAt, row.SourceURL, row.SourceReference, row.EffectiveAt, row.DataAsOf, row.LastVerifiedAt, decodeMetrics(row.Metrics)}
+	return PublicOutbreak{row.ID, row.Title, row.DiseaseID, row.DiseaseName, row.Status, row.GeographicArea, row.RegionID, row.DistrictID, row.Summary, row.StartDate, row.LastUpdate, row.VisualTone, row.SourceOrganization, row.PublishedAt, row.SourceURL, row.SourceReference, row.EffectiveAt, row.DataAsOf, row.LastVerifiedAt, decodeMetrics(row.Metrics)}
 }
 func publicSituationReport(row models.SituationReport) PublicSituationReport {
 	assetURL := row.ReportAssetURL

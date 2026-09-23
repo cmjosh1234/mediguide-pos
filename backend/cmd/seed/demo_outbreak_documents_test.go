@@ -52,7 +52,7 @@ func TestSeedDemoOutbreakDocumentsIsCompleteAndIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := database.AutoMigrate(&models.Outbreak{}, &models.OutbreakResource{}); err != nil {
+	if err := database.AutoMigrate(&models.Disease{}, &models.Outbreak{}, &models.OutbreakResource{}); err != nil {
 		t.Fatal(err)
 	}
 	outbreakID := demoID("outbreak", "bundibugyo-uganda-2026")

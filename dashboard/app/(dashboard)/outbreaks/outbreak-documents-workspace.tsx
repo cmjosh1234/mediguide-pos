@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RequiredMark } from "./required-field";
 import { MarkdownPreview } from "@/components/guidelines/markdown-preview";
 import { showToast } from "@/lib/toast";
 import {
@@ -66,6 +67,27 @@ const emptyDraft = (): Draft => ({
   expires_at: "",
 });
 
+// Mirrors validateDocument in the backend (outbreak_document_service.go).
+const LANGUAGE_PATTERN = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
+
+function findDraftProblems(draft: Draft) {
+  const problems: { id: string; label: string; message: string }[] = [];
+  if (!draft.title.trim()) {
+    problems.push({ id: "document-title", label: "Title", message: "Title is required." });
+  }
+  const language = draft.language.trim();
+  if (!language) {
+    problems.push({ id: "document-language", label: "Language", message: "Language is required." });
+  } else if (!LANGUAGE_PATTERN.test(language)) {
+    problems.push({
+      id: "document-language",
+      label: "Language",
+      message: "Use a language code such as en or en-UG.",
+    });
+  }
+  return problems;
+}
+
 export function OutbreakDocumentsWorkspace({
   outbreakId,
   initialDocumentId,
@@ -96,6 +118,12 @@ export function OutbreakDocumentsWorkspace({
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [workingId, setWorkingId] = React.useState<string | null>(null);
   const [showForm, setShowForm] = React.useState(false);
+  const [draftAttempted, setDraftAttempted] = React.useState(false);
+  const draftProblems = React.useMemo(() => findDraftProblems(draft), [draft]);
+  const draftError = (id: string) =>
+    draftAttempted
+      ? draftProblems.find((problem) => problem.id === id)?.message
+      : undefined;
   const [auditId, setAuditId] = React.useState<string | null>(null);
   const [audit, setAudit] = React.useState<OutbreakAuditRecord[]>([]);
   const [comment, setComment] = React.useState("");
@@ -138,13 +166,23 @@ export function OutbreakDocumentsWorkspace({
     setDraft((current) => ({ ...current, [key]: value }));
   }
   function resetForm() {
+    setDraftAttempted(false);
     setDraft(emptyDraft());
     setEditingId(null);
     setShowForm(false);
   }
 
   async function saveDraft() {
-    if (!draft.title.trim()) return;
+    if (draftProblems.length > 0) {
+      setDraftAttempted(true);
+      showToast.error(
+        "Missing required information",
+        `Fill in: ${draftProblems.map((problem) => problem.label).join(", ")}`,
+        { richColors: true },
+      );
+      document.getElementById(draftProblems[0].id)?.focus();
+      return;
+    }
     setWorkingId(editingId || "new");
     try {
       const input: OutbreakDocumentInput = {
@@ -425,13 +463,22 @@ export function OutbreakDocumentsWorkspace({
         ) : null}
         {showForm ? (
           <div className="space-y-3 rounded-md border bg-muted/20 p-4">
+            <p className="text-sm text-muted-foreground">
+              <RequiredMark /> Required to save a draft. Fields marked
+              &ldquo;needed for review&rdquo; can be left for later.
+            </p>
             <div className="grid gap-3 md:grid-cols-2">
               <TextField
+                id="document-title"
                 label="Title"
+                required
+                error={draftError("document-title")}
                 value={draft.title}
                 onChange={(value) => field("title", value)}
               />
               <SelectField
+                id="document-kind"
+                required
                 label="Document kind"
                 value={documentKind}
                 options={kindOptions.map((kind) => ({
@@ -446,6 +493,7 @@ export function OutbreakDocumentsWorkspace({
               />
               <TextField
                 label="Issuing authority"
+                hint="needed for review"
                 value={draft.issuing_authority}
                 onChange={(value) => field("issuing_authority", value)}
               />
@@ -456,10 +504,14 @@ export function OutbreakDocumentsWorkspace({
               />
               <TextField
                 label="Version"
+                hint="needed for review"
                 value={draft.version}
                 onChange={(value) => field("version", value)}
               />
               <TextField
+                id="document-language"
+                required
+                error={draftError("document-language")}
                 label="Language (BCP-47)"
                 value={draft.language}
                 onChange={(value) => field("language", value)}
@@ -499,7 +551,7 @@ export function OutbreakDocumentsWorkspace({
             </div>
             <div className="flex gap-2">
               <Button
-                disabled={!draft.title.trim() || workingId !== null}
+                disabled={workingId !== null}
                 onClick={() => void saveDraft()}
               >
                 {editingId ? "Save metadata" : "Create draft"}
@@ -897,45 +949,92 @@ function ExtractionBadge({ status }: { status?: string }) {
 }
 
 function TextField({
+  id,
   label: text,
   value,
   onChange,
   type = "text",
+  required,
+  hint,
+  error,
 }: {
+  id?: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  required?: boolean;
+  hint?: string;
+  error?: string;
 }) {
   return (
     <div>
-      <Label>{text}</Label>
+      <Label htmlFor={id}>
+        {text}
+        {required ? (
+          <>
+            <RequiredMark />
+            <span className="sr-only">(required)</span>
+          </>
+        ) : null}
+        {hint ? (
+          <span className="text-xs font-normal text-muted-foreground">
+            ({hint})
+          </span>
+        ) : null}
+      </Label>
       <Input
+        id={id}
         className="mt-2"
         type={type}
         value={value}
+        aria-required={required}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error && id ? `${id}-error` : undefined}
         onChange={(event) => onChange(event.target.value)}
       />
+      {error ? (
+        <p
+          id={id ? `${id}-error` : undefined}
+          className="mt-1 text-xs text-destructive"
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
 function SelectField({
+  id,
   label: text,
   value,
   options,
   disabled,
   onChange,
+  required,
 }: {
+  id?: string;
   label: string;
   value: string;
   options: { value: string; label: string }[];
   disabled?: boolean;
   onChange: (value: string) => void;
+  required?: boolean;
 }) {
   return (
     <div>
-      <Label>{text}</Label>
+      <Label htmlFor={id}>
+        {text}
+        {required ? (
+          <>
+            <RequiredMark />
+            <span className="sr-only">(required)</span>
+          </>
+        ) : null}
+      </Label>
       <select
+        id={id}
+        aria-required={required}
         className="mt-2 h-10 w-full rounded-md border bg-background px-3"
         value={value}
         disabled={disabled}

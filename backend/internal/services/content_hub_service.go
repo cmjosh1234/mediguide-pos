@@ -344,7 +344,10 @@ func replaceHubDiseases(tx *gorm.DB, hub *models.ContentHub, ids []uuid.UUID) er
 	for _, id := range ids {
 		diseases = append(diseases, models.Disease{Base: models.Base{ID: id}})
 	}
-	return tx.Model(hub).Association("Diseases").Replace(&diseases)
+	// diseases only carry IDs; skip upserting the diseases themselves (their
+	// NOT NULL name column would receive an empty string) and write just the
+	// join-table links.
+	return tx.Omit("Diseases.*").Model(hub).Association("Diseases").Replace(&diseases)
 }
 
 func validateOutbreakIDs(tx *gorm.DB, ids []uuid.UUID) error {
@@ -379,7 +382,9 @@ func replaceHubOutbreaks(tx *gorm.DB, hub *models.ContentHub, ids []uuid.UUID) e
 	for i, id := range ids {
 		rows[i].ID = id
 	}
-	if err := tx.Model(hub).Association("Outbreaks").Append(&rows); err != nil {
+	// rows only carry IDs; skip upserting the outbreaks themselves (their NOT NULL
+	// jsonb columns would receive NULL) and write just the join-table links.
+	if err := tx.Omit("Outbreaks.*").Model(hub).Association("Outbreaks").Append(&rows); err != nil {
 		return mapContentHubConstraint(err)
 	}
 	return nil

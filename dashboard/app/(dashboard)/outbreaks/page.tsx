@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { outbreaksService, type OutbreakRecord } from "@/services/outbreaks.service"
+import { diseaseService } from "@/services/content-hubs.service"
 
 export default function OutbreaksPage() {
   const [items, setItems] = React.useState<OutbreakRecord[]>([])
+  const [diseases, setDiseases] = React.useState<Array<{ id: string; name: string }>>([])
   const [search, setSearch] = React.useState("")
   const [status, setStatus] = React.useState("")
   const [disease, setDisease] = React.useState("")
@@ -36,6 +38,9 @@ export default function OutbreaksPage() {
   }, [area, disease, effectiveFrom, page, search, sort, status, tone, updatedFrom])
 
   React.useEffect(() => { void load() }, [load])
+  React.useEffect(() => {
+    void diseaseService.list("", "active").then(page => setDiseases(page.items || [])).catch(() => setDiseases([]))
+  }, [])
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -44,7 +49,7 @@ export default function OutbreaksPage() {
     </div>
     <div className="grid gap-3 rounded-lg border p-4 md:grid-cols-5">
       <div className="relative md:col-span-2"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={search} onChange={event => { setSearch(event.target.value); setPage(1) }} placeholder="Search title or summary" /></div>
-      <Input value={disease} onChange={event => { setDisease(event.target.value); setPage(1) }} placeholder="Disease" />
+      <select className="rounded-md border bg-background px-3 text-sm" value={disease} onChange={event => { setDisease(event.target.value); setPage(1) }} aria-label="Disease"><option value="">All diseases</option>{diseases.map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</select>
       <Input value={area} onChange={event => { setArea(event.target.value); setPage(1) }} placeholder="Geographic area" />
       <select className="rounded-md border bg-background px-3 text-sm" value={status} onChange={event => { setStatus(event.target.value); setPage(1) }} aria-label="Lifecycle status"><option value="">All states</option>{["draft","pending_review","published","active","monitoring","contained","closed","withdrawn"].map(value => <option key={value}>{value}</option>)}</select>
       <select className="rounded-md border bg-background px-3 text-sm" value={tone} onChange={event => { setTone(event.target.value); setPage(1) }} aria-label="Visual tone"><option value="">All tones</option>{["neutral","info","warning","critical","success"].map(value => <option key={value}>{value}</option>)}</select>
@@ -58,7 +63,7 @@ export default function OutbreaksPage() {
       <TableBody>
         {loading ? <TableRow><TableCell colSpan={7} className="py-12 text-center"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading outbreaks…</TableCell></TableRow> : null}
         {!loading && items.length === 0 ? <TableRow><TableCell colSpan={7} className="py-12 text-center text-muted-foreground"><AlertTriangle className="mx-auto mb-2 h-8 w-8" />No outbreaks match these filters.</TableCell></TableRow> : null}
-        {items.map(item => <TableRow key={item.id}><TableCell><Link className="font-medium hover:underline" href={`/outbreaks/${item.id}`}>{item.title || "Untitled"}</Link><div className="text-xs text-muted-foreground">{item.disease_type}</div></TableCell><TableCell><Badge variant={item.status === "withdrawn" ? "destructive" : "outline"}>{item.status}</Badge></TableCell><TableCell>{item.geographic_area}</TableCell><TableCell>{item.visual_tone}</TableCell><TableCell>{formatDate(item.data_as_of)}</TableCell><TableCell>{formatDate(item.last_verified_at)}</TableCell><TableCell>{formatDate(item.updated_at)}</TableCell></TableRow>)}
+        {items.map(item => <TableRow key={item.id}><TableCell><Link className="font-medium hover:underline" href={`/outbreaks/${item.id}`}>{item.title || "Untitled"}</Link><div className="text-xs text-muted-foreground">{item.disease_name}</div></TableCell><TableCell><Badge variant={item.status === "withdrawn" ? "destructive" : "outline"}>{item.status}</Badge></TableCell><TableCell>{item.geographic_area}</TableCell><TableCell>{item.visual_tone}</TableCell><TableCell>{formatDate(item.data_as_of)}</TableCell><TableCell>{formatDate(item.last_verified_at)}</TableCell><TableCell>{formatDate(item.updated_at)}</TableCell></TableRow>)}
       </TableBody></Table>
     </div>
     <div className="flex items-center justify-between text-sm"><span>Page {page}{totalPages ? ` of ${totalPages}` : ""}</span><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="h-4 w-4" /></Button><Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(value => value - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page >= totalPages || loading} onClick={() => setPage(value => value + 1)}>Next</Button></div></div>

@@ -158,7 +158,7 @@ func TestOutbreakAdministrationMigrationUpDownUp(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Now().UTC().Add(-time.Hour)
-	parent := models.Outbreak{Title: "Ebola response", DiseaseType: "EVD", GeographicArea: "Kampala", Status: "active", VisualTone: "warning", PublishedAt: &now, LastUpdate: now, Metrics: datatypes.JSON(`[]`)}
+	parent := models.Outbreak{Title: "Ebola response", GeographicArea: "Kampala", Status: "active", VisualTone: "warning", PublishedAt: &now, LastUpdate: now, Metrics: datatypes.JSON(`[]`)}
 	if err := gormDB.Create(&parent).Error; err != nil {
 		t.Fatal(err)
 	}

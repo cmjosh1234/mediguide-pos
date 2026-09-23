@@ -32,7 +32,7 @@ func TestPublicDiscoverySearchIncludesOnlyPublishedOutbreakContent(t *testing.T)
 	}
 	now := time.Now().UTC()
 	verified := now.Add(-time.Hour)
-	public := models.Outbreak{Title: "Ebola response", DiseaseType: "Ebola", GeographicArea: "Uganda", Summary: "Verified response", SourceOrganization: "Ministry of Health", SourceReference: "approved-keyword", Status: "active", PublishedAt: &now, LastUpdate: now, LastVerifiedAt: &verified}
+	public := models.Outbreak{Title: "Ebola response", GeographicArea: "Uganda", Summary: "Verified response", SourceOrganization: "Ministry of Health", SourceReference: "approved-keyword", Status: "active", PublishedAt: &now, LastUpdate: now, LastVerifiedAt: &verified}
 	draft := models.Outbreak{Title: "Ebola internal draft", Status: "draft", LastUpdate: now}
 	withdrawnAt := now
 	withdrawn := models.Outbreak{Title: "Ebola withdrawn", Status: "active", PublishedAt: &now, WithdrawnAt: &withdrawnAt, LastUpdate: now}
@@ -222,8 +222,8 @@ func TestRAGRetrievalIncludesEligibleOutbreakEvidenceAndExcludesDrafts(t *testin
 	if err := db.Create(&disease).Error; err != nil {
 		t.Fatal(err)
 	}
-	public := models.Outbreak{Title: "Cholera response", DiseaseType: "Cholera", Summary: "Use approved cholera case management guidance", Status: "active", PublishedAt: &now, LastUpdate: now}
-	draft := models.Outbreak{Title: "Draft cholera response", DiseaseType: "Cholera", Summary: "Private cholera instructions", Status: "draft", LastUpdate: now}
+	public := models.Outbreak{Title: "Cholera response", Summary: "Use approved cholera case management guidance", Status: "active", PublishedAt: &now, LastUpdate: now}
+	draft := models.Outbreak{Title: "Draft cholera response", Summary: "Private cholera instructions", Status: "draft", LastUpdate: now}
 	for _, outbreak := range []*models.Outbreak{&public, &draft} {
 		if err := db.Create(outbreak).Error; err != nil {
 			t.Fatal(err)

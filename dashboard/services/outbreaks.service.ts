@@ -5,6 +5,7 @@ import type {
   ServicesChildContentInput,
   ServicesOutbreakAdminDTO,
   ServicesOutbreakInput,
+  ServicesOutbreakMetricsInput,
   ServicesOutbreakNotificationCampaignInput,
   ServicesOutbreakMetric,
   ServicesOutbreakDocumentAdminDTO,
@@ -26,6 +27,7 @@ export type OutbreakUpdateRecord = ServicesOutbreakUpdateAdminDTO;
 export type OutbreakResourceRecord = ServicesOutbreakResourceAdminDTO;
 export type SituationReportRecord = ServicesSituationReportAdminDTO;
 export type OutbreakInput = ServicesOutbreakInput;
+export type OutbreakMetricsInput = ServicesOutbreakMetricsInput;
 export type SituationReportInput = ServicesSituationReportInput;
 export type ChildContentInput = ServicesChildContentInput;
 export type OutbreakCampaignInput = ServicesOutbreakNotificationCampaignInput;
@@ -119,6 +121,12 @@ export const outbreaksService = {
       body: JSON.stringify(input),
     });
   },
+  updateMetrics(id: string, input: OutbreakMetricsInput) {
+    return client().send<OutbreakRecord>(`/api/v2/outbreaks/${id}/metrics`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
   remove(id: string, lockVersion: number) {
     return client().send<void>(`/api/v2/outbreaks/${id}`, {
       method: "DELETE",
@@ -138,6 +146,12 @@ export const outbreaksService = {
   correct(id: string, input: ServicesTransitionInput) {
     return transition(
       `/api/v2/outbreaks/${id}/correct`,
+      input,
+    ) as Promise<OutbreakRecord>;
+  },
+  updateStatus(id: string, input: ServicesTransitionInput) {
+    return transition(
+      `/api/v2/outbreaks/${id}/update-status`,
       input,
     ) as Promise<OutbreakRecord>;
   },

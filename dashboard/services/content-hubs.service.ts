@@ -40,7 +40,8 @@ export type DiseaseInput = Omit<Disease, "id" | "parent_name"> & {
 export interface OutbreakSummary {
   id: string;
   title: string;
-  disease_type?: string;
+  disease_id?: string;
+  disease_name?: string;
   status?: string;
 }
 export interface ContentHub {

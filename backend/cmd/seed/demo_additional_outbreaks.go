@@ -23,7 +23,7 @@ func seedAdditionalDemoOutbreaks(ctx context.Context, database *gorm.DB, store s
 
 	outbreaks := []map[string]any{
 		{
-			"id": choleraID, "title": "[Demo] Cholera response — Kampala", "disease_type": "Cholera", "status": "monitoring",
+			"id": choleraID, "title": "[Demo] Cholera response — Kampala", "disease_id": demoCholeraDiseaseID, "status": "monitoring",
 			"geographic_area": "Kampala, Uganda", "summary": "Synthetic development scenario for testing active outbreak discovery, metrics, updates, quick resources and situation-report navigation.",
 			"start_date": time.Date(2026, time.August, 10, 0, 0, 0, 0, time.UTC), "last_update": choleraAsOf,
 			"visual_tone": "critical", "source_organization": "MediGuide development fixtures", "published_at": publishedAt,
@@ -32,7 +32,7 @@ func seedAdditionalDemoOutbreaks(ctx context.Context, database *gorm.DB, store s
 			"metrics": mustJSON(`[{"key":"demo_suspected","label":"Suspected cases (demo)","value":"34","numeric_value":34,"unit":"cases","as_of":"2026-08-18T09:00:00Z","source_reference":"Synthetic local fixture","sort_order":1},{"key":"demo_admitted","label":"Admitted (demo)","value":"8","numeric_value":8,"unit":"people","as_of":"2026-08-18T09:00:00Z","source_reference":"Synthetic local fixture","sort_order":2},{"key":"demo_recovered","label":"Recovered (demo)","value":"21","numeric_value":21,"unit":"people","as_of":"2026-08-18T09:00:00Z","source_reference":"Synthetic local fixture","sort_order":3}]`),
 		},
 		{
-			"id": measlesID, "title": "[Demo] Measles response — Gulu", "disease_type": "Measles", "status": "contained",
+			"id": measlesID, "title": "[Demo] Measles response — Gulu", "disease_id": demoMeaslesDiseaseID, "status": "contained",
 			"geographic_area": "Gulu, Uganda", "summary": "Synthetic contained-outbreak scenario for testing historical discovery, status styling, updates and publication metadata.",
 			"start_date": time.Date(2026, time.June, 12, 0, 0, 0, 0, time.UTC), "last_update": measlesAsOf,
 			"visual_tone": "success", "source_organization": "MediGuide development fixtures", "published_at": publishedAt,

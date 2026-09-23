@@ -40,9 +40,13 @@ type OutbreakAdminQuery struct {
 	Search, Status, Disease, Area, RegionID, VisualTone, EffectiveFrom, EffectiveTo, UpdatedFrom, UpdatedTo string
 	Sort, Order                                                                                             string
 }
+type OutbreakMetricsInput struct {
+	Metrics     []OutbreakMetric `json:"metrics" binding:"required"`
+	LockVersion *int             `json:"lock_version"`
+}
 type OutbreakInput struct {
 	Title              *string           `json:"title"`
-	DiseaseType        *string           `json:"disease_type"`
+	DiseaseID          *uuid.UUID        `json:"disease_id"`
 	GeographicArea     *string           `json:"geographic_area"`
 	RegionID           *uuid.UUID        `json:"region_id"`
 	DistrictID         *uuid.UUID        `json:"district_id"`
@@ -102,7 +106,8 @@ type OutbreakReviewCommentInput struct {
 type OutbreakAdminDTO struct {
 	ID                 uuid.UUID        `json:"id"`
 	Title              string           `json:"title"`
-	DiseaseType        string           `json:"disease_type"`
+	DiseaseID          *uuid.UUID       `json:"disease_id,omitempty"`
+	DiseaseName        string           `json:"disease_name,omitempty"`
 	Status             string           `json:"status"`
 	GeographicArea     string           `json:"geographic_area"`
 	RegionID           *uuid.UUID       `json:"region_id,omitempty"`
@@ -277,7 +282,7 @@ func (s OutbreakAdminService) ListOutbreaks(q OutbreakAdminQuery) (*PageResult[O
 	db := s.DB.Model(&models.Outbreak{})
 	if v := strings.TrimSpace(q.Search); v != "" {
 		like := "%" + strings.ToLower(v) + "%"
-		db = db.Where("lower(title) LIKE ? OR lower(summary) LIKE ? OR lower(disease_type) LIKE ?", like, like, like)
+		db = db.Where("lower(title) LIKE ? OR lower(summary) LIKE ? OR EXISTS (SELECT 1 FROM diseases d WHERE d.id = outbreaks.disease_id AND lower(d.name) LIKE ?)", like, like, like)
 	}
 	if v := strings.TrimSpace(q.Status); v != "" {
 		if !validOutbreakValue(v, "draft", "pending_review", "published", "active", "monitoring", "contained", "closed", "withdrawn") {
@@ -289,7 +294,11 @@ func (s OutbreakAdminService) ListOutbreaks(q OutbreakAdminQuery) (*PageResult[O
 		db = db.Where("lower(geographic_area) LIKE ?", "%"+strings.ToLower(v)+"%")
 	}
 	if v := strings.TrimSpace(q.Disease); v != "" {
-		db = db.Where("lower(disease_type) LIKE ?", "%"+strings.ToLower(v)+"%")
+		id, err := uuid.Parse(v)
+		if err != nil {
+			return nil, ErrOutbreakInvalid
+		}
+		db = db.Where("disease_id = ?", id)
 	}
 	if v := strings.TrimSpace(q.RegionID); v != "" {
 		id, err := uuid.Parse(v)
@@ -325,7 +334,7 @@ func (s OutbreakAdminService) ListOutbreaks(q OutbreakAdminQuery) (*PageResult[O
 		return nil, err
 	}
 	var rows []models.Outbreak
-	if err = db.Order(order).Offset(p.Offset()).Limit(p.PerPage).Find(&rows).Error; err != nil {
+	if err = db.Select("outbreaks.*, (SELECT name FROM diseases WHERE diseases.id = outbreaks.disease_id) AS disease_name").Order(order).Offset(p.Offset()).Limit(p.PerPage).Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	items := make([]OutbreakAdminDTO, len(rows))
@@ -336,7 +345,7 @@ func (s OutbreakAdminService) ListOutbreaks(q OutbreakAdminQuery) (*PageResult[O
 }
 func (s OutbreakAdminService) GetOutbreak(id uuid.UUID) (*OutbreakAdminDTO, error) {
 	var row models.Outbreak
-	if err := s.DB.First(&row, "id = ?", id).Error; err != nil {
+	if err := s.DB.Model(&models.Outbreak{}).Select("outbreaks.*, (SELECT name FROM diseases WHERE diseases.id = outbreaks.disease_id) AS disease_name").First(&row, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	v := outbreakAdminDTO(row)
@@ -379,7 +388,7 @@ func (s OutbreakAdminService) UpdateOutbreak(actor OutbreakActor, id uuid.UUID, 
 		return nil, err
 	}
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
-		updates := map[string]any{"title": row.Title, "disease_type": row.DiseaseType, "geographic_area": row.GeographicArea, "summary": row.Summary, "start_date": row.StartDate, "last_update": row.LastUpdate, "visual_tone": row.VisualTone, "source_organization": row.SourceOrganization, "source_url": row.SourceURL, "source_reference": row.SourceReference, "effective_at": row.EffectiveAt, "data_as_of": row.DataAsOf, "last_verified_at": row.LastVerifiedAt, "metrics": row.Metrics, "lock_version": gorm.Expr("lock_version + 1")}
+		updates := map[string]any{"title": row.Title, "disease_id": row.DiseaseID, "geographic_area": row.GeographicArea, "summary": row.Summary, "start_date": row.StartDate, "last_update": row.LastUpdate, "visual_tone": row.VisualTone, "source_organization": row.SourceOrganization, "source_url": row.SourceURL, "source_reference": row.SourceReference, "effective_at": row.EffectiveAt, "data_as_of": row.DataAsOf, "last_verified_at": row.LastVerifiedAt, "metrics": row.Metrics, "lock_version": gorm.Expr("lock_version + 1")}
 		updates["region_id"] = row.RegionID
 		updates["district_id"] = row.DistrictID
 		r := tx.Model(&models.Outbreak{}).Where("id = ? AND lock_version = ?", id, *in.LockVersion).Updates(updates)
@@ -390,6 +399,41 @@ func (s OutbreakAdminService) UpdateOutbreak(actor OutbreakActor, id uuid.UUID, 
 			return ErrOutbreakConflict
 		}
 		return auditOutbreak(tx, actor, "outbreak.updated", "outbreak", id, nil)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.GetOutbreak(id)
+}
+
+// UpdateMetrics lets metrics be kept current on an outbreak regardless of its
+// lifecycle status. Unlike UpdateOutbreak, it is not blocked once an outbreak
+// is published, because case counts and similar figures need to keep moving
+// after publication without going through the correction/re-approval flow
+// that guards the outbreak's other, editorially-reviewed fields.
+func (s OutbreakAdminService) UpdateMetrics(actor OutbreakActor, id uuid.UUID, in OutbreakMetricsInput) (*OutbreakAdminDTO, error) {
+	if in.LockVersion == nil {
+		return nil, ErrOutbreakInvalid
+	}
+	if err := s.ensureOutbreak(id); err != nil {
+		return nil, err
+	}
+	if err := validateOutbreakMetrics(in.Metrics); err != nil {
+		return nil, err
+	}
+	encoded, err := encodeMetrics(in.Metrics)
+	if err != nil {
+		return nil, err
+	}
+	err = s.DB.Transaction(func(tx *gorm.DB) error {
+		r := tx.Model(&models.Outbreak{}).Where("id = ? AND lock_version = ?", id, *in.LockVersion).Updates(map[string]any{"metrics": datatypes.JSON(encoded), "lock_version": gorm.Expr("lock_version + 1")})
+		if r.Error != nil {
+			return r.Error
+		}
+		if r.RowsAffected == 0 {
+			return ErrOutbreakConflict
+		}
+		return auditOutbreak(tx, actor, "outbreak.metrics_updated", "outbreak", id, nil)
 	})
 	if err != nil {
 		return nil, err
@@ -428,7 +472,7 @@ func (s OutbreakAdminService) TransitionOutbreak(actor OutbreakActor, id uuid.UU
 	switch action {
 	case "submit":
 		if row.Status != "draft" {
-			return nil, ErrOutbreakInvalid
+			return nil, invalidf("Only a draft can be submitted for review. This outbreak is %s.", outbreakStatusLabel(row.Status))
 		}
 		if err := s.validateOutbreakFields(row, false); err != nil {
 			return nil, err
@@ -439,19 +483,28 @@ func (s OutbreakAdminService) TransitionOutbreak(actor OutbreakActor, id uuid.UU
 		updates["approved_by"] = nil
 		updates["approved_at"] = nil
 	case "approve":
-		if row.Status != "pending_review" || row.AuthorID != nil && *row.AuthorID == actor.ID {
-			return nil, ErrOutbreakInvalid
+		if row.Status != "pending_review" {
+			return nil, invalidf("Only an outbreak in review can be approved. This outbreak is %s.", outbreakStatusLabel(row.Status))
+		}
+		if row.ApprovedAt != nil {
+			return nil, invalid("This outbreak is already approved and is waiting to be published.")
+		}
+		if row.AuthorID != nil && *row.AuthorID == actor.ID {
+			return nil, invalid("You created this outbreak, so a different reviewer has to approve it.")
 		}
 		updates["reviewed_by"] = actor.ID
 		updates["reviewed_at"] = now
 		updates["approved_by"] = actor.ID
 		updates["approved_at"] = now
 	case "publish":
-		if row.Status != "pending_review" || row.ApprovedAt == nil {
-			return nil, ErrOutbreakInvalid
+		if row.Status != "pending_review" {
+			return nil, invalidf("Only an outbreak in review can be published. This outbreak is %s.", outbreakStatusLabel(row.Status))
+		}
+		if row.ApprovedAt == nil {
+			return nil, invalid("This outbreak has to be approved before it can be published.")
 		}
 		if row.VisualTone == "critical" && row.ApprovedBy != nil && *row.ApprovedBy == actor.ID {
-			return nil, ErrOutbreakInvalid
+			return nil, invalid("Critical outbreaks have to be published by someone other than the person who approved them.")
 		}
 		if err := s.validateOutbreakFields(row, true); err != nil {
 			return nil, err
@@ -461,21 +514,42 @@ func (s OutbreakAdminService) TransitionOutbreak(actor OutbreakActor, id uuid.UU
 			status = "active"
 		}
 		if !validOutbreakValue(status, "published", "active", "monitoring", "contained", "closed") {
-			return nil, ErrOutbreakInvalid
+			return nil, invalid("Operational status must be published, active, monitoring, contained or closed.")
 		}
 		updates["status"] = status
 		updates["published_at"] = now
 		updates["withdrawn_at"] = nil
 		updates["withdrawal_reason"] = ""
 	case "withdraw":
-		if !publicOutbreakStatus(row.Status) || strings.TrimSpace(in.Reason) == "" {
-			return nil, ErrOutbreakInvalid
+		if !publicOutbreakStatus(row.Status) {
+			return nil, invalidf("Only a published outbreak can be withdrawn. This outbreak is %s.", outbreakStatusLabel(row.Status))
+		}
+		if strings.TrimSpace(in.Reason) == "" {
+			return nil, invalid("A reason is required to withdraw an outbreak.")
 		}
 		updates["status"] = "withdrawn"
 		updates["withdrawn_at"] = now
 		updates["withdrawal_reason"] = strings.TrimSpace(in.Reason)
+	case "update_status":
+		if !publicOutbreakStatus(row.Status) {
+			return nil, invalidf("Only a published outbreak's status can be changed. This outbreak is %s.", outbreakStatusLabel(row.Status))
+		}
+		if row.Status == "closed" {
+			return nil, invalid("Closed outbreaks can't be moved to another status. Create a correction instead.")
+		}
+		target := strings.TrimSpace(in.OperationalStatus)
+		if !validOutbreakValue(target, "published", "active", "monitoring", "contained", "closed") {
+			return nil, invalid("Status must be published, active, monitoring, contained or closed.")
+		}
+		if target == row.Status {
+			return nil, invalidf("This outbreak is already %s.", outbreakStatusLabel(target))
+		}
+		if strings.TrimSpace(in.Reason) == "" {
+			return nil, invalid("A reason is required to change an outbreak's status.")
+		}
+		updates["status"] = target
 	default:
-		return nil, ErrOutbreakInvalid
+		return nil, invalid("Unknown workflow action.")
 	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
 		r := tx.Model(&models.Outbreak{}).Where("id = ? AND lock_version = ?", id, in.LockVersion).Updates(updates)
@@ -524,6 +598,34 @@ func (s OutbreakAdminService) CorrectOutbreak(actor OutbreakActor, id uuid.UUID,
 	return s.GetOutbreak(copy.ID)
 }
 
+func validateUpdateFields(row models.OutbreakUpdate) error {
+	switch {
+	case strings.TrimSpace(row.Title) == "":
+		return invalid("Title is required.")
+	case len(row.Title) > 240:
+		return invalid("Title must be 240 characters or fewer.")
+	case len(row.Summary) > 10_000:
+		return invalid("Summary must be 10,000 characters or fewer.")
+	}
+	return nil
+}
+
+// outbreakStatusLabel renders a status the way the dashboard shows it.
+func outbreakStatusLabel(status string) string {
+	switch status {
+	case "pending_review":
+		return "in review"
+	case "":
+		return "in an unknown state"
+	}
+	return strings.ReplaceAll(status, "_", " ")
+}
+
+// childLabel renders a transitionChildWithHook "kind" the way an administrator
+// would refer to it, e.g. "outbreak_update" -> "update".
+func childLabel(kind string) string {
+	return strings.ReplaceAll(strings.TrimPrefix(kind, "outbreak_"), "_", " ")
+}
 func (s OutbreakAdminService) ListUpdates(id uuid.UUID, p PageInput) (*PageResult[OutbreakUpdateAdminDTO], error) {
 	return listAdminChildren(s.DB, id, p, func(r models.OutbreakUpdate) OutbreakUpdateAdminDTO { return updateAdminDTO(r) })
 }
@@ -533,8 +635,8 @@ func (s OutbreakAdminService) CreateUpdate(actor OutbreakActor, id uuid.UUID, in
 	}
 	row := models.OutbreakUpdate{OutbreakID: id, Status: "draft", AuthorID: &actor.ID, LockVersion: 1}
 	applyUpdate(&row, in)
-	if strings.TrimSpace(row.Title) == "" || len(row.Title) > 240 || len(row.Summary) > 10_000 {
-		return nil, ErrOutbreakInvalid
+	if err := validateUpdateFields(row); err != nil {
+		return nil, err
 	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&row).Error; err != nil {
@@ -567,8 +669,8 @@ func (s OutbreakAdminService) UpdateUpdate(actor OutbreakActor, id, child uuid.U
 		return nil, ErrOutbreakImmutable
 	}
 	applyUpdate(&row, in)
-	if strings.TrimSpace(row.Title) == "" || len(row.Title) > 240 || len(row.Summary) > 10_000 {
-		return nil, ErrOutbreakInvalid
+	if err := validateUpdateFields(row); err != nil {
+		return nil, err
 	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
 		r := tx.Model(&models.OutbreakUpdate{}).Where("id = ? AND outbreak_id = ? AND lock_version = ?", child, id, *in.LockVersion).Updates(map[string]any{"title": row.Title, "summary": row.Summary, "lock_version": gorm.Expr("lock_version + 1")})
@@ -592,8 +694,8 @@ func (s OutbreakAdminService) TransitionUpdate(actor OutbreakActor, id, child uu
 	if err := s.DB.First(&row, "id = ? AND outbreak_id = ?", child, id).Error; err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(row.Title) == "" || len(row.Title) > 240 || len(row.Summary) > 10_000 {
-		return nil, ErrOutbreakInvalid
+	if err := validateUpdateFields(row); err != nil {
+		return nil, err
 	}
 	if err := s.transitionChild(actor, id, child, action, in, "outbreak_update", &models.OutbreakUpdate{}); err != nil {
 		return nil, err
@@ -649,10 +751,10 @@ func (s OutbreakAdminService) CreateResource(actor OutbreakActor, id uuid.UUID, 
 	if err := s.ensureOutbreak(id); err != nil {
 		return nil, err
 	}
-	row := models.OutbreakResource{OutbreakID: id, Status: "draft", AuthorID: &actor.ID, LockVersion: 1}
+	row := models.OutbreakResource{OutbreakID: id, Status: "draft", AuthorID: &actor.ID, LockVersion: 1, ContentSections: datatypes.JSON("[]"), SourcePageMap: datatypes.JSON("[]")}
 	applyResource(&row, in)
 	if err := s.validateResource(row); err != nil {
-		return nil, ErrOutbreakInvalid
+		return nil, err
 	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&row).Error; err != nil {
@@ -877,28 +979,34 @@ func (s OutbreakAdminService) TransitionReport(actor OutbreakActor, id uuid.UUID
 	switch action {
 	case "submit":
 		if row.Status != "draft" {
-			return nil, ErrOutbreakInvalid
+			return nil, invalidf("Only a draft report can be submitted for review. This report is %s.", outbreakStatusLabel(row.Status))
 		}
 		if err := s.validateDraftReport(row); err != nil {
 			return nil, err
 		}
 		updates["status"] = "pending_review"
 	case "approve":
-		if row.Status != "pending_review" || row.AuthorID != nil && *row.AuthorID == actor.ID {
-			return nil, ErrOutbreakInvalid
+		if row.Status != "pending_review" {
+			return nil, invalidf("Only a submitted report can be approved. This report is %s.", outbreakStatusLabel(row.Status))
+		}
+		if row.AuthorID != nil && *row.AuthorID == actor.ID {
+			return nil, invalid("You created this report, so a different reviewer has to approve it.")
 		}
 		updates["reviewed_by"] = actor.ID
 		updates["reviewed_at"] = now
 		updates["approved_by"] = actor.ID
 		updates["approved_at"] = now
 	case "publish":
-		if row.Status != "pending_review" || row.ApprovedAt == nil {
-			return nil, ErrOutbreakInvalid
+		if row.Status != "pending_review" {
+			return nil, invalidf("Only a submitted report can be published. This report is %s.", outbreakStatusLabel(row.Status))
+		}
+		if row.ApprovedAt == nil {
+			return nil, invalid("This report has to be approved before it can be published.")
 		}
 		if row.ApprovedBy != nil && *row.ApprovedBy == actor.ID {
 			var parent models.Outbreak
 			if row.OutbreakID != nil && s.DB.Select("visual_tone").First(&parent, "id = ?", *row.OutbreakID).Error == nil && parent.VisualTone == "critical" {
-				return nil, ErrOutbreakInvalid
+				return nil, invalid("Critical outbreak reports have to be published by someone other than the person who approved them.")
 			}
 		}
 		if err := s.validatePublishReport(row); err != nil {
@@ -907,14 +1015,17 @@ func (s OutbreakAdminService) TransitionReport(actor OutbreakActor, id uuid.UUID
 		updates["status"] = "published"
 		updates["published_at"] = now
 	case "withdraw":
-		if row.Status != "published" || strings.TrimSpace(in.Reason) == "" {
-			return nil, ErrOutbreakInvalid
+		if row.Status != "published" {
+			return nil, invalidf("Only a published report can be withdrawn. This report is %s.", outbreakStatusLabel(row.Status))
+		}
+		if strings.TrimSpace(in.Reason) == "" {
+			return nil, invalid("A reason is required to withdraw this report.")
 		}
 		updates["status"] = "withdrawn"
 		updates["withdrawn_at"] = now
 		updates["withdrawal_reason"] = strings.TrimSpace(in.Reason)
 	default:
-		return nil, ErrOutbreakInvalid
+		return nil, invalidf("%q is not a supported action for a report.", action)
 	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
 		r := tx.Model(&models.SituationReport{}).Where("id = ? AND lock_version = ?", id, in.LockVersion).Updates(updates)
@@ -1012,8 +1123,8 @@ func applyOutbreak(r *models.Outbreak, in OutbreakInput) error {
 	if in.Title != nil {
 		r.Title = strings.TrimSpace(*in.Title)
 	}
-	if in.DiseaseType != nil {
-		r.DiseaseType = strings.TrimSpace(*in.DiseaseType)
+	if in.DiseaseID != nil {
+		r.DiseaseID = in.DiseaseID
 	}
 	if in.GeographicArea != nil {
 		r.GeographicArea = strings.TrimSpace(*in.GeographicArea)
@@ -1097,7 +1208,7 @@ func reportAdminOrder(sort, order string) (string, error) {
 	return c + " " + d + ", id " + d, nil
 }
 func outbreakAdminDTO(r models.Outbreak) OutbreakAdminDTO {
-	return OutbreakAdminDTO{r.ID, r.Title, r.DiseaseType, r.Status, r.GeographicArea, r.RegionID, r.DistrictID, r.Summary, r.StartDate, r.LastUpdate, r.VisualTone, r.SourceOrganization, r.PublishedAt, r.AuthorID, r.ReviewedBy, r.ReviewedAt, r.ApprovedBy, r.ApprovedAt, r.WithdrawnAt, r.WithdrawalReason, r.SupersedesID, r.SourceURL, r.SourceReference, r.EffectiveAt, r.DataAsOf, r.LastVerifiedAt, r.LockVersion, decodeMetrics(r.Metrics), r.CreatedAt, r.UpdatedAt}
+	return OutbreakAdminDTO{r.ID, r.Title, r.DiseaseID, r.DiseaseName, r.Status, r.GeographicArea, r.RegionID, r.DistrictID, r.Summary, r.StartDate, r.LastUpdate, r.VisualTone, r.SourceOrganization, r.PublishedAt, r.AuthorID, r.ReviewedBy, r.ReviewedAt, r.ApprovedBy, r.ApprovedAt, r.WithdrawnAt, r.WithdrawalReason, r.SupersedesID, r.SourceURL, r.SourceReference, r.EffectiveAt, r.DataAsOf, r.LastVerifiedAt, r.LockVersion, decodeMetrics(r.Metrics), r.CreatedAt, r.UpdatedAt}
 }
 func updateAdminDTO(r models.OutbreakUpdate) OutbreakUpdateAdminDTO {
 	return OutbreakUpdateAdminDTO{r.ID, r.OutbreakID, r.Title, r.Summary, r.Status, r.PublishedAt, r.AuthorID, r.ReviewedBy, r.ReviewedAt, r.ApprovedBy, r.ApprovedAt, r.WithdrawnAt, r.WithdrawalReason, r.SupersedesID, r.LockVersion, r.CreatedAt, r.UpdatedAt}
@@ -1290,39 +1401,49 @@ func (s OutbreakAdminService) transitionChildWithHook(a OutbreakActor, parent, i
 		return ErrOutbreakConflict
 	}
 	now := time.Now()
+	label := childLabel(kind)
 	updates := map[string]any{"lock_version": gorm.Expr("lock_version + 1")}
 	switch action {
 	case "submit":
 		if row.Status != "draft" {
-			return ErrOutbreakInvalid
+			return invalidf("Only a draft %s can be submitted for review. This %s is %s.", label, label, outbreakStatusLabel(row.Status))
 		}
 		updates["status"] = "pending_review"
 	case "approve":
-		if row.Status != "pending_review" || row.AuthorID != nil && *row.AuthorID == a.ID {
-			return ErrOutbreakInvalid
+		if row.Status != "pending_review" {
+			return invalidf("Only a submitted %s can be approved. This %s is %s.", label, label, outbreakStatusLabel(row.Status))
+		}
+		if row.AuthorID != nil && *row.AuthorID == a.ID {
+			return invalidf("You created this %s, so a different reviewer has to approve it.", label)
 		}
 		updates["reviewed_by"] = a.ID
 		updates["reviewed_at"] = now
 		updates["approved_by"] = a.ID
 		updates["approved_at"] = now
 	case "publish":
-		if row.Status != "pending_review" || row.ApprovedAt == nil {
-			return ErrOutbreakInvalid
+		if row.Status != "pending_review" {
+			return invalidf("Only a submitted %s can be published. This %s is %s.", label, label, outbreakStatusLabel(row.Status))
+		}
+		if row.ApprovedAt == nil {
+			return invalidf("This %s has to be approved before it can be published.", label)
 		}
 		if _, err := (OutbreakService{DB: s.DB}).Get(parent); err != nil {
-			return ErrOutbreakInvalid
+			return invalidf("The outbreak this %s belongs to could not be found.", label)
 		}
 		updates["status"] = "published"
 		updates["published_at"] = now
 	case "withdraw":
-		if row.Status != "published" || strings.TrimSpace(in.Reason) == "" {
-			return ErrOutbreakInvalid
+		if row.Status != "published" {
+			return invalidf("Only a published %s can be withdrawn. This %s is %s.", label, label, outbreakStatusLabel(row.Status))
+		}
+		if strings.TrimSpace(in.Reason) == "" {
+			return invalidf("A reason is required to withdraw this %s.", label)
 		}
 		updates["status"] = "withdrawn"
 		updates["withdrawn_at"] = now
 		updates["withdrawal_reason"] = strings.TrimSpace(in.Reason)
 	default:
-		return ErrOutbreakInvalid
+		return invalidf("%q is not a supported action for a %s.", action, label)
 	}
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		r := tx.Model(model).Where("id = ? AND outbreak_id = ? AND lock_version = ?", id, parent, in.LockVersion).Updates(updates)

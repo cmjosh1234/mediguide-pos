@@ -1120,7 +1120,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Title, summary, or disease type",
+                        "description": "Title, summary, or geographic area",
                         "name": "search",
                         "in": "query"
                     },
@@ -1132,7 +1132,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Exact disease type",
+                        "description": "Exact disease ID",
                         "name": "disease",
                         "in": "query"
                     },
@@ -14218,7 +14218,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Disease name",
+                        "description": "Disease ID",
                         "name": "disease",
                         "in": "query"
                     },
@@ -15096,6 +15096,38 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/outbreaks/{id}/metrics": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "outbreak-administration"
+                ],
+                "summary": "Update an outbreak's metrics regardless of its lifecycle status",
+                "parameters": [
+                    {
+                        "description": "Outbreak metrics",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.OutbreakMetricsInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.OutbreakAdminDTO"
                         }
                     }
                 }
@@ -24853,7 +24885,7 @@
                 "data_as_of": {
                     "type": "string"
                 },
-                "disease_type": {
+                "disease_id": {
                     "type": "string"
                 },
                 "district_id": {
@@ -29966,7 +29998,10 @@
                 "data_as_of": {
                     "type": "string"
                 },
-                "disease_type": {
+                "disease_id": {
+                    "type": "string"
+                },
+                "disease_name": {
                     "type": "string"
                 },
                 "district_id": {
@@ -30298,7 +30333,7 @@
                 "data_as_of": {
                     "type": "string"
                 },
-                "disease_type": {
+                "disease_id": {
                     "type": "string"
                 },
                 "district_id": {
@@ -30377,6 +30412,23 @@
                 },
                 "value": {
                     "type": "string"
+                }
+            }
+        },
+        "services.OutbreakMetricsInput": {
+            "type": "object",
+            "required": [
+                "metrics"
+            ],
+            "properties": {
+                "lock_version": {
+                    "type": "integer"
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.OutbreakMetric"
+                    }
                 }
             }
         },
@@ -32266,7 +32318,10 @@
                 "data_as_of": {
                     "type": "string"
                 },
-                "disease_type": {
+                "disease_id": {
+                    "type": "string"
+                },
+                "disease_name": {
                     "type": "string"
                 },
                 "district_id": {

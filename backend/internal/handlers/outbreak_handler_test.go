@@ -42,7 +42,7 @@ func publicOutbreakTestRouter(t *testing.T) (*gin.Engine, *gorm.DB) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}); err != nil {
+	if err := db.AutoMigrate(&models.Disease{}, &models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}); err != nil {
 		t.Fatal(err)
 	}
 	handler := OutbreakHandler{Service: services.OutbreakService{DB: db}}
@@ -76,17 +76,17 @@ func TestPublicOutbreakQuickResourceDiscovery(t *testing.T) {
 func TestPublicOutbreakHandlerSupportsETagAndNotModified(t *testing.T) {
 	router, db := publicOutbreakTestRouter(t)
 	now := time.Now().UTC().Add(-time.Minute)
-	item := models.Outbreak{Title: "Ebola response", DiseaseType: "Ebola", Status: "active", GeographicArea: "Uganda", PublishedAt: &now, LastUpdate: now, VisualTone: "critical"}
+	item := models.Outbreak{Title: "Ebola response", Status: "active", GeographicArea: "Uganda", PublishedAt: &now, LastUpdate: now, VisualTone: "critical"}
 	if err := db.Create(&item).Error; err != nil {
 		t.Fatal(err)
 	}
 	first := httptest.NewRecorder()
-	router.ServeHTTP(first, httptest.NewRequest(http.MethodGet, "/api/public/outbreaks?disease=Ebola", nil))
+	router.ServeHTTP(first, httptest.NewRequest(http.MethodGet, "/api/public/outbreaks", nil))
 	if first.Code != http.StatusOK || first.Header().Get("ETag") == "" || first.Header().Get("Last-Modified") == "" || first.Header().Get("Cache-Control") == "" {
 		t.Fatalf("conditional headers missing: status=%d headers=%v body=%s", first.Code, first.Header(), first.Body.String())
 	}
 	second := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/public/outbreaks?disease=Ebola", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/public/outbreaks", nil)
 	request.Header.Set("If-None-Match", first.Header().Get("ETag"))
 	router.ServeHTTP(second, request)
 	if second.Code != http.StatusNotModified || second.Body.Len() != 0 {
@@ -97,7 +97,7 @@ func TestPublicOutbreakHandlerSupportsETagAndNotModified(t *testing.T) {
 func TestPublicOutbreakDocumentDiscoveryAndContentVisibility(t *testing.T) {
 	router, db := publicOutbreakTestRouter(t)
 	now := time.Now().UTC().Add(-time.Minute)
-	parent := models.Outbreak{Title: "Ebola response", DiseaseType: "EVD", Status: "active", PublishedAt: &now, LastUpdate: now}
+	parent := models.Outbreak{Title: "Ebola response", Status: "active", PublishedAt: &now, LastUpdate: now}
 	if err := db.Create(&parent).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestPublicOutbreakDocumentDownloadStreamsManagedObjectThroughAPI(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.Outbreak{}, &models.OutbreakResource{}); err != nil {
+	if err := db.AutoMigrate(&models.Disease{}, &models.Outbreak{}, &models.OutbreakResource{}); err != nil {
 		t.Fatal(err)
 	}
 	contents := []byte("%PDF-1.7\nmanaged content")
@@ -202,7 +202,7 @@ func TestOutbreakDocumentReprocessRequiresManagePermission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.Outbreak{}, &models.OutbreakResource{}, &models.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&models.Disease{}, &models.Outbreak{}, &models.OutbreakResource{}, &models.AuditLog{}); err != nil {
 		t.Fatal(err)
 	}
 	handler := OutbreakAdminHandler{Service: services.OutbreakAdminService{DB: db}}
