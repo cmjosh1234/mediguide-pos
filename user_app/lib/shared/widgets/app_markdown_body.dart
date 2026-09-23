@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:user_app/core/constants/app_dimensions.dart';
+import 'package:user_app/core/constants/app_spacing.dart';
 import 'package:user_app/core/utils/app_message.dart';
 
 /// The single inline Markdown renderer for user-visible API and publication
@@ -35,21 +37,50 @@ class AppMarkdownBody extends StatelessWidget {
       ),
       blockSpacing: compact ? 4 : 8,
       pPadding: EdgeInsets.zero,
+      // Markdown tables stay conventional tables: a fixed column width keeps
+      // cells readable instead of squeezing every column into the screen, and
+      // it is also what makes flutter_markdown_plus wrap the table in its own
+      // horizontal scroll view, so a wide table scrolls rather than overflows.
+      tableColumnWidth: const FixedColumnWidth(
+        AppDimensions.tableMinColumnWidth,
+      ),
+      tableScrollbarThumbVisibility: true,
+      tableBorder: TableBorder.all(color: theme.colorScheme.outlineVariant),
+      tableCellsPadding: const EdgeInsets.all(AppSpacing.sm),
+      tableHead: textStyle?.copyWith(fontWeight: FontWeight.w800),
+      tableHeadCellsDecoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+      ),
+      // Leaves room under the table for the horizontal scrollbar thumb.
+      tablePadding: const EdgeInsets.only(bottom: AppSpacing.sm),
     );
+
+    final source = _escapeRawHtml(data.trim());
 
     return MarkdownBody(
       // flutter_markdown deliberately drops raw HTML nodes. Preserve them as
       // visible, inert source text instead: clinical content must never execute
       // embedded HTML, but silently hiding it can change the meaning of the
       // reviewed source and makes unsafe markup impossible to spot.
-      data: _escapeRawHtml(data.trim()),
-      selectable: selectable,
+      data: source,
+      // Selectable text claims horizontal drags on mobile, so leaving it on
+      // would swallow the sideways scroll a table needs to be readable.
+      selectable: selectable && !_containsTable(source),
       fitContent: true,
       styleSheet: sheet,
       onTapLink: (_, href, _) => _openLink(context, href),
     );
   }
 }
+
+/// Matches the delimiter row that turns pipe-separated lines into a table,
+/// such as `| --- | ---: |`.
+final RegExp _tableDelimiterRow = RegExp(
+  r'^[ \t]*\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)+\|?[ \t]*$',
+  multiLine: true,
+);
+
+bool _containsTable(String value) => _tableDelimiterRow.hasMatch(value);
 
 String _escapeRawHtml(String value) {
   return value.replaceAllMapped(

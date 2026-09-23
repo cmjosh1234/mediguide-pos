@@ -12,4 +12,9 @@ abstract final class AppDimensions {
   static const double minimumTouchTarget = 48;
   static const double compactNavigationBreakpoint = 800;
   static const double readerMaxWidth = 880;
+
+  /// Narrowest a table column may become before the table scrolls sideways.
+  ///
+  /// Anything tighter wraps clinical values to one or two words per line.
+  static const double tableMinColumnWidth = 148;
 }

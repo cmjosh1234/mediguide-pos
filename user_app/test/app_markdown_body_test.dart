@@ -33,4 +33,36 @@ void main() {
     expect(rendered, isNot(contains('**')));
     expect(rendered, isNot(contains('`')));
   });
+
+  testWidgets('markdown tables scroll sideways instead of overflowing', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            child: AppMarkdownBody(
+              data:
+                  '| Drug | Dose | Route |\n'
+                  '| --- | --- | --- |\n'
+                  '| Artemether | 3.2 mg/kg | Intramuscular |',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final scrollView = find.byWidgetPredicate(
+      (widget) =>
+          widget is SingleChildScrollView &&
+          widget.scrollDirection == Axis.horizontal,
+    );
+
+    expect(find.byType(Table), findsOneWidget);
+    expect(scrollView, findsOneWidget);
+    expect(tester.getSize(scrollView).width, lessThanOrEqualTo(320));
+    expect(tester.getSize(find.byType(Table)).width, greaterThan(320));
+    expect(tester.takeException(), isNull);
+  });
 }

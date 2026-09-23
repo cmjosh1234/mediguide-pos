@@ -1,14 +1,19 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
+import 'package:user_app/core/constants/app_dimensions.dart';
 import 'package:user_app/core/constants/app_spacing.dart';
 import 'package:user_app/features/guidelines/data/models/guideline_publication.dart';
 import 'package:user_app/shared/widgets/app_markdown_body.dart';
 
-/// Renders reviewed clinical tables without requiring horizontal scrolling.
+/// Renders reviewed clinical tables as conventional tables on every screen.
 ///
-/// Two-column tables retain a conventional table layout. Wider tables become
-/// labelled row cards so every value remains associated with its column header
-/// on narrow screens and at large accessibility text scales.
+/// Rows keep their header row, so a value is always read against its column.
+/// When the columns cannot fit the available width — the common case for wide
+/// tables on a phone held vertically — the table scrolls horizontally inside
+/// its own viewport instead of overflowing: the widget never reports a width
+/// larger than its constraints, so the page around it stays within the window.
 class ResponsiveClinicalTable extends StatelessWidget {
   const ResponsiveClinicalTable({
     super.key,
@@ -22,146 +27,151 @@ class ResponsiveClinicalTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final columns = payload.columns;
-    final rows = payload.rows;
 
     if (columns.isEmpty) {
       return const Text('This table has no columns.');
     }
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showTitle && payload.title.trim().isNotEmpty) ...[
+          AppMarkdownBody(
+            data: payload.title.trim(),
+            style: Theme.of(context).textTheme.titleMedium,
+            compact: true,
+          ),
+          AppSpacing.gapSm,
+        ],
+        _ScrollableTable(columns: columns, rows: payload.rows),
+      ],
+    );
+  }
+}
+
+class _ScrollableTable extends StatefulWidget {
+  const _ScrollableTable({required this.columns, required this.rows});
+
+  final List<String> columns;
+  final List<List<String>> rows;
+
+  @override
+  State<_ScrollableTable> createState() => _ScrollableTableState();
+}
+
+class _ScrollableTableState extends State<_ScrollableTable> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    // Large accessibility text needs proportionally more room before a column
+    // collapses to one word per line. Cap the growth so a single column can
+    // still never take the whole viewport.
+    final textScale = math.min(
+      1.6,
+      math.max(1.0, MediaQuery.textScalerOf(context).scale(1)),
+    );
+    final columnWidth = AppDimensions.tableMinColumnWidth * textScale;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final useRowCards = columns.length > 2 || constraints.maxWidth < 360;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (showTitle && payload.title.trim().isNotEmpty) ...[
-              AppMarkdownBody(
-                data: payload.title.trim(),
-                style: Theme.of(context).textTheme.titleMedium,
-                compact: true,
+        final available = constraints.maxWidth;
+        final naturalWidth = columnWidth * widget.columns.length;
+        // Unbounded width (a horizontally scrolling ancestor) has no viewport
+        // to fit, so fall back to the natural width.
+        final fits = available.isFinite && naturalWidth <= available;
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
+          child: Scrollbar(
+            controller: _controller,
+            thumbVisibility: !fits,
+            child: SingleChildScrollView(
+              controller: _controller,
+              scrollDirection: Axis.horizontal,
+              physics: fits ? const NeverScrollableScrollPhysics() : null,
+              // Keeps the scrollbar thumb clear of the last row.
+              padding: EdgeInsets.only(bottom: fits ? 0 : AppSpacing.sm),
+              child: SizedBox(
+                width: fits ? available : naturalWidth,
+                child: _ClinicalTable(
+                  columns: widget.columns,
+                  rows: widget.rows,
+                  colors: colors,
+                  // Selectable text claims horizontal drags on mobile, which
+                  // would swallow the sideways scroll. Cells stay selectable
+                  // whenever there is nothing to scroll.
+                  selectable: fits,
+                ),
               ),
-              AppSpacing.gapSm,
-            ],
-            if (useRowCards)
-              _TableRowCards(columns: columns, rows: rows)
-            else
-              _WrappingTable(columns: columns, rows: rows),
-          ],
+            ),
+          ),
         );
       },
     );
   }
 }
 
-class _WrappingTable extends StatelessWidget {
-  const _WrappingTable({required this.columns, required this.rows});
+class _ClinicalTable extends StatelessWidget {
+  const _ClinicalTable({
+    required this.columns,
+    required this.rows,
+    required this.colors,
+    required this.selectable,
+  });
 
   final List<String> columns;
   final List<List<String>> rows;
+  final ColorScheme colors;
+  final bool selectable;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Table(
-        border: TableBorder.all(color: colors.outlineVariant),
-        columnWidths: {
-          for (var index = 0; index < columns.length; index++)
-            index: const FlexColumnWidth(),
-        },
-        defaultVerticalAlignment: TableCellVerticalAlignment.top,
+  Widget build(BuildContext context) => Table(
+    border: TableBorder.all(color: colors.outlineVariant),
+    columnWidths: {
+      for (var index = 0; index < columns.length; index++)
+        index: const FlexColumnWidth(),
+    },
+    defaultVerticalAlignment: TableCellVerticalAlignment.top,
+    children: [
+      TableRow(
+        decoration: BoxDecoration(color: colors.surfaceContainerHigh),
         children: [
-          TableRow(
-            decoration: BoxDecoration(color: colors.surfaceContainerHigh),
-            children: [
-              for (final column in columns)
-                _TableCell(text: column, isHeader: true),
-            ],
-          ),
-          for (final row in rows)
-            TableRow(
-              children: [
-                for (var index = 0; index < columns.length; index++)
-                  _TableCell(text: index < row.length ? row[index] : ''),
-              ],
-            ),
+          for (final column in columns)
+            _TableCell(text: column, selectable: selectable, isHeader: true),
         ],
       ),
-    );
-  }
-}
-
-class _TableRowCards extends StatelessWidget {
-  const _TableRowCards({required this.columns, required this.rows});
-
-  final List<String> columns;
-  final List<List<String>> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Column(
-      children: [
-        for (var rowIndex = 0; rowIndex < rows.length; rowIndex++)
-          Padding(
-            padding: EdgeInsets.only(
-              bottom: rowIndex == rows.length - 1 ? 0 : AppSpacing.sm,
-            ),
-            child: Semantics(
-              label: 'Table row ${rowIndex + 1}',
-              child: Container(
-                width: double.infinity,
-                padding: AppSpacing.cardPadding,
-                decoration: BoxDecoration(
-                  color: colors.surfaceContainerLowest,
-                  border: Border.all(color: colors.outlineVariant),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (
-                      var columnIndex = 0;
-                      columnIndex < columns.length;
-                      columnIndex++
-                    ) ...[
-                      Text(
-                        columns[columnIndex],
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(
-                              color: colors.onSurfaceVariant,
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      AppMarkdownBody(
-                        data: columnIndex < rows[rowIndex].length
-                            ? rows[rowIndex][columnIndex]
-                            : '',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        compact: true,
-                      ),
-                      if (columnIndex < columns.length - 1) ...[
-                        AppSpacing.gapSm,
-                        Divider(color: colors.outlineVariant),
-                        AppSpacing.gapSm,
-                      ],
-                    ],
-                  ],
-                ),
+      for (final row in rows)
+        TableRow(
+          children: [
+            for (var index = 0; index < columns.length; index++)
+              _TableCell(
+                text: index < row.length ? row[index] : '',
+                selectable: selectable,
               ),
-            ),
-          ),
-      ],
-    );
-  }
+          ],
+        ),
+    ],
+  );
 }
 
 class _TableCell extends StatelessWidget {
-  const _TableCell({required this.text, this.isHeader = false});
+  const _TableCell({
+    required this.text,
+    required this.selectable,
+    this.isHeader = false,
+  });
 
   final String text;
+  final bool selectable;
   final bool isHeader;
 
   @override
@@ -169,6 +179,7 @@ class _TableCell extends StatelessWidget {
     padding: const EdgeInsets.all(AppSpacing.sm),
     child: AppMarkdownBody(
       data: text,
+      selectable: selectable,
       style: isHeader
           ? Theme.of(
               context,
