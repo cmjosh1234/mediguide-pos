@@ -245,6 +245,7 @@ func New(cfg config.Config) (*App, error) {
 			rateLimiter.Concurrency("public-ai-chat-ip", 1, time.Minute, middleware.IPIdentity),
 			rateLimiter.Concurrency("public-ai-chat-global", 10, 2*time.Minute, middleware.StaticIdentity("global")),
 			ragH.AskPublishedGuideline)
+		public.POST("/support/tickets", rateLimiter.Limit(middleware.Policy("public-support-ticket-create", 5, time.Hour, 1), middleware.IPIdentity), supportH.CreateGuestTicket)
 		outbreakReadLimit := rateLimiter.Limit(middleware.Policy("public-outbreaks", 90, time.Minute, 15), middleware.IPIdentity)
 		public.GET("/outbreaks", outbreakReadLimit, outbreakH.List)
 		public.GET("/outbreaks/:id", outbreakReadLimit, outbreakH.Get)

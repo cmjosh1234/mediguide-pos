@@ -299,13 +299,26 @@ export default function TicketViewPage() {
                       {ticket.expand?.user_id?.name?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <p className="text-sm font-medium">
-                      {ticket.expand?.user_id?.name || ticket.expand?.user_id?.email}
-                    </p>
-                    {ticket.expand?.user_id?.name && (
-                      <p className="text-xs text-muted-foreground">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium truncate">
+                        {ticket.expand?.user_id?.name || ticket.expand?.user_id?.email || "Unknown"}
+                      </p>
+                      {!ticket.user_id && (
+                        <Badge variant="secondary" className="text-xs">Guest</Badge>
+                      )}
+                    </div>
+                    {ticket.expand?.user_id?.name && ticket.expand.user_id.email && (
+                      <a
+                        href={`mailto:${ticket.expand.user_id.email}`}
+                        className="text-xs text-muted-foreground hover:underline break-all"
+                      >
                         {ticket.expand.user_id.email}
+                      </a>
+                    )}
+                    {!ticket.user_id && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Submitted without an account. Replies are not visible to the requester in the app; follow up by email.
                       </p>
                     )}
                   </div>

@@ -172,7 +172,7 @@ func TestNotificationExternalActionUsesExplicitHostAllowlist(t *testing.T) {
 func TestSupportTicketActionMustTargetTicketOwner(t *testing.T) {
 	service := notificationTestService(t)
 	owner, other := uuid.New(), uuid.New()
-	ticket := models.SupportTicket{UserID: owner, Subject: "Help", Description: "Request", Status: "open", Priority: "normal"}
+	ticket := models.SupportTicket{UserID: &owner, Subject: "Help", Description: "Request", Status: "open", Priority: "normal"}
 	if err := service.DB.Create(&ticket).Error; err != nil {
 		t.Fatal(err)
 	}

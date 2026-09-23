@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:user_app/app/router/route_names.dart';
 import 'package:user_app/core/constants/app_spacing.dart';
 import 'package:user_app/core/utils/app_extensions.dart';
 import 'package:user_app/core/widgets/app_error_view.dart';
 import 'package:user_app/core/widgets/app_loading_view.dart';
 import 'package:user_app/core/widgets/empty_state.dart';
 
+import 'package:user_app/features/authentication/presentation/controllers/auth_controller.dart';
 import 'package:user_app/features/support/presentation/controllers/help_center_controller.dart';
+import 'package:user_app/features/support/presentation/controllers/help_center_state.dart';
 import 'package:user_app/features/support/presentation/widgets/create_ticket_dialog.dart';
 import 'package:user_app/features/support/presentation/widgets/support_ticket_card.dart';
 
@@ -18,6 +22,7 @@ import 'package:user_app/shared/widgets/pagination_indicators.dart';
 
 part '../widgets/help_center_page_support_browse_card.dart';
 part '../widgets/help_center_page_active_support_filters.dart';
+part '../widgets/help_center_page_guest_support_view.dart';
 part '../widgets/help_center_page_status_filter_bar.dart';
 part '../widgets/help_center_page_status_filter_chip.dart';
 part '../widgets/help_center_page_support_ticket_shell.dart';
@@ -58,6 +63,12 @@ class HelpCenterPage extends ConsumerWidget {
 
     final colors = Theme.of(context).colorScheme;
 
+    final isAuthenticated = ref.watch(
+      authControllerProvider.select(
+        (value) => value.valueOrNull?.isAuthenticated ?? false,
+      ),
+    );
+
     return Scaffold(
       backgroundColor: colors.surface,
 
@@ -88,16 +99,17 @@ class HelpCenterPage extends ConsumerWidget {
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'Filter tickets',
-            onPressed: () {
-              controller.showFilterBottomSheet(context);
-            },
-            icon: Badge(
-              isLabelVisible: state.hasActiveFilters,
-              child: const Icon(LucideIcons.slidersHorizontal),
+          if (isAuthenticated)
+            IconButton(
+              tooltip: 'Filter tickets',
+              onPressed: () {
+                controller.showFilterBottomSheet(context);
+              },
+              icon: Badge(
+                isLabelVisible: state.hasActiveFilters,
+                child: const Icon(LucideIcons.slidersHorizontal),
+              ),
             ),
-          ),
           AppSpacing.hGapXs,
         ],
       ),
@@ -110,247 +122,263 @@ class HelpCenterPage extends ConsumerWidget {
           CreateTicketDialog.show(context);
         },
         icon: const Icon(LucideIcons.plus),
-        label: const Text('New Ticket'),
+        label: Text(isAuthenticated ? 'New Ticket' : 'Request Support'),
       ),
 
       // =====================================================================
       // BODY
       // =====================================================================
-      body: RefreshIndicator(
-        onRefresh: () async {
-          controller.refreshTickets();
-        },
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          slivers: [
-            // =================================================================
-            // SUPPORT INTRO
-            // =================================================================
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.md,
-                  AppSpacing.md,
-                  0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SupportBrowseCard(
-                      hasFilters: state.hasActiveFilters,
-                      onCreateTicket: () {
-                        CreateTicketDialog.show(context);
-                      },
-                      onOpenFilters: () {
-                        controller.showFilterBottomSheet(context);
-                      },
-                    ),
-
-                    if (state.hasActiveFilters) ...[
-                      AppSpacing.gapMd,
-
-                      _ActiveSupportFilters(
-                        onEdit: () {
-                          controller.showFilterBottomSheet(context);
-                        },
-                        onClear: controller.clearFilters,
-                      ),
-                    ],
-
-                    AppSpacing.gapLg,
-
-                    Text(
-                      'Ticket status',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-
-                    const SizedBox(height: 3),
-
-                    Text(
-                      'Quickly switch between open, active and completed requests.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-
-                    AppSpacing.gapSm,
-
-                    _StatusFilterBar(
-                      filters: _filters,
-                      selectedValue: state.selectedStatus,
-                      onChanged: controller.updateStatusFilter,
-                    ),
-
-                    AppSpacing.gapLg,
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _sectionTitle(
-                              state.selectedStatus,
-                              state.hasActiveFilters,
-                            ),
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                        ),
-
-                        if (state.hasActiveFilters)
-                          TextButton.icon(
-                            onPressed: controller.clearFilters,
-                            icon: const Icon(LucideIcons.rotateCcw, size: 16),
-                            label: const Text('Reset'),
-                          ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 3),
-
-                    Text(
-                      _sectionSubtitle(
-                        state.selectedStatus,
-                        state.hasActiveFilters,
-                      ),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-
-                    AppSpacing.gapSm,
-                  ],
-                ),
-              ),
+      // Guests can submit requests but have no account to list tickets
+      // under, so they get a submission-focused view instead of the list.
+      body: isAuthenticated
+          ? _buildTicketList(context, state, controller, colors)
+          : _GuestSupportView(
+              onCreateTicket: () {
+                CreateTicketDialog.show(context);
+              },
             ),
+    );
+  }
 
-            // =================================================================
-            // TICKET LIST
-            // =================================================================
-            SliverPadding(
+  Widget _buildTicketList(
+    BuildContext context,
+    HelpCenterState state,
+    HelpCenterController controller,
+    ColorScheme colors,
+  ) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        controller.refreshTickets();
+      },
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: [
+          // =================================================================
+          // SUPPORT INTRO
+          // =================================================================
+          SliverToBoxAdapter(
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.md,
-                0,
                 AppSpacing.md,
-                AppSpacing.xxxl,
+                AppSpacing.md,
+                0,
               ),
-              sliver: PagingListener<int, SupportTicket>(
-                controller: controller.pagingController,
-                builder: (context, pagingState, fetchNextPage) {
-                  return PagedSliverList<int, SupportTicket>.separated(
-                    state: pagingState,
-                    fetchNextPage: fetchNextPage,
-                    separatorBuilder: (_, _) => AppSpacing.sm.gap,
-                    builderDelegate: PagedChildBuilderDelegate<SupportTicket>(
-                      // =====================================================
-                      // ITEM
-                      // =====================================================
-                      itemBuilder: (context, ticket, index) {
-                        return _SupportTicketShell(
-                          child: SupportTicketCard(ticket: ticket),
-                        );
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SupportBrowseCard(
+                    hasFilters: state.hasActiveFilters,
+                    onCreateTicket: () {
+                      CreateTicketDialog.show(context);
+                    },
+                    onOpenFilters: () {
+                      controller.showFilterBottomSheet(context);
+                    },
+                  ),
+
+                  if (state.hasActiveFilters) ...[
+                    AppSpacing.gapMd,
+
+                    _ActiveSupportFilters(
+                      onEdit: () {
+                        controller.showFilterBottomSheet(context);
                       },
-
-                      // =====================================================
-                      // FIRST PAGE LOADING
-                      // =====================================================
-                      firstPageProgressIndicatorBuilder: (_) {
-                        return const AppLoadingView(
-                          message: 'Loading support tickets...',
-                        );
-                      },
-
-                      // =====================================================
-                      // NEXT PAGE LOADING
-                      // =====================================================
-                      newPageProgressIndicatorBuilder: (_) {
-                        return PaginationIndicators.newPageProgress();
-                      },
-
-                      // =====================================================
-                      // FIRST PAGE ERROR
-                      // =====================================================
-                      firstPageErrorIndicatorBuilder: (_) {
-                        return AppErrorView(
-                          error:
-                              pagingState.error ??
-                              'Unable to load support tickets',
-                          title: 'Unable to load support requests',
-                          message:
-                              'Please check your connection and try again.',
-                          onRetry: fetchNextPage,
-                        );
-                      },
-
-                      // =====================================================
-                      // NEXT PAGE ERROR
-                      // =====================================================
-                      newPageErrorIndicatorBuilder: (_) {
-                        return PaginationIndicators.newPageError(
-                          onRetry: fetchNextPage,
-                          title: 'Error loading more tickets',
-                          icon: LucideIcons.messageCircle,
-                        );
-                      },
-
-                      // =====================================================
-                      // EMPTY
-                      // =====================================================
-                      noItemsFoundIndicatorBuilder: (_) {
-                        if (state.hasActiveFilters) {
-                          return EmptyState.noResults(
-                            title: 'No tickets match your filters',
-                            description:
-                                'Try adjusting the status, priority, category or search filters.',
-                            actionLabel: 'Clear filters',
-                            onAction: controller.clearFilters,
-                          );
-                        }
-
-                        if (state.selectedStatus != 'all' &&
-                            state.selectedStatus.trim().isNotEmpty) {
-                          return EmptyState.noResults(
-                            title:
-                                'No ${_statusLabel(state.selectedStatus).toLowerCase()} tickets',
-                            description:
-                                'You currently have no support tickets with this status.',
-                            actionLabel: 'Show all tickets',
-                            onAction: () {
-                              controller.updateStatusFilter('all');
-                            },
-                          );
-                        }
-
-                        return EmptyState.noData(
-                          title: AppTranslationKey.noSupportTicketsYet.tr,
-                          description:
-                              AppTranslationKey.createYourFirstSupportTicket.tr,
-                          actionLabel: 'Create ticket',
-                          onAction: () {
-                            CreateTicketDialog.show(context);
-                          },
-                        );
-                      },
-
-                      // =====================================================
-                      // END
-                      // =====================================================
-                      noMoreItemsIndicatorBuilder: (_) {
-                        return Padding(
-                          padding: AppSpacing.vPaddingMd,
-                          child: PaginationIndicators.noMoreItems(),
-                        );
-                      },
+                      onClear: controller.clearFilters,
                     ),
-                  );
-                },
+                  ],
+
+                  AppSpacing.gapLg,
+
+                  Text(
+                    'Ticket status',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+
+                  const SizedBox(height: 3),
+
+                  Text(
+                    'Quickly switch between open, active and completed requests.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+
+                  AppSpacing.gapSm,
+
+                  _StatusFilterBar(
+                    filters: _filters,
+                    selectedValue: state.selectedStatus,
+                    onChanged: controller.updateStatusFilter,
+                  ),
+
+                  AppSpacing.gapLg,
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _sectionTitle(
+                            state.selectedStatus,
+                            state.hasActiveFilters,
+                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+
+                      if (state.hasActiveFilters)
+                        TextButton.icon(
+                          onPressed: controller.clearFilters,
+                          icon: const Icon(LucideIcons.rotateCcw, size: 16),
+                          label: const Text('Reset'),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 3),
+
+                  Text(
+                    _sectionSubtitle(
+                      state.selectedStatus,
+                      state.hasActiveFilters,
+                    ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+
+                  AppSpacing.gapSm,
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+
+          // =================================================================
+          // TICKET LIST
+          // =================================================================
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              0,
+              AppSpacing.md,
+              AppSpacing.xxxl,
+            ),
+            sliver: PagingListener<int, SupportTicket>(
+              controller: controller.pagingController,
+              builder: (context, pagingState, fetchNextPage) {
+                return PagedSliverList<int, SupportTicket>.separated(
+                  state: pagingState,
+                  fetchNextPage: fetchNextPage,
+                  separatorBuilder: (_, _) => AppSpacing.sm.gap,
+                  builderDelegate: PagedChildBuilderDelegate<SupportTicket>(
+                    // =====================================================
+                    // ITEM
+                    // =====================================================
+                    itemBuilder: (context, ticket, index) {
+                      return _SupportTicketShell(
+                        child: SupportTicketCard(ticket: ticket),
+                      );
+                    },
+
+                    // =====================================================
+                    // FIRST PAGE LOADING
+                    // =====================================================
+                    firstPageProgressIndicatorBuilder: (_) {
+                      return const AppLoadingView(
+                        message: 'Loading support tickets...',
+                      );
+                    },
+
+                    // =====================================================
+                    // NEXT PAGE LOADING
+                    // =====================================================
+                    newPageProgressIndicatorBuilder: (_) {
+                      return PaginationIndicators.newPageProgress();
+                    },
+
+                    // =====================================================
+                    // FIRST PAGE ERROR
+                    // =====================================================
+                    firstPageErrorIndicatorBuilder: (_) {
+                      return AppErrorView(
+                        error:
+                            pagingState.error ??
+                            'Unable to load support tickets',
+                        title: 'Unable to load support requests',
+                        message: 'Please check your connection and try again.',
+                        onRetry: fetchNextPage,
+                      );
+                    },
+
+                    // =====================================================
+                    // NEXT PAGE ERROR
+                    // =====================================================
+                    newPageErrorIndicatorBuilder: (_) {
+                      return PaginationIndicators.newPageError(
+                        onRetry: fetchNextPage,
+                        title: 'Error loading more tickets',
+                        icon: LucideIcons.messageCircle,
+                      );
+                    },
+
+                    // =====================================================
+                    // EMPTY
+                    // =====================================================
+                    noItemsFoundIndicatorBuilder: (_) {
+                      if (state.hasActiveFilters) {
+                        return EmptyState.noResults(
+                          title: 'No tickets match your filters',
+                          description:
+                              'Try adjusting the status, priority, category or search filters.',
+                          actionLabel: 'Clear filters',
+                          onAction: controller.clearFilters,
+                        );
+                      }
+
+                      if (state.selectedStatus != 'all' &&
+                          state.selectedStatus.trim().isNotEmpty) {
+                        return EmptyState.noResults(
+                          title:
+                              'No ${_statusLabel(state.selectedStatus).toLowerCase()} tickets',
+                          description:
+                              'You currently have no support tickets with this status.',
+                          actionLabel: 'Show all tickets',
+                          onAction: () {
+                            controller.updateStatusFilter('all');
+                          },
+                        );
+                      }
+
+                      return EmptyState.noData(
+                        title: AppTranslationKey.noSupportTicketsYet.tr,
+                        description:
+                            AppTranslationKey.createYourFirstSupportTicket.tr,
+                        actionLabel: 'Create ticket',
+                        onAction: () {
+                          CreateTicketDialog.show(context);
+                        },
+                      );
+                    },
+
+                    // =====================================================
+                    // END
+                    // =====================================================
+                    noMoreItemsIndicatorBuilder: (_) {
+                      return Padding(
+                        padding: AppSpacing.vPaddingMd,
+                        child: PaginationIndicators.noMoreItems(),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

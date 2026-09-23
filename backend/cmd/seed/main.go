@@ -132,6 +132,14 @@ func main() {
 		}
 		log.Info().Msg("facility reference seed completed")
 		return
+	case "disease-taxonomy":
+		if err := database.Transaction(func(tx *gorm.DB) error {
+			return seedUCGDiseaseTaxonomy(tx, uuid.Nil)
+		}); err != nil {
+			log.Fatal().Err(err).Msg("disease taxonomy seed failed")
+		}
+		log.Info().Msg("disease taxonomy seed completed")
+		return
 	case "notifications":
 		if strings.EqualFold(cfg.AppEnv, "production") {
 			log.Fatal().Msg("demo notification seeding is disabled in production")

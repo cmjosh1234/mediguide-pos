@@ -83,6 +83,24 @@ func (h SupportHandler) CreateTicket(c *gin.Context) {
 	h.result(c, item, err, http.StatusCreated)
 }
 
+// CreateGuestTicket godoc
+// @Summary Create a support ticket without signing in
+// @Description Unauthenticated visitors must supply requester_name and requester_email so support staff can follow up. Guest tickets cannot be listed or replied to from the public API.
+// @Tags support
+// @Param payload body services.SupportTicketCreate true "Ticket"
+// @Success 201 {object} handlers.SupportTicketEnvelope
+// @Failure 400 {object} handlers.ErrorResponse
+// @Router /api/public/support/tickets [post]
+func (h SupportHandler) CreateGuestTicket(c *gin.Context) {
+	var in services.SupportTicketCreate
+	if c.ShouldBindJSON(&in) != nil {
+		httpx.Error(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	item, err := h.Service.CreateGuestTicket(in)
+	h.result(c, item, err, http.StatusCreated)
+}
+
 // UpdateTicket godoc
 // @Summary Update a support ticket
 // @Description Owners may edit open ticket content; support staff may assign and transition status.

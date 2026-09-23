@@ -5,10 +5,14 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:user_app/core/constants/app_spacing.dart';
+import 'package:user_app/features/authentication/presentation/controllers/auth_controller.dart';
 import 'package:user_app/features/support/presentation/controllers/help_center_controller.dart';
 import 'package:user_app/shared/models/models.dart';
 
 /// Full-screen dialog for creating a new support ticket.
+///
+/// Signed-in users submit tickets against their account. Guests are asked for
+/// a name and email address so support staff can follow up with them.
 class CreateTicketDialog extends ConsumerStatefulWidget {
   const CreateTicketDialog({super.key});
 
@@ -36,11 +40,19 @@ class _CreateTicketDialogState extends ConsumerState<CreateTicketDialog> {
 
     final controller = ref.read(helpCenterControllerProvider.notifier);
 
+    final isGuest = !ref.watch(
+      authControllerProvider.select(
+        (value) => value.valueOrNull?.isAuthenticated ?? false,
+      ),
+    );
+
+    final colors = Theme.of(context).colorScheme;
+
     return PopScope(
       canPop: !state.isCreatingTicket,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Create Support Ticket'),
+          title: Text(isGuest ? 'Request Support' : 'Create Support Ticket'),
           leading: IconButton(
             tooltip: 'Close',
             icon: const Icon(LucideIcons.x),
@@ -64,7 +76,11 @@ class _CreateTicketDialogState extends ConsumerState<CreateTicketDialog> {
                       child: CircularProgressIndicator.adaptive(strokeWidth: 2),
                     )
                   : const Icon(LucideIcons.save, size: 18),
-              label: Text(state.isCreatingTicket ? 'Creating...' : 'Create'),
+              label: Text(
+                state.isCreatingTicket
+                    ? (isGuest ? 'Sending...' : 'Creating...')
+                    : (isGuest ? 'Send' : 'Create'),
+              ),
             ),
           ],
         ),
@@ -77,6 +93,79 @@ class _CreateTicketDialogState extends ConsumerState<CreateTicketDialog> {
               padding: AppSpacing.pagePadding,
               children: [
                 AppSpacing.contentGap,
+
+                // ============================================
+                // GUEST CONTACT DETAILS
+                // ============================================
+                if (isGuest) ...[
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: colors.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: colors.outlineVariant),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(LucideIcons.info, size: 18, color: colors.primary),
+                        AppSpacing.hGapSm,
+                        Expanded(
+                          child: Text(
+                            'You are not signed in. Tell us how to reach you '
+                            'and our team will reply by email. Sign in to '
+                            'track your requests in the app.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                  height: 1.4,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  AppSpacing.fieldGap,
+
+                  FormBuilderTextField(
+                    name: 'requester_name',
+                    enabled: !state.isCreatingTicket,
+                    decoration: const InputDecoration(
+                      labelText: 'Your name *',
+                      hintText: 'Full name',
+                      prefixIcon: Icon(LucideIcons.user),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    validator: FormBuilderValidators.compose([
+                      FormBuilderValidators.required(),
+                      FormBuilderValidators.minLength(2),
+                      FormBuilderValidators.maxLength(120),
+                    ]),
+                  ),
+
+                  AppSpacing.fieldGap,
+
+                  FormBuilderTextField(
+                    name: 'requester_email',
+                    enabled: !state.isCreatingTicket,
+                    decoration: const InputDecoration(
+                      labelText: 'Email address *',
+                      hintText: 'name@example.com',
+                      prefixIcon: Icon(LucideIcons.mail),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    textInputAction: TextInputAction.next,
+                    validator: FormBuilderValidators.compose([
+                      FormBuilderValidators.required(),
+                      FormBuilderValidators.email(),
+                    ]),
+                  ),
+
+                  AppSpacing.fieldGap,
+                ],
 
                 // ============================================
                 // SUBJECT
@@ -201,8 +290,10 @@ class _CreateTicketDialogState extends ConsumerState<CreateTicketDialog> {
                       : const Icon(LucideIcons.send),
                   label: Text(
                     state.isCreatingTicket
-                        ? 'Creating ticket...'
-                        : 'Create Ticket',
+                        ? (isGuest
+                              ? 'Sending request...'
+                              : 'Creating ticket...')
+                        : (isGuest ? 'Send Request' : 'Create Ticket'),
                   ),
                 ),
 
@@ -231,11 +322,17 @@ class _CreateTicketDialogState extends ConsumerState<CreateTicketDialog> {
     final priority =
         values['priority'] as TicketPriority? ?? TicketPriority.normal;
 
+    final requesterName = values['requester_name']?.toString().trim();
+
+    final requesterEmail = values['requester_email']?.toString().trim();
+
     final created = await controller.createTicket(
       subject: subject,
       description: description,
       category: category,
       priority: priority,
+      requesterName: requesterName,
+      requesterEmail: requesterEmail,
     );
 
     if (!mounted || !created) {

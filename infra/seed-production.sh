@@ -5,8 +5,8 @@ set -Eeuo pipefail
 scope="${1:-}"
 reset_password="${2:-false}"
 
-if [[ "${scope}" != "admin" && "${scope}" != "facilities" ]]; then
-  echo "Usage: CONFIRM_PRODUCTION_SEED=SEED_PRODUCTION $0 admin|facilities [true|false]" >&2
+if [[ "${scope}" != "admin" && "${scope}" != "facilities" && "${scope}" != "disease-taxonomy" ]]; then
+  echo "Usage: CONFIRM_PRODUCTION_SEED=SEED_PRODUCTION $0 admin|facilities|disease-taxonomy [true|false]" >&2
   exit 2
 fi
 if [[ "${reset_password}" != "true" && "${reset_password}" != "false" ]]; then

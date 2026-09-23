@@ -93,3 +93,54 @@ func TestSupportStatusTransitionsRequireStaff(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSupportGuestTicketRequiresContactDetails(t *testing.T) {
+	service := supportTestService(t)
+	name, email := "Jane Doe", "Jane.Doe@example.org"
+	base := SupportTicketCreate{Subject: "App crashes", Description: "Crashes on launch", Priority: "high"}
+	if _, err := service.CreateGuestTicket(base); !errors.Is(err, ErrSupportInvalid) {
+		t.Fatalf("guest ticket without contact details accepted: %v", err)
+	}
+	bad := "not-an-email"
+	if _, err := service.CreateGuestTicket(SupportTicketCreate{Subject: base.Subject, Description: base.Description, RequesterName: &name, RequesterEmail: &bad}); !errors.Is(err, ErrSupportInvalid) {
+		t.Fatalf("guest ticket with malformed email accepted: %v", err)
+	}
+	ticket, err := service.CreateGuestTicket(SupportTicketCreate{Subject: base.Subject, Description: base.Description, Priority: base.Priority, RequesterName: &name, RequesterEmail: &email})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ticket.IsGuest() || ticket.Status != "open" {
+		t.Fatalf("unexpected guest ticket: %+v", ticket)
+	}
+	if ticket.UserName != name || ticket.UserEmail != "jane.doe@example.org" {
+		t.Fatalf("guest contact not surfaced as owner details: name=%q email=%q", ticket.UserName, ticket.UserEmail)
+	}
+}
+
+func TestSupportGuestTicketsVisibleOnlyToStaff(t *testing.T) {
+	service := supportTestService(t)
+	name, email := "Guest", "guest@example.org"
+	ticket, err := service.CreateGuestTicket(SupportTicketCreate{Subject: "Question", Description: "Need help", RequesterName: &name, RequesterEmail: &email})
+	if err != nil {
+		t.Fatal(err)
+	}
+	member := uuid.New()
+	if _, err := service.GetTicket(member, ticket.ID, false); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("member must not read guest ticket: %v", err)
+	}
+	page, err := service.ListTickets(member, false, SupportTicketQuery{Page: PageInput{Page: 1, PerPage: 20}})
+	if err != nil || page.TotalItems != 0 {
+		t.Fatalf("member listing exposed guest ticket: total=%d err=%v", page.TotalItems, err)
+	}
+	staffPage, err := service.ListTickets(member, true, SupportTicketQuery{Page: PageInput{Page: 1, PerPage: 20}})
+	if err != nil || staffPage.TotalItems != 1 {
+		t.Fatalf("staff should see guest ticket: total=%d err=%v", staffPage.TotalItems, err)
+	}
+	inProgress := "in_progress"
+	if _, err := service.UpdateTicket(member, ticket.ID, true, SupportTicketUpdate{Status: &inProgress}); err != nil {
+		t.Fatalf("staff could not progress guest ticket: %v", err)
+	}
+	if _, err := service.CreateReply(member, ticket.ID, true, SupportReplyCreate{Message: "We emailed you"}); err != nil {
+		t.Fatalf("staff could not reply to guest ticket: %v", err)
+	}
+}

@@ -1135,7 +1135,10 @@ export type SupportTicketsRecord = {
 	status: SupportTicketsStatusOptions
 	subject: string
 	updated: IsoAutoDateString
-	user_id: RecordIdString
+	/** Absent for tickets submitted by unauthenticated visitors. */
+	user_id?: RecordIdString
+	requester_name?: string
+	requester_email?: string
 }
 
 export const TherapeuticCategoriesStatusOptions = {

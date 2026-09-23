@@ -1,0 +1,471 @@
+chapter,chapter_title,section_number,depth,name,short_name,aliases,slug,parent_name,icd10_codes,icd10_raw,review_flag,route,seed_action
+1,Emergencies and Trauma,1.1.1,3,Anaphylactic Shock,,,anaphylactic-shock,,T78.2,T78.2,,chapters/01/1-01-01-anaphylactic-shock,seed
+1,Emergencies and Trauma,1.1.2,3,Hypovolaemic Shock,,,hypovolaemic-shock,,R57.1,R57.1,,chapters/01/1-01-02-hypovolaemic-shock,seed
+1,Emergencies and Trauma,1.1.2.1,4,Hypovolaemic Shock in Children,,,hypovolaemic-shock-in-children,Hypovolaemic Shock,,,no-code-in-source,chapters/01/1-01-02-01-hypovolaemic-shock-in-children,seed
+1,Emergencies and Trauma,1.1.3,3,Dehydration,,,dehydration,,,,no-code-in-source,chapters/01/1-01-03-dehydration,seed
+1,Emergencies and Trauma,1.1.3.1,4,Dehydration in Children under 5 years,,,dehydration-in-children-under-5-years,Dehydration,,,no-code-in-source,chapters/01/1-01-03-01-dehydration-in-children-under-5-years,seed
+1,Emergencies and Trauma,1.1.3.2,4,Dehydration in Older Children and Adults,,,dehydration-in-older-children-and-adults,Dehydration,,,no-code-in-source,chapters/01/1-01-03-02-dehydration-in-older-children-and-adults,seed
+1,Emergencies and Trauma,1.1.4,3,Fluids and Electrolytes Imbalances,,,fluids-and-electrolytes-imbalances,,E87.8,E87.8,,chapters/01/1-01-04-fluids-and-electrolytes-imbalances,seed
+1,Emergencies and Trauma,1.1.4.1,4,IV Fluid Management in Children,,,iv-fluid-management-in-children,Fluids and Electrolytes Imbalances,E87.8,E87.8,,chapters/01/1-01-04-01-iv-fluid-management-in-children,seed
+1,Emergencies and Trauma,1.1.5,3,Febrile Convulsions,,,febrile-convulsions,,R56,R56,,chapters/01/1-01-05-febrile-convulsions,seed
+1,Emergencies and Trauma,1.1.6,3,Hypoglycaemia,,,hypoglycaemia,,E16.2,E16.2,,chapters/01/1-01-06-hypoglycaemia,seed
+1,Emergencies and Trauma,1.2.1,3,Bites and Stings,,,bites-and-stings,,,,no-code-in-source,chapters/01/1-02-01-bites-and-stings,seed
+1,Emergencies and Trauma,1.2.1.1,4,Snakebites,,,snakebites,Bites and Stings,,,no-code-in-source,chapters/01/1-02-01-01-snakebites,seed
+1,Emergencies and Trauma,1.2.1.2,4,Insect Bites and Stings,,,insect-bites-and-stings,Bites and Stings,T63.4,T63.4,,chapters/01/1-02-01-02-insect-bites-stings,seed
+1,Emergencies and Trauma,1.2.1.3,4,Animal and Human Bites,,,animal-and-human-bites,Bites and Stings,W50.3 W54.0,"W50.3, W54.0",,chapters/01/1-02-01-03-animal-and-human-bites,seed
+1,Emergencies and Trauma,1.2.1.4,4,Rabies Post Exposure Prophylaxis,,,rabies-post-exposure-prophylaxis,Bites and Stings,Z20.3 Z23,"Z20.3, Z23",non-clinical-subject?,chapters/01/1-02-01-04-rabies-post-exposure-prophylaxis,skip
+1,Emergencies and Trauma,1.2.1.5,4,Rabies Vaccine Schedules,,,rabies-vaccine-schedules,Bites and Stings,,,non-clinical-subject? no-code-in-source,chapters/01/1-02-01-05-rabies-vaccine-schedules,skip
+1,Emergencies and Trauma,1.2.2,3,Fractures,,,fractures,,S00-T88,S00–T88,,chapters/01/1-02-02-fractures,seed
+1,Emergencies and Trauma,1.2.3,3,Burns,,,burns,,T20-T25,T20–T25,,chapters/01/1-02-03-burns,seed
+1,Emergencies and Trauma,1.2.4,3,Wounds,,,wounds,,S00-T88,S00–T88,,chapters/01/1-02-04-wounds,seed
+1,Emergencies and Trauma,1.2.5,3,Head Injuries,,,head-injuries,,S00-S09,S00–S09,,chapters/01/1-02-05-head-injuries,seed
+1,Emergencies and Trauma,1.2.5.1,4,Traumatic Spinal Injury,,,traumatic-spinal-injury,Head Injuries,,,no-code-in-source,chapters/01/1-02-05-01-traumatic-spinal-injury,seed
+1,Emergencies and Trauma,1.2.6,3,Sexual Assault/Rape,,,sexual-assault-rape,,Z04.4,Z04.4,,chapters/01/1-02-06-sexual-assault-rape,seed
+1,Emergencies and Trauma,1.3.1,3,General Management of Poisoning,,,general-management-of-poisoning,,T36-T50,T36–T50,non-clinical-subject?,chapters/01/1-03-01-general-management-of-poisoning-icd10-code-t36-t50,skip
+1,Emergencies and Trauma,1.3.1.2,4,Removal and Elimination of Ingested Poison,,,removal-and-elimination-of-ingested-poison,General Management of Poisoning,,,no-code-in-source,chapters/01/1-03-01-02-removal-and-elimination-of-ingested-poison,seed
+1,Emergencies and Trauma,1.3.2,3,Acute Organophosphate Poisoning,,,acute-organophosphate-poisoning,,T60.0,T60.0,,chapters/01/1-03-02-acute-organophosphate-poisoning,seed
+1,Emergencies and Trauma,1.3.3,3,Paraffin and Other Petroleum Products Poisoning,,,paraffin-and-other-petroleum-products-poisoning,,T53.7,T53.7,,chapters/01/1-03-03-paraffin-and-other-petroleum-products-poisoning-icd10,seed
+1,Emergencies and Trauma,1.3.4,3,Acetylsalicylic Acid Poisoning,,Aspirin,acetylsalicylic-acid-poisoning,,T39.0,T39.0,,chapters/01/1-03-04-acetylsalicylic-acid-aspirin-poisoning,seed
+1,Emergencies and Trauma,1.3.5,3,Paracetamol Poisoning,,,paracetamol-poisoning,,T39.1,T39.1,,chapters/01/1-03-05-paracetamol-poisoning,seed
+1,Emergencies and Trauma,1.3.6,3,Iron Poisoning,,,iron-poisoning,,T45.4,T45.4,,chapters/01/1-03-06-iron-poisoning,seed
+1,Emergencies and Trauma,1.3.7,3,Carbon Monoxide Poisoning,,,carbon-monoxide-poisoning,,,,no-code-in-source,chapters/01/1-03-07-carbon-monoxide-poisoning,seed
+1,Emergencies and Trauma,1.3.8,3,Barbiturate Poisoning,,,barbiturate-poisoning,,T42.3,T42.3,,chapters/01/1-03-08-barbiturate-poisoning,seed
+1,Emergencies and Trauma,1.3.9,3,Opioid Poisoning,,,opioid-poisoning,,T40,T40,,chapters/01/1-03-09-opioid-poisoning-icd10-code-t40,seed
+1,Emergencies and Trauma,1.3.10,3,Warfarin Poisoning,,,warfarin-poisoning,,T45.5,T45.5,,chapters/01/1-03-10-warfarin-poisoning,seed
+1,Emergencies and Trauma,1.3.11,3,Methyl Alcohol Poisoning,,Methanol,methyl-alcohol-poisoning,,T51.1,T51.1,,chapters/01/1-03-11-methyl-alcohol-methanol-poisoning,seed
+1,Emergencies and Trauma,1.3.12,3,Alcohol Poisoning,,Ethanol,alcohol-poisoning,,T51,T51,,chapters/01/1-03-12-alcohol-ethanol-poisoning,seed
+1,Emergencies and Trauma,1.3.12.1,4,Acute Alcohol Poisoning,,,acute-alcohol-poisoning,Alcohol Poisoning,,,no-code-in-source,chapters/01/1-03-12-01-acute-alcohol-poisoning,seed
+1,Emergencies and Trauma,1.3.12.2,4,Chronic Alcohol Poisoning,,,chronic-alcohol-poisoning,Alcohol Poisoning,,,no-code-in-source,chapters/01/1-03-12-02-chronic-alcohol-poisoning,seed
+1,Emergencies and Trauma,1.3.13,3,Food Poisoning,,,food-poisoning,,A05,A05,,chapters/01/1-03-13-food-poisoning,seed
+2,Infectious Diseases,2.1.1,3,Anthrax,,,anthrax,,,,no-code-in-source,,seed
+2,Infectious Diseases,2.1.2,3,Brucellosis,,,brucellosis,,,,no-code-in-source,chapters/02/2-01-02-brucellosis,seed
+2,Infectious Diseases,2.1.3,3,Diphtheria,,,diphtheria,,A36.9,A36.9,,chapters/02/2-01-03-diphtheria,seed
+2,Infectious Diseases,2.1.4,3,Leprosy/Hansen’s Disease,,,leprosy-hansen-s-disease,,A30.0,A30.0,,chapters/02/2-01-04-leprosy-hansens-disease,seed
+2,Infectious Diseases,2.1.5,3,Meningitis,,,meningitis,,A39.0 G00 G01 G02,"A39.0 (Meningococcal), G00, G01, G02",,chapters/02/2-01-05-meningitis,seed
+2,Infectious Diseases,2.1.5.1,4,Neonatal Meningitis,,,neonatal-meningitis,Meningitis,,,no-code-in-source,chapters/02/2-01-05-01-neonatal-meningitis,seed
+2,Infectious Diseases,2.1.5.2,4,Cryptococcal Meningitis,,,cryptococcal-meningitis,Meningitis,B45.1,B45.1,"duplicate-name:2.1.5.2,3.1.10.2",chapters/02/2-01-05-02-cryptococcal-meningitis,seed
+2,Infectious Diseases,2.1.5.3,4,TB Meningitis,,,tb-meningitis,Meningitis,A17.0,A17.0,,chapters/02/2-01-05-03-tb-meningitis,seed
+2,Infectious Diseases,2.1.6,3,Plague,,,plague,,,,no-code-in-source,chapters/02/2-01-06-plague,seed
+2,Infectious Diseases,2.1.7,3,Septicaemia,,,septicaemia,,,,no-code-in-source,chapters/02/2-01-07-septicaemia,seed
+2,Infectious Diseases,2.1.7.1,4,Neonatal Septicaemia,,,neonatal-septicaemia,Septicaemia,,,no-code-in-source,chapters/02/2-01-07-01-neonatal-septicaemia,seed
+2,Infectious Diseases,2.1.7.2,4,Septic Shock Management in Adults,,,septic-shock-management-in-adults,Septicaemia,,,no-code-in-source,chapters/02/2-01-07-02-septic-shock-management-in-adults,seed
+2,Infectious Diseases,2.1.8,3,Tetanus,,,tetanus,,A35,A35,,chapters/02/2-01-08-tetanus,seed
+2,Infectious Diseases,2.1.8.1,4,Neonatal Tetanus,,,neonatal-tetanus,Tetanus,,,no-code-in-source,chapters/02/2-01-08-01-neonatal-tetanus,seed
+2,Infectious Diseases,2.1.9,3,Typhoid Fever,,Enteric Fever,typhoid-fever,,A01.00,A01.00,,chapters/02/2-01-09-typhoid-fever-enteric-fever,seed
+2,Infectious Diseases,2.1.10,3,Typhus Fever,,,typhus-fever,,A75.9,A75.9,,chapters/02/2-01-10-typhus-fever,seed
+2,Infectious Diseases,2.2.1,3,Candidiasis,,,candidiasis,,B37,B37,,chapters/02/2-02-01-candidiasis,seed
+2,Infectious Diseases,2.3.1,3,Avian Influenza,,,avian-influenza,,J09.X2,J09.X2,,chapters/02/2-03-01-avian-influenza,seed
+2,Infectious Diseases,2.3.2,3,Chicken Pox,,,chicken-pox,,B01,B01,,chapters/02/2-03-02-chicken-pox,seed
+2,Infectious Diseases,2.3.3,3,Measles,,,measles,,B05,B05,,chapters/02/2-03-03-measles,seed
+2,Infectious Diseases,2.3.4,3,Poliomyelitis,,,poliomyelitis,,A80.3,A80.3,,chapters/02/2-03-04-poliomyelitis,seed
+2,Infectious Diseases,2.3.5,3,Rabies,,,rabies,,A82,A82,,chapters/02/2-03-05-rabies,seed
+2,Infectious Diseases,2.3.6,3,Viral Haemorrhagic Fevers,,,viral-haemorrhagic-fevers,,,,no-code-in-source,chapters/02/2-03-06-viral-haemorrhagic-fevers,seed
+2,Infectious Diseases,2.3.6.1,4,Ebola and Marburg,,,ebola-and-marburg,Viral Haemorrhagic Fevers,A99,A99,,chapters/02/2-03-06-01-ebola-and-marburg,seed
+2,Infectious Diseases,2.3.6.2,4,Yellow Fever,,,yellow-fever,Viral Haemorrhagic Fevers,,,no-code-in-source,chapters/02/2-03-06-02-yellow-fever,seed
+2,Infectious Diseases,2.3.7,3,COVID-19 Disease,,,covid-19-disease,,,,no-code-in-source,chapters/02/2-03-07-covid-19-disease,seed
+2,Infectious Diseases,2.4.1,3,Intestinal Worms,,,intestinal-worms,,B83.9,B83.9,,chapters/02/2-04-01-intestinal-worms,seed
+2,Infectious Diseases,2.4.1.1,4,Taeniasis,,Tapeworm,taeniasis,Intestinal Worms,B68,B68,,chapters/02/2-04-01-01-taeniasis-tapeworm,seed
+2,Infectious Diseases,2.4.2,3,Echinococcosis,,Hydatid Disease,echinococcosis,,B67,B67,,chapters/02/2-04-02-echinococcosis-hydatid-disease-icd-10-code-b67,seed
+2,Infectious Diseases,2.4.3,3,Dracunculiasis,,Guinea Worm,dracunculiasis,,B72,B72,,chapters/02/2-04-03-dracunculiasis-guinea-worm,seed
+2,Infectious Diseases,2.4.4,3,Lymphatic Filariasis,,,lymphatic-filariasis,,B74.9,B74.9,,chapters/02/2-04-04-lymphatic-filariasis,seed
+2,Infectious Diseases,2.4.5,3,Onchocerciasis,,River Blindness,onchocerciasis,,B73.0,B73.0,,chapters/02/2-04-05-onchocerciasis-river-blindness-icd10-code-b73-0,seed
+2,Infectious Diseases,2.4.6,3,Schistosomiasis,,Bilharziasis,schistosomiasis,,B65.1,B65.1,,chapters/02/2-04-06-schistosomiasis-bilharziasis,seed
+2,Infectious Diseases,2.5.1,3,Leishmaniasis,,,leishmaniasis,,B55,B55,,chapters/02/2-05-01-leishmaniasis,seed
+2,Infectious Diseases,2.5.2,3,Malaria,,,malaria,,B50,B50,,chapters/02/2-05-02-malaria,seed
+2,Infectious Diseases,2.5.2.1,4,Uncomplicated Malaria,,,uncomplicated-malaria,Malaria,,,no-code-in-source,chapters/02/2-05-02-01-uncomplicated-malaria,seed
+2,Infectious Diseases,2.5.2.2,4,Complicated/Severe Malaria,,,complicated-severe-malaria,Malaria,B50.0 B50.8,"B50.0, B50.8",,chapters/02/2-05-02-02-complicated-severe-malaria-icd10-code-b50-0-b50-8,seed
+2,Infectious Diseases,2.5.2.3,4,Management of Complications of Severe Malaria,,,management-of-complications-of-severe-malaria,Malaria,,,non-clinical-subject? no-code-in-source,,skip
+2,Infectious Diseases,2.5.2.4,4,Malaria Prophylaxis,,,malaria-prophylaxis,Malaria,,,non-clinical-subject? no-code-in-source,,skip
+2,Infectious Diseases,2.5.2.5,4,Malaria Prevention and Control,,,malaria-prevention-and-control,Malaria,,,no-code-in-source,,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.1,3,Clinical Features of HIV,,,clinical-features-of-hiv,,,,no-code-in-source,chapters/03/3-01-01-clinical-features-of-hiv,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.2,3,Diagnosis and Investigations of HIV,,,diagnosis-and-investigations-of-hiv,,,,no-code-in-source,,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.4,3,General Principles of Antiretroviral Treatment,ART,,general-principles-of-antiretroviral-treatment,,,,non-clinical-subject? no-code-in-source,chapters/03/3-01-04-general-principles-of-antiretroviral-treatment-art,skip
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.5,3,"Recommended First-Line Regimens in Adults, Adolescents, Pregnant Women and Children",,,recommended-first-line-regimens-in-adults-adolescents-pregnant-women-and-children,,,,non-clinical-subject? no-code-in-source,chapters/03/3-01-05-recommended-first-line-regimens-in-adults-adolescents,skip
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.6,3,Monitoring of ART,,,monitoring-of-art,,,,non-clinical-subject? no-code-in-source,chapters/03/3-01-06-monitoring-of-art,skip
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.7,3,ARV Toxicity,,,arv-toxicity,,,,no-code-in-source,chapters/03/3-01-07-arv-toxicity,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.8,3,"Recommended Second-Line Regimens in Adults, Adolescents, Pregnant Women and Children",,,recommended-second-line-regimens-in-adults-adolescents-pregnant-women-and-children,,,,non-clinical-subject? no-code-in-source,chapters/03/3-01-08-recommended-second-line-regimens-in-adults-adolescents-pregnant-women-and-childr,skip
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.9,3,Mother-to-Child Transmission of HIV,,,mother-to-child-transmission-of-hiv,,,,no-code-in-source,chapters/03/3-01-09-mother-to-child-transmission-of-hiv,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.9.1,4,Management of HIV-Positive Pregnant Mother,,,management-of-hiv-positive-pregnant-mother,Mother-to-Child Transmission of HIV,,,non-clinical-subject? no-code-in-source,chapters/03/3-01-09-01-management-of-hiv-positive-pregnant-mother,skip
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.9.2,4,HIV-Exposed Infant Care Services,,,hiv-exposed-infant-care-services,Mother-to-Child Transmission of HIV,,,no-code-in-source,chapters/03/3-01-09-02-hiv-exposed-infant-care-services,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.9.3,4,Care of HIV-Exposed Infant,,,care-of-hiv-exposed-infant,Mother-to-Child Transmission of HIV,,,non-clinical-subject? no-code-in-source,chapters/03/3-01-09-03-care-of-hiv-exposed-infant,skip
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.10,3,Opportunistic Infections in HIV,,,opportunistic-infections-in-hiv,,,,no-code-in-source,chapters/03/3-01-10-opportunistic-infections-in-hiv,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.10.1,4,Tuberculosis and HIV Co-Infection,,,tuberculosis-and-hiv-co-infection,Opportunistic Infections in HIV,,,no-code-in-source,chapters/03/3-01-10-01-tuberculosis-and-hiv-co-infection,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.10.2,4,Cryptococcal Meningitis,,,cryptococcal-meningitis,Opportunistic Infections in HIV,B45,B45,"duplicate-name:2.1.5.2,3.1.10.2",chapters/03/3-01-10-02-cryptococcal-meningitis,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.10.3,4,Hepatitis B and HIV Co-Infection,,,hepatitis-b-and-hiv-co-infection,Opportunistic Infections in HIV,B18,B18,,chapters/03/3-01-10-03-hepatitis-b-and-hiv-co-infection-icd10-code-b18,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.10.4,4,Pneumocystis Pneumonia,,,pneumocystis-pneumonia,Opportunistic Infections in HIV,B59,B59,,chapters/03/3-01-10-04-pneumocystis-pneumonia,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.10.5,4,Other Diseases,,,other-diseases,Opportunistic Infections in HIV,,,no-code-in-source,chapters/03/3-01-10-05-other-diseases,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.11,3,Prevention of HIV,,,prevention-of-hiv,,,,non-clinical-subject? no-code-in-source,chapters/03/3-01-11-prevention-of-hiv,skip
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.11.1,4,Post-Exposure Prophylaxis,,,post-exposure-prophylaxis,Prevention of HIV,Z20.6,Z20.6,non-clinical-subject?,chapters/03/3-01-11-01-post-exposure-prophylaxis,skip
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.11.2,4,Pre-Exposure Prophylaxis,,PrEP,pre-exposure-prophylaxis,Prevention of HIV,,,non-clinical-subject? no-code-in-source,chapters/03/3-01-11-02-pre-exposure-prophylaxis-prep,skip
+3,HIV/AIDS and Sexually Transmitted Infections,3.1.12,3,Psychosocial Support for HIV-Positive Persons,,,psychosocial-support-for-hiv-positive-persons,,,,no-code-in-source,,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.1,3,Urethral Discharge Syndrome,,Male,urethral-discharge-syndrome,,R36,R36,,,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.2,3,Abnormal Vaginal Discharge Syndrome,,,abnormal-vaginal-discharge-syndrome,,N76,N76,,,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.3,3,Pelvic Inflammatory Disease,PID,,pelvic-inflammatory-disease,,,,"duplicate-name:3.2.3,14.1.2 no-code-in-source",chapters/03/3-02-03-pelvic-inflammatory-disease-pid,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.4,3,Genital Ulcer Disease Syndrome,GUD,,genital-ulcer-disease-syndrome,,N76.5 N48.5,"N76.5-6, N48.5",,chapters/03/3-02-04-genital-ulcer-disease-gud-syndrome-icd10-codes,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.5,3,Inguinal Swelling,,Bubo,inguinal-swelling,,,,no-code-in-source,chapters/03/3-02-05-inguinal-swelling-bubo,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.6,3,Genital Warts,,,genital-warts,,A63.0,A63.0,,chapters/03/3-02-06-genital-warts,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.7,3,Syphilis,,,syphilis,,A51,A51-53,,chapters/03/3-02-07-syphilis,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.8,3,Other STI Syndromes,,,other-sti-syndromes,,,,no-code-in-source,,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.8.1,4,Balanitis,,,balanitis,Other STI Syndromes,N48.1,N48.1,,chapters/03/3-02-08-01-balanitis,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.8.2,4,Painful Scrotal Swelling,,,painful-scrotal-swelling,Other STI Syndromes,N45,N45,,chapters/03/3-02-08-02-painful-scrotal-swelling,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.9,3,Congenital STI Syndromes,,,congenital-sti-syndromes,,,,no-code-in-source,chapters/03/3-02-09-congenital-sti-syndromes,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.9.1,4,Neonatal Conjunctivitis,,Ophthalmia Neonatorum,neonatal-conjunctivitis,Congenital STI Syndromes,P39.1,P39.1,,chapters/03/3-02-09-01-neonatal-conjunctivitis-ophthalmia-neonatorum,seed
+3,HIV/AIDS and Sexually Transmitted Infections,3.2.9.2,4,Congenital Syphilis,,,congenital-syphilis,Congenital STI Syndromes,A50,A50,,chapters/03/3-02-09-02-congenital-syphilis,seed
+4,Cardiovascular Diseases,4.1.1,3,Deep Vein Thrombosis / Pulmonary Embolism,DVT/PE,,deep-vein-thrombosis-pulmonary-embolism,,I82.409,I82.409,,,seed
+4,Cardiovascular Diseases,4.1.2,3,Infective Endocarditis,,,infective-endocarditis,,I33.0,I33.0,,chapters/04/4-01-02-infective-endocarditis,seed
+4,Cardiovascular Diseases,4.1.3,3,Heart Failure,,,heart-failure,,I50,I50,,chapters/04/4-01-03-heart-failure,seed
+4,Cardiovascular Diseases,4.1.4,3,Pulmonary Oedema,,,pulmonary-oedema,,I50.21,I50.21,,chapters/04/4-01-04-pulmonary-oedema,seed
+4,Cardiovascular Diseases,4.1.5,3,Atrial Fibrillation,,,atrial-fibrillation,,I48,I48,,chapters/04/4-01-05-atrial-fibrillation,seed
+4,Cardiovascular Diseases,4.1.6,3,Hypertension,,,hypertension,,I10,I10,,chapters/04/4-01-06-hypertension,seed
+4,Cardiovascular Diseases,4.1.6.1,4,Hypertensive Emergencies and Urgency,,,hypertensive-emergencies-and-urgency,Hypertension,I16.2,I16.2,,chapters/04/4-01-06-01-hypertensive-emergencies-and-urgency,seed
+4,Cardiovascular Diseases,4.1.7,3,Ischaemic Heart Disease,,Coronary Heart Disease,ischaemic-heart-disease,,I20 I21 I25,"I20, I21, I25",,,seed
+4,Cardiovascular Diseases,4.1.8,3,Pericarditis,,,pericarditis,,I30,I30,,chapters/04/4-01-08-pericarditis,seed
+4,Cardiovascular Diseases,4.1.9,3,Rheumatic Fever,,,rheumatic-fever,,I00 I01,"I00, I01",,,seed
+4,Cardiovascular Diseases,4.1.10,3,Rheumatic Heart Disease,,,rheumatic-heart-disease,,I05-I09,I05–I09,,,seed
+4,Cardiovascular Diseases,4.1.11,3,Stroke,,,stroke,,I63,I63,,chapters/04/4-01-11-stroke,seed
+5,Respiratory Diseases,5.1.1,3,Asthma,,,asthma,,,,no-code-in-source,,seed
+5,Respiratory Diseases,5.1.1.1,4,Acute Asthma,,,acute-asthma,Asthma,,,no-code-in-source,,seed
+5,Respiratory Diseases,5.1.1.2,4,Chronic Asthma,,,chronic-asthma,Asthma,,,no-code-in-source,chapters/05/5-01-01-02-chronic-asthma,seed
+5,Respiratory Diseases,5.2.1,3,Bronchiolitis,,,bronchiolitis,,J21,J21,,chapters/05/5-02-01-bronchiolitis,seed
+5,Respiratory Diseases,5.2.2,3,Acute Bronchitis,,,acute-bronchitis,,J20,J20,,chapters/05/5-02-02-acute-bronchitis,seed
+5,Respiratory Diseases,5.2.3,3,Coryza,,Common Cold,coryza,,J00,J00,,chapters/05/5-02-03-coryza-common-cold,seed
+5,Respiratory Diseases,5.2.4,3,Acute Epiglottitis,,,acute-epiglottitis,,J05.1,J05.1,,chapters/05/5-02-04-acute-epiglottitis-icd10-code-j05-1,seed
+5,Respiratory Diseases,5.2.5,3,Influenza,,Flu,influenza,,J09-J11,J09–J11,,,seed
+5,Respiratory Diseases,5.2.6,3,Laryngitis,,,laryngitis,,J04,J04,,chapters/05/5-02-06-laryngitis,seed
+5,Respiratory Diseases,5.2.7,3,Acute Laryngotracheobronchitis,,Croup,acute-laryngotracheobronchitis,,J05.0,J05.0,,,seed
+5,Respiratory Diseases,5.2.8,3,Pertussis,,Whooping Cough,pertussis,,A37,A37,,,seed
+5,Respiratory Diseases,5.2.9,3,Pneumonia,,,pneumonia,,J13-J18,J13–J18,,chapters/05/5-02-09-pneumonia,seed
+5,Respiratory Diseases,5.2.9.1,4,Pneumonia in an Infant,,Up to 2 Months,pneumonia-in-an-infant,Pneumonia,,,no-code-in-source,chapters/05/5-02-09-01-pneumonia-in-an-infant-up-to-2-months,seed
+5,Respiratory Diseases,5.2.9.2,4,Pneumonia in a Child of 2 months to 5 years,,,pneumonia-in-a-child-of-2-months-to-5-years,Pneumonia,,,no-code-in-source,chapters/05/5-02-09-02-pneumonia-in-a-child-of-2-months-5-years,seed
+5,Respiratory Diseases,5.2.9.3,4,Pneumonia in Children above 5 years and Adults,,,pneumonia-in-children-above-5-years-and-adults,Pneumonia,,,no-code-in-source,chapters/05/5-02-09-03-pneumonia-in-children-5-years-and-adults,seed
+5,Respiratory Diseases,5.2.9.4,4,Pneumonia by Specific Organisms,,,pneumonia-by-specific-organisms,Pneumonia,,,no-code-in-source,chapters/05/5-02-09-04-pneumonia-by-specific-organisms,seed
+5,Respiratory Diseases,5.2.9.5,4,Pneumocystis jirovecii Pneumonia,,,pneumocystis-jirovecii-pneumonia,Pneumonia,,,no-code-in-source,chapters/05/5-02-09-05-pneumocystis-jirovecii-pneumonia,seed
+5,Respiratory Diseases,5.2.9.6,4,Lung Abscess,,,lung-abscess,Pneumonia,J85.0-J85.1,J85.0–J85.1,,chapters/05/5-02-09-06-lung-abscess,seed
+5,Respiratory Diseases,5.3.1,3,"Definition, Clinical Features and Diagnosis of TB",,,definition-clinical-features-and-diagnosis-of-tb,,,,non-clinical-subject? no-code-in-source,,skip
+5,Respiratory Diseases,5.3.1.1,4,Tuberculosis in Children and Adolescents,,,tuberculosis-in-children-and-adolescents,"Definition, Clinical Features and Diagnosis of TB",,,no-code-in-source,,seed
+5,Respiratory Diseases,5.3.1.2,4,Drug-Resistant TB,,,drug-resistant-tb,"Definition, Clinical Features and Diagnosis of TB",,,no-code-in-source,chapters/05/5-03-01-02-drug-resistant-tb,seed
+5,Respiratory Diseases,5.3.1.3,4,Post-TB Patient Management,,,post-tb-patient-management,"Definition, Clinical Features and Diagnosis of TB",,,no-code-in-source,chapters/05/5-03-01-03-post-tb-patient-management,seed
+5,Respiratory Diseases,5.3.2,3,Management of TB,,,management-of-tb,,,,non-clinical-subject? no-code-in-source,chapters/05/5-03-02-management-of-tb,skip
+5,Respiratory Diseases,5.3.2.1,4,Anti-TB Drug Side Effects,,,anti-tb-drug-side-effects,Management of TB,,,no-code-in-source,chapters/05/5-03-02-01-anti-tb-drugs-side-effects,seed
+5,Respiratory Diseases,5.3.2.2,4,Prevention and Infection Control of TB,,,prevention-and-infection-control-of-tb,Management of TB,,,no-code-in-source,chapters/05/5-03-02-02-prevention-and-infection-control-of-tb,seed
+5,Respiratory Diseases,5.3.2.3,4,Tuberculosis Preventive Treatment,,,tuberculosis-preventive-treatment,Management of TB,,,no-code-in-source,chapters/05/5-03-02-03-tuberculosis-preventive-treatment,seed
+5,Respiratory Diseases,5.3.2.5,4,TB Preventive Treatment Dosing Chart,,,tb-preventive-treatment-dosing-chart,Management of TB,,,no-code-in-source,chapters/05/5-03-02-05-tb-preventive-treatment-dosing-chart,seed
+6,Gastrointestinal and Hepatic Diseases,6.1.1,3,Acute Appendicitis,,,acute-appendicitis,,K35-K37,K35–K37,,,seed
+6,Gastrointestinal and Hepatic Diseases,6.1.2,3,Acute Pancreatitis,,,acute-pancreatitis,,K85,K85,,chapters/06/6-01-02-acute-pancreatitis,seed
+6,Gastrointestinal and Hepatic Diseases,6.1.3,3,Upper Gastrointestinal Bleeding,,,upper-gastrointestinal-bleeding,,,,no-code-in-source,chapters/06/6-01-03-upper-gastrointestinal-bleeding,seed
+6,Gastrointestinal and Hepatic Diseases,6.1.4,3,Peritonitis,,,peritonitis,,,,no-code-in-source,chapters/06/6-01-04-peritonitis,seed
+6,Gastrointestinal and Hepatic Diseases,6.1.5,3,Diarrhoea,,,diarrhoea,,,Depending on the cause,code-text-unparsed,chapters/06/6-01-05-diarrhoea,seed
+6,Gastrointestinal and Hepatic Diseases,6.2.1,3,Amoebiasis,,,amoebiasis,,A06,A06,,chapters/06/6-02-01-amoebiasis,seed
+6,Gastrointestinal and Hepatic Diseases,6.2.2,3,Bacillary Dysentery,,Shigellosis,bacillary-dysentery,,A03.9,A03.9,,,seed
+6,Gastrointestinal and Hepatic Diseases,6.2.3,3,Cholera,,,cholera,,A00,A00,,,seed
+6,Gastrointestinal and Hepatic Diseases,6.2.4,3,Giardiasis,,,giardiasis,,A07.1,A07.1,,,seed
+6,Gastrointestinal and Hepatic Diseases,6.3.1,3,Dysphagia,,,dysphagia,,R13.1,R13.1,,chapters/06/6-03-01-dysphagia,seed
+6,Gastrointestinal and Hepatic Diseases,6.3.2,3,Dyspepsia,,,dyspepsia,,K30,K30,,chapters/06/6-03-02-dyspepsia,seed
+6,Gastrointestinal and Hepatic Diseases,6.3.4,3,Gastritis,,,gastritis,,K27,K27,,chapters/06/6-03-04-gastritis,seed
+6,Gastrointestinal and Hepatic Diseases,6.3.5,3,Peptic Ulcer Disease,PUD,,peptic-ulcer-disease,,,,no-code-in-source,chapters/06/6-03-05-peptic-ulcer-disease-pud,seed
+6,Gastrointestinal and Hepatic Diseases,6.3.6,3,Chronic Pancreatitis,,,chronic-pancreatitis,,K86.0-K86.1,K86.0–K86.1,,,seed
+6,Gastrointestinal and Hepatic Diseases,6.4.1,3,Constipation,,,constipation,,K59.0,K59.0,,chapters/06/6-04-01-constipation,seed
+6,Gastrointestinal and Hepatic Diseases,6.4.2,3,Haemorrhoids and Anal Fissures,,Piles,haemorrhoids-and-anal-fissures,,K64 K60.0 K60.2,K64 / K60.0–K60.2,,,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.1,3,Viral Hepatitis,,,viral-hepatitis,,,,no-code-in-source,chapters/06/6-05-01-viral-hepatitis,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.1.1,4,Acute Hepatitis,,,acute-hepatitis,Viral Hepatitis,B15 B16 B17 B19,"B15, B16, B17, B19",,chapters/06/6-05-01-01-acute-hepatitis-icd10-codes-b15-b16-b17-b19,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.1.2,4,Chronic Hepatitis,,,chronic-hepatitis,Viral Hepatitis,B18,B18,,chapters/06/6-05-01-02-chronic-hepatitis,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.2,3,Hepatitis B Special Situations,,,hepatitis-b-special-situations,,,,no-code-in-source,,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.2.1,4,Inactive Hepatitis B Carriers,,,inactive-hepatitis-b-carriers,Hepatitis B Special Situations,B18.1,B18.1,,chapters/06/6-05-02-01-inactive-hepatitis-b-carriers,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.2.2,4,Pregnant Mother HBsAg Positive,,,pregnant-mother-hbsag-positive,Hepatitis B Special Situations,B18.1,B18.1,,chapters/06/6-05-02-02-pregnant-mother-hbsag-positive,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.3,3,Chronic Hepatitis C Infection,,,chronic-hepatitis-c-infection,,B18.2,B18.2,,,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.4,3,Liver Cirrhosis,,,liver-cirrhosis,,K74 K70.3,"K74, K70.3",,,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.4.1,4,Ascites,,,ascites,Liver Cirrhosis,R18 K70.31 K70.11 K71.51,R18 / K70.31 / K70.11 / K71.51,,chapters/06/6-05-04-01-ascites-icd10-codes-70-31-70-11-71-51,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.4.2,4,Spontaneous Bacterial Peritonitis,SBP,,spontaneous-bacterial-peritonitis,Liver Cirrhosis,K65.2,K65.2,,chapters/06/6-05-04-02-spontaneous-bacterial-peritonitis-sbp,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.4.3,4,Hepatic Encephalopathy,HE,,hepatic-encephalopathy,Liver Cirrhosis,K70.41 K71.11 K72.11 K72.91,K70.41 / K71.11 / K72.11 / K72.91,,chapters/06/6-05-04-03-hepatorenal-syndrome,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.4.4,4,Hepatocellular Carcinoma,,,hepatocellular-carcinoma,Liver Cirrhosis,C22.0,C22.0,,chapters/06/6-05-04-04-hepatocellular-carcinoma,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.5,3,Hepatic Schistosomiasis,,,hepatic-schistosomiasis,,B65.1,B65.1,,,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.6,3,Drug-Induced Liver Injury,,,drug-induced-liver-injury,,K71,K71,,,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.7,3,Jaundice,,Hyperbilirubinaemia,jaundice,,R17,R17,,,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.8,3,Gallstones / Biliary Colic,,,gallstones-biliary-colic,,K80,K80,,,seed
+6,Gastrointestinal and Hepatic Diseases,6.5.9,3,Acute Cholecystitis / Cholangitis,,,acute-cholecystitis-cholangitis,,K81,K81,,,seed
+7,Renal and Urinary Diseases,7.1.1,3,Acute Renal Failure,,,acute-renal-failure,,N17,N17,,,seed
+7,Renal and Urinary Diseases,7.1.2,3,Chronic Kidney Disease,CKD,,chronic-kidney-disease,,N18,N18,,,seed
+7,Renal and Urinary Diseases,7.1.3,3,Use of Medicines in Renal Failure,,,use-of-medicines-in-renal-failure,,,,non-clinical-subject? no-code-in-source,,skip
+7,Renal and Urinary Diseases,7.1.4,3,Glomerulonephritis,,,glomerulonephritis,,N00-N01,N00–N01,,chapters/07/7-01-04-glomerulonephritis,seed
+7,Renal and Urinary Diseases,7.1.5,3,Nephrotic Syndrome,,,nephrotic-syndrome,,N04,N04,,,seed
+7,Renal and Urinary Diseases,7.2.1,3,Acute Cystitis,,,acute-cystitis,,N30,N30,,chapters/07/7-02-01-acute-cystitis,seed
+7,Renal and Urinary Diseases,7.2.2,3,Acute Pyelonephritis,,,acute-pyelonephritis,,N10,N10,,,seed
+7,Renal and Urinary Diseases,7.2.3,3,Prostatitis,,,prostatitis,,N41,N41,,,seed
+7,Renal and Urinary Diseases,7.2.4,3,Renal Colic,,,renal-colic,,N23,N23,,,seed
+7,Renal and Urinary Diseases,7.2.5,3,Benign Prostatic Hyperplasia,,,benign-prostatic-hyperplasia,,N40,N40,,,seed
+7,Renal and Urinary Diseases,7.2.6,3,Bladder Outlet Obstruction,,,bladder-outlet-obstruction,,,,no-code-in-source,,seed
+7,Renal and Urinary Diseases,7.2.7,3,Urinary Incontinence,,,urinary-incontinence,,N39.3-N39.4,N39.3–N39.4,,,seed
+8,Endocrine and Metabolic Diseases,8.1.1,3,Addison’s Disease,,,addison-s-disease,,E27.1-E27.4,E27.1–E27.4,,,seed
+8,Endocrine and Metabolic Diseases,8.1.2,3,Cushing’s Syndrome,,,cushing-s-syndrome,,E24,E24,,,seed
+8,Endocrine and Metabolic Diseases,8.1.3,3,Diabetes Mellitus,,,diabetes-mellitus,,E08-E13,E08–E13,,,seed
+8,Endocrine and Metabolic Diseases,8.1.4,3,Diabetic Ketoacidosis and Hyperosmolar Hyperglycaemic State,DKA,HHS,diabetic-ketoacidosis-and-hyperosmolar-hyperglycaemic-state,,E10.1 E11.0,E10.1 / E11.0,,,seed
+8,Endocrine and Metabolic Diseases,8.1.5,3,Goitre,,,goitre,,E04,E04,,chapters/08/8-01-05-goitre,seed
+8,Endocrine and Metabolic Diseases,8.1.6,3,Hyperthyroidism,,,hyperthyroidism,,E05,E05,,chapters/08/8-01-06-hyperthyroidism,seed
+8,Endocrine and Metabolic Diseases,8.1.7,3,Hypothyroidism,,,hypothyroidism,,E03,E03,,,seed
+8,Endocrine and Metabolic Diseases,8.1.8,3,Central Precocious Puberty,,,central-precocious-puberty,,,,no-code-in-source,,seed
+9,"Mental, Neurological and Substance Use Disorders",9.1.1,3,Epilepsy,,,epilepsy,,G40,G40,,,seed
+9,"Mental, Neurological and Substance Use Disorders",9.1.2,3,Nodding Disease,,,nodding-disease,,G40.4,G40.4,,,seed
+9,"Mental, Neurological and Substance Use Disorders",9.1.3,3,Headache,,,headache,,R51,R51,,chapters/09/9-01-03-childhood-behavioural-disorders-icd10-code-f90-f98,seed
+9,"Mental, Neurological and Substance Use Disorders",9.1.3.1,4,Migraine,,,migraine,Headache,G43,G43,,chapters/09/9-01-03-01-migraine,seed
+9,"Mental, Neurological and Substance Use Disorders",9.1.4,3,Dementia,,,dementia,,F01 F03,"F01, F03",,chapters/09/9-01-04-dementia-icd10-code-f01-f03,seed
+9,"Mental, Neurological and Substance Use Disorders",9.1.5,3,Parkinsonism,,,parkinsonism,,G20 G21,"G20, G21",,,seed
+9,"Mental, Neurological and Substance Use Disorders",9.1.6,3,Delirium,,,delirium,,F05,F05,,,seed
+9,"Mental, Neurological and Substance Use Disorders",9.2.1,3,Anxiety,,,anxiety,,F40-F48,F40–F48,,,seed
+9,"Mental, Neurological and Substance Use Disorders",9.2.2,3,Depression,,,depression,,,,no-code-in-source,,seed
+9,"Mental, Neurological and Substance Use Disorders",9.2.2.1,4,Postnatal Depression,,,postnatal-depression,Depression,,,no-code-in-source,chapters/09/9-02-02-01-postnatal-depression,seed
+9,"Mental, Neurological and Substance Use Disorders",9.2.2.2,4,Suicidal Behaviour / Self Harm,,,suicidal-behaviour-self-harm,Depression,T14.91 Z91.5,"T14.91, Z91.5",,chapters/09/9-02-02-02-suicidal-behaviour-self-harm-icd10-codes-t14-91-z91-5,seed
+9,"Mental, Neurological and Substance Use Disorders",9.2.3,3,Bipolar Disorder,,Mania,bipolar-disorder,,F30 F31,"F30, F31",,,seed
+9,"Mental, Neurological and Substance Use Disorders",9.2.4,3,Psychosis,,,psychosis,,F20-F29,F20–F29,,chapters/09/9-02-04-psychosis-icd10-code-f20-f29,seed
+9,"Mental, Neurological and Substance Use Disorders",9.2.4.1,4,Postnatal Psychosis,,,postnatal-psychosis,Psychosis,F53,"F53, Postpartum",,chapters/09/9-02-04-01-postnatal-psychosis,seed
+9,"Mental, Neurological and Substance Use Disorders",9.2.5,3,Alcohol Use Disorders,,,alcohol-use-disorders,,F10,F10,,,seed
+10,Musculoskeletal and Joint Diseases,10.1.1,3,Pyogenic Arthritis,,Septic Arthritis,pyogenic-arthritis,,M00,M00,,,seed
+10,Musculoskeletal and Joint Diseases,10.1.2,3,Osteomyelitis,,,osteomyelitis,,M86,M86,,chapters/10/10-01-02-osteomyelitis-icd10-code-m86,seed
+10,Musculoskeletal and Joint Diseases,10.1.3,3,Pyomyositis,,,pyomyositis,,M60.0,M60.0,,chapters/10/10-01-03-pyomyositis,seed
+10,Musculoskeletal and Joint Diseases,10.1.4,3,Tuberculosis of the Spine,,Pott's Disease,tuberculosis-of-the-spine,,A18.01,A18.01,,chapters/10/10-01-04-tuberculosis-of-the-spine-potts-disease-icd10-code,seed
+10,Musculoskeletal and Joint Diseases,10.2.1,3,Rheumatoid Arthritis,,,rheumatoid-arthritis,,M05,M05,,chapters/10/10-02-01-rheumatoid-arthritis,seed
+10,Musculoskeletal and Joint Diseases,10.2.2,3,Gout Arthritis,,,gout-arthritis,,M10,M10,,chapters/10/10-02-02-gout-arhthritis-icd10-code-m10,seed
+10,Musculoskeletal and Joint Diseases,10.2.3,3,Osteoarthritis,,,osteoarthritis,,M15-M19,M15–M19,,chapters/10/10-02-03-osteoarthritis-icd10-code-m15-m19,seed
+11,Blood Diseases and Blood Transfusion Guidelines,11.1.1,3,Anaemia,,,anaemia,,,,no-code-in-source,,seed
+11,Blood Diseases and Blood Transfusion Guidelines,11.1.1.1,4,Iron Deficiency Anaemia,,,iron-deficiency-anaemia,Anaemia,D50,D50,,chapters/11/11-01-01-01-iron-deficiency-anaemia-icd10-code-d50,seed
+11,Blood Diseases and Blood Transfusion Guidelines,11.1.1.2,4,Megaloblastic Anaemia,,,megaloblastic-anaemia,Anaemia,D51-D52,D51–D52,,chapters/11/11-01-01-02-megaloblastic-anaemia-icd10-code-d51-52,seed
+11,Blood Diseases and Blood Transfusion Guidelines,11.1.1.3,4,Normocytic Anaemia,,,normocytic-anaemia,Anaemia,,,no-code-in-source,chapters/11/11-01-01-03-normocytic-anaemia,seed
+11,Blood Diseases and Blood Transfusion Guidelines,11.1.2,3,Bleeding Disorders,,,bleeding-disorders,,,,no-code-in-source,chapters/11/11-01-02-bleeding-disorders,seed
+11,Blood Diseases and Blood Transfusion Guidelines,11.1.3,3,Sickle Cell Disease,,,sickle-cell-disease,,D57,D57,,chapters/11/11-01-03-sickle-cell-disease,seed
+11,Blood Diseases and Blood Transfusion Guidelines,11.2.1,3,General Principles of Good Clinical Practice in Transfusion Medicine,,,general-principles-of-good-clinical-practice-in-transfusion-medicine,,,,non-clinical-subject? no-code-in-source,chapters/11/11-02-01-general-principles-of-good-clinical-practice-in-transfusion,skip
+11,Blood Diseases and Blood Transfusion Guidelines,11.2.2,3,Blood and Blood Products: Characteristics and Indications,,,blood-and-blood-products-characteristics-and-indications,,,,no-code-in-source,chapters/11/11-02-02-blood-and-blood-products-characteristics-and-indications,seed
+11,Blood Diseases and Blood Transfusion Guidelines,11.2.2.1,4,Whole Blood,,,whole-blood,Blood and Blood Products: Characteristics and Indications,,,no-code-in-source,chapters/11/11-02-02-01-whole-blood,seed
+11,Blood Diseases and Blood Transfusion Guidelines,11.2.2.2,4,Red Cell Concentrates / Packed Red Cells,,,red-cell-concentrates-packed-red-cells,Blood and Blood Products: Characteristics and Indications,,,no-code-in-source,chapters/11/11-02-02-02-red-cell-concentrates-packed-red-cells,seed
+11,Blood Diseases and Blood Transfusion Guidelines,11.2.2.3,4,Clinical Indications for Blood Transfusion,,,clinical-indications-for-blood-transfusion,Blood and Blood Products: Characteristics and Indications,,,non-clinical-subject? no-code-in-source,chapters/11/11-02-02-03-clinical-indications-for-blood-transfusion,skip
+11,Blood Diseases and Blood Transfusion Guidelines,11.2.3,3,Adverse Reactions Following Transfusion,,,adverse-reactions-following-transfusion,,,,non-clinical-subject? no-code-in-source,chapters/11/11-02-03-adverse-reactions-following-transfusion,skip
+11,Blood Diseases and Blood Transfusion Guidelines,11.2.3.1,4,Acute Transfusion Reactions,,,acute-transfusion-reactions,Adverse Reactions Following Transfusion,,,non-clinical-subject? no-code-in-source,chapters/11/11-02-03-01-acute-transfusion-reactions,skip
+12,Oncology,12.1.1,3,Special Groups at Increased Risk of Cancer,,,special-groups-at-increased-risk-of-cancer,,,,no-code-in-source,chapters/12/12-01-01-special-groups-at-increased-risk-of-cancer,seed
+12,Oncology,12.1.2,3,Early Signs and Symptoms,,,early-signs-and-symptoms,,,,no-code-in-source,chapters/12/12-01-02-early-signs-and-symptoms,seed
+12,Oncology,12.1.2.1,4,Urgent Signs and Symptoms,,,urgent-signs-and-symptoms,Early Signs and Symptoms,,,no-code-in-source,chapters/12/12-01-02-01-urgent-signs-and-symptoms,seed
+12,Oncology,12.2.1,3,Primary Prevention,,,primary-prevention,,,,no-code-in-source,chapters/12/12-02-01-primary-prevention,seed
+12,Oncology,12.2.1.1,4,Control of Risk Factors,,,control-of-risk-factors,Primary Prevention,,,no-code-in-source,chapters/12/12-02-01-01-control-of-risk-factors,seed
+12,Oncology,12.2.2,3,Secondary Prevention,,,secondary-prevention,,,,no-code-in-source,chapters/12/12-02-02-secondary-prevention,seed
+12,Oncology,12.3.1,3,Common Cancers in Children,,,common-cancers-in-children,,,,no-code-in-source,chapters/12/12-03-01-common-cancers-in-children,seed
+12,Oncology,12.3.2,3,Common Cancers in Adults,,,common-cancers-in-adults,,,,no-code-in-source,,seed
+13,Palliative Care,13.1.1,3,Clinical Features and Investigations,,,clinical-features-and-investigations,,,,no-code-in-source,chapters/13/13-01-01-clinical-features-and-investigations,seed
+13,Palliative Care,13.1.2,3,Nociceptive Pain Management,,,nociceptive-pain-management,,,,no-code-in-source,chapters/13/13-01-02-nociceptive-pain-management,seed
+13,Palliative Care,13.1.2.1,4,Pain Management in Adults,,,pain-management-in-adults,Nociceptive Pain Management,,,no-code-in-source,chapters/13/13-01-02-01-pain-management-in-adults,seed
+13,Palliative Care,13.1.2.3,4,Pain Management in Children,,,pain-management-in-children,Nociceptive Pain Management,,,no-code-in-source,chapters/13/13-01-02-03-pain-management-in-children,seed
+13,Palliative Care,13.1.3,3,Neuropathic Pain,,,neuropathic-pain,,,,no-code-in-source,chapters/13/13-01-03-neuropathic-pain,seed
+13,Palliative Care,13.1.4,3,Back or Bone Pain,,,back-or-bone-pain,,,,no-code-in-source,chapters/13/13-01-04-back-or-bone-pain,seed
+13,Palliative Care,13.2.1,3,Breathlessness,,,breathlessness,,R06,R06,,chapters/13/13-02-01-breathlessness-icd10-code-r06,seed
+13,Palliative Care,13.2.2,3,Nausea and Vomiting,,,nausea-and-vomiting,,R11,R11,,chapters/13/13-02-02-nausea-and-vomiting,seed
+13,Palliative Care,13.2.3,3,Pressure Ulcer / Decubitus Ulcers,,,pressure-ulcer-decubitus-ulcers,,L89,L89,,chapters/13/13-02-03-pressure-ulcer-decubitus-ulcers,seed
+13,Palliative Care,13.2.4,3,Fungating Wounds,,,fungating-wounds,,,,no-code-in-source,chapters/13/13-02-04-fungating-wounds,seed
+13,Palliative Care,13.2.5,3,Anorexia and Cachexia,,,anorexia-and-cachexia,,R63.0 R64,R63.0 AND R64,,chapters/13/13-02-05-anorexia-and-cachexia,seed
+13,Palliative Care,13.2.6,3,Hiccup,,,hiccup,,,,no-code-in-source,chapters/13/13-02-06-hiccup,seed
+13,Palliative Care,13.2.7,3,Dry or Painful Mouth,,,dry-or-painful-mouth,,R68.2,R68.2,,chapters/13/13-02-07-dry-or-painful-mouth,seed
+13,Palliative Care,13.2.8,3,Other Symptoms,,,other-symptoms,,,,no-code-in-source,chapters/13/13-02-08-other-symptoms,seed
+13,Palliative Care,13.2.9,3,End of Life Care,,,end-of-life-care,,,,no-code-in-source,chapters/13/13-02-09-end-of-life-care,seed
+14,Gynaecological Conditions,14.1.1,3,Dysmenorrhoea,,,dysmenorrhoea,,N94.6,N94.6,,,seed
+14,Gynaecological Conditions,14.1.2,3,Pelvic Inflammatory Disease,PID,,pelvic-inflammatory-disease,,N70-N73,N70-N73,"duplicate-name:3.2.3,14.1.2",chapters/14/14-01-02-pelvic-inflammatory-disease-pid-icd10-code-n70-n73,seed
+14,Gynaecological Conditions,14.1.3,3,Abnormal Uterine Bleeding,,,abnormal-uterine-bleeding,,N39.9,N39.9,,chapters/14/14-01-03-abnormal-uterine-bleeding-icd10-code-n39-9,seed
+14,Gynaecological Conditions,14.1.4,3,Menopause,,,menopause,,Z78.0,Z78.0,,chapters/14/14-01-04-menopause,seed
+15,Family Planning (FP),15.1.1,3,Provide Information about FP including Pre-Conception Care to Different Groups,,,provide-information-about-fp-including-pre-conception-care-to-different-groups,,,,non-clinical-subject? no-code-in-source,chapters/15/15-01-01-provide-information-about-fp-including-pre-conceptioncare-to-different-groups,skip
+15,Family Planning (FP),15.1.2,3,Counsel High-Risk Clients,,,counsel-high-risk-clients,,,,no-code-in-source,chapters/15/15-01-02-counsel-high-risk-clients,seed
+15,Family Planning (FP),15.1.3,3,Pre-Conception Care with Clients Who Desire to Conceive,,,pre-conception-care-with-clients-who-desire-to-conceive,,,,no-code-in-source,chapters/15/15-01-03-pre-conception-care-with-clients-who-desire-to-conceive,seed
+15,Family Planning (FP),15.1.4,3,Discuss with People Living with HIV: Special Considerations for HIV Transmission,,,discuss-with-people-living-with-hiv-special-considerations-for-hiv-transmission,,,,no-code-in-source,chapters/15/15-01-04-discuss-with-plw-hiv-special-consideration-for-hiv,seed
+15,Family Planning (FP),15.1.5,3,Educate and Counsel Clients to Make an Informed Choice of FP Method,,,educate-and-counsel-clients-to-make-an-informed-choice-of-fp-method,,,,non-clinical-subject? no-code-in-source,chapters/15/15-01-05-educate-and-counsel-clients-to-make-informed-choice-of,skip
+15,Family Planning (FP),15.1.6,3,Obtain and Record Client History,,,obtain-and-record-client-history,,,,no-code-in-source,chapters/15/15-01-06-obtain-and-record-client-history,seed
+15,Family Planning (FP),15.1.7,3,Perform a Physical Assessment,,,perform-a-physical-assessment,,,,no-code-in-source,chapters/15/15-01-07-perform-a-physical-assessment,seed
+15,Family Planning (FP),15.1.8,3,Perform a Pelvic Examination,,,perform-a-pelvic-examination,,,,no-code-in-source,chapters/15/15-01-08-perform-a-pelvic-examination,seed
+15,Family Planning (FP),15.1.9,3,Manage Client for Chosen FP Method,,,manage-client-for-chosen-fp-method,,,,non-clinical-subject? no-code-in-source,chapters/15/15-01-09-manage-client-for-chosen-fp-method,skip
+15,Family Planning (FP),15.1.10,3,Summary of Medical Eligibility for Contraceptives,,,summary-of-medical-eligibility-for-contraceptives,,,,no-code-in-source,chapters/15/15-01-10-summary-of-medical-eligibility-for-contraceptives,seed
+15,Family Planning (FP),15.2.1,3,Condom,,Male,condom,,Z30.0 Z30.49,Z30.0 / Z30.49,"duplicate-name:15.2.1,15.2.2",chapters/15/15-02-01-condom-male,seed
+15,Family Planning (FP),15.2.2,3,Condom,,Female,condom,,Z30.0 Z30.49,Z30.0 / Z30.49,"duplicate-name:15.2.1,15.2.2",chapters/15/15-02-02-condom-female,seed
+15,Family Planning (FP),15.2.3,3,Combined Oral Contraceptive Pill,COC,,combined-oral-contraceptive-pill,,Z30.0 Z30.41,Z30.0 / Z30.41,,chapters/15/15-02-03-combined-oral-contraceptive-pill-coc,seed
+15,Family Planning (FP),15.2.4,3,Progestogen-Only Pill,POP,,progestogen-only-pill,,Z30.0 Z30.41,Z30.0 / Z30.41,,chapters/15/15-02-04-progestogen-only-pill-pop,seed
+15,Family Planning (FP),15.2.5,3,Injectable Progestogen-Only Contraceptive,,,injectable-progestogen-only-contraceptive,,Z30.0 Z30.42,Z30.0 / Z30.42,,chapters/15/15-02-05-injectable-progestogen-only-contraceptive,seed
+15,Family Planning (FP),15.2.6,3,Progestogen-Only Sub-Dermal Implant,,,progestogen-only-sub-dermal-implant,,Z30.0 Z30.46,Z30.0 / Z30.46,,chapters/15/15-02-06-progestogen-only-sub-dermal-implant,seed
+15,Family Planning (FP),15.2.7,3,Emergency Contraception,,Pill and IUD,emergency-contraception,,Z30.012,Z30.012,,chapters/15/15-02-07-emergency-contraception-pill-and-iud,seed
+15,Family Planning (FP),15.2.8,3,Intrauterine Device,IUD,,intrauterine-device,,Z30.014,Z30.014,,chapters/15/15-02-08-intrauterine-device-iud,seed
+15,Family Planning (FP),15.2.9,3,Natural FP: Cervical Mucus Method and Moon Beads,CMM,,natural-fp-cervical-mucus-method-and-moon-beads,,Z30.02,Z30.02,non-clinical-subject?,chapters/15/15-02-09-natural-fp-cervical-mucus-method-cmm-and-moon,skip
+15,Family Planning (FP),15.2.10,3,Natural FP: Lactational Amenorrhoea Method,LAM,,natural-fp-lactational-amenorrhoea-method,,Z30.02,Z30.02,non-clinical-subject?,chapters/15/15-02-10-natural-fp-lactational-amenorrhoea-method-lam,skip
+15,Family Planning (FP),15.2.11,3,Surgical Contraception for Men: Vasectomy,,,surgical-contraception-for-men-vasectomy,,Z30.2,Z30.2,,chapters/15/15-02-11-surgical-contraception-for-men-vasectomy,seed
+15,Family Planning (FP),15.2.12,3,Surgical Contraception for Women: Tubal Ligation,,,surgical-contraception-for-women-tubal-ligation,,Z30.2,Z30.2,,chapters/15/15-02-12-surgical-contraception-for-women-tubal-ligation,seed
+16,Obstetric Conditions,16.1.1,3,Goal-Oriented Antenatal Care Protocol,,,goal-oriented-antenatal-care-protocol,,,,no-code-in-source,chapters/16/16-01-01-goal-oriented-antenatal-care-protocol,seed
+16,Obstetric Conditions,16.1.2,3,Management of Common Complaints during Pregnancy,,,management-of-common-complaints-during-pregnancy,,,,non-clinical-subject? no-code-in-source,chapters/16/16-01-02-management-of-common-complaints-during-pregnancy,skip
+16,Obstetric Conditions,16.1.3,3,High Risk Pregnancy,HRP,,high-risk-pregnancy,,O09,O09,,chapters/16/16-01-03-high-risk-pregnancy-hrp,seed
+16,Obstetric Conditions,16.2.1,3,Anaemia in Pregnancy,,,anaemia-in-pregnancy,,O99.019,O99.019,,chapters/16/16-02-01-anaemia-in-pregnancy,seed
+16,Obstetric Conditions,16.2.2,3,Pregnancy and HIV Infection,,,pregnancy-and-hiv-infection,,,,no-code-in-source,chapters/16/16-02-02-pregnancy-and-hiv-infection,seed
+16,Obstetric Conditions,16.2.2.1,4,Care for HIV-Positive Women,,eMTCT,care-for-hiv-positive-women,Pregnancy and HIV Infection,O98.719,O98.719,,,seed
+16,Obstetric Conditions,16.2.2.2,4,Counselling for HIV-Positive Mothers,,,counselling-for-hiv-positive-mothers,Pregnancy and HIV Infection,,,non-clinical-subject? no-code-in-source,chapters/16/16-02-02-02-counselling-for-hiv-positive-mothers,skip
+16,Obstetric Conditions,16.2.3,3,Chronic Hypertension in Pregnancy,,,chronic-hypertension-in-pregnancy,,O10 O13,"O10, O13",,chapters/16/16-02-03-chronic-hypertension-in-pregnancy,seed
+16,Obstetric Conditions,16.2.4,3,Malaria in Pregnancy,,,malaria-in-pregnancy,,B54,B54,,chapters/16/16-02-04-malaria-in-pregnancy,seed
+16,Obstetric Conditions,16.2.5,3,Diabetes in Pregnancy,,,diabetes-in-pregnancy,,O24,O24,,chapters/16/16-02-05-diabetes-in-pregnancy,seed
+16,Obstetric Conditions,16.3.1,3,Hyperemesis Gravidarum,,,hyperemesis-gravidarum,,O21,O21,,chapters/16/16-03-01-hyperemesis-gravidarum,seed
+16,Obstetric Conditions,16.3.2,3,Vaginal Bleeding in Early Pregnancy / Abortion,,,vaginal-bleeding-in-early-pregnancy-abortion,,O20,O20,,chapters/16/16-03-02-vaginal-bleeding-in-early-pregnancy-abortion,seed
+16,Obstetric Conditions,16.3.3,3,Ectopic Pregnancy,,,ectopic-pregnancy,,O00,O00,,chapters/16/16-03-03-ectopic-pregnancy,seed
+16,Obstetric Conditions,16.3.4,3,Premature Rupture of Membranes,,PROM and PPROM,premature-rupture-of-membranes,,O42,O42,,chapters/16/16-03-04-premature-rupture-of-membranes-prom-pprom,seed
+16,Obstetric Conditions,16.3.5,3,Chorioamnionitis,,,chorioamnionitis,,,,no-code-in-source,chapters/16/16-03-05-chorioamnionitis,seed
+16,Obstetric Conditions,16.4.2,3,Induction of Labour,,,induction-of-labour,,,,no-code-in-source,chapters/16/16-04-02-induction-of-labour,seed
+16,Obstetric Conditions,16.4.3,3,Obstructed Labour,,,obstructed-labour,,O64-O66,O64-O66,,,seed
+16,Obstetric Conditions,16.4.4,3,Ruptured Uterus,,,ruptured-uterus,,O71.1,O71.1,,chapters/16/16-04-04-ruptured-uterus,seed
+16,Obstetric Conditions,16.4.5,3,Retained Placenta,,,retained-placenta,,O73,O73,,chapters/16/16-04-05-retained-placenta,seed
+16,Obstetric Conditions,16.4.6,3,Postpartum Haemorrhage,PPH,,postpartum-haemorrhage,,O72,O72,,chapters/16/16-04-06-postpartum-haemorrhage-pph-icd10-code-o72,seed
+16,Obstetric Conditions,16.4.8,3,Care of Mother and Baby Immediately After Delivery,,,care-of-mother-and-baby-immediately-after-delivery,,Z39,Z39,non-clinical-subject?,chapters/16/16-04-08-care-of-mother-and-baby-immediately-after-delivery,skip
+16,Obstetric Conditions,16.4.8.1,4,Care of Mother Immediately After Delivery,,,care-of-mother-immediately-after-delivery,Care of Mother and Baby Immediately After Delivery,,,non-clinical-subject? no-code-in-source,chapters/16/16-04-08-01-care-of-mother-immediately-after-delivery,skip
+16,Obstetric Conditions,16.4.8.2,4,Care of Baby Immediately After Delivery,,,care-of-baby-immediately-after-delivery,Care of Mother and Baby Immediately After Delivery,,,non-clinical-subject? no-code-in-source,chapters/16/16-04-08-02-care-of-baby-immediately-after-delivery,skip
+16,Obstetric Conditions,16.5.1,3,Newborn Resuscitation,,,newborn-resuscitation,,P22,P22,,,seed
+16,Obstetric Conditions,16.5.2,3,General Care of Newborn After Delivery,,,general-care-of-newborn-after-delivery,,,,non-clinical-subject? no-code-in-source,chapters/16/16-05-02-general-care-of-newborn-after-delivery,skip
+16,Obstetric Conditions,16.5.1.2,4,Postpartum Examination of the Mother Up to 6 Weeks,,,postpartum-examination-of-the-mother-up-to-6-weeks,Newborn Resuscitation,,,no-code-in-source,chapters/16/16-05-01-02-postpartum-examination-of-the-mother-up-to-6-weeks,seed
+16,Obstetric Conditions,16.5.3,3,Extra Care of Small Babies or Twins in the First Days of Life,,,extra-care-of-small-babies-or-twins-in-the-first-days-of-life,,,,non-clinical-subject? no-code-in-source,chapters/16/16-05-03-extra-care-of-small-babies-or-twins-in-the-first-days-of,skip
+16,Obstetric Conditions,16.5.4,3,Newborn Hygiene at Home,,,newborn-hygiene-at-home,,,,no-code-in-source,chapters/16/16-05-04-newborn-hygiene-at-home,seed
+16,Obstetric Conditions,16.6.1,3,Postpartum Care,,,postpartum-care,,Z39,Z39,,chapters/16/16-06-01-postpartum-care,seed
+16,Obstetric Conditions,16.6.1.1,4,Postpartum Counselling,,,postpartum-counselling,Postpartum Care,,,non-clinical-subject? no-code-in-source,chapters/16/16-06-01-01-postpartum-counselling,skip
+16,Obstetric Conditions,16.6.3,3,Mastitis / Breast Abscess,,,mastitis-breast-abscess,,O91,O91,,chapters/16/16-06-03-mastitis-breast-abscess,seed
+17,Childhood Illness,17.1.1,3,Newborn Examination / Danger Signs,,,newborn-examination-danger-signs,,,,no-code-in-source,,seed
+17,Childhood Illness,17.1.2,3,"Assess for Special Treatment Needs, Local Infection, and Jaundice",,,assess-for-special-treatment-needs-local-infection-and-jaundice,,,,non-clinical-subject? no-code-in-source,chapters/17/17-01-02-assess-for-special-treatment-needs-local-infection-and,skip
+17,Childhood Illness,17.2.1,3,Check for Very Severe Disease and Local Bacterial Infection,,,check-for-very-severe-disease-and-local-bacterial-infection,,,,non-clinical-subject? no-code-in-source,,skip
+17,Childhood Illness,17.2.2,3,Check for Jaundice,,,check-for-jaundice,,,,non-clinical-subject? no-code-in-source,chapters/17/17-02-02-check-for-jaundice,skip
+17,Childhood Illness,17.2.3,3,Check for Diarrhoea/Dehydration,,,check-for-diarrhoea-dehydration,,,,non-clinical-subject? no-code-in-source,chapters/17/17-02-03-check-for-diarrhoea-dehydration,skip
+17,Childhood Illness,17.2.4,3,Check for HIV Infection,,,check-for-hiv-infection,,,,non-clinical-subject? no-code-in-source,chapters/17/17-02-04-check-for-hiv-infection,skip
+17,Childhood Illness,17.2.5,3,Check for Feeding Problem or Low Weight-for-Age,,,check-for-feeding-problem-or-low-weight-for-age,,,,non-clinical-subject? no-code-in-source,chapters/17/17-02-05-check-for-feeding-problem-or-low-weight-for-age,skip
+17,Childhood Illness,17.2.5.1,4,All Young Infants Except HIV-exposed Infants Not Breastfed,,,all-young-infants-except-hiv-exposed-infants-not-breastfed,Check for Feeding Problem or Low Weight-for-Age,,,no-code-in-source,chapters/17/17-02-05-01-all-young-infants-except-hiv-exposed-infants-not,seed
+17,Childhood Illness,17.2.5.2,4,HIV-exposed Non Breastfeeding Infants,,,hiv-exposed-non-breastfeeding-infants,Check for Feeding Problem or Low Weight-for-Age,,,non-clinical-subject? no-code-in-source,chapters/17/17-02-05-02-hiv-exposed-non-breastfeeding-infants,skip
+17,Childhood Illness,17.2.6,3,Check Young Infant’s Immunization Status,,,check-young-infant-s-immunization-status,,,,non-clinical-subject? no-code-in-source,chapters/17/17-02-06-check-young-infants-immunization-status,skip
+17,Childhood Illness,17.2.7,3,Assess Other Problems,,,assess-other-problems,,,,"non-clinical-subject? duplicate-name:17.2.7,17.3.9 no-code-in-source",chapters/17/17-02-07-assess-other-problems,skip
+17,Childhood Illness,17.2.8,3,Assess Mother’s Health Needs,,,assess-mother-s-health-needs,,,,non-clinical-subject? no-code-in-source,chapters/17/17-02-08-assess-mothers-health-needs,skip
+17,Childhood Illness,17.2.9,3,Summary of IMNCI Medicines Used for Young Infants,,,summary-of-imnci-medicines-used-for-young-infants,,,,no-code-in-source,chapters/17/17-02-09-summary-of-imnci-medicines-used-for-young-infants,seed
+17,Childhood Illness,17.2.10,3,Counsel the Mother,,,counsel-the-mother,,,,"duplicate-name:17.2.10,17.3.11 no-code-in-source",,seed
+17,Childhood Illness,17.3.1,3,Check for General Danger Signs,,,check-for-general-danger-signs,,,,non-clinical-subject? no-code-in-source,,skip
+17,Childhood Illness,17.3.2,3,Check for Cough or Difficult Breathing,,,check-for-cough-or-difficult-breathing,,,,non-clinical-subject? no-code-in-source,chapters/17/17-03-02-check-for-cough-or-difficult-breathing,skip
+17,Childhood Illness,17.3.3,3,Child Has Diarrhoea,,,child-has-diarrhoea,,,,no-code-in-source,chapters/17/17-03-03-child-has-diarrhoea,seed
+17,Childhood Illness,17.3.4,3,Check for Fever,,,check-for-fever,,,,non-clinical-subject? no-code-in-source,chapters/17/17-03-04-check-for-fever,skip
+17,Childhood Illness,17.3.5,3,Check for Ear Problem,,,check-for-ear-problem,,,,non-clinical-subject? no-code-in-source,chapters/17/17-03-05-check-for-ear-problem,skip
+17,Childhood Illness,17.3.6,3,Check for Malnutrition and Feeding Problems,,,check-for-malnutrition-and-feeding-problems,,,,non-clinical-subject? no-code-in-source,chapters/17/17-03-06-check-for-malnutrition-and-feeding-problems,skip
+17,Childhood Illness,17.3.7,3,Check for Anaemia,,,check-for-anaemia,,,,non-clinical-subject? no-code-in-source,chapters/17/17-03-07-check-for-anaemia,skip
+17,Childhood Illness,17.3.8,3,"Check Immunization, Vitamin A, Deworming",,,check-immunization-vitamin-a-deworming,,,,non-clinical-subject? no-code-in-source,chapters/17/17-03-08-check-immunization-vitamin-a-deworming,skip
+17,Childhood Illness,17.3.9,3,Assess Other Problems,,,assess-other-problems,,,,"non-clinical-subject? duplicate-name:17.2.7,17.3.9 no-code-in-source",chapters/17/17-03-09-assess-other-problems,skip
+17,Childhood Illness,17.3.10,3,Summary of Medicines Used,,,summary-of-medicines-used,,,,no-code-in-source,chapters/17/17-03-10-summary-of-medicines-used,seed
+17,Childhood Illness,17.3.10.1,4,Medicines Used Only in Health Centers,,,medicines-used-only-in-health-centers,Summary of Medicines Used,,,no-code-in-source,chapters/17/17-03-10-01-medicines-used-only-in-health-centers,seed
+17,Childhood Illness,17.3.10.2,4,Medicines for Home Use,,,medicines-for-home-use,Summary of Medicines Used,,,no-code-in-source,chapters/17/17-03-10-02-medicines-for-home-use,seed
+17,Childhood Illness,17.3.10.3,4,Treatment of Local Infections at Home,,,treatment-of-local-infections-at-home,Summary of Medicines Used,,,no-code-in-source,chapters/17/17-03-10-03-treatment-of-local-infections-at-home,seed
+17,Childhood Illness,17.3.11,3,Counsel the Mother,,,counsel-the-mother,,,,"duplicate-name:17.2.10,17.3.11 no-code-in-source",chapters/17/17-03-11-counsel-the-mother,seed
+17,Childhood Illness,17.3.12.1,4,Feeding Recommendation during Illness,,,feeding-recommendation-during-illness,,,,orphan-child non-clinical-subject? no-code-in-source,chapters/17/17-03-12-01-feeding-recommendation-during-illness,skip
+17,Childhood Illness,17.3.12.2,4,Assessing Appetite and Feeding,,,assessing-appetite-and-feeding,,,,orphan-child non-clinical-subject? no-code-in-source,chapters/17/17-03-12-02-assessing-appetite-and-feeding,skip
+17,Childhood Illness,17.3.12.3,4,Feeding Recommendations,,,feeding-recommendations,,,,orphan-child non-clinical-subject? no-code-in-source,chapters/17/17-03-12-03-feeding-recommendations,skip
+17,Childhood Illness,17.3.12.4,4,Counselling for Feeding Problems,,,counselling-for-feeding-problems,,,,orphan-child non-clinical-subject? no-code-in-source,chapters/17/17-03-12-04-counselling-for-feeding-problems,skip
+17,Childhood Illness,17.3.12.5,4,Mother’s Health,,,mother-s-health,,,,orphan-child no-code-in-source,chapters/17/17-03-12-05-mothers-health,seed
+18,Immunization,18.1.1,3,National Immunization Schedule,,,national-immunization-schedule,,,,non-clinical-subject? no-code-in-source,,skip
+18,Immunization,18.1.2,3,Hepatitis B Vaccination,,,hepatitis-b-vaccination,,,,non-clinical-subject? no-code-in-source,chapters/18/18-01-02-hepatitis-b-vaccination,skip
+18,Immunization,18.1.3,3,Yellow Fever Vaccination,,,yellow-fever-vaccination,,,,non-clinical-subject? no-code-in-source,chapters/18/18-01-03-yellow-fever-vaccination,skip
+18,Immunization,18.1.4,3,Tetanus Prevention,,,tetanus-prevention,,,,no-code-in-source,chapters/18/18-01-04-tetanus-prevention,seed
+18,Immunization,18.2.3.1,4,Prophylaxis Against Neonatal Tetanus,,,prophylaxis-against-neonatal-tetanus,,,,orphan-child non-clinical-subject? no-code-in-source,chapters/18/18-02-03-01-prophylaxis-against-neonatal-tetanus,skip
+18,Immunization,18.2.4,3,Vaccination Against COVID-19,,,vaccination-against-covid-19,,,,non-clinical-subject? no-code-in-source,chapters/18/18-02-04-vaccination-against-covid-19,skip
+19,Nutrition,19.1.1,3,Infant and Young Child Feeding,IYCF,,infant-and-young-child-feeding,,,,non-clinical-subject? no-code-in-source,,skip
+19,Nutrition,19.1.2,3,Nutrition in HIV/AIDS,,,nutrition-in-hiv-aids,,,,no-code-in-source,chapters/19/19-01-02-nutrition-in-hiv-aids,seed
+19,Nutrition,19.1.3,3,Nutrition in Diabetes,,,nutrition-in-diabetes,,,,no-code-in-source,chapters/19/19-01-03-nutrition-in-diabetes,seed
+19,Nutrition,19.2.1,3,Introduction on Malnutrition,,,introduction-on-malnutrition,,,,non-clinical-subject? no-code-in-source,chapters/19/19-02-01-introduction-on-malnutrition,skip
+19,Nutrition,19.2.1.1,4,Classification of Malnutrition,,,classification-of-malnutrition,Introduction on Malnutrition,,,non-clinical-subject? no-code-in-source,chapters/19/19-02-01-01-classification-of-malnutrition,skip
+19,Nutrition,19.2.1.2,4,Assessing Malnutrition in Children 6 months to 5 years,,,assessing-malnutrition-in-children-6-months-to-5-years,Introduction on Malnutrition,,,no-code-in-source,chapters/19/19-02-01-02-assessing-malnutrition-in-children-6-months-to-5-years,seed
+19,Nutrition,19.2.2,3,Management of Acute Malnutrition in Children,,,management-of-acute-malnutrition-in-children,,,,non-clinical-subject? no-code-in-source,chapters/19/19-02-02-management-of-acute-malnutrition-in-children,skip
+19,Nutrition,19.2.2.1,4,Management of Moderate Acute Malnutrition,,,management-of-moderate-acute-malnutrition,Management of Acute Malnutrition in Children,,,non-clinical-subject? no-code-in-source,chapters/19/19-02-02-01-management-of-moderate-acute-malnutrition,skip
+19,Nutrition,19.2.2.2,4,Management of Uncomplicated Severe Acute Malnutrition,,,management-of-uncomplicated-severe-acute-malnutrition,Management of Acute Malnutrition in Children,,,non-clinical-subject? no-code-in-source,chapters/19/19-02-02-02-management-of-uncomplicated-severe-acute,skip
+19,Nutrition,19.2.2.3,4,Management of Complicated Severe Acute Malnutrition,,,management-of-complicated-severe-acute-malnutrition,Management of Acute Malnutrition in Children,,,non-clinical-subject? no-code-in-source,chapters/19/19-02-02-03-management-of-complicated-severe-acute-malnutrition,skip
+19,Nutrition,19.2.2.4,4,Treatment of Associated Conditions,,,treatment-of-associated-conditions,Management of Acute Malnutrition in Children,,,no-code-in-source,chapters/19/19-02-02-04-treatment-of-associated-conditions,seed
+19,Nutrition,19.2.2.5,4,Discharge from Nutritional Programme,,,discharge-from-nutritional-programme,Management of Acute Malnutrition in Children,,,no-code-in-source,chapters/19/19-02-02-05-discharge-from-nutritional-programme,seed
+19,Nutrition,19.2.3,3,SAM in Infants Less than 6 Months,,,sam-in-infants-less-than-6-months,,,,no-code-in-source,chapters/19/19-02-03-sam-in-infants-less-than-6-months,seed
+19,Nutrition,19.2.4,3,Obesity and Overweight,,,obesity-and-overweight,,E66,E66,,chapters/19/19-02-04-obesity-and-overweight,seed
+20,Eye Conditions,20.1.1,3,Notes on Use of Eye Preparations,,,notes-on-use-of-eye-preparations,,,,non-clinical-subject? no-code-in-source,,skip
+20,Eye Conditions,20.1.2,3,Conjunctivitis,,Red Eye,conjunctivitis,,H10,H10,,,seed
+20,Eye Conditions,20.1.3,3,Stye,,Hordeolum,stye,,H00,H00,,,seed
+20,Eye Conditions,20.1.4,3,Trachoma,,,trachoma,,A71,A71,,chapters/20/20-01-04-trachoma,seed
+20,Eye Conditions,20.1.5,3,Keratitis,,,keratitis,,H16,H16,,chapters/20/20-01-05-keratitis,seed
+20,Eye Conditions,20.1.6,3,Uveitis,,,uveitis,,H20,H20,,chapters/20/20-01-06-uveitis,seed
+20,Eye Conditions,20.1.7,3,Orbital Cellulitis,,,orbital-cellulitis,,H05.01,H05.01,,chapters/20/20-01-07-orbital-cellulitis,seed
+20,Eye Conditions,20.1.8,3,Postoperative Endophthalmitis,,,postoperative-endophthalmitis,,H44.0,H44.0,,chapters/20/20-01-08-postoperative-endophthalmitis,seed
+20,Eye Conditions,20.1.9,3,Xerophthalmia,,,xerophthalmia,,E50,E50,,chapters/20/20-01-09-xerophthalmia,seed
+20,Eye Conditions,20.2.1,3,Cataract,,,cataract,,H27,H27,,,seed
+20,Eye Conditions,20.2.1.1,4,Paediatric Cataract,,,paediatric-cataract,Cataract,H26.0,H26.0,,chapters/20/20-02-01-01-paediatric-cataract,seed
+20,Eye Conditions,20.2.2,3,Glaucoma,,,glaucoma,,H40,H40,,,seed
+20,Eye Conditions,20.2.3,3,Diabetic Retinopathy,,,diabetic-retinopathy,,E10.31 E11.31,"E10.31, E11.31",,chapters/20/20-02-03-diabetic-retinopathy,seed
+20,Eye Conditions,20.2.4,3,Refractive Errors,,,refractive-errors,,H52,H52,,,seed
+20,Eye Conditions,20.2.5,3,Low Vision,,,low-vision,,H54,H54,,chapters/20/20-02-05-low-vision-icd10-code-h54,seed
+20,Eye Conditions,20.2.5.1,4,Vision Loss,,,vision-loss,Low Vision,H54,H54,,,seed
+20,Eye Conditions,20.3.1,3,Foreign Body in the Eye,,,foreign-body-in-the-eye,,T15,T15,,chapters/20/20-03-01-foreign-body-in-the-eye,seed
+20,Eye Conditions,20.3.2,3,Ocular and Adnexa Injuries,,,ocular-and-adnexa-injuries,,,,no-code-in-source,chapters/20/20-03-02-ocular-and-adnexa-injuries,seed
+20,Eye Conditions,20.3.2.1,4,Blunt Injuries,,,blunt-injuries,Ocular and Adnexa Injuries,S05.1,S05.1,,chapters/20/20-03-02-01-blunt-injuries,seed
+20,Eye Conditions,20.3.2.2,4,Penetrating Eye Injuries,,,penetrating-eye-injuries,Ocular and Adnexa Injuries,S05.2,S05.2-6,,chapters/20/20-03-02-02-penetrating-eye-injuries,seed
+20,Eye Conditions,20.3.2.3,4,Chemical Injuries to the Eye,,,chemical-injuries-to-the-eye,Ocular and Adnexa Injuries,S05.8,S05.8,,,seed
+20,Eye Conditions,20.4.1,3,Retinoblastoma,,,retinoblastoma,,C69.2,C69.2,,chapters/20/20-04-01-retinoblastoma,seed
+20,Eye Conditions,20.4.2,3,Squamous Cell Carcinoma of Conjunctiva,,,squamous-cell-carcinoma-of-conjunctiva,,C69.0,C69.0,,chapters/20/20-04-02-squamous-cell-carcinoma-of-conjunctiva,seed
+21,"Ear, Nose & Throat Conditions",21.1.1,3,Foreign Body in the Ear,,,foreign-body-in-the-ear,,T16,T16,,,seed
+21,"Ear, Nose & Throat Conditions",21.1.2,3,Wax in the Ear,,,wax-in-the-ear,,H61.2,H61.2,,chapters/21/21-01-02-wax-in-the-ear,seed
+21,"Ear, Nose & Throat Conditions",21.1.3,3,Otitis External,,,otitis-external,,H60,H60,,chapters/21/21-01-03-otitis-external,seed
+21,"Ear, Nose & Throat Conditions",21.1.4,3,Otitis Media,,Suppurative,otitis-media,,H66,H66,,chapters/21/21-01-04-otitis-media-suppurative,seed
+21,"Ear, Nose & Throat Conditions",21.1.5,3,Glue Ear,,Otitis Media with Effusion,glue-ear,,H65,H65,,,seed
+21,"Ear, Nose & Throat Conditions",21.1.6,3,Mastoiditis,,,mastoiditis,,H70.0,H70.0,,chapters/21/21-01-06-mastoiditis,seed
+21,"Ear, Nose & Throat Conditions",21.2.1,3,Foreign Body in the Nose,,,foreign-body-in-the-nose,,T17.0,T17.0,,chapters/21/21-02-01-foreign-body-in-the-nose,seed
+21,"Ear, Nose & Throat Conditions",21.2.2,3,Epistaxis,,Nose Bleeding,epistaxis,,R04.0,R04.0,,chapters/21/21-02-02-epistaxis-nose-bleeding,seed
+21,"Ear, Nose & Throat Conditions",21.2.3,3,Nasal Allergy,,,nasal-allergy,,J30,J30,,chapters/21/21-02-03-nasal-allergy,seed
+21,"Ear, Nose & Throat Conditions",21.2.4,3,Acute Sinusitis,,,acute-sinusitis,,J01,J01,,chapters/21/21-02-04-sinusitis-acute,seed
+21,"Ear, Nose & Throat Conditions",21.2.5,3,Atrophic Rhinitis,,,atrophic-rhinitis,,,,no-code-in-source,chapters/21/21-02-05-atrophic-rhinitis,seed
+21,"Ear, Nose & Throat Conditions",21.2.6,3,Adenoid Disease,,,adenoid-disease,,J35.02 J35.2,"J35.02, J35.2",,chapters/21/21-02-06-adenoid-disease,seed
+21,"Ear, Nose & Throat Conditions",21.3.1,3,Foreign Body in the Airway,FB,,foreign-body-in-the-airway,,T17,T17,,,seed
+21,"Ear, Nose & Throat Conditions",21.3.2,3,Foreign Body in the Food Passage,,,foreign-body-in-the-food-passage,,T18,T18,,chapters/21/21-03-02-foreign-body-in-the-food-passage,seed
+21,"Ear, Nose & Throat Conditions",21.3.3,3,Pharyngitis,,Sore Throat,pharyngitis,,J02,J02,,chapters/21/21-03-03-pharyngitis-sore-throat-icd10-code-j02,seed
+21,"Ear, Nose & Throat Conditions",21.3.4,3,Pharyngo-Tonsillitis,,,pharyngo-tonsillitis,,J03,J03,,chapters/21/21-03-04-pharyngo-tonsillitis,seed
+21,"Ear, Nose & Throat Conditions",21.3.5,3,Peritonsillar Abscess,,Quinsy,peritonsillar-abscess,,J36,J36,,chapters/21/21-03-05-peritonsillar-abscess-quinsy-icd10-code-j36,seed
+22,Skin Diseases,22.1.1,3,Impetigo,,,impetigo,,L01,L01,,,seed
+22,Skin Diseases,22.1.2,3,Boils/Carbuncle,,Furuncle,boils-carbuncle,,,,no-code-in-source,chapters/22/22-01-02-boils-furuncle-carbuncle,seed
+22,Skin Diseases,22.1.3,3,Cellulitis and Erysipelas,,,cellulitis-and-erysipelas,,L03,L03,,chapters/22/22-01-03-cellulitis-and-erysipelas,seed
+22,Skin Diseases,22.2.1,3,Herpes Simplex,,,herpes-simplex,,B00,B00,,chapters/22/22-02-01-herpes-simplex,seed
+22,Skin Diseases,22.2.2,3,Herpes Zoster,,Shingles,herpes-zoster,,B02,B02,,chapters/22/22-02-02-herpes-zoster-shingles-icd10-code-b02,seed
+22,Skin Diseases,22.3.1,3,Tineas,,,tineas,,B35,B35,,chapters/22/22-03-01-tineas,seed
+22,Skin Diseases,22.4.1,3,Scabies,,,scabies,,B86,B86,,chapters/22/22-04-01-scabies,seed
+22,Skin Diseases,22.4.2,3,Pediculosis/Lice,,,pediculosis-lice,,B85,B85,,chapters/22/22-04-02-pediculosis-lice,seed
+22,Skin Diseases,22.4.3,3,Tungiasis,,Jiggers,tungiasis,,B88.1,B88.1,,chapters/22/22-04-03-tungiasis-jiggers,seed
+22,Skin Diseases,22.5.1,3,Acne,,,acne,,L70,L70,,chapters/22/22-05-01-acne,seed
+22,Skin Diseases,22.5.2,3,Urticaria/Papular Urticaria,,,urticaria-papular-urticaria,,L50,L50,,chapters/22/22-05-02-urticaria-papular-urticari,seed
+22,Skin Diseases,22.5.3,3,Eczema,,Dermatitis,eczema,,L20 L23,"L20, L23",,chapters/22/22-05-03-eczema-dermatitis,seed
+22,Skin Diseases,22.5.4,3,Psoriasis,,,psoriasis,,L40,L40,,chapters/22/22-05-04-psoriasis,seed
+22,Skin Diseases,22.6.1,3,Leg Ulcers,,,leg-ulcers,,L97,L97,,chapters/22/22-06-01-leg-ulcers,seed
+22,Skin Diseases,22.7.1,3,Steven-Johnson Syndrome and Toxic Epidermal Necrolysis,SJS,TEN,steven-johnson-syndrome-and-toxic-epidermal-necrolysis,,L51,L51,,chapters/22/22-07-01-steven-johnson-syndrome-sjs-and-toxic-epidermal,seed
+23,Oral and Dental Conditions,23.1.1,3,Halitosis/Bad Breath,,,halitosis-bad-breath,,R19.6,R19.6,,,seed
+23,Oral and Dental Conditions,23.1.2,3,Dentin Hypersensitivity,,,dentin-hypersensitivity,,K03.9,K03.9,,,seed
+23,Oral and Dental Conditions,23.1.3,3,Malocclusion,,,malocclusion,,M26.4,M26.4,,,seed
+23,Oral and Dental Conditions,23.1.4,3,Fluorosis,,Mottling,fluorosis,,,K003,code-text-unparsed,,seed
+23,Oral and Dental Conditions,23.1.5,3,False Teeth,,Ebinnyo,false-teeth,,,,no-code-in-source,,seed
+23,Oral and Dental Conditions,23.2.1,3,Prevention of Dental Caries and Other Conditions Due to Poor Oral Hygiene,,,prevention-of-dental-caries-and-other-conditions-due-to-poor-oral-hygiene,,,,non-clinical-subject? no-code-in-source,,skip
+23,Oral and Dental Conditions,23.2.2,3,Dental Caries,,,dental-caries,,K02,K02,,chapters/23/23-02-02-dental-caries,seed
+23,Oral and Dental Conditions,23.2.2.1,4,Nursing Caries,,,nursing-caries,Dental Caries,,,no-code-in-source,chapters/23/23-02-02-01-nursing-caries,seed
+23,Oral and Dental Conditions,23.2.2.2,4,Rampant and Radiation Caries,,,rampant-and-radiation-caries,Dental Caries,,,no-code-in-source,chapters/23/23-02-02-02-rampant-and-radiation-caries,seed
+23,Oral and Dental Conditions,23.2.3,3,Pulpitis,,,pulpitis,,K04.0,K04.0,,chapters/23/23-02-03-pulpitis-icd10-code-k04-0,seed
+23,Oral and Dental Conditions,23.2.4,3,Acute Periapical Abscess or Dental Abscess,,,acute-periapical-abscess-or-dental-abscess,,K04.6,K04.6-7,,chapters/23/23-02-04-acute-periapical-abscess-or-dental-abscess-icd10-code,seed
+23,Oral and Dental Conditions,23.2.4.1,4,Post-Extraction Bleeding,,,post-extraction-bleeding,Acute Periapical Abscess or Dental Abscess,,,no-code-in-source,chapters/23/23-02-04-01-post-extraction-bleeding,seed
+23,Oral and Dental Conditions,23.2.5,3,Gingivitis,,,gingivitis,,K05.0,K05.0,,,seed
+23,Oral and Dental Conditions,23.2.5.1,4,Chronic Gingivitis,,,chronic-gingivitis,Gingivitis,K05.1,K05.1,,chapters/23/23-02-05-01-chronic-gingivitis,seed
+23,Oral and Dental Conditions,23.2.6,3,Acute Necrotizing Ulcerative Gingivitis/Periodontitis/Stomatitis,ANUG,,acute-necrotizing-ulcerative-gingivitis-periodontitis-stomatitis,,A69.0,A69.0-1,,,seed
+23,Oral and Dental Conditions,23.2.7,3,Periodontitis,,,periodontitis,,K05.2,K05.2-3,,,seed
+23,Oral and Dental Conditions,23.2.8,3,Periodontal Abscess,,,periodontal-abscess,,K05.21,K05.21,,,seed
+23,Oral and Dental Conditions,23.2.9,3,Stomatitis,,,stomatitis,,K12,K12,,,seed
+23,Oral and Dental Conditions,23.2.9.1,4,Denture Stomatitis,,,denture-stomatitis,Stomatitis,,,no-code-in-source,,seed
+23,Oral and Dental Conditions,23.2.10,3,Aphthous Ulceration,,,aphthous-ulceration,,K12.0,K12.0,,,seed
+23,Oral and Dental Conditions,23.2.11,3,Pericoronitis,,,pericoronitis,,K05.30,K05.30,,chapters/23/23-02-11-pericoronitis,seed
+23,Oral and Dental Conditions,23.2.12,3,Osteomyelitis of the Jaw,,,osteomyelitis-of-the-jaw,,M27.2,M27.2,,,seed
+23,Oral and Dental Conditions,23.3.1,3,Oral Candidiasis,,,oral-candidiasis,,B37.0,B37.0,,chapters/23/23-03-01-oral-candidiasis,seed
+23,Oral and Dental Conditions,23.3.2,3,Herpes Infections,,,herpes-infections,,B00,B00,,chapters/23/23-03-02-herpes-infections,seed
+23,Oral and Dental Conditions,23.3.3,3,Kaposi’s Sarcoma,,,kaposi-s-sarcoma,,C46,C46,,chapters/23/23-03-03-kaposis-sarcoma,seed
+23,Oral and Dental Conditions,23.3.4,3,Hairy Leukoplakia,,,hairy-leukoplakia,,,,no-code-in-source,chapters/23/23-03-04-hairy-leukoplakia,seed
+23,Oral and Dental Conditions,23.4.1,3,Traumatic Lesions I,,,traumatic-lesions-i,,S00.5,S00.5,,chapters/23/23-04-01-traumatic-lesions-i,seed
+23,Oral and Dental Conditions,23.4.2,3,Traumatic Lesions II,,,traumatic-lesions-ii,,,,no-code-in-source,chapters/23/23-04-02-traumatic-lesions-ii,seed
+23,Oral and Dental Conditions,23.4.3,3,Traumatic Lesions III,,,traumatic-lesions-iii,,,,no-code-in-source,chapters/23/23-04-03-traumatic-lesions-iii,seed
+23,Oral and Dental Conditions,23.5.1,3,Burkitt’s Lymphoma,,,burkitt-s-lymphoma,,C83.7,C83.7,,chapters/23/23-05-01-burkitts-lymphoma,seed
+24,"Surgery, Radiology and Anaesthesia",24.1.1,3,Intestinal Obstruction,,,intestinal-obstruction,,K56,K56,,,seed
+24,"Surgery, Radiology and Anaesthesia",24.1.2,3,Internal Haemorrhage,,,internal-haemorrhage,,,,no-code-in-source,chapters/24/24-01-02-internal-haemorrhage,seed
+24,"Surgery, Radiology and Anaesthesia",24.1.3,3,Management of Medical Conditions in Surgical Patients,,,management-of-medical-conditions-in-surgical-patients,,,,non-clinical-subject? no-code-in-source,chapters/24/24-01-03-management-of-medical-conditions-in-surgical-patient,skip
+24,"Surgery, Radiology and Anaesthesia",24.1.4,3,Newborn with Surgical Emergencies,,,newborn-with-surgical-emergencies,,,,no-code-in-source,chapters/24/24-01-04-newborn-with-surgical-emergencies,seed
+24,"Surgery, Radiology and Anaesthesia",24.1.5,3,Surgical Antibiotic Prophylaxis,,,surgical-antibiotic-prophylaxis,,,,non-clinical-subject? no-code-in-source,chapters/24/24-01-05-surgical-antibiotic-prophylaxis,skip
+24,"Surgery, Radiology and Anaesthesia",24.2.1,3,Diagnostic Imaging: A Clinical Perspective,,,diagnostic-imaging-a-clinical-perspective,,,,no-code-in-source,chapters/24/24-02-01-diagnostic-imaging-a-clinical-perspective,seed
+24,"Surgery, Radiology and Anaesthesia",24.3.1,3,General Considerations,,,general-considerations,,,,no-code-in-source,chapters/24/24-03-01-general-considerations,seed
+24,"Surgery, Radiology and Anaesthesia",24.3.1.1,4,General Anaesthesia,,,general-anaesthesia,General Considerations,,,no-code-in-source,chapters/24/24-03-01-01-general-anaesthesia,seed
+24,"Surgery, Radiology and Anaesthesia",24.3.1.2,4,General Anaesthetic Agents,,,general-anaesthetic-agents,General Considerations,,,no-code-in-source,chapters/24/24-03-01-02-general-anaesthetic-agents,seed
+24,"Surgery, Radiology and Anaesthesia",24.3.1.3,4,Muscle Relaxants,,,muscle-relaxants,General Considerations,,,no-code-in-source,chapters/24/24-03-01-03-muscle-relaxants,seed
+24,"Surgery, Radiology and Anaesthesia",24.3.3,3,Selection of Type of Anaesthesia for the Patient,,,selection-of-type-of-anaesthesia-for-the-patient,,,,no-code-in-source,chapters/24/24-03-03-selection-of-type-of-anaesthesia-for-the-patient,seed
+24,"Surgery, Radiology and Anaesthesia",24.3.3.1,4,Techniques of General Anaesthesia,,,techniques-of-general-anaesthesia,Selection of Type of Anaesthesia for the Patient,,,non-clinical-subject? no-code-in-source,,skip
+24,"Surgery, Radiology and Anaesthesia",24.1.1.1,4,Techniques for Regional Anaesthesia,,,techniques-for-regional-anaesthesia,Intestinal Obstruction,,,non-clinical-subject? no-code-in-source,chapters/24/24-01-01-01-techniques-for-regional-anaesthesia,skip

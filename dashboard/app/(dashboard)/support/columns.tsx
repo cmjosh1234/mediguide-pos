@@ -92,8 +92,9 @@ export const columns: ColumnDef<SupportTicketsWithExpanded>[] = [
     cell: ({ row }) => {
       const ticket = row.original
       const user = ticket.expand?.user_id
+      const isGuest = !ticket.user_id
       
-      if (!user) {
+      if (!user || (!user.name && !user.email)) {
         return <span className="text-muted-foreground">Unknown</span>
       }
       
@@ -102,13 +103,18 @@ export const columns: ColumnDef<SupportTicketsWithExpanded>[] = [
           <Avatar className="h-6 w-6">
             <AvatarImage src={user.avatar} />
             <AvatarFallback>
-              {user.name?.charAt(0) || user.email.charAt(0)}
+              {user.name?.charAt(0) || user.email?.charAt(0) || "?"}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium truncate">
               {user.name || user.email}
             </p>
+            {isGuest && (
+              <p className="text-xs text-muted-foreground truncate">
+                Guest · {user.email}
+              </p>
+            )}
           </div>
         </div>
       )

@@ -1627,6 +1627,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/public/support/tickets": {
+            "post": {
+                "description": "Unauthenticated visitors must supply requester_name and requester_email so support staff can follow up. Guest tickets cannot be listed or replied to from the public API.",
+                "tags": [
+                    "support"
+                ],
+                "summary": "Create a support ticket without signing in",
+                "parameters": [
+                    {
+                        "description": "Ticket",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.SupportTicketCreate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SupportTicketEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/consultants/tree": {
             "get": {
                 "description": "Legacy v1 endpoint that groups consultants by region, city, then specialty.",
@@ -25054,6 +25088,12 @@ const docTemplate = `{
                 "priority": {
                     "type": "string"
                 },
+                "requester_email": {
+                    "type": "string"
+                },
+                "requester_name": {
+                    "type": "string"
+                },
                 "status": {
                     "type": "string"
                 },
@@ -25067,9 +25107,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_id": {
+                    "description": "UserID is nil for tickets submitted by unauthenticated visitors; those\ncarry the requester's contact details instead.",
                     "type": "string"
                 },
                 "user_name": {
+                    "description": "UserName and UserEmail resolve to the owner account when present and\notherwise to the guest requester details.",
                     "type": "string"
                 }
             }
@@ -33179,6 +33221,13 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "priority": {
+                    "type": "string"
+                },
+                "requester_email": {
+                    "type": "string"
+                },
+                "requester_name": {
+                    "description": "RequesterName and RequesterEmail identify unauthenticated submitters.\nThey are ignored for tickets created by a signed-in user.",
                     "type": "string"
                 },
                 "subject": {

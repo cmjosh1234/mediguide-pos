@@ -10,6 +10,10 @@ final class SupportRepository {
   final SupportLocalRepository _local;
   final String userId;
 
+  /// Whether the repository is scoped to a signed-in account. Guests can only
+  /// submit new tickets through the public endpoint.
+  bool get isAuthenticated => userId.trim().isNotEmpty;
+
   // =========================================================
   // LIST TICKETS
   // =========================================================
@@ -162,6 +166,38 @@ final class SupportRepository {
     } catch (_) {
       return optimistic;
     }
+  }
+
+  // =========================================================
+  // CREATE GUEST TICKET
+  // =========================================================
+
+  /// Submits a ticket on behalf of a visitor without an account.
+  ///
+  /// Guest tickets are not cached or queued locally: the visitor has no
+  /// account scope to sync them under, so the request must succeed online.
+  Future<SupportTicket> createGuestTicket({
+    required String subject,
+    required String description,
+    required TicketPriority priority,
+    required String requesterName,
+    required String requesterEmail,
+    String? category,
+  }) async {
+    final response = await _api.requestJson(
+      '/api/public/support/tickets',
+      method: 'POST',
+      body: {
+        'subject': subject,
+        'description': description,
+        'priority': priority.name,
+        'requester_name': requesterName.trim(),
+        'requester_email': requesterEmail.trim(),
+        if (_present(category)) 'category': category!.trim(),
+      },
+    );
+
+    return _ticket(_data(response));
   }
 
   // =========================================================

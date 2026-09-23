@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// seedDocumentKinds creates the kinds seeded by migrations 00054 and 00055 so
+// seedDocumentKinds creates the kinds seeded by migrations 00056 and 00057 so
 // tests that create documents through the services have kinds to reference.
 func seedDocumentKinds(t *testing.T, db *gorm.DB) {
 	t.Helper()

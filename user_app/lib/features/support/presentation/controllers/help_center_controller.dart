@@ -84,11 +84,20 @@ class HelpCenterController extends _$HelpCenterController {
   // CREATE TICKET
   // ======================================================
 
+  /// Whether the current session belongs to a signed-in account. Guests may
+  /// still submit tickets but cannot browse or reply to them.
+  bool get isAuthenticated => _repository.isAuthenticated;
+
+  /// Creates a ticket for the current user, or a guest ticket when there is
+  /// no signed-in account. Guests must supply [requesterName] and
+  /// [requesterEmail] so support staff can follow up by email.
   Future<bool> createTicket({
     required String subject,
     required String description,
     required String category,
     required TicketPriority priority,
+    String? requesterName,
+    String? requesterEmail,
   }) async {
     if (state.isCreatingTicket) {
       return false;
@@ -97,16 +106,38 @@ class HelpCenterController extends _$HelpCenterController {
     state = state.copyWith(isCreatingTicket: true, clearErrorMessage: true);
 
     try {
-      await createMyTicket(
+      if (isAuthenticated) {
+        await createMyTicket(
+          subject: subject,
+          description: description,
+          category: category,
+          priority: priority,
+        );
+
+        refreshTickets();
+
+        _showSuccess('Support ticket created successfully');
+
+        return true;
+      }
+
+      final name = requesterName?.trim() ?? '';
+      final email = requesterEmail?.trim() ?? '';
+
+      if (name.isEmpty || email.isEmpty) {
+        throw StateError('Your name and email are required');
+      }
+
+      await _repository.createGuestTicket(
         subject: subject,
         description: description,
         category: category,
         priority: priority,
+        requesterName: name,
+        requesterEmail: email,
       );
 
-      refreshTickets();
-
-      _showSuccess('Support ticket created successfully');
+      _showSuccess('Support request submitted. We will reply to $email.');
 
       return true;
     } catch (error) {

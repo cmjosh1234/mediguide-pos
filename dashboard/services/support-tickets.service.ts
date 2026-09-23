@@ -67,10 +67,12 @@ function normalizeTicket(
     updated: ticket.updated || ticket.updated_at || "",
     expand: {
       ...(ticket.expand || {}),
+      // Guest tickets have no owner account; the backend surfaces the
+      // requester's contact details through user_name / user_email.
       user_id: {
-        id: ticket.user_id,
-        name: ticket.user_name || "",
-        email: ticket.user_email || "",
+        id: ticket.user_id || "",
+        name: ticket.user_name || ticket.requester_name || "",
+        email: ticket.user_email || ticket.requester_email || "",
       } as UsersResponse,
       ...(ticket.assigned_to
         ? {

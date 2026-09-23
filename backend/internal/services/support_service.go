@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -30,6 +31,10 @@ type SupportTicketCreate struct {
 	Description string  `json:"description"`
 	Priority    string  `json:"priority"`
 	Category    *string `json:"category"`
+	// RequesterName and RequesterEmail identify unauthenticated submitters.
+	// They are ignored for tickets created by a signed-in user.
+	RequesterName  *string `json:"requester_name"`
+	RequesterEmail *string `json:"requester_email"`
 }
 
 type SupportTicketUpdate struct {
@@ -111,17 +116,67 @@ func (s SupportService) GetTicket(actor, id uuid.UUID, staff bool) (*models.Supp
 }
 
 func (s SupportService) CreateTicket(actor uuid.UUID, in SupportTicketCreate) (*models.SupportTicket, error) {
-	item := models.SupportTicket{UserID: actor, Subject: strings.TrimSpace(in.Subject), Description: strings.TrimSpace(in.Description), Status: "open", Priority: in.Priority, Category: cleanOptional(in.Category)}
+	item, err := newSupportTicket(in)
+	if err != nil {
+		return nil, err
+	}
+	item.UserID = &actor
+	if err := s.DB.Create(item).Error; err != nil {
+		return nil, err
+	}
+	return s.GetTicket(actor, item.ID, false)
+}
+
+// CreateGuestTicket records a ticket for a visitor without an account. The
+// requester's name and email are mandatory so support staff can follow up.
+func (s SupportService) CreateGuestTicket(in SupportTicketCreate) (*models.SupportTicket, error) {
+	item, err := newSupportTicket(in)
+	if err != nil {
+		return nil, err
+	}
+	name := strings.TrimSpace(derefString(in.RequesterName))
+	email := normalizeSupportEmail(derefString(in.RequesterEmail))
+	if name == "" || len(name) > 120 || email == "" {
+		return nil, ErrSupportInvalid
+	}
+	item.RequesterName = &name
+	item.RequesterEmail = &email
+	if err := s.DB.Create(item).Error; err != nil {
+		return nil, err
+	}
+	return s.GetTicket(uuid.Nil, item.ID, true)
+}
+
+func newSupportTicket(in SupportTicketCreate) (*models.SupportTicket, error) {
+	item := models.SupportTicket{Subject: strings.TrimSpace(in.Subject), Description: strings.TrimSpace(in.Description), Status: "open", Priority: in.Priority, Category: cleanOptional(in.Category)}
 	if item.Priority == "" {
 		item.Priority = "normal"
 	}
 	if item.Subject == "" || item.Description == "" || !oneOf(item.Priority, "low", "normal", "high", "urgent") {
 		return nil, ErrSupportInvalid
 	}
-	if err := s.DB.Create(&item).Error; err != nil {
-		return nil, err
+	return &item, nil
+}
+
+// normalizeSupportEmail returns the lower-cased bare address, or "" when the
+// value is not a single plain email address.
+func normalizeSupportEmail(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 254 {
+		return ""
 	}
-	return s.GetTicket(actor, item.ID, false)
+	parsed, err := mail.ParseAddress(value)
+	if err != nil || parsed.Name != "" || !strings.EqualFold(parsed.Address, value) {
+		return ""
+	}
+	return strings.ToLower(parsed.Address)
+}
+
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func (s SupportService) UpdateTicket(actor, id uuid.UUID, staff bool, in SupportTicketUpdate) (*models.SupportTicket, error) {
@@ -234,7 +289,7 @@ func (s SupportService) CreateReply(actor, ticketID uuid.UUID, staff bool, in Su
 }
 
 func (s SupportService) ticketQuery() *gorm.DB {
-	return s.DB.Table("support_tickets st").Select("st.*, owner.name AS user_name, owner.email AS user_email, assignee.name AS assignee_name").Joins("LEFT JOIN users owner ON owner.id = st.user_id").Joins("LEFT JOIN users assignee ON assignee.id = st.assigned_to").Where("st.deleted_at IS NULL")
+	return s.DB.Table("support_tickets st").Select("st.*, COALESCE(owner.name, st.requester_name) AS user_name, COALESCE(owner.email, st.requester_email) AS user_email, assignee.name AS assignee_name").Joins("LEFT JOIN users owner ON owner.id = st.user_id").Joins("LEFT JOIN users assignee ON assignee.id = st.assigned_to").Where("st.deleted_at IS NULL")
 }
 
 func validTicketTransition(from, to string) bool {
