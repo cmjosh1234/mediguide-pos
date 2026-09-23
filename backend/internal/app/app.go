@@ -29,10 +29,11 @@ import (
 )
 
 type App struct {
-	Router *gin.Engine
-	DB     *gorm.DB
-	Redis  *redis.Client
-	Cache  *cachepkg.Store
+	stopUploads context.CancelFunc
+	Router      *gin.Engine
+	DB          *gorm.DB
+	Redis       *redis.Client
+	Cache       *cachepkg.Store
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -162,7 +163,7 @@ func New(cfg config.Config) (*App, error) {
 	}
 
 	authH := handlers.AuthHandler{Service: authSvc}
-	guidelineH := handlers.GuidelineHandler{Service: guidelineSvc, MaxUploadMB: cfg.MaxUploadMB}
+	guidelineH := handlers.GuidelineHandler{Service: guidelineSvc, MaxUploadMB: cfg.MaxUploadMB, DirectUploads: cfg.GuidelineDirectUploads && cfg.S3PublicEndpoint != ""}
 	publicGuidelineH := handlers.PublicGuidelineHandler{Service: publicGuidelineSvc, Content: publicGuidelineSvc}
 	outbreakH := handlers.OutbreakHandler{Service: outbreakSvc}
 	outbreakAdminH := handlers.OutbreakAdminHandler{Service: outbreakAdminSvc, MaxUploadMB: cfg.MaxUploadMB}
@@ -497,6 +498,12 @@ func New(cfg config.Config) (*App, error) {
 		protected.POST("/guideline-categories", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateCategory)
 		protected.PATCH("/guideline-categories/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.UpdateCategory)
 		protected.DELETE("/guideline-categories/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.DeleteCategory)
+		// Document kinds are shared: outbreak editors read them to classify outbreak documents.
+		protected.GET("/document-kinds", middleware.RequireAnyPermission("guideline.read", "outbreak.read"), guidelineContentH.ListDocumentKinds)
+		protected.GET("/document-kinds/:id", middleware.RequireAnyPermission("guideline.read", "outbreak.read"), guidelineContentH.GetDocumentKind)
+		protected.POST("/document-kinds", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateDocumentKind)
+		protected.PATCH("/document-kinds/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.UpdateDocumentKind)
+		protected.DELETE("/document-kinds/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.DeleteDocumentKind)
 		protected.GET("/diseases", middleware.RequireAnyPermission("disease.taxonomy.read", "disease.taxonomy.manage"), diseaseH.List)
 		protected.GET("/diseases/hierarchy", middleware.RequireAnyPermission("disease.taxonomy.read", "disease.taxonomy.manage"), diseaseH.Hierarchy)
 		protected.GET("/diseases/migration-report", middleware.RequireAnyPermission("disease.taxonomy.read", "disease.taxonomy.manage"), diseaseH.MigrationReport)
@@ -604,6 +611,14 @@ func New(cfg config.Config) (*App, error) {
 		protected.DELETE("/guidelines/:id", middleware.RequirePermission("guideline.write"), middleware.RequirePermission("guideline.publish"), guidelineH.Delete)
 		protected.POST("/guidelines/:id/versions", middleware.RequirePermission("guideline.write"), guidelineH.CreateVersion)
 		protected.POST("/guideline-versions/:id/upload", middleware.RequirePermission("guideline.markdown.upload"), rateLimiter.Limit(middleware.Policy("guideline-upload", 10, time.Hour, 0), middleware.UserIdentity), rateLimiter.Concurrency("guideline-upload", 1, 15*time.Minute, middleware.UserIdentity), guidelineH.UploadPDF)
+		protected.GET("/guideline-versions/:id/upload-capabilities", middleware.RequirePermission("guideline.markdown.upload"), guidelineH.UploadCapabilities)
+		protected.GET("/guideline-versions/:id/upload-jobs/:jobId", middleware.RequirePermission("guideline.markdown.upload"), guidelineH.SourceUploadJob)
+		protected.GET("/guideline-versions/:id/uploads", middleware.RequirePermission("guideline.markdown.upload"), guidelineH.ListSourceUploads)
+		protected.POST("/guideline-versions/:id/uploads", middleware.RequirePermission("guideline.markdown.upload"), rateLimiter.Limit(middleware.Policy("guideline-upload", 10, time.Hour, 0), middleware.UserIdentity), guidelineH.BeginSourceUpload)
+		protected.GET("/guideline-versions/:id/uploads/:session", middleware.RequirePermission("guideline.markdown.upload"), guidelineH.GetSourceUpload)
+		protected.DELETE("/guideline-versions/:id/uploads/:session", middleware.RequirePermission("guideline.markdown.upload"), guidelineH.AbortSourceUpload)
+		protected.POST("/guideline-versions/:id/uploads/:session/parts/:part", middleware.RequirePermission("guideline.markdown.upload"), rateLimiter.Limit(middleware.Policy("guideline-upload-part", 180, time.Minute, 10), middleware.UserIdentity), guidelineH.SignSourceUploadPart)
+		protected.POST("/guideline-versions/:id/uploads/:session/complete", middleware.RequirePermission("guideline.markdown.upload"), rateLimiter.Concurrency("guideline-upload", 1, 15*time.Minute, middleware.UserIdentity), guidelineH.CompleteSourceUpload)
 		protected.POST("/guideline-versions/:id/publish", middleware.RequirePermission("guideline.publish"), rateLimiter.Limit(middleware.Policy("guideline-publish", 10, time.Hour, 0), middleware.UserIdentity), guidelineH.Publish)
 		protected.GET("/guideline-versions/:id/review", middleware.RequirePermission("guideline.review"), guidelineH.ReviewWorkspace)
 		protected.GET("/guideline-versions/:id/review-blocks", middleware.RequirePermission("guideline.review"), guidelineH.ListReviewBlocks)
@@ -611,46 +626,46 @@ func New(cfg config.Config) (*App, error) {
 		protected.GET("/guideline-versions/:id/completeness-report/export", middleware.RequirePermission("guideline.review"), guidelineH.ExportCompletenessReport)
 		protected.GET("/guideline-versions/:id/extraction-status", middleware.RequirePermission("guideline.markdown.read"), guidelineH.ExtractionStatus)
 		protected.GET("/guideline-versions/:id/preview", middleware.RequirePermission("guideline.markdown.read"), guidelineH.PreviewVersion)
-		protected.POST("/guideline-versions/:id/assets", middleware.RequirePermission("guideline.asset.manage"), rateLimiter.Limit(middleware.Policy("guideline-asset-upload", 60, time.Hour, 10), middleware.UserIdentity), guidelineH.CreateGuidelineAsset)
+		protected.POST("/guideline-versions/:id/assets", middleware.RequirePermission("guideline.asset.manage"), rateLimiter.Limit(middleware.Policy("guideline-asset-upload", 60, time.Hour, 10), middleware.UserIdentity), guidelineH.RejectPublishedAsUploaded, guidelineH.CreateGuidelineAsset)
 		protected.GET("/guideline-versions/:id/assets", middleware.RequirePermission("guideline.markdown.read"), guidelineH.ListGuidelineAssets)
 		protected.GET("/guideline-versions/:id/assets/:assetId", middleware.RequirePermission("guideline.markdown.read"), guidelineH.GetGuidelineAsset)
 		protected.GET("/guideline-versions/:id/assets/:assetId/content", middleware.RequirePermission("guideline.markdown.read"), guidelineH.ReviewAsset)
-		protected.PATCH("/guideline-versions/:id/assets/:assetId", middleware.RequirePermission("guideline.asset.manage"), guidelineH.UpdateGuidelineAsset)
-		protected.DELETE("/guideline-versions/:id/assets/:assetId", middleware.RequirePermission("guideline.asset.manage"), guidelineH.DeleteGuidelineAsset)
+		protected.PATCH("/guideline-versions/:id/assets/:assetId", middleware.RequirePermission("guideline.asset.manage"), guidelineH.RejectPublishedAsUploaded, guidelineH.UpdateGuidelineAsset)
+		protected.DELETE("/guideline-versions/:id/assets/:assetId", middleware.RequirePermission("guideline.asset.manage"), guidelineH.RejectPublishedAsUploaded, guidelineH.DeleteGuidelineAsset)
 		protected.POST("/guideline-versions/:id/assets/:assetId/review", middleware.RequirePermission("guideline.high_risk.approve"), guidelineH.ReviewGuidelineAsset)
 		protected.POST("/guideline-versions/:id/validate-publication", middleware.RequirePermission("guideline.publish"), guidelineH.ValidatePublication)
 		protected.POST("/guideline-versions/:id/regenerate-manifest", middleware.RequirePermission("guideline.publish"), guidelineH.RegenerateManifest)
 		protected.GET("/guideline-versions/:id/sections", middleware.RequirePermission("guideline.write"), guidelineH.Sections)
-		protected.POST("/guideline-versions/:id/sections", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.CreateReviewSection)
-		protected.PUT("/guideline-versions/:id/sections/reorder", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.ReorderReviewSections)
-		protected.PATCH("/guideline-versions/:id/sections/:sectionId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.UpdateReviewSection)
-		protected.DELETE("/guideline-versions/:id/sections/:sectionId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.DeleteReviewSection)
-		protected.POST("/guideline-versions/:id/sections/:sectionId/split", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.SplitReviewSection)
-		protected.POST("/guideline-versions/:id/sections/:sectionId/merge", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.MergeReviewSection)
-		protected.PATCH("/guideline-versions/:id/blocks/:blockId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.UpdateReviewBlock)
-		protected.POST("/guideline-versions/:id/blocks", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.CreateReviewBlock)
-		protected.PUT("/guideline-versions/:id/blocks/reorder", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.ReorderReviewBlocks)
-		protected.DELETE("/guideline-versions/:id/blocks/:blockId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.DeleteReviewBlock)
+		protected.POST("/guideline-versions/:id/sections", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.CreateReviewSection)
+		protected.PUT("/guideline-versions/:id/sections/reorder", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.ReorderReviewSections)
+		protected.PATCH("/guideline-versions/:id/sections/:sectionId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.UpdateReviewSection)
+		protected.DELETE("/guideline-versions/:id/sections/:sectionId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.DeleteReviewSection)
+		protected.POST("/guideline-versions/:id/sections/:sectionId/split", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.SplitReviewSection)
+		protected.POST("/guideline-versions/:id/sections/:sectionId/merge", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.MergeReviewSection)
+		protected.PATCH("/guideline-versions/:id/blocks/:blockId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.UpdateReviewBlock)
+		protected.POST("/guideline-versions/:id/blocks", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.CreateReviewBlock)
+		protected.PUT("/guideline-versions/:id/blocks/reorder", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.ReorderReviewBlocks)
+		protected.DELETE("/guideline-versions/:id/blocks/:blockId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.DeleteReviewBlock)
 		protected.POST("/guideline-versions/:id/blocks/:blockId/review", middleware.RequirePermission("guideline.high_risk.approve"), guidelineH.ReviewBlock)
 		protected.POST("/guideline-versions/:id/blocks/bulk-review", middleware.RequirePermission("guideline.review"), guidelineH.BulkReviewBlocks)
 		protected.GET("/guideline-versions/:id/chunks", middleware.RequirePermission("guideline.write"), guidelineH.Chunks)
 		protected.GET("/guideline-versions/:id/extracted/:format", middleware.RequirePermission("guideline.write"), guidelineH.ExtractedAsset)
-		protected.PUT("/guideline-versions/:id/extracted/markdown", middleware.RequirePermission("guideline.write"), guidelineH.UpdateMarkdown)
+		protected.PUT("/guideline-versions/:id/extracted/markdown", middleware.RequirePermission("guideline.write"), guidelineH.RejectPublishedAsUploaded, guidelineH.UpdateMarkdown)
 		protected.GET("/guideline-versions/:id/markdown-draft", middleware.RequirePermission("guideline.markdown.read"), guidelineH.GetMarkdownDraft)
-		protected.PUT("/guideline-versions/:id/markdown-draft", middleware.RequirePermission("guideline.markdown.edit"), rateLimiter.Limit(middleware.Policy("guideline-markdown-save", 120, time.Hour, 20), middleware.UserIdentity), guidelineH.SaveMarkdownDraft)
+		protected.PUT("/guideline-versions/:id/markdown-draft", middleware.RequirePermission("guideline.markdown.edit"), rateLimiter.Limit(middleware.Policy("guideline-markdown-save", 120, time.Hour, 20), middleware.UserIdentity), guidelineH.RejectPublishedAsUploaded, guidelineH.SaveMarkdownDraft)
 		protected.GET("/guideline-versions/:id/markdown-revisions", middleware.RequirePermission("guideline.markdown.read"), guidelineH.ListMarkdownRevisions)
-		protected.POST("/guideline-versions/:id/markdown-revisions", middleware.RequirePermission("guideline.markdown.edit"), rateLimiter.Limit(middleware.Policy("guideline-markdown-checkpoint", 60, time.Hour, 10), middleware.UserIdentity), guidelineH.CreateMarkdownRevision)
+		protected.POST("/guideline-versions/:id/markdown-revisions", middleware.RequirePermission("guideline.markdown.edit"), rateLimiter.Limit(middleware.Policy("guideline-markdown-checkpoint", 60, time.Hour, 10), middleware.UserIdentity), guidelineH.RejectPublishedAsUploaded, guidelineH.CreateMarkdownRevision)
 		protected.GET("/guideline-versions/:id/markdown-revisions/:revisionId", middleware.RequirePermission("guideline.markdown.read"), guidelineH.GetMarkdownRevision)
 		protected.GET("/guideline-versions/:id/markdown-revisions/:revisionId/validation", middleware.RequirePermission("guideline.markdown.read"), guidelineH.ValidateMarkdownRevision)
 		protected.GET("/guideline-versions/:id/markdown-revisions/:revisionId/download", middleware.RequirePermission("guideline.markdown.read"), guidelineH.DownloadMarkdownRevision)
-		protected.POST("/guideline-versions/:id/markdown-revisions/:revisionId/restore", middleware.RequirePermission("guideline.revision.restore"), guidelineH.RestoreMarkdownRevision)
-		protected.POST("/guideline-versions/:id/duplicate", middleware.RequirePermission("guideline.markdown.edit"), rateLimiter.Limit(middleware.Policy("guideline-markdown-duplicate", 30, time.Hour, 5), middleware.UserIdentity), guidelineH.DuplicateMarkdownVersion)
-		protected.POST("/guideline-versions/:id/regenerate", middleware.RequirePermission("guideline.structure.regenerate"), rateLimiter.Limit(middleware.Policy("guideline-regenerate", 20, time.Hour, 2), middleware.UserIdentity), rateLimiter.Concurrency("guideline-regenerate", 1, 15*time.Minute, middleware.UserIdentity), guidelineH.RegenerateMarkdown)
+		protected.POST("/guideline-versions/:id/markdown-revisions/:revisionId/restore", middleware.RequirePermission("guideline.revision.restore"), guidelineH.RejectPublishedAsUploaded, guidelineH.RestoreMarkdownRevision)
+		protected.POST("/guideline-versions/:id/duplicate", middleware.RequirePermission("guideline.markdown.edit"), rateLimiter.Limit(middleware.Policy("guideline-markdown-duplicate", 30, time.Hour, 5), middleware.UserIdentity), guidelineH.RejectPublishedAsUploaded, guidelineH.DuplicateMarkdownVersion)
+		protected.POST("/guideline-versions/:id/regenerate", middleware.RequirePermission("guideline.structure.regenerate"), rateLimiter.Limit(middleware.Policy("guideline-regenerate", 20, time.Hour, 2), middleware.UserIdentity), rateLimiter.Concurrency("guideline-regenerate", 1, 15*time.Minute, middleware.UserIdentity), guidelineH.RejectPublishedAsUploaded, guidelineH.RegenerateMarkdown)
 		protected.GET("/guideline-versions/:id/regeneration-jobs/:jobId", middleware.RequirePermission("guideline.markdown.read"), guidelineH.GetRegenerationJob)
-		protected.POST("/guideline-versions/:id/regeneration-jobs/:jobId/cancel", middleware.RequirePermission("guideline.structure.regenerate"), guidelineH.CancelRegenerationJob)
-		protected.POST("/guideline-versions/:id/regeneration-jobs/:jobId/retry", middleware.RequirePermission("guideline.structure.regenerate"), guidelineH.RetryRegenerationJob)
+		protected.POST("/guideline-versions/:id/regeneration-jobs/:jobId/cancel", middleware.RequirePermission("guideline.structure.regenerate"), guidelineH.RejectPublishedAsUploaded, guidelineH.CancelRegenerationJob)
+		protected.POST("/guideline-versions/:id/regeneration-jobs/:jobId/retry", middleware.RequirePermission("guideline.structure.regenerate"), guidelineH.RejectPublishedAsUploaded, guidelineH.RetryRegenerationJob)
 		protected.GET("/guideline-versions/:id/regeneration-reviews/:jobId", middleware.RequirePermission("guideline.review"), guidelineH.GetRegenerationReview)
-		protected.POST("/guideline-versions/:id/regeneration-reviews/:jobId/accept", middleware.RequirePermission("guideline.high_risk.approve"), guidelineH.AcceptRegeneration)
+		protected.POST("/guideline-versions/:id/regeneration-reviews/:jobId/accept", middleware.RequirePermission("guideline.high_risk.approve"), guidelineH.RejectPublishedAsUploaded, guidelineH.AcceptRegeneration)
 		protected.POST("/guideline-versions/:id/regeneration-reviews/:jobId/reject", middleware.RequirePermission("guideline.review"), guidelineH.RejectRegeneration)
 		protected.GET("/guideline-versions/:id/regeneration-reviews/:jobId/comments", middleware.RequirePermission("guideline.review"), guidelineH.ListRegenerationComments)
 		protected.POST("/guideline-versions/:id/regeneration-reviews/:jobId/comments", middleware.RequirePermission("guideline.review"), guidelineH.AddRegenerationComment)
@@ -779,10 +794,32 @@ func New(cfg config.Config) (*App, error) {
 		protected.GET("/sync/packages/:id/download", middleware.RequirePermission("sync.read"), rateLimiter.Limit(middleware.Policy("sync-download-url", 30, time.Minute, 5), middleware.UserIdentity), syncH.Download)
 
 	}
-	return &App{Router: r, DB: database, Redis: redisClient, Cache: cacheStore}, nil
+	uploadContext, stopUploads := context.WithCancel(context.Background())
+	if guidelineH.DirectUploads {
+		go func() {
+			ticker := time.NewTicker(30 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-uploadContext.Done():
+					return
+				case <-ticker.C:
+				}
+				ctx, cancel := context.WithTimeout(uploadContext, 25*time.Second)
+				if err := guidelineSvc.MaintainSourceUploads(ctx); err != nil {
+					log.Error().Err(err).Msg("guideline upload maintenance failed")
+				}
+				cancel()
+			}
+		}()
+	}
+	return &App{Router: r, DB: database, Redis: redisClient, Cache: cacheStore, stopUploads: stopUploads}, nil
 }
 
 func (a *App) Close() error {
+	if a != nil && a.stopUploads != nil {
+		a.stopUploads()
+	}
 	if a == nil || a.Redis == nil {
 		return nil
 	}

@@ -20,6 +20,9 @@ type Config struct {
 	JWTRefreshTTLMinutes   int
 	StorageDriver          string
 	S3Endpoint             string
+	S3PublicEndpoint       string
+	S3PublicSSL            bool
+	GuidelineDirectUploads bool
 	S3AccessKey            string
 	S3SecretKey            string
 	S3Bucket               string
@@ -77,6 +80,9 @@ func Load() Config {
 		JWTRefreshTTLMinutes:            getInt("JWT_REFRESH_TTL_MINUTES", 43200),
 		StorageDriver:                   get("STORAGE_DRIVER", "minio"),
 		S3Endpoint:                      get("S3_ENDPOINT", "localhost:9000"),
+		S3PublicEndpoint:                get("S3_PUBLIC_ENDPOINT", ""),
+		S3PublicSSL:                     getBool("S3_PUBLIC_SSL", true),
+		GuidelineDirectUploads:          getBool("GUIDELINE_DIRECT_UPLOADS", false),
 		S3AccessKey:                     get("S3_ACCESS_KEY", "mediguide"),
 		S3SecretKey:                     get("S3_SECRET_KEY", "mediguide123"),
 		S3Bucket:                        get("S3_BUCKET", "mediguide"),

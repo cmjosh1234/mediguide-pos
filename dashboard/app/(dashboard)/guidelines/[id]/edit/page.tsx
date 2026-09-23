@@ -117,6 +117,7 @@ export default function EditGuidelinePage() {
           language: document.language,
           description: document.description,
           category_ids: document.categories.map((category) => category.id),
+          document_kind_id: document.document_kind_id || undefined,
           disease_ids: assignments.map((assignment) => assignment.disease_id),
           primary_disease_id:
             assignments.find((assignment) => assignment.is_primary)

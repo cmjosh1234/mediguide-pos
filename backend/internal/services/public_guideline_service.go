@@ -62,6 +62,15 @@ type PublicGuideline struct {
 	IntendedPopulation string                    `json:"intended_population"`
 	HealthcareLevel    string                    `json:"healthcare_level"`
 	Categories         []PublicGuidelineCategory `json:"categories"`
+	// DocumentKind tells readers how to present the guideline. Kinds published
+	// as uploaded (for example forms) are shown as their original file.
+	DocumentKind *PublicDocumentKind `json:"document_kind,omitempty"`
+}
+
+type PublicDocumentKind struct {
+	Slug              string `json:"slug"`
+	Name              string `json:"name"`
+	PublishAsUploaded bool   `json:"publish_as_uploaded"`
 }
 
 type PublicGuidelineCategory struct {
@@ -99,6 +108,9 @@ type publicGuidelineRow struct {
 	OriginalFileKey    string
 	IntendedPopulation string
 	HealthcareLevel    string
+	DocumentKindSlug   string
+	DocumentKindName   string
+	PublishAsUploaded  bool
 }
 
 func (s PublicGuidelineService) List(ctx context.Context, filter PublicGuidelineFilter) (*PageResult[PublicGuideline], error) {
@@ -157,7 +169,10 @@ func (s PublicGuidelineService) getUncached(ctx context.Context, id uuid.UUID) (
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(row.MarkdownFileKey) == "" {
+	// As-uploaded documents have no Markdown; their original file is the content.
+	hasContent := strings.TrimSpace(row.MarkdownFileKey) != "" ||
+		row.PublishAsUploaded && strings.TrimSpace(row.OriginalFileKey) != ""
+	if !hasContent {
 		return nil, ErrPublicGuidelineNotFound
 	}
 	result := row.public()
@@ -207,6 +222,7 @@ func (s PublicGuidelineService) visibleQuery(ctx context.Context) *gorm.DB {
 	return s.DB.WithContext(ctx).
 		Table("guideline_documents AS gd").
 		Joins("JOIN guideline_versions AS gv ON gv.id = gd.current_version_id AND gv.document_id = gd.id").
+		Joins("LEFT JOIN document_kinds AS dk ON dk.id = gd.document_kind_id").
 		Where("gd.deleted_at IS NULL").
 		Where("gv.deleted_at IS NULL").
 		Where("LOWER(gv.status) = ?", "published")
@@ -345,7 +361,15 @@ func (row publicGuidelineRow) public() PublicGuideline {
 		LastUpdated:        row.VersionUpdated.UTC(),
 		IntendedPopulation: row.IntendedPopulation,
 		HealthcareLevel:    row.HealthcareLevel,
+		DocumentKind:       row.documentKind(),
 	}
+}
+
+func (row publicGuidelineRow) documentKind() *PublicDocumentKind {
+	if row.DocumentKindSlug == "" {
+		return nil
+	}
+	return &PublicDocumentKind{Slug: row.DocumentKindSlug, Name: row.DocumentKindName, PublishAsUploaded: row.PublishAsUploaded}
 }
 
 func slugify(value string) string {
@@ -373,5 +397,8 @@ const publicGuidelineSelect = `
 	gv.id AS version_id,
 	gv.updated_at AS version_updated,
 	gv.markdown_file_key,
-	gv.original_file_key
+	gv.original_file_key,
+	dk.slug AS document_kind_slug,
+	dk.name AS document_kind_name,
+	COALESCE(dk.publish_as_uploaded, false) AS publish_as_uploaded
 `

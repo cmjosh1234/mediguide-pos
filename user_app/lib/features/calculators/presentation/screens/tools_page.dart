@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/features/calculators/presentation/controllers/tools_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -11,7 +12,6 @@ import 'package:user_app/core/widgets/app_error_view.dart';
 import 'package:user_app/core/widgets/app_loading_view.dart';
 import 'package:user_app/core/widgets/empty_state.dart';
 
-import 'package:user_app/features/calculators/presentation/controllers/tools_controller.dart';
 import 'package:user_app/features/calculators/presentation/widgets/calculator_card.dart';
 
 import 'package:user_app/shared/models/models.dart';

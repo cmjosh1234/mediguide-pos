@@ -1,63 +1,63 @@
+include scripts/make-platform.mk
+
 BACKEND_DIR := backend
 AI_WORKER_DIR := ai-worker
 COMPOSE_FILE := infra/docker-compose.yml
 DEV_COMPOSE_FILE := infra/docker-compose.dev.yml
 DEV_ENV_FILE := infra/development.env
 PRODUCTION_ENV_FILE ?= infra/production.env
-DOCKER_COMPOSE := docker compose --env-file $(DEV_ENV_FILE) -f $(COMPOSE_FILE) -f $(DEV_COMPOSE_FILE)
-PRODUCTION_COMPOSE := docker compose --env-file $(PRODUCTION_ENV_FILE) -f $(COMPOSE_FILE)
-PYTHON ?= python3
+DOCKER_COMPOSE := docker compose --env-file "$(DEV_ENV_FILE)" -f "$(COMPOSE_FILE)" -f "$(DEV_COMPOSE_FILE)"
+PRODUCTION_COMPOSE := docker compose --env-file "$(PRODUCTION_ENV_FILE)" -f "$(COMPOSE_FILE)"
 AI_REQUIREMENTS_FILE := $(AI_WORKER_DIR)/requirements.txt
 AI_REQUIREMENTS_STAMP := $(AI_WORKER_DIR)/.requirements.sha256
 # Native Windows does not provide a POSIX shell or sudo. WSL uses the
 # existing Linux recipes; native GNU Make delegates stack operations to PS.
-WINDOWS_DEV_STACK := powershell.exe -NoProfile -File scripts/dev-stack.ps1
+WINDOWS_DEV_STACK := powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/dev-stack.ps1
 
 .DEFAULT_GOAL := help
 
 .PHONY: help
 help:
-	@printf "%s\n" \
-		"Available targets:" \
-		"  up               Build and start the full development stack" \
-		"  down             Stop the development stack and preserve data" \
-		"  reset            Stop development and remove its volumes" \
-		"  build            Build the development stack" \
-		"  ps               Show development stack status" \
-		"  logs             Tail development stack logs" \
-		"  guidelines-logs  Tail the integrated guidelines service" \
-		"  config           Render the merged development configuration" \
-		"  env-check        Verify development, staging, production, and Compose variable parity" \
-		"  prod-up          Pull, migrate, and start production with health waiting" \
-		"  prod-migrate     Apply migrations with the configured production API image" \
-		"  prod-down        Stop the production stack and preserve data" \
-		"  prod-build       Build production images" \
-		"  prod-pull        Pull production images" \
-		"  prod-ps          Show production stack status" \
-		"  prod-logs        Tail production stack logs" \
-		"  prod-config      Render the production configuration" \
-		"  test             Run backend and ai-worker tests" \
-		"  backend-test     Run backend Go tests" \
-		"  backend-build    Build backend binaries" \
-		"  backend-run      Run backend API locally" \
-		"  backend-worker   Run backend Go worker locally" \
-		"  swagger          Generate backend Swagger JSON/YAML docs" \
-		"  contracts        Regenerate Go, TypeScript, and Dart API contracts" \
-		"  contracts-check  Verify committed API contracts have no drift" \
-		"  release-prepare  Synchronize all versions from RELEASE_TAG" \
-		"  release-patch    Calculate and prepare the next patch release" \
-		"  release-minor    Calculate and prepare the next minor release" \
-		"  release-major    Calculate and prepare the next major release" \
-		"  release-check    Validate RELEASE_TAG metadata, Git state, and Compose" \
-		"  migrate-up       Apply backend migrations" \
-		"  migrate-down     Roll back backend migrations" \
-		"  migrate-status   Show backend migration status" \
-		"  seed             Seed backend data" \
-		"  clinical-tools-check  Verify legacy tool source checksums and conversion envelopes" \
-		"  clinical-tools-import Import ready clinical-tool conversions as reviewed drafts" \
-		"  ai-test          Run ai-worker tests" \
-		"  ai-api           Run ai-worker FastAPI locally" \
-		"  ai-worker        Run ai-worker loop locally"
+	@echo Available targets:
+	@echo up               Build and start the full development stack
+	@echo down             Stop the development stack and preserve data
+	@echo reset            Stop development and remove its volumes
+	@echo build            Build the development stack
+	@echo ps               Show development stack status
+	@echo logs             Tail development stack logs
+	@echo guidelines-logs  Tail the integrated guidelines service
+	@echo config           Render the merged development configuration
+	@echo env-check        Verify development, staging, production, and Compose variable parity
+	@echo prod-up          Pull, migrate, and start production with health waiting
+	@echo prod-migrate     Apply migrations with the configured production API image
+	@echo prod-down        Stop the production stack and preserve data
+	@echo prod-build       Build production images
+	@echo prod-pull        Pull production images
+	@echo prod-ps          Show production stack status
+	@echo prod-logs        Tail production stack logs
+	@echo prod-config      Render the production configuration
+	@echo test             Run backend and ai-worker tests
+	@echo backend-test     Run backend Go tests
+	@echo backend-build    Build backend binaries
+	@echo backend-run      Run backend API locally
+	@echo backend-worker   Run backend Go worker locally
+	@echo swagger          Generate backend Swagger JSON/YAML docs
+	@echo contracts        Regenerate Go, TypeScript, and Dart API contracts
+	@echo contracts-check  Verify committed API contracts have no drift
+	@echo release-prepare  Synchronize all versions from RELEASE_TAG
+	@echo release-patch    Calculate and prepare the next patch release
+	@echo release-minor    Calculate and prepare the next minor release
+	@echo release-major    Calculate and prepare the next major release
+	@echo release-check    Validate RELEASE_TAG metadata, Git state, and Compose
+	@echo migrate-up       Apply backend migrations
+	@echo migrate-down     Roll back backend migrations
+	@echo migrate-status   Show backend migration status
+	@echo seed             Seed backend data
+	@echo clinical-tools-check  Verify legacy tool source checksums and conversion envelopes
+	@echo clinical-tools-import Import ready clinical-tool conversions as reviewed drafts
+	@echo ai-test          Run ai-worker tests
+	@echo ai-api           Run ai-worker FastAPI locally
+	@echo ai-worker        Run ai-worker loop locally
 
 .PHONY: up
 up:
@@ -117,7 +117,7 @@ endif
 
 .PHONY: env-check
 env-check:
-	bash scripts/check-infra-env-parity.sh
+	$(BASH) scripts/check-infra-env-parity.sh
 
 .PHONY: guidelines-logs
 guidelines-logs:
@@ -163,11 +163,7 @@ prod-config: production-env-check
 
 .PHONY: production-env-check
 production-env-check:
-	@test -f "$(PRODUCTION_ENV_FILE)" || \
-		(printf "%s\n" \
-			"Missing $(PRODUCTION_ENV_FILE)." \
-			"Copy infra/production.env.example and replace every placeholder." && \
-		 exit 1)
+	$(if $(wildcard $(subst $(space),\$(space),$(PRODUCTION_ENV_FILE))),,$(error Missing $(PRODUCTION_ENV_FILE). Copy infra/production.env.example and replace every placeholder))
 
 .PHONY: test
 test: backend-test ai-test
@@ -194,11 +190,11 @@ swagger:
 
 .PHONY: contracts
 contracts:
-	bash scripts/generate-contracts.sh
+	$(BASH) scripts/generate-contracts.sh
 
 .PHONY: contracts-check
 contracts-check:
-	bash scripts/check-generated-contracts.sh
+	$(BASH) scripts/check-generated-contracts.sh
 
 .PHONY: clinical-tools-check clinical-tools-import clinical-tools-development-activate clinical-tools-development-schema-up clinical-tools-retirement-check clinical-tools-retirement-rehearsal
 clinical-tools-check:
@@ -208,16 +204,16 @@ clinical-tools-import:
 	$(MAKE) -C $(BACKEND_DIR) clinical-tools-import ACTOR_ID="$(ACTOR_ID)"
 
 clinical-tools-development-activate:
-	bash scripts/clinical-tools-development-activate.sh
+	$(BASH) scripts/clinical-tools-development-activate.sh
 
 clinical-tools-development-schema-up:
-	bash scripts/clinical-tools-development-schema-up.sh
+	$(BASH) scripts/clinical-tools-development-schema-up.sh
 
 clinical-tools-retirement-check:
 	$(MAKE) -C $(BACKEND_DIR) clinical-tools-retirement-check
 
 clinical-tools-retirement-rehearsal:
-	bash scripts/clinical-tools-retirement-rehearsal.sh
+	$(BASH) scripts/clinical-tools-retirement-rehearsal.sh
 
 RELEASE_TAG ?=
 MOBILE_BUILD_NUMBER ?=
@@ -238,7 +234,7 @@ release-major:
 
 .PHONY: release-check
 release-check:
-	bash scripts/check-release-readiness.sh "$(RELEASE_TAG)"
+	$(BASH) scripts/check-release-readiness.sh "$(RELEASE_TAG)"
 
 .PHONY: migrate-up
 migrate-up:
@@ -258,43 +254,31 @@ seed:
 
 .PHONY: ai-test
 ai-test: ai-deps
-	cd $(AI_WORKER_DIR) && $(PYTHON) -m pytest
+	cd "$(AI_WORKER_DIR)" && $(PYTHON) -m pytest
 
 .PHONY: ai-deps
 ai-deps:
-	@REQ_HASH=`$(PYTHON) - <<'PY'\nimport hashlib\nfrom pathlib import Path\nprint(hashlib.sha256(Path('$(AI_REQUIREMENTS_FILE)').read_bytes()).hexdigest())\nPY`; \
-	STORED_HASH=""; \
-	if [ -f "$(AI_REQUIREMENTS_STAMP)" ]; then STORED_HASH=`cat "$(AI_REQUIREMENTS_STAMP)"`; fi; \
-	if [ "$$REQ_HASH" != "$$STORED_HASH" ]; then \
-		echo "Installing ai-worker requirements"; \
-		cd $(AI_WORKER_DIR) && $(PYTHON) -m pip install -r requirements.txt; \
-		printf "%s" "$$REQ_HASH" > "$(AI_REQUIREMENTS_STAMP)"; \
-	else \
-		echo "ai-worker requirements unchanged"; \
-	fi
+	$(PYTHON) scripts/install-ai-deps.py "$(AI_REQUIREMENTS_FILE)" "$(AI_REQUIREMENTS_STAMP)"
 
 .PHONY: ai-api
 ai-api: ai-deps
-	cd $(AI_WORKER_DIR) && uvicorn app.main:app --reload --host 0.0.0.0 --port 8090
+	cd "$(AI_WORKER_DIR)" && $(PYTHON) -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8090
 
 .PHONY: ai-worker
 ai-worker: ai-deps
-	cd $(AI_WORKER_DIR) && $(PYTHON) -m app.worker
+	cd "$(AI_WORKER_DIR)" && $(PYTHON) -m app.worker
 
 .PHONY: run-cfdp-ios-simulator
 run-cfdp-ios-simulator:
-	cd user_app && \
-	flutter run --flavor development --target lib/main_development.dart \
-		--dart-define=MEDIGUIDE_API_BASE_URL=http://127.0.0.1:8080
+ifeq ($(OS),Windows_NT)
+	$(error The iOS simulator requires macOS. Use make run-cfdp-android on Windows)
+else
+	cd user_app && flutter run --flavor development --target lib/main_development.dart --dart-define=MEDIGUIDE_API_BASE_URL=http://127.0.0.1:8080
+endif
 
 ANDROID_DEVICE ?= emulator-5554
 ANDROID_API_BASE_URL ?= http://localhost:8080
 
 .PHONY: run-cfdp-android
 run-cfdp-android:
-	cd user_app && \
-	flutter run \
-		-d $(ANDROID_DEVICE) \
-		--flavor development \
-		--target lib/main_development.dart \
-		--dart-define=MEDIGUIDE_API_BASE_URL=$(ANDROID_API_BASE_URL)
+	cd user_app && flutter run -d "$(ANDROID_DEVICE)" --flavor development --target lib/main_development.dart --dart-define=MEDIGUIDE_API_BASE_URL=$(ANDROID_API_BASE_URL)

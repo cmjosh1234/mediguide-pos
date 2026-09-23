@@ -14,8 +14,9 @@ import (
 )
 
 type MinioStore struct {
-	client *minio.Client
-	bucket string
+	client       *minio.Client
+	uploadClient *minio.Client
+	bucket       string
 }
 
 func NewMinioStore(cfg config.Config) (*MinioStore, error) {
@@ -36,7 +37,14 @@ func NewMinioStore(cfg config.Config) (*MinioStore, error) {
 			return nil, err
 		}
 	}
-	return &MinioStore{client: client, bucket: cfg.S3Bucket}, nil
+	var uploadClient *minio.Client
+	if cfg.S3PublicEndpoint != "" {
+		uploadClient, err = minio.New(cfg.S3PublicEndpoint, &minio.Options{Region: "us-east-1", Creds: credentials.NewStaticV4(cfg.S3AccessKey, cfg.S3SecretKey, ""), Secure: cfg.S3PublicSSL})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &MinioStore{client: client, uploadClient: uploadClient, bucket: cfg.S3Bucket}, nil
 }
 
 func (s *MinioStore) Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error {

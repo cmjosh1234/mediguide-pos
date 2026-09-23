@@ -448,10 +448,11 @@ func (s PublicGuidelineService) publicAssetSource(ctx context.Context, guideline
 	}
 	err = query.Order("created_at DESC").First(&asset).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) && assetType == string(models.GuidelineAssetOriginalPDF) && strings.TrimSpace(row.OriginalFileKey) != "" {
+		extension, mimeType := originalFileType(row.OriginalFileKey)
 		return &publicGuidelineAssetSource{
 			storageKey: row.OriginalFileKey,
-			filename:   slugify(row.Title) + ".pdf",
-			mimeType:   "application/pdf",
+			filename:   slugify(row.Title) + "." + extension,
+			mimeType:   mimeType,
 		}, nil
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {

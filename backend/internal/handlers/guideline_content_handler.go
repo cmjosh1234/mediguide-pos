@@ -472,6 +472,97 @@ func (h GuidelineContentHandler) DeleteIndex(c *gin.Context) {
 	h.deleted(c, h.Service.DeleteIndex(id))
 }
 
+// ListDocumentKinds godoc
+// @Summary List document kinds
+// @Description Kinds are shared by guideline and outbreak documents. Readers see active kinds only; each kind reports how many live documents of each type use it.
+// @Tags document-kinds
+// @Security BearerAuth
+// @Param page query int false "Page number"
+// @Param per_page query int false "Items per page"
+// @Param search query string false "Name, slug, or description"
+// @Param status query string false "Status (editors only)"
+// @Param sort query string false "Allowlisted sort field"
+// @Param order query string false "asc or desc"
+// @Success 200 {object} handlers.PaginatedDocumentKindsEnvelope
+// @Router /api/v2/document-kinds [get]
+func (h GuidelineContentHandler) ListDocumentKinds(c *gin.Context) {
+	q, ok := guidelineContentQuery(c)
+	if !ok {
+		return
+	}
+	result, err := h.Service.ListDocumentKinds(guidelineContentEditor(c), q)
+	h.page(c, result, err)
+}
+
+// GetDocumentKind godoc
+// @Summary Get a document kind
+// @Tags document-kinds
+// @Security BearerAuth
+// @Param id path string true "Document kind UUID"
+// @Success 200 {object} handlers.DocumentKindEnvelope
+// @Router /api/v2/document-kinds/{id} [get]
+func (h GuidelineContentHandler) GetDocumentKind(c *gin.Context) {
+	id, ok := guidelineContentID(c)
+	if !ok {
+		return
+	}
+	item, err := h.Service.GetDocumentKind(id, guidelineContentEditor(c))
+	h.result(c, item, err, http.StatusOK)
+}
+
+// CreateDocumentKind godoc
+// @Summary Create a document kind
+// @Tags document-kinds
+// @Security BearerAuth
+// @Param payload body services.DocumentKindInput true "Document kind"
+// @Success 201 {object} handlers.DocumentKindEnvelope
+// @Router /api/v2/document-kinds [post]
+func (h GuidelineContentHandler) CreateDocumentKind(c *gin.Context) {
+	var in services.DocumentKindInput
+	if !guidelineContentBind(c, &in) {
+		return
+	}
+	item, err := h.Service.SaveDocumentKind(nil, in)
+	h.result(c, item, err, http.StatusCreated)
+}
+
+// UpdateDocumentKind godoc
+// @Summary Update a document kind
+// @Tags document-kinds
+// @Security BearerAuth
+// @Param id path string true "Document kind UUID"
+// @Description The slug cannot be changed after creation.
+// @Param payload body services.DocumentKindInput true "Document kind changes"
+// @Success 200 {object} handlers.DocumentKindEnvelope
+// @Router /api/v2/document-kinds/{id} [patch]
+func (h GuidelineContentHandler) UpdateDocumentKind(c *gin.Context) {
+	id, ok := guidelineContentID(c)
+	if !ok {
+		return
+	}
+	var in services.DocumentKindInput
+	if !guidelineContentBind(c, &in) {
+		return
+	}
+	item, err := h.Service.SaveDocumentKind(&id, in)
+	h.result(c, item, err, http.StatusOK)
+}
+
+// DeleteDocumentKind godoc
+// @Summary Archive an unused document kind
+// @Tags document-kinds
+// @Security BearerAuth
+// @Param id path string true "Document kind UUID"
+// @Success 204
+// @Router /api/v2/document-kinds/{id} [delete]
+func (h GuidelineContentHandler) DeleteDocumentKind(c *gin.Context) {
+	id, ok := guidelineContentID(c)
+	if !ok {
+		return
+	}
+	h.deleted(c, h.Service.DeleteDocumentKind(id))
+}
+
 func (h GuidelineContentHandler) page(c *gin.Context, value any, err error) {
 	if err != nil {
 		h.writeError(c, err)
@@ -507,6 +598,8 @@ func (h GuidelineContentHandler) writeError(c *gin.Context, err error) {
 		httpx.Error(c, http.StatusConflict, "guideline hierarchy cycle")
 	case errors.Is(err, services.ErrGuidelineParentInUse):
 		httpx.Error(c, http.StatusConflict, "guideline hierarchy item has children")
+	case errors.Is(err, services.ErrDocumentKindInUse), errors.Is(err, services.ErrDocumentKindRequired), errors.Is(err, services.ErrDocumentKindSlugImmutable), errors.Is(err, services.ErrDocumentKindModeInUse):
+		httpx.Error(c, http.StatusConflict, err.Error())
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		httpx.Error(c, http.StatusNotFound, "guideline content not found")
 	default:

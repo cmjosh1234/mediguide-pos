@@ -318,6 +318,14 @@ type PaginatedGuidelineCategoriesEnvelope struct {
 	Success bool                                          `json:"success"`
 	Data    services.PageResult[models.GuidelineCategory] `json:"data"`
 }
+type DocumentKindEnvelope struct {
+	Success bool                `json:"success"`
+	Data    models.DocumentKind `json:"data"`
+}
+type PaginatedDocumentKindsEnvelope struct {
+	Success bool                                     `json:"success"`
+	Data    services.PageResult[models.DocumentKind] `json:"data"`
+}
 type DiseaseEnvelope struct {
 	Success bool           `json:"success"`
 	Data    models.Disease `json:"data"`

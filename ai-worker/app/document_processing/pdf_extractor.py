@@ -7,11 +7,13 @@ import math
 import re
 import subprocess
 import tempfile
+import time
 import fitz
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
 from slugify import slugify
 from app.document_processing.structured_blocks import build_structured_blocks
+from app.document_processing.bounded_work import ordered_work
 from app.document_processing.types import (
     ExtractedAsset,
     ExtractedDocument,
@@ -929,7 +931,7 @@ def _image_caption(page: fitz.Page, rect: fitz.Rect) -> str:
     return min(candidates, default=(0.0, ""), key=lambda item: item[0])[1]
 
 
-def _extract_embedded_images(doc: fitz.Document) -> list[ExtractedAsset]:
+def _extract_embedded_images(doc: fitz.Document, on_error=None) -> list[ExtractedAsset]:
     assets: list[ExtractedAsset] = []
     seen: set[str] = set()
     for page_number, page in enumerate(doc, start=1):
@@ -990,6 +992,8 @@ def _extract_embedded_images(doc: fitz.Document) -> list[ExtractedAsset]:
                     )
                 )
             except Exception:
+                if on_error is not None:
+                    on_error()
                 continue
     return assets
 
@@ -1027,13 +1031,14 @@ def _dedupe_section_html(section_html: str, tables: list[ExtractedTable]) -> str
     return str(soup)
 
 
-def _extract_tables_pdfplumber(path: Path) -> list[ExtractedTable]:
+def _extract_tables_pdfplumber(path: Path, on_error=None, page_numbers=None) -> list[ExtractedTable]:
     tables: list[ExtractedTable] = []
     try:
         import pdfplumber
 
-        with pdfplumber.open(str(path)) as pdf:
-            for i, page in enumerate(pdf.pages, start=1):
+        with pdfplumber.open(str(path), pages=page_numbers) as pdf:
+            for page in pdf.pages:
+                i = page.page_number
                 for table in page.find_tables() or []:
                     cleaned_rows = _clean_table_rows(table.extract() or [])
                     if _is_low_signal_table(cleaned_rows):
@@ -1051,10 +1056,39 @@ def _extract_tables_pdfplumber(path: Path) -> list[ExtractedTable]:
                             bbox=tuple(float(value) for value in table.bbox),
                         )
                     )
+                # pdfplumber retains layout caches unless explicitly released.
+                page.close()
     except Exception:
         # Table extraction is best-effort. The PDF text extraction should continue.
+        if on_error is not None:
+            on_error()
         return tables
     return tables
+
+
+def _table_page_batch(args):
+    path, pages = args
+    failed = []
+    tables = _extract_tables_pdfplumber(Path(path), lambda: failed.append(True), pages)
+    return tables, bool(failed)
+
+
+def _parallel_tables(path, workers, on_error, check_cancel=None):
+    with fitz.open(str(path)) as source:
+        count = len(source)
+    # Opening a PDF reparses its page tree. Many tiny tasks cost more than the
+    # table extraction itself; use two balanced ranges per worker instead.
+    batch_size = max(1, math.ceil(count / (workers * 2)))
+    batches = ((str(path), list(range(start, min(start + batch_size, count + 1))))
+               for start in range(1, count + 1, batch_size))
+    result = []
+    for tables, failed in ordered_work(_table_page_batch, batches, workers, processes=True):
+        if check_cancel is not None:
+            check_cancel()
+        result.extend(tables)
+        if failed and on_error is not None:
+            on_error()
+    return result
 
 
 def _should_use_raw_page_text(filtered_text: str, raw_text: str) -> bool:
@@ -1071,25 +1105,46 @@ def _is_low_signal_page_text(text: str) -> bool:
     return len(unique) <= 3 and "camscanner" in unique
 
 
-def _ocr_page_text(page: fitz.Page) -> str:
+def _ocr_page_text(page: fitz.Page, artifacts=None, ocr_settings=None) -> str:
     try:
         pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
-        with tempfile.TemporaryDirectory(prefix="mediguide-ocr-") as tmp:
-            image_path = Path(tmp) / "page.png"
-            image_path.write_bytes(pixmap.tobytes("png"))
-            proc = subprocess.run(
-                ["tesseract", str(image_path), "stdout", "-l", "eng"],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            return _clean_text(proc.stdout)
+        image = pixmap.tobytes("png")
+        return _ocr_image_text(image, artifacts, ocr_settings)
     except Exception:
+        if artifacts is not None:
+            artifacts.extraction_incomplete()
         return ""
 
 
-def extract_pdf(path: Path) -> ExtractedDocument:
-    tables = _extract_tables_pdfplumber(path)
+def _ocr_image_text(image, artifacts=None, ocr_settings=None):
+    try:
+        def compute():
+            with tempfile.TemporaryDirectory(prefix="mediguide-ocr-") as tmp:
+                image_path = Path(tmp) / "page.png"
+                image_path.write_bytes(image)
+                proc = subprocess.run(
+                    ["tesseract", str(image_path), "stdout", "-l", "eng"],
+                    check=True, capture_output=True, text=True, timeout=120,
+                )
+                return _clean_text(proc.stdout)
+        if artifacts is not None:
+            return artifacts.ocr(hashlib.sha256(image).hexdigest(), ocr_settings, compute)
+        return compute()
+    except Exception:
+        if artifacts is not None:
+            artifacts.extraction_incomplete()
+        return ""
+
+
+def extract_pdf(path: Path, *, artifacts=None, ocr_settings=None, page_workers=1, ocr_workers=1, check_cancel=None) -> ExtractedDocument:
+    table_started = time.perf_counter()
+    if page_workers > 1:
+        tables = _parallel_tables(path, page_workers, artifacts.extraction_incomplete if artifacts else None, check_cancel)
+    else:
+        tables = _extract_tables_pdfplumber(path, artifacts.extraction_incomplete) if artifacts is not None else _extract_tables_pdfplumber(path)
+    table_seconds = time.perf_counter() - table_started
+    ocr_seconds = 0.0
+    ocr_attempts = 0
     table_bboxes_by_page: dict[int, list[tuple[float, float, float, float]]] = {}
     for table in tables:
         if table.bbox:
@@ -1105,7 +1160,39 @@ def extract_pdf(path: Path) -> ExtractedDocument:
     toc_entries: list[str] = []
     warnings: list[str] = []
 
+    parallel_ocr = {}
+    if ocr_workers > 1:
+        # PyMuPDF stays on this thread. Only immutable PNG bytes enter threads;
+        # each thread launches its own Tesseract process and durable checkpoint.
+        def candidates():
+            for number, page in enumerate(doc, start=1):
+                if check_cancel is not None:
+                    check_cancel()
+                blocks = page.get_text("blocks") or []
+                raw = _clean_text(page.get_text("text"))
+                filtered = _clean_text(_page_text_from_blocks(blocks, table_bboxes_by_page.get(number, []), float(page.rect.width)))
+                text = raw if _should_use_raw_page_text(filtered, raw) else filtered
+                if _is_low_signal_page_text(text):
+                    try:
+                        image = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False).tobytes("png")
+                    except Exception:
+                        if artifacts is not None:
+                            artifacts.extraction_incomplete()
+                        image = None
+                    yield number, image
+
+        def recognize(candidate):
+            number, image = candidate
+            start = time.perf_counter()
+            text = _ocr_image_text(image, artifacts, ocr_settings) if image is not None else ""
+            return number, text, time.perf_counter() - start
+
+        for number, text, duration in ordered_work(recognize, candidates(), ocr_workers):
+            parallel_ocr[number] = (text, duration)
+
     for page_number, page in enumerate(doc, start=1):
+        if check_cancel is not None:
+            check_cancel()
         blocks = page.get_text("blocks") or []
         raw_text = _clean_text(page.get_text("text"))
         multi_column = _is_multi_column_layout(blocks, float(page.rect.width))
@@ -1122,7 +1209,14 @@ def extract_pdf(path: Path) -> ExtractedDocument:
         if _should_use_raw_page_text(text, raw_text):
             text = raw_text
         if _is_low_signal_page_text(text):
-            ocr_text = _ocr_page_text(page)
+            ocr_started = time.perf_counter()
+            if page_number in parallel_ocr:
+                ocr_text, duration = parallel_ocr[page_number]
+                ocr_seconds += duration
+            else:
+                ocr_text = _ocr_page_text(page, artifacts, ocr_settings) if artifacts is not None else _ocr_page_text(page)
+                ocr_seconds += time.perf_counter() - ocr_started
+            ocr_attempts += 1
             if len(ocr_text) > len(text):
                 text = ocr_text
                 method = "ocr"
@@ -1190,7 +1284,7 @@ def extract_pdf(path: Path) -> ExtractedDocument:
     clean_html = str(soup)
     markdown = md(clean_html, heading_style="ATX")
     text = _clean_text("\n\n".join(all_text))
-    assets = _extract_embedded_images(doc)
+    assets = _extract_embedded_images(doc, artifacts.extraction_incomplete) if artifacts is not None else _extract_embedded_images(doc)
     blocks = build_structured_blocks(
         sections,
         tables,
@@ -1222,12 +1316,15 @@ def extract_pdf(path: Path) -> ExtractedDocument:
             "ocr_pages": ocr_pages,
             "multi_column_pages": multi_column_pages,
             "toc_detected": bool(toc_entries),
+            "extraction_timings": {"tables_seconds": round(table_seconds, 3), "ocr_seconds": round(ocr_seconds, 3), "ocr_attempts": ocr_attempts},
         }
     )
 
+    page_count = len(doc)
+    doc.close()
     return ExtractedDocument(
         title=title,
-        pages=len(doc),
+        pages=page_count,
         html=clean_html,
         markdown=markdown,
         text=text,

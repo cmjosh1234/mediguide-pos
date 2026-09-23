@@ -13,6 +13,14 @@ export type PublicGuideline = {
   review_date: string;
   version: string;
   last_updated: string;
+  /** Kinds published as uploaded (for example forms) are shown as their original file. */
+  document_kind?: PublicDocumentKind | null;
+};
+
+export type PublicDocumentKind = {
+  slug: string;
+  name: string;
+  publish_as_uploaded: boolean;
 };
 
 export type PublicGuidelinePage = {
@@ -638,6 +646,22 @@ export function getPublicGuidelineOriginal(id: string, signal?: AbortSignal) {
     if (!isAssetLink(value)) throw new PublicApiError("invalid-response");
     return value;
   });
+}
+
+/** Asset links are relative to the public API; resolve them for fetches and new tabs. */
+export function resolvePublicAssetUrl(url: string): string {
+  return new URL(url, publicApiBaseUrl || globalThis.location.origin).toString();
+}
+
+/** Download the original file of a guideline published as uploaded (for example a form). */
+export async function getPublicGuidelineOriginalFile(
+  asset: PublicGuidelineAssetLink,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const response = await request(resolvePublicAssetUrl(asset.url), {}, signal);
+  if (response.status === 404) throw new PublicApiError("not-found", 404);
+  if (!response.ok) throw new PublicApiError("server", response.status);
+  return response.blob();
 }
 
 export function getPublicGuidelineOfflinePackage(id: string, signal?: AbortSignal) {

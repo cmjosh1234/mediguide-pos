@@ -20,13 +20,6 @@ import (
 var outbreakDocumentLanguage = regexp.MustCompile(`^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$`)
 var outbreakDocumentChecksum = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
-var outbreakDocumentKinds = []string{
-	"sop", "case_definition", "ipc_protocol", "laboratory_protocol",
-	"surveillance_protocol", "contact_tracing_guide", "treatment_protocol",
-	"referral_protocol", "training_material", "checklist",
-	"communication_material", "form", "policy", "situation_report_attachment", "other",
-}
-
 type OutbreakDocumentQuery struct {
 	Page                            PageInput
 	Search, DocumentKind, Authority string
@@ -213,7 +206,7 @@ func (s OutbreakAdminService) ListDocuments(id uuid.UUID, in OutbreakDocumentQue
 		}
 	}
 	if value := strings.TrimSpace(in.DocumentKind); value != "" {
-		if !validOutbreakValue(value, outbreakDocumentKinds...) {
+		if !validDocumentKindSlug(value) {
 			return nil, ErrOutbreakInvalid
 		}
 		query = query.Where("outbreak_resources.document_kind = ?", value)
@@ -261,6 +254,9 @@ func (s OutbreakAdminService) CreateDocument(actor OutbreakActor, outbreakID uui
 	row := models.OutbreakResource{OutbreakID: outbreakID, ResourceType: "managed_document", DocumentKind: "other", Language: "en", Status: "draft", AuthorID: &actor.ID, LockVersion: 1}
 	applyOutbreakDocument(&row, in)
 	if err := s.validateDocument(row, false); err != nil {
+		return nil, err
+	}
+	if err := s.ensureAssignableDocumentKind(row.DocumentKind); err != nil {
 		return nil, err
 	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
@@ -329,9 +325,17 @@ func (s OutbreakAdminService) UpdateDocument(actor OutbreakActor, outbreakID, do
 	if row.Status == "published" || row.Status == "withdrawn" {
 		return nil, ErrOutbreakImmutable
 	}
+	previousKind := row.DocumentKind
 	applyOutbreakDocument(&row, in)
 	if err := s.validateDocument(row, false); err != nil {
 		return nil, err
+	}
+	// A document may keep a kind that was later deactivated, but a new
+	// assignment must be to an active kind.
+	if row.DocumentKind != previousKind {
+		if err := s.ensureAssignableDocumentKind(row.DocumentKind); err != nil {
+			return nil, err
+		}
 	}
 	updates := map[string]any{
 		"title": row.Title, "description": row.Description, "resource_type": row.ResourceType,
@@ -491,7 +495,7 @@ func (s OutbreakService) Documents(outbreakID uuid.UUID, in OutbreakDocumentQuer
 		}
 	}
 	if value := strings.TrimSpace(in.DocumentKind); value != "" {
-		if !validOutbreakValue(value, outbreakDocumentKinds...) {
+		if !validDocumentKindSlug(value) {
 			return nil, ErrOutbreakInvalid
 		}
 		query = query.Where("outbreak_resources.document_kind = ?", value)
@@ -556,7 +560,7 @@ func (s OutbreakService) SearchDocuments(in OutbreakDocumentQuery) (*PageResult[
 		}
 	}
 	if value := strings.TrimSpace(in.DocumentKind); value != "" {
-		if !validOutbreakValue(value, outbreakDocumentKinds...) {
+		if !validDocumentKindSlug(value) {
 			return nil, ErrOutbreakInvalid
 		}
 		query = query.Where("outbreak_resources.document_kind = ?", value)
@@ -733,7 +737,7 @@ func (s OutbreakService) DocumentDownload(ctx context.Context, outbreakID, docum
 }
 
 func (s OutbreakAdminService) validateDocument(row models.OutbreakResource, readyForReview bool) error {
-	if strings.TrimSpace(row.Title) == "" || len(row.Title) > 240 || len(row.Description) > 10_000 || !validOutbreakValue(row.ResourceType, "managed_document", "downloadable_asset") || !validOutbreakValue(row.DocumentKind, outbreakDocumentKinds...) || len(row.IssuingAuthority) > 240 || len(row.DocumentNumber) > 120 || len(row.Version) > 80 || len(row.Audience) > 240 || !outbreakDocumentLanguage.MatchString(row.Language) || row.SortOrder < 0 || row.SortOrder > 10_000 || row.FileSize < 0 || row.PageCount != nil && *row.PageCount < 1 {
+	if strings.TrimSpace(row.Title) == "" || len(row.Title) > 240 || len(row.Description) > 10_000 || !validOutbreakValue(row.ResourceType, "managed_document", "downloadable_asset") || !validDocumentKindSlug(row.DocumentKind) || len(row.IssuingAuthority) > 240 || len(row.DocumentNumber) > 120 || len(row.Version) > 80 || len(row.Audience) > 240 || !outbreakDocumentLanguage.MatchString(row.Language) || row.SortOrder < 0 || row.SortOrder > 10_000 || row.FileSize < 0 || row.PageCount != nil && *row.PageCount < 1 {
 		return ErrOutbreakInvalid
 	}
 	if row.EffectiveDate != nil && row.ReviewDate != nil && row.ReviewDate.Before(*row.EffectiveDate) || row.EffectiveDate != nil && row.ExpiresAt != nil && row.ExpiresAt.Before(*row.EffectiveDate) {
@@ -756,6 +760,17 @@ func (s OutbreakAdminService) validateDocument(row models.OutbreakResource, read
 		if row.ExpiresAt != nil && !row.ExpiresAt.After(time.Now().UTC()) {
 			return ErrOutbreakInvalid
 		}
+	}
+	return nil
+}
+
+func (s OutbreakAdminService) ensureAssignableDocumentKind(slug string) error {
+	ok, err := activeDocumentKindSlug(s.DB, slug)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrOutbreakDocumentKind
 	}
 	return nil
 }

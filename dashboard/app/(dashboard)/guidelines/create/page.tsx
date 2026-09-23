@@ -3,16 +3,20 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   BookOpen,
   Check,
+  CheckCircle2,
   FileText,
   LayoutTemplate,
   Loader2,
-  Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { GuidelineDocumentForm } from "../components/guideline-document-form";
+import { OriginalFilePreview } from "@/components/guidelines/original-file-preview";
+import { GuidelineUploadProgress } from "../components/guideline-upload-progress";
+import type { UploadOptions } from "@/services/guideline-upload.service";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,11 +32,14 @@ import { PageHeader } from "@/components/ui/page-header";
 import { usePermissionContext } from "@/lib/permission-context";
 import { showToast } from "@/lib/toast";
 import {
+  AS_UPLOADED_SOURCE_ACCEPT,
+  GUIDELINE_SOURCE_ACCEPT,
   GuidelineDocumentInput,
   guidelineDocumentsQueryKey,
   GuidelineDocumentRecord,
   GuidelineDocumentsService,
   GuidelineVersionRecord,
+  isPublishedAsUploaded,
 } from "@/services/guideline-documents.service";
 import { contentDiseaseService } from "@/services/content-hubs.service";
 
@@ -42,6 +49,14 @@ const stages = [
   "Upload version",
   "Review and edit",
 ] as const;
+// Forms and other kinds published as uploaded skip extraction and the editor.
+const asUploadedStages = [
+  "Create guideline",
+  "Create version",
+  "Upload file",
+  "Review form",
+] as const;
+const finishedJobStatuses = ["completed", "failed", "canceled"];
 
 export default function CreateGuidelinePage() {
   const router = useRouter();
@@ -57,6 +72,21 @@ export default function CreateGuidelinePage() {
   const [reviewDate, setReviewDate] = React.useState("");
   const [file, setFile] = React.useState<File | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  const asUploaded = isPublishedAsUploaded(document);
+  const stageLabels = asUploaded ? asUploadedStages : stages;
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const documentId = params.get("document");
+    const versionId = params.get("version");
+    if (!documentId || !versionId) return;
+    let disposed = false;
+    void GuidelineDocumentsService.getDocument(documentId).then(value => {
+      const saved = value.versions.find(item => item.id === versionId);
+      if (!disposed && saved) { setDocument(value); setVersion(saved); setStage(2); }
+    }).catch(() => { if (!disposed) showToast.error("Could not restore upload", "Open the guideline from All Guidelines to resume its version upload."); });
+    return () => { disposed = true; };
+  }, []);
 
   React.useEffect(() => {
     if (!loading && !hasPermission("content", "create:any"))
@@ -66,7 +96,7 @@ export default function CreateGuidelinePage() {
   const reviewDocumentQuery = useQuery({
     queryKey: [...guidelineDocumentsQueryKey, document?.id, "create-review"],
     queryFn: () => GuidelineDocumentsService.getDocument(document!.id),
-    enabled: stage === 3 && Boolean(document),
+    enabled: stage === 3 && Boolean(document) && !asUploaded,
     refetchInterval: (query) => {
       const refreshed = query.state.data;
       const refreshedVersion = refreshed?.versions.find(
@@ -75,6 +105,25 @@ export default function CreateGuidelinePage() {
       return refreshedVersion?.markdown_file_key ? false : 5000;
     },
   });
+
+  const indexingQuery = useQuery({
+    queryKey: [...guidelineDocumentsQueryKey, version?.id, "original-indexing"],
+    queryFn: () => GuidelineDocumentsService.getExtractionStatus(version!.id),
+    enabled: stage === 3 && asUploaded && Boolean(version),
+    refetchInterval: (query) =>
+      finishedJobStatuses.includes(query.state.data?.job_status || "")
+        ? false
+        : 5000,
+  });
+  const storedDocumentQuery = useQuery({
+    queryKey: [...guidelineDocumentsQueryKey, document?.id, "stored-form"],
+    queryFn: () => GuidelineDocumentsService.getDocument(document!.id),
+    enabled: stage === 3 && asUploaded && Boolean(document),
+  });
+  const storedVersion = storedDocumentQuery.data?.versions.find(
+    (item) => item.id === version?.id,
+  );
+  const indexingStatus = indexingQuery.data?.job_status || "queued";
 
   const reviewedVersion = reviewDocumentQuery.data?.versions.find(
     (item) => item.id === version?.id,
@@ -138,6 +187,7 @@ export default function CreateGuidelinePage() {
       );
       setVersion(created);
       setStage(2);
+      router.replace(`/guidelines/create?document=${document.id}&version=${created.id}`);
       showToast.success(
         "Version created",
         "Upload its PDF or Markdown source.",
@@ -152,21 +202,21 @@ export default function CreateGuidelinePage() {
     }
   }
 
-  async function uploadVersion() {
-    if (!version || !file) return;
+  async function uploadVersion(source: File, options?: UploadOptions) {
+    if (!version) return;
     setSubmitting(true);
     try {
-      await GuidelineDocumentsService.uploadVersionSource(version.id, file);
+      const job = await GuidelineDocumentsService.uploadVersionSource(version.id, source, options);
       setStage(3);
       showToast.success(
-        "Source uploaded",
-        "Extraction and indexing are running. This page will refresh automatically.",
+        asUploaded ? "Form stored" : "Source uploaded",
+        asUploaded
+          ? "The file is kept exactly as uploaded. Its text is being indexed for search."
+          : "Extraction and indexing are running. This page will refresh automatically.",
       );
+      return job;
     } catch (error) {
-      showToast.error(
-        "Upload failed",
-        error instanceof Error ? error.message : "Unknown error",
-      );
+      throw error;
     } finally {
       setSubmitting(false);
     }
@@ -183,7 +233,7 @@ export default function CreateGuidelinePage() {
         aria-label="Guideline creation progress"
         className="grid gap-2 md:grid-cols-4"
       >
-        {stages.map((label, index) => (
+        {stageLabels.map((label, index) => (
           <div
             key={label}
             className={`flex items-center gap-3 rounded-lg border p-3 ${
@@ -285,20 +335,16 @@ export default function CreateGuidelinePage() {
       {stage === 2 && (
         <Card>
           <CardHeader>
-            <CardTitle>Upload guideline source</CardTitle>
+            <CardTitle>
+              {asUploaded ? "Upload form file" : "Upload guideline source"}
+            </CardTitle>
             <CardDescription>
-              Upload PDF or UTF-8 Markdown for version {version?.version} to
-              begin extraction and indexing.
+              {asUploaded
+                ? `Upload the PDF or Word (.docx) file for version ${version?.version}. It is published exactly as uploaded, keeping its layout; its text is only indexed for search.`
+                : `Upload PDF or UTF-8 Markdown for version ${version?.version} to begin extraction and indexing.`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <FileUpload
-              value={file || undefined}
-              onValueChange={setFile}
-              accept="application/pdf,text/markdown,.pdf,.md,.markdown"
-              maxSize={100}
-              placeholder="Choose guideline PDF or Markdown file"
-            />
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
@@ -306,40 +352,101 @@ export default function CreateGuidelinePage() {
               >
                 Finish Later
               </Button>
+              {!asUploaded && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      router.push(
+                        `/guidelines/${document?.id}/versions/${version?.id}/markdown`,
+                      )
+                    }
+                  >
+                    <BookOpen className="h-4 w-4" /> Start with blank Markdown
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      router.push(
+                        `/guidelines/${document?.id}/versions/${version?.id}/markdown?start=template`,
+                      )
+                    }
+                  >
+                    <LayoutTemplate className="h-4 w-4" /> Start from template
+                  </Button>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {(stage === 2 || stage === 3) && version && <Card>
+        <CardHeader><CardTitle>Source transfer and processing</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <FileUpload
+            value={file || undefined}
+            onValueChange={next => { if (!submitting) setFile(next); }}
+            accept={asUploaded ? AS_UPLOADED_SOURCE_ACCEPT : GUIDELINE_SOURCE_ACCEPT}
+            maxSize={100}
+            placeholder={asUploaded ? "Choose form PDF or Word file" : "Choose guideline PDF or Markdown file"}
+          />
+          <GuidelineUploadProgress key={version.id} versionId={version.id} file={file} submitting={submitting} onSubmit={uploadVersion} />
+        </CardContent>
+      </Card>}
+
+      {stage === 3 && asUploaded && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Review form</CardTitle>
+            <CardDescription>
+              This is the file readers will see, exactly as it was uploaded.
+              Publish it from the document page when it is ready.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div
+              className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${
+                indexingStatus === "failed" ? "border-destructive/40 text-destructive" : ""
+              }`}
+            >
+              {indexingStatus === "completed" ? (
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              ) : indexingStatus === "failed" ? (
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              ) : (
+                <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+              )}
+              <span>
+                {indexingStatus === "completed"
+                  ? "Text indexed for search. The form can be published."
+                  : indexingStatus === "failed"
+                    ? `Text indexing failed: ${indexingQuery.data?.error || "unknown error"}. Upload the file again to retry.`
+                    : "Indexing the form's text for search. This checks for updates every five seconds."}
+              </span>
+            </div>
+            {version && (
+              <OriginalFilePreview
+                versionId={version.id}
+                fileKey={storedVersion?.original_file_key}
+              />
+            )}
+            <div className="flex flex-wrap justify-end gap-2">
               <Button
                 variant="outline"
-                onClick={() =>
-                  router.push(
-                    `/guidelines/${document?.id}/versions/${version?.id}/markdown`,
-                  )
-                }
+                onClick={() => router.push(`/guidelines/${document?.id}/edit`)}
               >
-                <BookOpen className="h-4 w-4" /> Start with blank Markdown
+                Edit Metadata
               </Button>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  router.push(
-                    `/guidelines/${document?.id}/versions/${version?.id}/markdown?start=template`,
-                  )
-                }
-              >
-                <LayoutTemplate className="h-4 w-4" /> Start from template
-              </Button>
-              <Button disabled={submitting || !file} onClick={uploadVersion}>
-                {submitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Upload className="h-4 w-4" />
-                )}
-                Upload and Review
+              <Button onClick={() => router.push(`/guidelines/${document?.id}`)}>
+                View Document
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {stage === 3 && (
+      {stage === 3 && !asUploaded && (
         <Card>
           <CardHeader>
             <CardTitle>Review and edit guideline</CardTitle>
@@ -352,12 +459,10 @@ export default function CreateGuidelinePage() {
           <CardContent className="space-y-5">
             {!extractionReady ? (
               <div className="flex min-h-72 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 <div className="text-center">
-                  <div className="font-medium">Extraction in progress</div>
+                  <div className="font-medium">Source not yet ready for authoring</div>
                   <div className="text-sm text-muted-foreground">
-                    You may finish later and return to the guideline detail
-                    page.
+                    See the processing status above. You may finish later and return to the guideline detail page.
                   </div>
                 </div>
               </div>

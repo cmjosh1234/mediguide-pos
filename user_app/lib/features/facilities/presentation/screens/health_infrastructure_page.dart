@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/features/facilities/presentation/controllers/health_infrastructure_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -10,7 +11,6 @@ import 'package:user_app/core/widgets/app_loading_view.dart';
 import 'package:user_app/core/widgets/empty_state.dart';
 
 import 'package:user_app/features/facilities/data/models/health_facility.dart';
-import 'package:user_app/features/facilities/presentation/controllers/health_infrastructure_controller.dart';
 import 'package:user_app/features/facilities/presentation/widgets/health_facility_card.dart';
 
 import 'package:user_app/shared/widgets/filter_button.dart';

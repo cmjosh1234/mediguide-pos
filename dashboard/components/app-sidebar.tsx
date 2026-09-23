@@ -14,7 +14,6 @@ import {
   Pill,
   AlertTriangle,
   Calculator,
-  UserCheck,
   Building2,
   TestTube,
   HeadphonesIcon
@@ -110,8 +109,8 @@ const data: { navMain: NavItem[] } = {
       items: [
         { title: "All Guidelines", url: "/guidelines" },
         { title: "Create Guideline", url: "/guidelines/create", permission: { resource: "content", action: "create:any" } },
-        // { title: "Index", url: "/guidelines/index" },
         { title: "Categories", url: "/guidelines/categories" },
+        { title: "Document Kinds", url: "/guidelines/document-kinds" },
         { title: "Diseases", url: "/diseases", backendPermissions: ["disease.taxonomy.read", "disease.taxonomy.manage"] },
         { title: "Content Hubs", url: "/content-hubs", backendPermissions: ["content_hub.read", "content_hub.manage"] },
         { title: "Tags", url: "/guidelines/tags" },
@@ -161,18 +160,6 @@ const data: { navMain: NavItem[] } = {
       items: [
         { title: "All Users", url: "/users" },
         { title: "Roles & Permissions", url: "/users/roles", permission: { resource: "roles", action: "read:any" } },
-      ],
-    },
-    {
-      title: "Consultant Management",
-      url: "#",
-      icon: UserCheck,
-      permission: { resource: "content", action: "read:any" },
-      items: [
-        { title: "All Consultants", url: "/consultants" },
-        { title: "Add Consultant", url: "/consultants/create", permission: { resource: "content", action: "create:any" } },
-        { title: "Verified Consultants", url: "/consultants?filter=verified" },
-        { title: "Pending Approval", url: "/consultants?filter=pending" },
       ],
     },
     {
@@ -257,14 +244,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return initialOpen
   })
 
-  // Update open items when pathname changes
   React.useEffect(() => {
     if (activeMenuIndex !== -1) {
       setOpenItems(prev => new Set(prev).add(activeMenuIndex))
     }
   }, [activeMenuIndex])
 
-  // Handle toggle of menu items
   const toggleMenuItem = React.useCallback((index: number) => {
     setOpenItems(prev => {
       const newSet = new Set(prev)

@@ -1,5 +1,31 @@
 # MediGuide platform release process
 
+## v2.1.5 release cut — 23 September 2026
+
+- Synchronizes API, AI worker, dashboard, public portal and mobile to 2.1.5
+  (checked-in mobile build 57; alpha CI allocates its own higher staging build).
+- Includes resumable guideline uploads, processing visibility, artifact reuse,
+  bounded processing options, guideline-reader improvements, authentication and
+  notification fixes, and Windows tooling improvements merged since v2.1.4.
+- Restores mobile controller imports and fixes category/tag/route/pregnancy
+  filter toggles, with regression coverage.
+- Apply the included migrations through the standard deployment workflow.
+  Direct uploads, artifact reuse and processing concurrency remain separately
+  gated; this release does not authorize enabling them in production or approving
+  clinical content. See `document-upload-performance.md` for rollout checks.
+- Mobile alpha destination: signed Android staging build, Firebase group
+  `mediguide-alpha-testers`, production API. Signed iOS distribution is excluded
+  because the protected signing/provisioning credentials remain incomplete.
+- Tester charter: check login/refresh, guest navigation, drug filters, guideline
+  reading and images, collections, RAG citations, downloads and offline access.
+  Test upload pause/resume and processing progress on authorized draft content.
+- Known limitations: cold extraction still needs resource sizing; cache and
+  concurrency flags require environment-specific validation before enablement.
+  No production clinical blocks are approved or published by this release.
+
+The entry above describes release scope; workflow success and deployment health
+must be verified before announcing the release as delivered.
+
 This runbook releases the backend, AI worker, dashboard, public guidelines
 site, and Flutter clients from one immutable Git tag. Once production
 deployment secrets are configured, a release tag also replaces the production

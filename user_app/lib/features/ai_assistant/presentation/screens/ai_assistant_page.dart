@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/features/ai_assistant/presentation/controllers/ai_assistant_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen_ai_chat_ui/flutter_gen_ai_chat_ui.dart';
 import 'package:go_router/go_router.dart';
@@ -10,7 +11,6 @@ import 'package:user_app/core/utils/app_message.dart';
 
 import 'package:user_app/features/ai_assistant/data/models/ai_context.dart';
 import 'package:user_app/features/ai_assistant/data/models/rag_answer.dart';
-import 'package:user_app/features/ai_assistant/presentation/controllers/ai_assistant_controller.dart';
 
 part '../widgets/ai_assistant_page_assistant_menu_action.dart';
 part '../widgets/ai_assistant_page_assistant_top_context.dart';

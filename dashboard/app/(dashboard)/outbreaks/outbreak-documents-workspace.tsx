@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -25,6 +26,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { MarkdownPreview } from "@/components/guidelines/markdown-preview";
 import { showToast } from "@/lib/toast";
 import {
+  assignableDocumentKinds,
+  documentKindService,
+  documentKindsQueryKey,
+} from "@/services/document-kinds.service";
+import {
   outbreaksService,
   type OutbreakAuditRecord,
   type OutbreakDocumentContent,
@@ -32,24 +38,6 @@ import {
   type OutbreakDocumentRecord,
   type OutbreakDocumentSearchPreview,
 } from "@/services/outbreaks.service";
-
-const documentKinds = [
-  "sop",
-  "case_definition",
-  "ipc_protocol",
-  "laboratory_protocol",
-  "surveillance_protocol",
-  "contact_tracing_guide",
-  "treatment_protocol",
-  "referral_protocol",
-  "training_material",
-  "checklist",
-  "communication_material",
-  "form",
-  "policy",
-  "situation_report_attachment",
-  "other",
-];
 
 type Draft = {
   title: string;
@@ -89,6 +77,22 @@ export function OutbreakDocumentsWorkspace({
     [],
   );
   const [draft, setDraft] = React.useState<Draft>(emptyDraft);
+  // Kinds come from the shared document kinds table; documents store the slug.
+  const kindsQuery = useQuery({
+    queryKey: documentKindsQueryKey,
+    queryFn: () => documentKindService.list(),
+  });
+  const kinds = React.useMemo(() => kindsQuery.data || [], [kindsQuery.data]);
+  const kindOptions = assignableDocumentKinds(kinds, draft.document_kind);
+  // Keep the draft's kind when it can be assigned (SOP for new drafts),
+  // otherwise fall back to the first active kind.
+  const documentKind =
+    kindOptions.length === 0 ||
+    kindOptions.some((kind) => kind.slug === draft.document_kind)
+      ? draft.document_kind
+      : kindOptions[0].slug;
+  const kindName = (slug?: string) =>
+    kinds.find((kind) => kind.slug === slug)?.name || label(slug);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [workingId, setWorkingId] = React.useState<string | null>(null);
   const [showForm, setShowForm] = React.useState(false);
@@ -146,7 +150,7 @@ export function OutbreakDocumentsWorkspace({
       const input: OutbreakDocumentInput = {
         title: draft.title.trim(),
         description: draft.description.trim(),
-        document_kind: draft.document_kind,
+        document_kind: documentKind,
         issuing_authority: draft.issuing_authority.trim(),
         document_number: draft.document_number.trim(),
         version: draft.version.trim(),
@@ -429,7 +433,15 @@ export function OutbreakDocumentsWorkspace({
               />
               <SelectField
                 label="Document kind"
-                value={draft.document_kind}
+                value={documentKind}
+                options={kindOptions.map((kind) => ({
+                  value: kind.slug,
+                  label:
+                    kind.status === "active"
+                      ? kind.name
+                      : `${kind.name} (inactive)`,
+                }))}
+                disabled={kindsQuery.isLoading}
                 onChange={(value) => field("document_kind", value)}
               />
               <TextField
@@ -508,6 +520,7 @@ export function OutbreakDocumentsWorkspace({
               <DocumentRow
                 key={item.id}
                 item={item}
+                kindLabel={kindName(item.document_kind)}
                 busy={workingId === item.id}
                 onEdit={() => edit(item)}
                 onUpload={(file) => void upload(item, file)}
@@ -643,6 +656,7 @@ export function OutbreakDocumentsWorkspace({
 
 function DocumentRow({
   item,
+  kindLabel,
   busy,
   onEdit,
   onUpload,
@@ -654,6 +668,7 @@ function DocumentRow({
   onReprocess,
 }: {
   item: OutbreakDocumentRecord;
+  kindLabel: string;
   busy: boolean;
   onEdit: () => void;
   onUpload: (file?: File) => void;
@@ -677,7 +692,7 @@ function DocumentRow({
               {item.title || "Untitled document"}
             </span>
             <Badge variant="outline">{status}</Badge>
-            <Badge variant="secondary">{label(item.document_kind)}</Badge>
+            <Badge variant="secondary">{kindLabel}</Badge>
             <ExtractionBadge status={item.extraction_status} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -907,10 +922,14 @@ function TextField({
 function SelectField({
   label: text,
   value,
+  options,
+  disabled,
   onChange,
 }: {
   label: string;
   value: string;
+  options: { value: string; label: string }[];
+  disabled?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
@@ -919,11 +938,13 @@ function SelectField({
       <select
         className="mt-2 h-10 w-full rounded-md border bg-background px-3"
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
       >
-        {documentKinds.map((kind) => (
-          <option key={kind} value={kind}>
-            {label(kind)}
+        {disabled ? <option value={value}>Loading kinds…</option> : null}
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </select>

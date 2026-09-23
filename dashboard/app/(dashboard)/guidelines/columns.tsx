@@ -47,6 +47,20 @@ export function createGuidelinesColumns({
       size: 360,
     },
     {
+      id: "document_kind",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Kind" />,
+      accessorFn: (document) => document.document_kind?.name || "",
+      cell: ({ row }) =>
+        row.original.document_kind ? (
+          <Badge variant="outline" className="whitespace-nowrap">
+            {row.original.document_kind.name}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+      size: 120,
+    },
+    {
       accessorKey: "program_area",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Program Area" />,
       cell: ({ row }) => (

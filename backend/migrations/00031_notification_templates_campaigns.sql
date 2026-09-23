@@ -62,7 +62,17 @@ SELECT
       )
       ELSE entry.value
     END)
-    FROM jsonb_each(coalesce(notification_templates.variables_json, '{}'::jsonb)) AS entry
+    -- Legacy templates also stored variables as arrays of names. Normalize
+    -- those to string definitions before expanding the versioned schema.
+    FROM jsonb_each(CASE jsonb_typeof(notification_templates.variables_json)
+      WHEN 'object' THEN notification_templates.variables_json
+      WHEN 'array' THEN coalesce((
+        SELECT jsonb_object_agg(variable #>> '{}', '"string"'::jsonb)
+        FROM jsonb_array_elements(notification_templates.variables_json) AS variable
+        WHERE jsonb_typeof(variable) = 'string'
+      ), '{}'::jsonb)
+      ELSE '{}'::jsonb
+    END) AS entry
   ), '{}'::jsonb), category, locale,
   CASE WHEN status = 'active' THEN 'published' WHEN status = 'inactive' THEN 'archived' ELSE 'draft' END,
   created_by, reviewed_by,

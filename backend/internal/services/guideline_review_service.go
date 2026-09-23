@@ -539,6 +539,16 @@ func validateGuidelinePublication(tx *gorm.DB, version *models.GuidelineVersion)
 		result.Errors = append(result.Errors, GuidelineReviewIssue{Code: code, Message: message, Remediation: guidelineIssueRemediation(code), SectionID: sectionID, BlockID: blockID})
 		result.Valid = false
 	}
+	if asUploaded, err := versionPublishesAsUploaded(tx, version.ID); err != nil {
+		return nil, err
+	} else if asUploaded {
+		// As-uploaded documents are published as the stored file; there is no
+		// structure to validate.
+		if strings.TrimSpace(version.OriginalFileKey) == "" {
+			addError("missing_original_file", "Upload the PDF or Word file before publishing.", nil, nil)
+		}
+		return result, nil
+	}
 	if strings.TrimSpace(version.OriginalFileKey) == "" {
 		// Structured versions created before Markdown revisions were introduced
 		// were PDF-derived. Keep the safe legacy requirement unless an immutable

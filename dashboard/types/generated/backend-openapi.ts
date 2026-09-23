@@ -347,6 +347,11 @@ export interface HandlersDiseaseHierarchyEnvelope {
   success?: boolean;
 }
 
+export interface HandlersDocumentKindEnvelope {
+  data?: ModelsDocumentKind;
+  success?: boolean;
+}
+
 export interface HandlersDocumentationEnvelope {
   data?: ModelsDocumentation;
   success?: boolean;
@@ -579,6 +584,7 @@ export interface HandlersIngestionJobResponse {
   error?: string;
   id?: string;
   job_type?: string;
+  metrics?: object;
   payload_json?: string;
   progress_percent?: number;
   progress_stage?: string;
@@ -866,6 +872,11 @@ export interface HandlersPaginatedDiseaseMigrationReportEnvelope {
 
 export interface HandlersPaginatedDiseasesEnvelope {
   data?: ServicesPageResultModelsDisease;
+  success?: boolean;
+}
+
+export interface HandlersPaginatedDocumentKindsEnvelope {
+  data?: ServicesPageResultModelsDocumentKind;
   success?: boolean;
 }
 
@@ -1527,6 +1538,36 @@ export interface HandlersSituationReportEnvelope {
   success?: boolean;
 }
 
+export interface HandlersSourceUploadCapabilities {
+  direct_uploads?: boolean;
+  max_size_bytes?: number;
+  part_size?: number;
+}
+
+export interface HandlersSourceUploadCapabilitiesResponse {
+  data?: HandlersSourceUploadCapabilities;
+}
+
+export interface HandlersSourceUploadJobResponse {
+  data?: ModelsIngestionJob;
+}
+
+export interface HandlersSourceUploadListResponse {
+  data?: ModelsGuidelineUpload[];
+}
+
+export interface HandlersSourceUploadPartResponse {
+  data?: HandlersSourceUploadPartURL;
+}
+
+export interface HandlersSourceUploadPartURL {
+  url?: string;
+}
+
+export interface HandlersSourceUploadResponse {
+  data?: ServicesGuidelineUploadState;
+}
+
 export interface HandlersSupportReplyEnvelope {
   data?: ModelsSupportTicketReply;
   success?: boolean;
@@ -1824,6 +1865,24 @@ export interface ModelsDiseaseTaxonomyMigrationReport {
   source_id?: string;
   source_table?: string;
   source_value?: string;
+}
+
+export interface ModelsDocumentKind {
+  created_at?: string;
+  description?: string;
+  guideline_document_count?: number;
+  id?: string;
+  name?: string;
+  outbreak_document_count?: number;
+  /**
+   * PublishAsUploaded kinds (for example Form) keep the uploaded file as the
+   * published document: no extraction into editable Markdown or blocks.
+   */
+  publish_as_uploaded?: boolean;
+  slug?: string;
+  sort_order?: number;
+  status?: string;
+  updated_at?: string;
 }
 
 export interface ModelsDocumentation {
@@ -2147,6 +2206,8 @@ export interface ModelsGuidelineDocument {
   created_at?: string;
   current_version_id?: string;
   description?: string;
+  document_kind?: ModelsDocumentKind;
+  document_kind_id?: string;
   healthcare_level?: string;
   id?: string;
   intended_population?: string;
@@ -2299,6 +2360,20 @@ export interface ModelsGuidelineTag {
   updated_at?: string;
 }
 
+export interface ModelsGuidelineUpload {
+  checksum?: string;
+  created_at?: string;
+  expires_at?: string;
+  filename?: string;
+  id?: string;
+  job_id?: string;
+  part_size?: number;
+  size_bytes?: number;
+  status?: string;
+  updated_at?: string;
+  version_id?: string;
+}
+
 export interface ModelsGuidelineVersion {
   approved_at?: string;
   approved_by?: string;
@@ -2368,6 +2443,7 @@ export interface ModelsIngestionJob {
   error?: string;
   id?: string;
   job_type?: string;
+  metrics?: object;
   payload_json?: string;
   progress_percent?: number;
   progress_stage?: string;
@@ -2708,6 +2784,12 @@ export interface ServicesAskResponse {
 export interface ServicesAssignGuidelineReviewerInput {
   due_at?: string;
   reviewer_id: string;
+}
+
+export interface ServicesBeginGuidelineUpload {
+  checksum?: string;
+  filename?: string;
+  size_bytes?: number;
 }
 
 export interface ServicesBulkReviewGuidelineBlocksInput {
@@ -3088,6 +3170,8 @@ export interface ServicesCreateGuidelineInput {
   category_ids?: string[];
   country?: string;
   description?: string;
+  /** DocumentKindID defaults to the first active kind by sort order. */
+  document_kind_id?: string;
   healthcare_level?: string;
   intended_population?: string;
   language?: string;
@@ -3176,6 +3260,19 @@ export interface ServicesDiseaseTreeNode {
   status?: string;
   updated_at?: string;
   updated_by?: string;
+}
+
+export interface ServicesDocumentKindInput {
+  description?: string;
+  name?: string;
+  /**
+   * PublishAsUploaded keeps uploaded files as the published document instead
+   * of extracting them into editable content.
+   */
+  publish_as_uploaded?: boolean;
+  slug?: string;
+  sort_order?: number;
+  status?: string;
 }
 
 export interface ServicesDocumentationInput {
@@ -3819,6 +3916,23 @@ export interface ServicesGuidelineSectionOrderInput {
 export interface ServicesGuidelineTagInput {
   description?: string;
   name?: string;
+}
+
+export interface ServicesGuidelineUploadState {
+  checksum?: string;
+  created_at?: string;
+  expires_at?: string;
+  filename?: string;
+  id?: string;
+  job?: ModelsIngestionJob;
+  job_id?: string;
+  object_complete?: boolean;
+  part_size?: number;
+  parts?: StorageUploadPart[];
+  size_bytes?: number;
+  status?: string;
+  updated_at?: string;
+  version_id?: string;
 }
 
 export interface ServicesLanguageInput {
@@ -4543,6 +4657,14 @@ export interface ServicesPageResultModelsDiseaseTaxonomyMigrationReport {
   total_pages?: number;
 }
 
+export interface ServicesPageResultModelsDocumentKind {
+  items?: ModelsDocumentKind[];
+  page?: number;
+  per_page?: number;
+  total_items?: number;
+  total_pages?: number;
+}
+
 export interface ServicesPageResultModelsDocumentation {
   items?: ModelsDocumentation[];
   page?: number;
@@ -4918,10 +5040,21 @@ export interface ServicesPublicDiseaseTreeNode {
   sort_order?: number;
 }
 
+export interface ServicesPublicDocumentKind {
+  name?: string;
+  publish_as_uploaded?: boolean;
+  slug?: string;
+}
+
 export interface ServicesPublicGuideline {
   categories?: ServicesPublicGuidelineCategory[];
   country?: string;
   description?: string;
+  /**
+   * DocumentKind tells readers how to present the guideline. Kinds published
+   * as uploaded (for example forms) are shown as their original file.
+   */
+  document_kind?: ServicesPublicDocumentKind;
   healthcare_level?: string;
   id?: string;
   intended_population?: string;
@@ -5491,6 +5624,7 @@ export interface ServicesUpdateGuidelineInput {
   category_ids?: string[];
   country?: string;
   description?: string;
+  document_kind_id?: string;
   healthcare_level?: string;
   intended_population?: string;
   language?: string;
@@ -5580,6 +5714,12 @@ export interface ServicesUserView {
   timezone?: string;
   updated_at?: string;
   verified?: boolean;
+}
+
+export interface StorageUploadPart {
+  etag?: string;
+  number?: number;
+  size?: number;
 }
 
 /**

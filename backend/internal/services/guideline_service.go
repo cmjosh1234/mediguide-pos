@@ -39,6 +39,8 @@ type CreateGuidelineInput struct {
 	IntendedPopulation string      `json:"intended_population"`
 	HealthcareLevel    string      `json:"healthcare_level"`
 	CategoryIDs        []uuid.UUID `json:"category_ids"`
+	// DocumentKindID defaults to the first active kind by sort order.
+	DocumentKindID *uuid.UUID `json:"document_kind_id"`
 }
 
 type UpdateGuidelineInput struct {
@@ -51,12 +53,14 @@ type UpdateGuidelineInput struct {
 	IntendedPopulation *string      `json:"intended_population"`
 	HealthcareLevel    *string      `json:"healthcare_level"`
 	CategoryIDs        *[]uuid.UUID `json:"category_ids"`
+	DocumentKindID     *uuid.UUID   `json:"document_kind_id"`
 }
 
 type GuidelineDocumentFilter struct {
-	ProgramArea string
-	CategoryID  *uuid.UUID
-	Page        PageInput
+	ProgramArea    string
+	CategoryID     *uuid.UUID
+	DocumentKindID *uuid.UUID
+	Page           PageInput
 }
 
 type CreateVersionInput struct {
@@ -80,6 +84,7 @@ var (
 	ErrPublishedVersionImmutable    = errors.New("published guideline version cannot be re-ingested")
 	ErrUnsupportedGuidelineSource   = errors.New("guideline source must be a PDF or Markdown file")
 	ErrGuidelineCategoryAssignment  = errors.New("guideline category assignment is invalid")
+	ErrGuidelineDocumentKindInvalid = errors.New("guideline document kind must be active")
 )
 
 func (s GuidelineService) CreateDocument(in CreateGuidelineInput) (*models.GuidelineDocument, error) {
@@ -92,6 +97,11 @@ func (s GuidelineService) CreateDocument(in CreateGuidelineInput) (*models.Guide
 		if err != nil {
 			return err
 		}
+		kindID, err := resolveGuidelineDocumentKind(tx, in.DocumentKindID)
+		if err != nil {
+			return err
+		}
+		d.DocumentKindID = &kindID
 		if err := tx.Create(&d).Error; err != nil {
 			return err
 		}
@@ -113,12 +123,15 @@ func (s GuidelineService) ListDocuments(filter GuidelineDocumentFilter) (*PageRe
 		q = q.Where(`EXISTS (SELECT 1 FROM guideline_document_categories gdc
 			WHERE gdc.guideline_document_id = guideline_documents.id AND gdc.category_id = ?)`, *filter.CategoryID)
 	}
+	if filter.DocumentKindID != nil {
+		q = q.Where("document_kind_id = ?", *filter.DocumentKindID)
+	}
 
 	var total int64
 	if err := q.Session(&gorm.Session{}).Count(&total).Error; err != nil {
 		return nil, err
 	}
-	if err := q.Session(&gorm.Session{}).Preload("Versions").Preload("Categories", func(db *gorm.DB) *gorm.DB {
+	if err := q.Session(&gorm.Session{}).Preload("Versions").Preload("DocumentKind").Preload("Categories", func(db *gorm.DB) *gorm.DB {
 		return db.Order("sort_order ASC, name ASC")
 	}).Order("created_at desc").Limit(normalized.PerPage).Offset(normalized.Offset()).Find(&docs).Error; err != nil {
 		return nil, err
@@ -127,7 +140,7 @@ func (s GuidelineService) ListDocuments(filter GuidelineDocumentFilter) (*PageRe
 }
 func (s GuidelineService) GetDocument(id uuid.UUID) (*models.GuidelineDocument, error) {
 	var d models.GuidelineDocument
-	return &d, s.DB.Preload("Versions").Preload("Categories", func(db *gorm.DB) *gorm.DB {
+	return &d, s.DB.Preload("Versions").Preload("DocumentKind").Preload("Categories", func(db *gorm.DB) *gorm.DB {
 		return db.Order("sort_order ASC, name ASC")
 	}).First(&d, "id = ?", id).Error
 }
@@ -150,6 +163,18 @@ func (s GuidelineService) UpdateDocument(id uuid.UUID, in UpdateGuidelineInput) 
 		}
 		if value, ok := updates["language"]; ok && value == "" {
 			updates["language"] = "en"
+		}
+		if in.DocumentKindID != nil {
+			kindID, err := resolveGuidelineDocumentKind(tx, in.DocumentKindID)
+			if err != nil {
+				return err
+			}
+			if document.DocumentKindID == nil || *document.DocumentKindID != kindID {
+				if err := ensureDocumentKindModeChange(tx, document, kindID); err != nil {
+					return err
+				}
+			}
+			updates["document_kind_id"] = kindID
 		}
 		if len(updates) > 0 {
 			if err := tx.Model(&document).Updates(updates).Error; err != nil {
@@ -224,6 +249,23 @@ func activeGuidelineCategories(tx *gorm.DB, ids []uuid.UUID) ([]models.Guideline
 	}
 	return categories, nil
 }
+
+// resolveGuidelineDocumentKind returns the requested kind when it is active,
+// or the first active kind by sort order when none is requested.
+func resolveGuidelineDocumentKind(tx *gorm.DB, id *uuid.UUID) (uuid.UUID, error) {
+	var kind models.DocumentKind
+	q := tx.Where("status = ?", "active")
+	if id != nil {
+		q = q.Where("id = ?", *id)
+	}
+	if err := q.Order("sort_order ASC, name ASC").First(&kind).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return uuid.Nil, ErrGuidelineDocumentKindInvalid
+		}
+		return uuid.Nil, err
+	}
+	return kind.ID, nil
+}
 func (s GuidelineService) CreateVersion(docID uuid.UUID, in CreateVersionInput) (*models.GuidelineVersion, error) {
 	v := models.GuidelineVersion{DocumentID: docID, Version: in.Version, PublicationDate: in.PublicationDate, ReviewDate: in.ReviewDate, Status: "draft"}
 	return &v, s.DB.Create(&v).Error
@@ -235,6 +277,11 @@ func (s GuidelineService) UploadPDF(ctx context.Context, versionID uuid.UUID, fi
 	}
 	if err := validateVersionAllowsIngestion(&target); err != nil {
 		return nil, err
+	}
+	if asUploaded, err := versionPublishesAsUploaded(s.DB, versionID); err != nil {
+		return nil, err
+	} else if asUploaded {
+		return nil, ErrGuidelinePublishedAsUploaded
 	}
 	key := fmt.Sprintf("guidelines/%s/original/%d_%s", versionID.String(), time.Now().Unix(), filepath.Base(header.Filename))
 	if err := s.Store.Put(ctx, key, file, header.Size, header.Header.Get("Content-Type")); err != nil {
@@ -274,6 +321,11 @@ func (s GuidelineService) UploadMarkdown(ctx context.Context, versionID uuid.UUI
 	}
 	if header.Size <= 0 {
 		return nil, errors.New("markdown content is required")
+	}
+	if asUploaded, err := versionPublishesAsUploaded(s.DB, versionID); err != nil {
+		return nil, err
+	} else if asUploaded {
+		return nil, ErrGuidelinePublishedAsUploaded
 	}
 	return s.queueMarkdownSource(ctx, versionID, file, header.Size, header.Filename, "uploaded_markdown")
 }
@@ -331,12 +383,25 @@ func (s GuidelineService) PublishVersion(versionID uuid.UUID, userID uuid.UUID, 
 			Update("review_status", "draft").Error; err != nil {
 			return err
 		}
-		reviewedBlockIDs := tx.Model(&models.GuidelineContentBlock{}).
-			Select("id").Where("version_id = ? AND review_status = ?", versionID, models.GuidelineBlockReviewed)
-		if err := tx.Model(&models.GuidelineChunk{}).
-			Where("version_id = ? AND block_id IN (?)", versionID, reviewedBlockIDs).
-			Update("review_status", "approved").Error; err != nil {
+		asUploaded, err := versionPublishesAsUploaded(tx, versionID)
+		if err != nil {
 			return err
+		}
+		if asUploaded {
+			// The text of an as-uploaded document is indexed verbatim from the
+			// published file, so publishing the file approves all of it.
+			if err := tx.Model(&models.GuidelineChunk{}).Where("version_id = ?", versionID).
+				Update("review_status", "approved").Error; err != nil {
+				return err
+			}
+		} else {
+			reviewedBlockIDs := tx.Model(&models.GuidelineContentBlock{}).
+				Select("id").Where("version_id = ? AND review_status = ?", versionID, models.GuidelineBlockReviewed)
+			if err := tx.Model(&models.GuidelineChunk{}).
+				Where("version_id = ? AND block_id IN (?)", versionID, reviewedBlockIDs).
+				Update("review_status", "approved").Error; err != nil {
+				return err
+			}
 		}
 		if _, err := generateGuidelineVersionManifest(tx, versionID, publishedAt); err != nil {
 			return err
@@ -422,8 +487,7 @@ func guidelineAssetDetails(version *models.GuidelineVersion, format string) (key
 	switch strings.ToLower(strings.TrimPrefix(strings.TrimSpace(format), ".")) {
 	case "pdf", "original":
 		key = version.OriginalFileKey
-		extension = "pdf"
-		contentType = "application/pdf"
+		extension, contentType = originalFileType(key)
 	case "md", "markdown":
 		key = version.MarkdownFileKey
 		extension = "md"
@@ -616,6 +680,31 @@ func validateMarkdownUpdate(version *models.GuidelineVersion, content []byte) er
 	return nil
 }
 
+// ensureLatestIngestionJobCompleted blocks publication while the newest
+// ingestion job for the version is unfinished or failed.
+func ensureLatestIngestionJobCompleted(tx *gorm.DB, versionID uuid.UUID) error {
+	var latestJob models.IngestionJob
+	jobErr := tx.Where("version_id = ? AND deleted_at IS NULL", versionID).Order("created_at desc").First(&latestJob).Error
+	if errors.Is(jobErr, gorm.ErrRecordNotFound) {
+		return nil
+	}
+	if jobErr != nil {
+		return jobErr
+	}
+	switch strings.ToLower(strings.TrimSpace(latestJob.Status)) {
+	case "completed":
+		return nil
+	case "failed":
+		msg := strings.TrimSpace(latestJob.Error)
+		if msg == "" {
+			msg = "the ingestion worker reported a failure"
+		}
+		return fmt.Errorf("%w: %s", ErrGuidelineIngestionFailed, msg)
+	default:
+		return fmt.Errorf("%w: latest ingestion job status is %s", ErrGuidelineIngestionIncomplete, latestJob.Status)
+	}
+}
+
 func validateVersionAllowsIngestion(version *models.GuidelineVersion) error {
 	if strings.EqualFold(strings.TrimSpace(version.Status), "published") {
 		return ErrPublishedVersionImmutable
@@ -672,6 +761,11 @@ func ensureVersionReadyForPublish(tx *gorm.DB, version *models.GuidelineVersion)
 	if strings.TrimSpace(version.OriginalFileKey) == "" && strings.TrimSpace(version.MarkdownFileKey) == "" {
 		return fmt.Errorf("%w: no PDF or Markdown source has been uploaded for this version", ErrGuidelineIngestionIncomplete)
 	}
+	if asUploaded, err := versionPublishesAsUploaded(tx, version.ID); err != nil {
+		return err
+	} else if asUploaded {
+		return ensureAsUploadedVersionReadyForPublish(tx, version)
+	}
 	if strings.TrimSpace(version.HTMLFileKey) == "" || strings.TrimSpace(version.MarkdownFileKey) == "" {
 		return fmt.Errorf("%w: extracted HTML/Markdown assets are missing", ErrGuidelineIngestionIncomplete)
 	}
@@ -698,22 +792,8 @@ func ensureVersionReadyForPublish(tx *gorm.DB, version *models.GuidelineVersion)
 		}
 	}
 
-	var latestJob models.IngestionJob
-	jobErr := tx.Where("version_id = ? AND deleted_at IS NULL", version.ID).Order("created_at desc").First(&latestJob).Error
-	if jobErr == nil {
-		switch strings.ToLower(strings.TrimSpace(latestJob.Status)) {
-		case "completed":
-		case "failed":
-			msg := strings.TrimSpace(latestJob.Error)
-			if msg == "" {
-				msg = "the ingestion worker reported a failure"
-			}
-			return fmt.Errorf("%w: %s", ErrGuidelineIngestionFailed, msg)
-		default:
-			return fmt.Errorf("%w: latest ingestion job status is %s", ErrGuidelineIngestionIncomplete, latestJob.Status)
-		}
-	} else if !errors.Is(jobErr, gorm.ErrRecordNotFound) {
-		return jobErr
+	if err := ensureLatestIngestionJobCompleted(tx, version.ID); err != nil {
+		return err
 	}
 	validation, err := validateGuidelinePublication(tx, version)
 	if err != nil {

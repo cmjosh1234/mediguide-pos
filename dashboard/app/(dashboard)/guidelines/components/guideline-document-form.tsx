@@ -11,6 +11,11 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { Textarea } from "@/components/ui/textarea";
 import { GuidelineDocumentInput } from "@/services/guideline-documents.service";
 import { guidelineCategoryService } from "@/services/guideline-content.service";
+import {
+  assignableDocumentKinds,
+  documentKindService,
+  documentKindsQueryKey,
+} from "@/services/document-kinds.service";
 import { useQuery } from "@tanstack/react-query";
 import { diseaseService } from "@/services/content-hubs.service";
 
@@ -50,6 +55,19 @@ export function GuidelineDocumentForm({
     queryKey: ["diseases", "active", "guideline-document-form"],
     queryFn: () => diseaseService.list("", "active"),
   });
+  const kinds = useQuery({
+    queryKey: documentKindsQueryKey,
+    queryFn: () => documentKindService.list(),
+  });
+  const kindOptions = assignableDocumentKinds(
+    kinds.data || [],
+    value.document_kind_id,
+  );
+  // New documents default to the first active kind, as the backend does.
+  const documentKindId =
+    value.document_kind_id ||
+    kindOptions.find((kind) => kind.status === "active")?.id ||
+    "";
 
   React.useEffect(() => {
     if (initialValue) setValue(initialValue);
@@ -72,6 +90,25 @@ export function GuidelineDocumentForm({
               placeholder="Uganda Clinical Guidelines"
               required
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="document-kind">Document kind</Label>
+            <select
+              id="document-kind"
+              className="h-10 w-full rounded-md border bg-background px-3"
+              value={documentKindId}
+              onChange={(event) =>
+                setField("document_kind_id", event.target.value)
+              }
+              disabled={kinds.isLoading || !kindOptions.length}
+            >
+              {kinds.isLoading ? <option value="">Loading kinds…</option> : null}
+              {kindOptions.map((kind) => (
+                <option key={kind.id} value={kind.id}>
+                  {kind.status === "active" ? kind.name : `${kind.name} (inactive)`}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="program-area">Legacy program area (optional)</Label>
@@ -213,7 +250,13 @@ export function GuidelineDocumentForm({
           <Button
             type="button"
             disabled={submitting || !value.title.trim()}
-            onClick={() => onSubmit({ ...value, title: value.title.trim() })}
+            onClick={() =>
+              onSubmit({
+                ...value,
+                title: value.title.trim(),
+                document_kind_id: documentKindId || undefined,
+              })
+            }
           >
             {submitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />

@@ -15,6 +15,8 @@ type GuidelineDocument struct {
 	Description        string              `json:"description"`
 	IntendedPopulation string              `json:"intended_population"`
 	HealthcareLevel    string              `json:"healthcare_level"`
+	DocumentKindID     *uuid.UUID          `gorm:"type:uuid;index" json:"document_kind_id"`
+	DocumentKind       *DocumentKind       `gorm:"foreignKey:DocumentKindID" json:"document_kind,omitempty"`
 	CurrentVersionID   *uuid.UUID          `gorm:"type:uuid" json:"current_version_id"`
 	Versions           []GuidelineVersion  `gorm:"foreignKey:DocumentID" json:"versions,omitempty"`
 	Categories         []GuidelineCategory `gorm:"many2many:guideline_document_categories;joinForeignKey:GuidelineDocumentID;joinReferences:CategoryID" json:"categories"`

@@ -12,6 +12,7 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
         self.dim = settings.embedding_dim
 
     def embed(self, texts: list[str]) -> list[list[float]]:
+        self.last_batch_cacheable = True
         if not texts:
             return []
         with httpx.Client(timeout=120) as client:
@@ -30,6 +31,7 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
             return embeddings
 
         if response.status_code in {400, 404} and len(texts) > 1:
+            self.last_batch_cacheable = False
             embeddings: list[list[float]] = []
             for text in texts:
                 embeddings.extend(self._embed_single(client, text))
@@ -37,6 +39,7 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
             return embeddings
 
         if response.status_code in {400, 404}:
+            self.last_batch_cacheable = False
             return self._embed_single(client, texts[0])
 
         self._raise_with_body(response)

@@ -6,7 +6,11 @@ vi.mock("@/lib/backend-client", () => ({
   getBackendClient: () => ({ request }),
 }))
 
-import { GuidelineDocumentsService } from "./guideline-documents.service"
+import {
+  GuidelineDocumentsService,
+  isPublishedAsUploaded,
+  originalFileName,
+} from "./guideline-documents.service"
 
 describe("GuidelineDocumentsService", () => {
   beforeEach(() => request.mockReset())
@@ -103,5 +107,21 @@ describe("GuidelineDocumentsService", () => {
     expect(report.validation.errors).toEqual([])
     expect(report.validation.warnings).toEqual([])
     expect(report.current_comparison?.metrics).toEqual([])
+  })
+})
+
+describe("as-uploaded guideline helpers", () => {
+  it("detects documents whose kind publishes the uploaded file", () => {
+    const kind = { id: "k", name: "Form", slug: "form", status: "active" }
+    expect(isPublishedAsUploaded({ document_kind: { ...kind, publish_as_uploaded: true } })).toBe(true)
+    expect(isPublishedAsUploaded({ document_kind: { ...kind, publish_as_uploaded: false } })).toBe(false)
+    expect(isPublishedAsUploaded({ document_kind: null })).toBe(false)
+    expect(isPublishedAsUploaded(null)).toBe(false)
+  })
+
+  it("shows the uploaded file name without storage folders or timestamp", () => {
+    expect(originalFileName("guidelines/v1/original/1726999999_HMIS 105.docx")).toBe("HMIS 105.docx")
+    expect(originalFileName("guidelines/v1/original/form_2024.pdf")).toBe("form_2024.pdf")
+    expect(originalFileName(undefined)).toBe("")
   })
 })

@@ -3,12 +3,14 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog"
+import { Badge } from "@/components/ui/badge"
 import { DataTable } from "@/components/ui/data-table"
 import { LoadingState } from "@/components/ui/loading-state"
 import { PageHeader } from "@/components/ui/page-header"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePermissionContext } from "@/lib/permission-context"
 import { hasBackendPermission } from "@/lib/backend-client"
 import { showToast } from "@/lib/toast"
@@ -19,7 +21,9 @@ import {
   GuidelineDocumentsService,
   GuidelineVersionRecord,
   guidelineDocumentsQueryKey,
+  isPublishedAsUploaded,
 } from "@/services/guideline-documents.service"
+import { documentKindService, documentKindsQueryKey } from "@/services/document-kinds.service"
 import { createGuidelinesColumns } from "./columns"
 import {
   CreateVersionDialog,
@@ -27,8 +31,11 @@ import {
 } from "./components/guideline-version-dialogs"
 import { GuidelineNotificationDialog } from "./components/guideline-notification-dialog"
 
+const ALL_KINDS = "all"
+
 export default function GuidelinesPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { hasPermission, loading: permissionsLoading } = usePermissionContext()
   const canUpdate = hasPermission("content", "update:any")
@@ -49,6 +56,34 @@ export default function GuidelinesPage() {
     queryKey: guidelineDocumentsQueryKey,
     queryFn: () => GuidelineDocumentsService.listDocuments(),
   })
+  const kindsQuery = useQuery({
+    queryKey: documentKindsQueryKey,
+    queryFn: () => documentKindService.list(),
+  })
+
+  const documents = React.useMemo(() => documentsQuery.data?.items || [], [documentsQuery.data])
+  // One tab per active kind, plus any inactive kind that still has documents
+  // so no document is unreachable from the tabs.
+  const kindTabs = React.useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const document of documents) {
+      if (document.document_kind_id) {
+        counts.set(document.document_kind_id, (counts.get(document.document_kind_id) || 0) + 1)
+      }
+    }
+    return (kindsQuery.data || [])
+      .filter((kind) => kind.status === "active" || counts.has(kind.id))
+      .map((kind) => ({ ...kind, count: counts.get(kind.id) || 0 }))
+  }, [documents, kindsQuery.data])
+  const selectedKind = kindTabs.find((kind) => kind.slug === searchParams.get("kind"))
+  const visibleDocuments = React.useMemo(
+    () => (selectedKind ? documents.filter((document) => document.document_kind_id === selectedKind.id) : documents),
+    [documents, selectedKind]
+  )
+
+  function selectKind(slug: string) {
+    router.replace(slug === ALL_KINDS ? "/guidelines" : `/guidelines?kind=${encodeURIComponent(slug)}`, { scroll: false })
+  }
 
   const refresh = React.useCallback(
     () => queryClient.invalidateQueries({ queryKey: guidelineDocumentsQueryKey }),
@@ -89,16 +124,22 @@ export default function GuidelinesPage() {
     }
   }
 
-  async function uploadSource(file: File) {
+  async function uploadSource(file: File, options?: import("@/services/guideline-upload.service").UploadOptions) {
     if (!uploadVersion) return
     setSubmitting(true)
     try {
-      await GuidelineDocumentsService.uploadVersionSource(uploadVersion.id, file)
-      setUploadVersion(null)
+      const job = await GuidelineDocumentsService.uploadVersionSource(uploadVersion.id, file, options)
       await refresh()
-      showToast.success("Source uploaded", "Document extraction and indexing have been queued.")
+      const asUploaded = isPublishedAsUploaded(documents.find((document) => document.id === uploadVersion.document_id))
+      showToast.success(
+        asUploaded ? "Form stored" : "Source uploaded",
+        asUploaded
+          ? "The file is kept exactly as uploaded. Its text is being indexed for search."
+          : "Document extraction and indexing have been queued."
+      )
+      return job
     } catch (error) {
-      showToast.error("Upload failed", error instanceof Error ? error.message : "Unknown error")
+      throw error
     } finally {
       setSubmitting(false)
     }
@@ -145,13 +186,31 @@ export default function GuidelinesPage() {
             : "Failed to load guideline documents"}
         </div>
       ) : (
-        <DataTable
-          columns={columns}
-          data={documentsQuery.data?.items || []}
-          searchKey="title"
-          searchPlaceholder="Search guideline titles..."
-          tableClassName="min-w-[1260px]"
-        />
+        <div className="space-y-4">
+          {kindTabs.length > 0 ? (
+            <Tabs value={selectedKind?.slug ?? ALL_KINDS} onValueChange={selectKind}>
+              <TabsList className="h-auto max-w-full justify-start overflow-x-auto">
+                <TabsTrigger value={ALL_KINDS} className="flex-none gap-2">
+                  All
+                  <Badge variant="secondary" className="px-1.5 tabular-nums">{documents.length}</Badge>
+                </TabsTrigger>
+                {kindTabs.map((kind) => (
+                  <TabsTrigger key={kind.id} value={kind.slug} className="flex-none gap-2">
+                    {kind.name}
+                    <Badge variant="secondary" className="px-1.5 tabular-nums">{kind.count}</Badge>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          ) : null}
+          <DataTable
+            columns={columns}
+            data={visibleDocuments}
+            searchKey="title"
+            searchPlaceholder="Search guideline titles..."
+            tableClassName="min-w-[1380px]"
+          />
+        </div>
       )}
 
       <CreateVersionDialog
@@ -163,6 +222,7 @@ export default function GuidelinesPage() {
       />
       <UploadVersionDialog
         version={uploadVersion}
+        asUploaded={isPublishedAsUploaded(documents.find((document) => document.id === uploadVersion?.document_id))}
         open={Boolean(uploadVersion)}
         submitting={submitting}
         onOpenChange={(open) => !open && setUploadVersion(null)}

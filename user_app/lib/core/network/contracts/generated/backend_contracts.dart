@@ -1335,6 +1335,27 @@ final class HandlersDiseaseHierarchyEnvelope {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class HandlersDocumentKindEnvelope {
+  HandlersDocumentKindEnvelope(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersDocumentKindEnvelope.fromJson(Map<String, dynamic> json) =>
+      HandlersDocumentKindEnvelope(json);
+
+  static const schemaName = 'handlers.DocumentKindEnvelope';
+  final Map<String, dynamic> value;
+
+  ModelsDocumentKind? get data {
+    final raw = value['data'];
+    if (raw is! Map) return null;
+    return ModelsDocumentKind.fromJson(_jsonMap(raw));
+  }
+
+  bool? get success => value['success'] as bool?;
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class HandlersDocumentationEnvelope {
   HandlersDocumentationEnvelope(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -2193,6 +2214,8 @@ final class HandlersIngestionJobResponse {
   String? get id => value['id']?.toString();
 
   String? get jobType => value['job_type']?.toString();
+
+  Map<String, dynamic> get metrics => _jsonMap(value['metrics']);
 
   String? get payloadJson => value['payload_json']?.toString();
 
@@ -3241,6 +3264,28 @@ final class HandlersPaginatedDiseasesEnvelope {
     final raw = value['data'];
     if (raw is! Map) return null;
     return ServicesPageResultModelsDisease.fromJson(_jsonMap(raw));
+  }
+
+  bool? get success => value['success'] as bool?;
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class HandlersPaginatedDocumentKindsEnvelope {
+  HandlersPaginatedDocumentKindsEnvelope(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersPaginatedDocumentKindsEnvelope.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersPaginatedDocumentKindsEnvelope(json);
+
+  static const schemaName = 'handlers.PaginatedDocumentKindsEnvelope';
+  final Map<String, dynamic> value;
+
+  ServicesPageResultModelsDocumentKind? get data {
+    final raw = value['data'];
+    if (raw is! Map) return null;
+    return ServicesPageResultModelsDocumentKind.fromJson(_jsonMap(raw));
   }
 
   bool? get success => value['success'] as bool?;
@@ -5544,6 +5589,142 @@ final class HandlersSituationReportEnvelope {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class HandlersSourceUploadCapabilities {
+  HandlersSourceUploadCapabilities(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersSourceUploadCapabilities.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersSourceUploadCapabilities(json);
+
+  static const schemaName = 'handlers.SourceUploadCapabilities';
+  final Map<String, dynamic> value;
+
+  bool? get directUploads => value['direct_uploads'] as bool?;
+
+  int? get maxSizeBytes => (value['max_size_bytes'] as num?)?.toInt();
+
+  int? get partSize => (value['part_size'] as num?)?.toInt();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class HandlersSourceUploadCapabilitiesResponse {
+  HandlersSourceUploadCapabilitiesResponse(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersSourceUploadCapabilitiesResponse.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersSourceUploadCapabilitiesResponse(json);
+
+  static const schemaName = 'handlers.SourceUploadCapabilitiesResponse';
+  final Map<String, dynamic> value;
+
+  HandlersSourceUploadCapabilities? get data {
+    final raw = value['data'];
+    if (raw is! Map) return null;
+    return HandlersSourceUploadCapabilities.fromJson(_jsonMap(raw));
+  }
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class HandlersSourceUploadJobResponse {
+  HandlersSourceUploadJobResponse(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersSourceUploadJobResponse.fromJson(Map<String, dynamic> json) =>
+      HandlersSourceUploadJobResponse(json);
+
+  static const schemaName = 'handlers.SourceUploadJobResponse';
+  final Map<String, dynamic> value;
+
+  ModelsIngestionJob? get data {
+    final raw = value['data'];
+    if (raw is! Map) return null;
+    return ModelsIngestionJob.fromJson(_jsonMap(raw));
+  }
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class HandlersSourceUploadListResponse {
+  HandlersSourceUploadListResponse(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersSourceUploadListResponse.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersSourceUploadListResponse(json);
+
+  static const schemaName = 'handlers.SourceUploadListResponse';
+  final Map<String, dynamic> value;
+
+  List<ModelsGuidelineUpload> get data {
+    final raw = value['data'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => ModelsGuidelineUpload.fromJson(_jsonMap(item)))
+        .toList(growable: false);
+  }
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class HandlersSourceUploadPartResponse {
+  HandlersSourceUploadPartResponse(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersSourceUploadPartResponse.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersSourceUploadPartResponse(json);
+
+  static const schemaName = 'handlers.SourceUploadPartResponse';
+  final Map<String, dynamic> value;
+
+  HandlersSourceUploadPartURL? get data {
+    final raw = value['data'];
+    if (raw is! Map) return null;
+    return HandlersSourceUploadPartURL.fromJson(_jsonMap(raw));
+  }
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class HandlersSourceUploadPartURL {
+  HandlersSourceUploadPartURL(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersSourceUploadPartURL.fromJson(Map<String, dynamic> json) =>
+      HandlersSourceUploadPartURL(json);
+
+  static const schemaName = 'handlers.SourceUploadPartURL';
+  final Map<String, dynamic> value;
+
+  String? get url => value['url']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class HandlersSourceUploadResponse {
+  HandlersSourceUploadResponse(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersSourceUploadResponse.fromJson(Map<String, dynamic> json) =>
+      HandlersSourceUploadResponse(json);
+
+  static const schemaName = 'handlers.SourceUploadResponse';
+  final Map<String, dynamic> value;
+
+  ServicesGuidelineUploadState? get data {
+    final raw = value['data'];
+    if (raw is! Map) return null;
+    return ServicesGuidelineUploadState.fromJson(_jsonMap(raw));
+  }
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class HandlersSupportReplyEnvelope {
   HandlersSupportReplyEnvelope(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -6431,6 +6612,43 @@ final class ModelsDiseaseTaxonomyMigrationReport {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ModelsDocumentKind {
+  ModelsDocumentKind(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ModelsDocumentKind.fromJson(Map<String, dynamic> json) =>
+      ModelsDocumentKind(json);
+
+  static const schemaName = 'models.DocumentKind';
+  final Map<String, dynamic> value;
+
+  String? get createdAt => value['created_at']?.toString();
+
+  String? get description => value['description']?.toString();
+
+  int? get guidelineDocumentCount =>
+      (value['guideline_document_count'] as num?)?.toInt();
+
+  String? get id => value['id']?.toString();
+
+  String? get name => value['name']?.toString();
+
+  int? get outbreakDocumentCount =>
+      (value['outbreak_document_count'] as num?)?.toInt();
+
+  bool? get publishAsUploaded => value['publish_as_uploaded'] as bool?;
+
+  String? get slug => value['slug']?.toString();
+
+  int? get sortOrder => (value['sort_order'] as num?)?.toInt();
+
+  String? get status => value['status']?.toString();
+
+  String? get updatedAt => value['updated_at']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ModelsDocumentation {
   ModelsDocumentation(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -7230,6 +7448,14 @@ final class ModelsGuidelineDocument {
 
   String? get description => value['description']?.toString();
 
+  ModelsDocumentKind? get documentKind {
+    final raw = value['document_kind'];
+    if (raw is! Map) return null;
+    return ModelsDocumentKind.fromJson(_jsonMap(raw));
+  }
+
+  String? get documentKindId => value['document_kind_id']?.toString();
+
   String? get healthcareLevel => value['healthcare_level']?.toString();
 
   String? get id => value['id']?.toString();
@@ -7632,6 +7858,41 @@ final class ModelsGuidelineTag {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ModelsGuidelineUpload {
+  ModelsGuidelineUpload(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ModelsGuidelineUpload.fromJson(Map<String, dynamic> json) =>
+      ModelsGuidelineUpload(json);
+
+  static const schemaName = 'models.GuidelineUpload';
+  final Map<String, dynamic> value;
+
+  String? get checksum => value['checksum']?.toString();
+
+  String? get createdAt => value['created_at']?.toString();
+
+  String? get expiresAt => value['expires_at']?.toString();
+
+  String? get filename => value['filename']?.toString();
+
+  String? get id => value['id']?.toString();
+
+  String? get jobId => value['job_id']?.toString();
+
+  int? get partSize => (value['part_size'] as num?)?.toInt();
+
+  int? get sizeBytes => (value['size_bytes'] as num?)?.toInt();
+
+  String? get status => value['status']?.toString();
+
+  String? get updatedAt => value['updated_at']?.toString();
+
+  String? get versionId => value['version_id']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ModelsGuidelineVersion {
   ModelsGuidelineVersion(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -7830,6 +8091,8 @@ final class ModelsIngestionJob {
   String? get id => value['id']?.toString();
 
   String? get jobType => value['job_type']?.toString();
+
+  Map<String, dynamic> get metrics => _jsonMap(value['metrics']);
 
   String? get payloadJson => value['payload_json']?.toString();
 
@@ -8703,6 +8966,25 @@ final class ServicesAssignGuidelineReviewerInput {
   String? get dueAt => value['due_at']?.toString();
 
   String? get reviewerId => value['reviewer_id']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesBeginGuidelineUpload {
+  ServicesBeginGuidelineUpload(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesBeginGuidelineUpload.fromJson(Map<String, dynamic> json) =>
+      ServicesBeginGuidelineUpload(json);
+
+  static const schemaName = 'services.BeginGuidelineUpload';
+  final Map<String, dynamic> value;
+
+  String? get checksum => value['checksum']?.toString();
+
+  String? get filename => value['filename']?.toString();
+
+  int? get sizeBytes => (value['size_bytes'] as num?)?.toInt();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }
@@ -9820,6 +10102,8 @@ final class ServicesCreateGuidelineInput {
 
   String? get description => value['description']?.toString();
 
+  String? get documentKindId => value['document_kind_id']?.toString();
+
   String? get healthcareLevel => value['healthcare_level']?.toString();
 
   String? get intendedPopulation => value['intended_population']?.toString();
@@ -10094,6 +10378,31 @@ final class ServicesDiseaseTreeNode {
   String? get updatedAt => value['updated_at']?.toString();
 
   String? get updatedBy => value['updated_by']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesDocumentKindInput {
+  ServicesDocumentKindInput(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesDocumentKindInput.fromJson(Map<String, dynamic> json) =>
+      ServicesDocumentKindInput(json);
+
+  static const schemaName = 'services.DocumentKindInput';
+  final Map<String, dynamic> value;
+
+  String? get description => value['description']?.toString();
+
+  String? get name => value['name']?.toString();
+
+  bool? get publishAsUploaded => value['publish_as_uploaded'] as bool?;
+
+  String? get slug => value['slug']?.toString();
+
+  int? get sortOrder => (value['sort_order'] as num?)?.toInt();
+
+  String? get status => value['status']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }
@@ -12160,6 +12469,58 @@ final class ServicesGuidelineTagInput {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ServicesGuidelineUploadState {
+  ServicesGuidelineUploadState(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesGuidelineUploadState.fromJson(Map<String, dynamic> json) =>
+      ServicesGuidelineUploadState(json);
+
+  static const schemaName = 'services.GuidelineUploadState';
+  final Map<String, dynamic> value;
+
+  String? get checksum => value['checksum']?.toString();
+
+  String? get createdAt => value['created_at']?.toString();
+
+  String? get expiresAt => value['expires_at']?.toString();
+
+  String? get filename => value['filename']?.toString();
+
+  String? get id => value['id']?.toString();
+
+  ModelsIngestionJob? get job {
+    final raw = value['job'];
+    if (raw is! Map) return null;
+    return ModelsIngestionJob.fromJson(_jsonMap(raw));
+  }
+
+  String? get jobId => value['job_id']?.toString();
+
+  bool? get objectComplete => value['object_complete'] as bool?;
+
+  int? get partSize => (value['part_size'] as num?)?.toInt();
+
+  List<StorageUploadPart> get parts {
+    final raw = value['parts'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => StorageUploadPart.fromJson(_jsonMap(item)))
+        .toList(growable: false);
+  }
+
+  int? get sizeBytes => (value['size_bytes'] as num?)?.toInt();
+
+  String? get status => value['status']?.toString();
+
+  String? get updatedAt => value['updated_at']?.toString();
+
+  String? get versionId => value['version_id']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ServicesLanguageInput {
   ServicesLanguageInput(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -14188,6 +14549,37 @@ final class ServicesPageResultModelsDiseaseTaxonomyMigrationReport {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ServicesPageResultModelsDocumentKind {
+  ServicesPageResultModelsDocumentKind(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesPageResultModelsDocumentKind.fromJson(
+    Map<String, dynamic> json,
+  ) => ServicesPageResultModelsDocumentKind(json);
+
+  static const schemaName = 'services.PageResult-models_DocumentKind';
+  final Map<String, dynamic> value;
+
+  List<ModelsDocumentKind> get items {
+    final raw = value['items'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => ModelsDocumentKind.fromJson(_jsonMap(item)))
+        .toList(growable: false);
+  }
+
+  int? get page => (value['page'] as num?)?.toInt();
+
+  int? get perPage => (value['per_page'] as num?)?.toInt();
+
+  int? get totalItems => (value['total_items'] as num?)?.toInt();
+
+  int? get totalPages => (value['total_pages'] as num?)?.toInt();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ServicesPageResultModelsDocumentation {
   ServicesPageResultModelsDocumentation(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -15574,6 +15966,25 @@ final class ServicesPublicDiseaseTreeNode {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ServicesPublicDocumentKind {
+  ServicesPublicDocumentKind(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesPublicDocumentKind.fromJson(Map<String, dynamic> json) =>
+      ServicesPublicDocumentKind(json);
+
+  static const schemaName = 'services.PublicDocumentKind';
+  final Map<String, dynamic> value;
+
+  String? get name => value['name']?.toString();
+
+  bool? get publishAsUploaded => value['publish_as_uploaded'] as bool?;
+
+  String? get slug => value['slug']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ServicesPublicGuideline {
   ServicesPublicGuideline(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -15596,6 +16007,8 @@ final class ServicesPublicGuideline {
   String? get country => value['country']?.toString();
 
   String? get description => value['description']?.toString();
+
+  Object? get documentKind => value['document_kind'];
 
   String? get healthcareLevel => value['healthcare_level']?.toString();
 
@@ -17284,6 +17697,8 @@ final class ServicesUpdateGuidelineInput {
 
   String? get description => value['description']?.toString();
 
+  String? get documentKindId => value['document_kind_id']?.toString();
+
   String? get healthcareLevel => value['healthcare_level']?.toString();
 
   String? get intendedPopulation => value['intended_population']?.toString();
@@ -17519,6 +17934,25 @@ final class ServicesUserView {
   String? get updatedAt => value['updated_at']?.toString();
 
   bool? get verified => value['verified'] as bool?;
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class StorageUploadPart {
+  StorageUploadPart(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory StorageUploadPart.fromJson(Map<String, dynamic> json) =>
+      StorageUploadPart(json);
+
+  static const schemaName = 'storage.UploadPart';
+  final Map<String, dynamic> value;
+
+  String? get etag => value['etag']?.toString();
+
+  int? get number => (value['number'] as num?)?.toInt();
+
+  int? get size => (value['size'] as num?)?.toInt();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }

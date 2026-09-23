@@ -7,6 +7,7 @@ import {
   BookOpen,
   ClipboardCheck,
   Download,
+  Eye,
   FileCode2,
   FilePlus2,
   Pencil,
@@ -23,11 +24,13 @@ import { RichContent } from "@/components/ui/rich-content";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePermissionContext } from "@/lib/permission-context";
 import { showToast } from "@/lib/toast";
+import { OriginalFilePreview } from "@/components/guidelines/original-file-preview";
 import {
   CreateGuidelineVersionInput,
   guidelineDocumentsQueryKey,
   GuidelineDocumentsService,
   GuidelineVersionRecord,
+  isPublishedAsUploaded,
 } from "@/services/guideline-documents.service";
 import {
   CreateVersionDialog,
@@ -44,6 +47,8 @@ export default function GuidelineDetailsPage() {
   const [uploadVersion, setUploadVersion] =
     React.useState<GuidelineVersionRecord | null>(null);
   const [viewVersion, setViewVersion] =
+    React.useState<GuidelineVersionRecord | null>(null);
+  const [previewVersion, setPreviewVersion] =
     React.useState<GuidelineVersionRecord | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -109,25 +114,26 @@ export default function GuidelineDetailsPage() {
     }
   }
 
-  async function uploadSource(file: File) {
+  async function uploadSource(file: File, options?: import("@/services/guideline-upload.service").UploadOptions) {
     if (!uploadVersion) return;
     setSubmitting(true);
     try {
-      await GuidelineDocumentsService.uploadVersionSource(
+      const job = await GuidelineDocumentsService.uploadVersionSource(
         uploadVersion.id,
         file,
+        options,
       );
-      setUploadVersion(null);
       await refresh();
+      const asUploaded = isPublishedAsUploaded(documentQuery.data);
       showToast.success(
-        "Source uploaded",
-        "Extraction and indexing have been queued.",
+        asUploaded ? "Form stored" : "Source uploaded",
+        asUploaded
+          ? "The file is kept exactly as uploaded. Its text is being indexed for search."
+          : "Extraction and indexing have been queued.",
       );
+      return job;
     } catch (error) {
-      showToast.error(
-        "Upload failed",
-        error instanceof Error ? error.message : "Unknown error",
-      );
+      throw error;
     } finally {
       setSubmitting(false);
     }
@@ -182,6 +188,8 @@ export default function GuidelineDetailsPage() {
   if (!documentQuery.data)
     return <div className="p-6 text-destructive">Guideline not found.</div>;
   const document = documentQuery.data;
+  // Forms and similar kinds publish the uploaded file itself: no editor or extraction review.
+  const asUploaded = isPublishedAsUploaded(document);
 
   return (
     <div className="space-y-6">
@@ -210,8 +218,9 @@ export default function GuidelineDetailsPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
         {[
+          ["Kind", document.document_kind?.name || "—"],
           ["Program area", document.program_area || "—"],
           ["Country", document.country || "—"],
           ["Source", document.source_org || "—"],
@@ -250,7 +259,9 @@ export default function GuidelineDetailsPage() {
               const hasHtml = Boolean(version.html_file_key);
               const publishable =
                 version.status !== "published" &&
-                Boolean(hasMarkdown && hasHtml);
+                (asUploaded
+                  ? Boolean(version.original_file_key)
+                  : Boolean(hasMarkdown && hasHtml));
               const reviewAvailable =
                 version.status !== "published" &&
                 Boolean(
@@ -283,6 +294,38 @@ export default function GuidelineDetailsPage() {
                         Review: {version.review_date || "not set"}
                       </div>
                     </div>
+                    {asUploaded ? (
+                    <div className="flex flex-wrap gap-2">
+                      {canUpdate && version.status !== "published" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUploadVersion(version)}
+                        >
+                          <Upload className="h-4 w-4" />{" "}
+                          {version.original_file_key ? "Replace file" : "Upload file"}
+                        </Button>
+                      )}
+                      {version.original_file_key && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPreviewVersion(version)}
+                        >
+                          <Eye className="h-4 w-4" /> Preview form
+                        </Button>
+                      )}
+                      {canUpdate && publishable && (
+                        <Button
+                          size="sm"
+                          disabled={submitting}
+                          onClick={() => publish(version)}
+                        >
+                          <Send className="h-4 w-4" /> Publish
+                        </Button>
+                      )}
+                    </div>
+                    ) : (
                     <div className="flex flex-wrap gap-2">
                       {canUpdate && (
                         <Button
@@ -383,6 +426,7 @@ export default function GuidelineDetailsPage() {
                         </Button>
                       )}
                     </div>
+                    )}
                   </div>
                 </div>
               );
@@ -486,6 +530,23 @@ export default function GuidelineDetailsPage() {
         </Card>
       )}
 
+      {previewVersion && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle>Form — version {previewVersion.version}</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => setPreviewVersion(null)}>
+              Close
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <OriginalFilePreview
+              versionId={previewVersion.id}
+              fileKey={previewVersion.original_file_key}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <CreateVersionDialog
         document={document}
         open={createVersionOpen}
@@ -495,6 +556,7 @@ export default function GuidelineDetailsPage() {
       />
       <UploadVersionDialog
         version={uploadVersion}
+        asUploaded={asUploaded}
         open={Boolean(uploadVersion)}
         submitting={submitting}
         onOpenChange={(open) => !open && setUploadVersion(null)}

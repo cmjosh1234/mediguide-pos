@@ -20,12 +20,41 @@ import (
 )
 
 type GuidelineHandler struct {
-	Service     services.GuidelineService
-	MaxUploadMB int64
+	Service       services.GuidelineService
+	MaxUploadMB   int64
+	DirectUploads bool
 }
 
 type UpdateMarkdownInput struct {
 	Content string `json:"content" binding:"required"`
+}
+
+// RejectPublishedAsUploaded stops content-editing routes for versions whose
+// document kind publishes the uploaded file as-is (for example forms).
+func (h GuidelineHandler) RejectPublishedAsUploaded(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.Error(c, http.StatusBadRequest, "invalid id")
+		c.Abort()
+		return
+	}
+	asUploaded, err := h.Service.VersionPublishesAsUploaded(id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		httpx.Error(c, http.StatusNotFound, "not found")
+		c.Abort()
+		return
+	}
+	if err != nil {
+		httpx.Error(c, http.StatusInternalServerError, "failed to load guideline version")
+		c.Abort()
+		return
+	}
+	if asUploaded {
+		httpx.Error(c, http.StatusConflict, services.ErrGuidelinePublishedAsUploaded.Error())
+		c.Abort()
+		return
+	}
+	c.Next()
 }
 
 // Create godoc
@@ -61,6 +90,7 @@ func (h GuidelineHandler) Create(c *gin.Context) {
 // @Security BearerAuth
 // @Param program_area query string false "Program area filter"
 // @Param category_id query string false "Assigned category UUID"
+// @Param document_kind_id query string false "Document kind UUID"
 // @Param page query int false "Page number" minimum(1)
 // @Param per_page query int false "Page size" minimum(1) maximum(100)
 // @Success 200 {object} handlers.PaginatedGuidelineDocumentsEnvelope
@@ -84,7 +114,16 @@ func (h GuidelineHandler) List(c *gin.Context) {
 		}
 		categoryID = &parsed
 	}
-	rows, err := h.Service.ListDocuments(services.GuidelineDocumentFilter{ProgramArea: c.Query("program_area"), CategoryID: categoryID, Page: page})
+	var documentKindID *uuid.UUID
+	if raw := strings.TrimSpace(c.Query("document_kind_id")); raw != "" {
+		parsed, parseErr := uuid.Parse(raw)
+		if parseErr != nil {
+			httpx.Error(c, http.StatusBadRequest, "invalid document kind id")
+			return
+		}
+		documentKindID = &parsed
+	}
+	rows, err := h.Service.ListDocuments(services.GuidelineDocumentFilter{ProgramArea: c.Query("program_area"), CategoryID: categoryID, DocumentKindID: documentKindID, Page: page})
 	if err != nil {
 		httpx.Error(c, 500, "internal server error")
 		return
@@ -146,6 +185,14 @@ func (h GuidelineHandler) Update(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, services.ErrGuidelineCategoryAssignment) {
 			httpx.Error(c, http.StatusBadRequest, "categories must be active and not deleted")
+			return
+		}
+		if errors.Is(err, services.ErrGuidelineDocumentKindInvalid) {
+			httpx.Error(c, http.StatusBadRequest, "document kind must be active and not deleted")
+			return
+		}
+		if errors.Is(err, services.ErrGuidelineDocumentKindModeLocked) {
+			httpx.Error(c, http.StatusConflict, err.Error())
 			return
 		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -228,7 +275,8 @@ func (h GuidelineHandler) CreateVersion(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Guideline version ID" format(uuid)
-// @Param file formData file true "PDF or Markdown file"
+// @Description Documents whose kind publishes as uploaded (for example forms) accept a PDF or Word (.docx) file, stored unchanged and indexed for search only.
+// @Param file formData file true "PDF or Markdown file; PDF or .docx for as-uploaded kinds"
 // @Success 201 {object} handlers.IngestionJobEnvelope
 // @Failure 400 {object} handlers.ErrorResponse
 // @Failure 401 {object} handlers.ErrorResponse
@@ -261,17 +309,33 @@ func (h GuidelineHandler) UploadPDF(c *gin.Context) {
 		return
 	}
 	defer file.Close()
+	asUploaded, err := h.Service.VersionPublishesAsUploaded(versionID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		httpx.Error(c, http.StatusNotFound, "guideline version not found")
+		return
+	}
+	if err != nil {
+		httpx.Error(c, http.StatusInternalServerError, "failed to load guideline version")
+		return
+	}
 	var job *models.IngestionJob
-	switch strings.ToLower(filepath.Ext(header.Filename)) {
-	case ".pdf":
+	switch extension := strings.ToLower(filepath.Ext(header.Filename)); {
+	case asUploaded:
+		// Kinds such as forms keep the uploaded PDF or Word file as the document.
+		job, err = h.Service.UploadAsUploadedSource(c.Request.Context(), versionID, file, header)
+	case extension == ".pdf":
 		job, err = h.Service.UploadPDF(c.Request.Context(), versionID, file, header)
-	case ".md", ".markdown":
+	case extension == ".md" || extension == ".markdown":
 		job, err = h.Service.UploadMarkdown(c.Request.Context(), versionID, file, header)
 	default:
 		httpx.Error(c, http.StatusBadRequest, services.ErrUnsupportedGuidelineSource.Error())
 		return
 	}
 	if err != nil {
+		if errors.Is(err, services.ErrUnsupportedAsUploadedSource) {
+			httpx.Error(c, http.StatusBadRequest, err.Error())
+			return
+		}
 		if errors.Is(err, services.ErrPublishedVersionImmutable) {
 			httpx.Error(c, http.StatusConflict, err.Error())
 			return

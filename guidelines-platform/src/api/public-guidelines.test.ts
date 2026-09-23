@@ -6,10 +6,13 @@ import {
   getPublicGuidelineManifest,
   getPublicGuidelineContent,
   getPublicGuidelineMarkdown,
+  getPublicGuidelineOriginalFile,
   listPublicGuidelineSections,
   listPublicGuidelines,
+  resolvePublicAssetUrl,
   searchPublicContent,
 } from "./public-guidelines";
+import { publicApiBaseUrl } from "../config";
 
 describe("public guideline API client", () => {
   beforeEach(() => clearPublicMarkdownCache());
@@ -352,5 +355,31 @@ describe("public guideline API client", () => {
     const options = fetchMock.mock.calls[0][1] as RequestInit;
     expect(options.method).toBe("POST");
     expect(JSON.parse(String(options.body))).toEqual({ question: "What is the treatment?" });
+  });
+
+  it("resolves API-relative asset links against the public API", () => {
+    expect(resolvePublicAssetUrl("/api/public/guidelines/g1/original/download")).toBe(
+      `${publicApiBaseUrl}/api/public/guidelines/g1/original/download`,
+    );
+    expect(resolvePublicAssetUrl("https://cdn.example.test/form.pdf")).toBe("https://cdn.example.test/form.pdf");
+  });
+
+  it("downloads the original file of a form from its resolved link", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("%PDF-1.7", { status: 200, headers: { "Content-Type": "application/pdf" } }))
+      .mockResolvedValueOnce(new Response("missing", { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const asset = {
+      type: "original_pdf",
+      mime_type: "application/pdf",
+      url: "/api/public/guidelines/g1/original/download",
+      expires_at: "2024-07-01T00:10:00Z",
+    };
+
+    const blob = await getPublicGuidelineOriginalFile(asset);
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(`${publicApiBaseUrl}/api/public/guidelines/g1/original/download`);
+    expect(await blob.text()).toBe("%PDF-1.7");
+    await expect(getPublicGuidelineOriginalFile(asset)).rejects.toMatchObject({ kind: "not-found" });
   });
 });

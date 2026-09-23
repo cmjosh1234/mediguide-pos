@@ -59,6 +59,8 @@ func (h OutbreakAdminHandler) result(c *gin.Context, status int, value any, err 
 		return
 	}
 	switch {
+	case errors.Is(err, services.ErrOutbreakDocumentKind):
+		httpx.Error(c, http.StatusBadRequest, err.Error())
 	case errors.Is(err, services.ErrOutbreakInvalid):
 		httpx.Error(c, http.StatusBadRequest, "invalid outbreak operation")
 	case errors.Is(err, services.ErrOutbreakConflict):

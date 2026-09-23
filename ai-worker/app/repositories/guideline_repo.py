@@ -28,6 +28,73 @@ class GuidelineRepository:
             )
             return cur.fetchone()
 
+    def replace_original_text_chunks(
+        self,
+        *,
+        version: dict[str, Any],
+        source_key: str,
+        chunks: list[Any],
+        embeddings: list[list[float]],
+    ) -> None:
+        """Replace a version's search chunks with text indexed from its original file.
+
+        Used for documents published as uploaded (for example forms). Sections,
+        blocks, Markdown and the stored file are left untouched; the chunks carry
+        no section or block because the file itself is the published document.
+        """
+        if len(embeddings) != len(chunks):
+            raise ValueError("Embedding count does not match chunk count")
+        version_id = str(version["id"])
+        with db_conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT original_file_key, status FROM guideline_versions
+                WHERE id=%s AND deleted_at IS NULL
+                FOR UPDATE
+                """,
+                (version_id,),
+            )
+            current = cur.fetchone()
+            if not current or str(current.get("original_file_key") or "").strip() != source_key:
+                raise GuidelineSourceSupersededError(
+                    "A newer original file was uploaded before indexing finished"
+                )
+            review_status = self._chunk_review_status(current.get("status"))
+            cur.execute("DELETE FROM guideline_chunks WHERE version_id = %s", (version_id,))
+            rows = [
+                (
+                    str(uuid.uuid4()),
+                    str(version["document_id"]),
+                    version_id,
+                    chunk.title,
+                    chunk.content,
+                    chunk.html,
+                    chunk.page_start,
+                    chunk.page_end,
+                    version.get("document_language") or "en",
+                    version.get("program_area"),
+                    version.get("source_org") or version.get("document_title"),
+                    version.get("version"),
+                    review_status,
+                    chunk.content,
+                    to_pgvector(embedding),
+                )
+                for chunk, embedding in zip(chunks, embeddings)
+            ]
+            if rows:
+                cur.executemany(
+                    """
+                    INSERT INTO guideline_chunks(
+                      id, document_id, version_id, title, content, html, page_start, page_end,
+                      language, program_area, source_name, source_version, review_status,
+                      embedding_text, embedding
+                    )
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::vector)
+                    """,
+                    rows,
+                )
+            conn.commit()
+
     def is_current_markdown_source(
         self, version_id: str, revision_id: str | None, storage_key: str
     ) -> bool:

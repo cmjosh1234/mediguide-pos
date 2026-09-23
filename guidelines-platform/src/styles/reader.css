@@ -271,3 +271,13 @@
   .book-reader .reader-main { margin: 0; padding: 0; }
   .book-reader .reader-column { width: 100%; }
 }
+
+/* Documents published as their uploaded file (for example forms). */
+.uploaded-document { width: min(100%, 1100px); margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2.5rem) 3rem; }
+.uploaded-document-heading { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-end; justify-content: space-between; margin-bottom: 1.5rem; }
+.uploaded-document-heading h1 { margin: .25rem 0 .4rem; color: var(--color-ink); font-family: Georgia, serif; font-size: clamp(1.5rem, 3vw, 2.2rem); line-height: 1.2; }
+.uploaded-document-heading p { max-width: 65ch; margin: 0; color: var(--color-muted); font-size: .85rem; line-height: 1.5; }
+.uploaded-document-kind { color: var(--color-green-700) !important; font-size: .62rem !important; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.uploaded-document-meta { margin-bottom: .5rem !important; }
+.uploaded-document-frame { width: 100%; height: min(80vh, 1100px); background: var(--color-soft); border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
+.uploaded-document-status { padding: 2rem; color: var(--color-muted); font-size: .85rem; text-align: center; border: 1px dashed var(--color-line); border-radius: var(--radius-sm); }

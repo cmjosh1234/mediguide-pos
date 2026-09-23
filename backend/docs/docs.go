@@ -5732,6 +5732,189 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/document-kinds": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Kinds are shared by guideline and outbreak documents. Readers see active kinds only; each kind reports how many live documents of each type use it.",
+                "tags": [
+                    "document-kinds"
+                ],
+                "summary": "List document kinds",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name, slug, or description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Status (editors only)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Allowlisted sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc or desc",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PaginatedDocumentKindsEnvelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "document-kinds"
+                ],
+                "summary": "Create a document kind",
+                "parameters": [
+                    {
+                        "description": "Document kind",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.DocumentKindInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DocumentKindEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/document-kinds/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "document-kinds"
+                ],
+                "summary": "Get a document kind",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Document kind UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DocumentKindEnvelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "document-kinds"
+                ],
+                "summary": "Archive an unused document kind",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Document kind UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "The slug cannot be changed after creation.",
+                "tags": [
+                    "document-kinds"
+                ],
+                "summary": "Update a document kind",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Document kind UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Document kind changes",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.DocumentKindInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DocumentKindEnvelope"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/documentation": {
             "get": {
                 "security": [
@@ -11263,6 +11446,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Documents whose kind publishes as uploaded (for example forms) accept a PDF or Word (.docx) file, stored unchanged and indexed for search only.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -11284,7 +11468,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "PDF or Markdown file",
+                        "description": "PDF or Markdown file; PDF or .docx for as-uploaded kinds",
                         "name": "file",
                         "in": "formData",
                         "required": true
@@ -11325,6 +11509,307 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/guideline-versions/{id}/upload-capabilities": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "guideline-uploads"
+                ],
+                "summary": "Discover guideline source upload capabilities",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SourceUploadCapabilitiesResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/guideline-versions/{id}/upload-jobs/{jobId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "guideline-uploads"
+                ],
+                "summary": "Read source ingestion status and timing metrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Job ID",
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SourceUploadJobResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/guideline-versions/{id}/uploads": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "guideline-uploads"
+                ],
+                "summary": "List the current editor's recent source uploads",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SourceUploadListResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "guideline-uploads"
+                ],
+                "summary": "Begin a resumable source upload owned by the current editor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Source identity",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.BeginGuidelineUpload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SourceUploadResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/guideline-versions/{id}/uploads/{session}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "guideline-uploads"
+                ],
+                "summary": "Recover source upload parts and processing job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Upload session ID",
+                        "name": "session",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SourceUploadResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "guideline-uploads"
+                ],
+                "summary": "Cancel an unattached source upload",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Upload session ID",
+                        "name": "session",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/guideline-versions/{id}/uploads/{session}/complete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "guideline-uploads"
+                ],
+                "summary": "Verify source bytes and idempotently queue ingestion",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Upload session ID",
+                        "name": "session",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SourceUploadJobResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/guideline-versions/{id}/uploads/{session}/parts/{part}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "guideline-uploads"
+                ],
+                "summary": "Sign one bounded source upload part",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Upload session ID",
+                        "name": "session",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "One-based part number",
+                        "name": "part",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SourceUploadPartResponse"
                         }
                     }
                 }
@@ -11407,6 +11892,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Assigned category UUID",
                         "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Document kind UUID",
+                        "name": "document_kind_id",
                         "in": "query"
                     },
                     {
@@ -18796,6 +19287,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.DocumentKindEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/models.DocumentKind"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.DocumentationEnvelope": {
             "type": "object",
             "properties": {
@@ -19297,6 +19799,9 @@ const docTemplate = `{
                 },
                 "job_type": {
                     "type": "string"
+                },
+                "metrics": {
+                    "type": "object"
                 },
                 "payload_json": {
                     "type": "string"
@@ -19961,6 +20466,17 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/services.PageResult-models_Disease"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PaginatedDocumentKindsEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/services.PageResult-models_DocumentKind"
                 },
                 "success": {
                     "type": "boolean"
@@ -21482,6 +21998,71 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.SourceUploadCapabilities": {
+            "type": "object",
+            "properties": {
+                "direct_uploads": {
+                    "type": "boolean"
+                },
+                "max_size_bytes": {
+                    "type": "integer"
+                },
+                "part_size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.SourceUploadCapabilitiesResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.SourceUploadCapabilities"
+                }
+            }
+        },
+        "handlers.SourceUploadJobResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/models.IngestionJob"
+                }
+            }
+        },
+        "handlers.SourceUploadListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.GuidelineUpload"
+                    }
+                }
+            }
+        },
+        "handlers.SourceUploadPartResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.SourceUploadPartURL"
+                }
+            }
+        },
+        "handlers.SourceUploadPartURL": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.SourceUploadResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/services.GuidelineUploadState"
+                }
+            }
+        },
         "handlers.SupportReplyEnvelope": {
             "type": "object",
             "properties": {
@@ -22252,6 +22833,45 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "source_value": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.DocumentKind": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "guideline_document_count": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "outbreak_document_count": {
+                    "type": "integer"
+                },
+                "publish_as_uploaded": {
+                    "description": "PublishAsUploaded kinds (for example Form) keep the uploaded file as the\npublished document: no extraction into editable Markdown or blocks.",
+                    "type": "boolean"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -23149,6 +23769,12 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "document_kind": {
+                    "$ref": "#/definitions/models.DocumentKind"
+                },
+                "document_kind_id": {
+                    "type": "string"
+                },
                 "healthcare_level": {
                     "type": "string"
                 },
@@ -23562,6 +24188,44 @@ const docTemplate = `{
                 }
             }
         },
+        "models.GuidelineUpload": {
+            "type": "object",
+            "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "job_id": {
+                    "type": "string"
+                },
+                "part_size": {
+                    "type": "integer"
+                },
+                "size_bytes": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version_id": {
+                    "type": "string"
+                }
+            }
+        },
         "models.GuidelineVersion": {
             "type": "object",
             "properties": {
@@ -23772,6 +24436,9 @@ const docTemplate = `{
                 },
                 "job_type": {
                     "type": "string"
+                },
+                "metrics": {
+                    "type": "object"
                 },
                 "payload_json": {
                     "type": "string"
@@ -24723,6 +25390,20 @@ const docTemplate = `{
                 },
                 "reviewer_id": {
                     "type": "string"
+                }
+            }
+        },
+        "services.BeginGuidelineUpload": {
+            "type": "object",
+            "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "size_bytes": {
+                    "type": "integer"
                 }
             }
         },
@@ -25821,6 +26502,10 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "document_kind_id": {
+                    "description": "DocumentKindID defaults to the first active kind by sort order.",
+                    "type": "string"
+                },
                 "healthcare_level": {
                     "type": "string"
                 },
@@ -26066,6 +26751,30 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.DocumentKindInput": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "publish_as_uploaded": {
+                    "description": "PublishAsUploaded keeps uploaded files as the published document instead\nof extracting them into editable content.",
+                    "type": "boolean"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -27857,6 +28566,56 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.GuidelineUploadState": {
+            "type": "object",
+            "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "job": {
+                    "$ref": "#/definitions/models.IngestionJob"
+                },
+                "job_id": {
+                    "type": "string"
+                },
+                "object_complete": {
+                    "type": "boolean"
+                },
+                "part_size": {
+                    "type": "integer"
+                },
+                "parts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.UploadPart"
+                    }
+                },
+                "size_bytes": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version_id": {
                     "type": "string"
                 }
             }
@@ -29881,6 +30640,29 @@ const docTemplate = `{
                 }
             }
         },
+        "services.PageResult-models_DocumentKind": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.DocumentKind"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total_items": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
         "services.PageResult-models_Documentation": {
             "type": "object",
             "properties": {
@@ -30975,6 +31757,20 @@ const docTemplate = `{
                 }
             }
         },
+        "services.PublicDocumentKind": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "publish_as_uploaded": {
+                    "type": "boolean"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
         "services.PublicGuideline": {
             "type": "object",
             "properties": {
@@ -30989,6 +31785,14 @@ const docTemplate = `{
                 },
                 "description": {
                     "type": "string"
+                },
+                "document_kind": {
+                    "description": "DocumentKind tells readers how to present the guideline. Kinds published\nas uploaded (for example forms) are shown as their original file.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/services.PublicDocumentKind"
+                        }
+                    ]
                 },
                 "healthcare_level": {
                     "type": "string"
@@ -32586,6 +33390,9 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "document_kind_id": {
+                    "type": "string"
+                },
                 "healthcare_level": {
                     "type": "string"
                 },
@@ -32839,6 +33646,20 @@ const docTemplate = `{
                     "type": "boolean"
                 }
             }
+        },
+        "storage.UploadPart": {
+            "type": "object",
+            "properties": {
+                "etag": {
+                    "type": "string"
+                },
+                "number": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -32853,7 +33674,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "2.1.4",
+	Version:          "2.1.5",
 	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},

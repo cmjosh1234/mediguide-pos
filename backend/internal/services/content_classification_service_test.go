@@ -29,6 +29,7 @@ func classificationTestDB(t *testing.T) *gorm.DB {
 	); err != nil {
 		t.Fatal(err)
 	}
+	seedDocumentKinds(t, db)
 	return db
 }
 

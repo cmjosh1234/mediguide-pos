@@ -585,6 +585,13 @@ definitions:
       success:
         type: boolean
     type: object
+  handlers.DocumentKindEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/models.DocumentKind'
+      success:
+        type: boolean
+    type: object
   handlers.DocumentationEnvelope:
     properties:
       data:
@@ -915,6 +922,8 @@ definitions:
         type: string
       job_type:
         type: string
+      metrics:
+        type: object
       payload_json:
         type: string
       progress_percent:
@@ -1355,6 +1364,13 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/services.PageResult-models_Disease'
+      success:
+        type: boolean
+    type: object
+  handlers.PaginatedDocumentKindsEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/services.PageResult-models_DocumentKind'
       success:
         type: boolean
     type: object
@@ -2360,6 +2376,47 @@ definitions:
       success:
         type: boolean
     type: object
+  handlers.SourceUploadCapabilities:
+    properties:
+      direct_uploads:
+        type: boolean
+      max_size_bytes:
+        type: integer
+      part_size:
+        type: integer
+    type: object
+  handlers.SourceUploadCapabilitiesResponse:
+    properties:
+      data:
+        $ref: '#/definitions/handlers.SourceUploadCapabilities'
+    type: object
+  handlers.SourceUploadJobResponse:
+    properties:
+      data:
+        $ref: '#/definitions/models.IngestionJob'
+    type: object
+  handlers.SourceUploadListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/models.GuidelineUpload'
+        type: array
+    type: object
+  handlers.SourceUploadPartResponse:
+    properties:
+      data:
+        $ref: '#/definitions/handlers.SourceUploadPartURL'
+    type: object
+  handlers.SourceUploadPartURL:
+    properties:
+      url:
+        type: string
+    type: object
+  handlers.SourceUploadResponse:
+    properties:
+      data:
+        $ref: '#/definitions/services.GuidelineUploadState'
+    type: object
   handlers.SupportReplyEnvelope:
     properties:
       data:
@@ -2868,6 +2925,34 @@ definitions:
       source_table:
         type: string
       source_value:
+        type: string
+    type: object
+  models.DocumentKind:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      guideline_document_count:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      outbreak_document_count:
+        type: integer
+      publish_as_uploaded:
+        description: |-
+          PublishAsUploaded kinds (for example Form) keep the uploaded file as the
+          published document: no extraction into editable Markdown or blocks.
+        type: boolean
+      slug:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        type: string
+      updated_at:
         type: string
     type: object
   models.Documentation:
@@ -3478,6 +3563,10 @@ definitions:
         type: string
       description:
         type: string
+      document_kind:
+        $ref: '#/definitions/models.DocumentKind'
+      document_kind_id:
+        type: string
       healthcare_level:
         type: string
       id:
@@ -3755,6 +3844,31 @@ definitions:
       updated_at:
         type: string
     type: object
+  models.GuidelineUpload:
+    properties:
+      checksum:
+        type: string
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      filename:
+        type: string
+      id:
+        type: string
+      job_id:
+        type: string
+      part_size:
+        type: integer
+      size_bytes:
+        type: integer
+      status:
+        type: string
+      updated_at:
+        type: string
+      version_id:
+        type: string
+    type: object
   models.GuidelineVersion:
     properties:
       approved_at:
@@ -3895,6 +4009,8 @@ definitions:
         type: string
       job_type:
         type: string
+      metrics:
+        type: object
       payload_json:
         type: string
       progress_percent:
@@ -4526,6 +4642,15 @@ definitions:
         type: string
     required:
     - reviewer_id
+    type: object
+  services.BeginGuidelineUpload:
+    properties:
+      checksum:
+        type: string
+      filename:
+        type: string
+      size_bytes:
+        type: integer
     type: object
   services.BulkReviewGuidelineBlocksInput:
     properties:
@@ -5253,6 +5378,9 @@ definitions:
         type: string
       description:
         type: string
+      document_kind_id:
+        description: DocumentKindID defaults to the first active kind by sort order.
+        type: string
       healthcare_level:
         type: string
       intended_population:
@@ -5414,6 +5542,24 @@ definitions:
       updated_at:
         type: string
       updated_by:
+        type: string
+    type: object
+  services.DocumentKindInput:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      publish_as_uploaded:
+        description: |-
+          PublishAsUploaded keeps uploaded files as the published document instead
+          of extracting them into editable content.
+        type: boolean
+      slug:
+        type: string
+      sort_order:
+        type: integer
+      status:
         type: string
     type: object
   services.DocumentationInput:
@@ -6587,6 +6733,39 @@ definitions:
       description:
         type: string
       name:
+        type: string
+    type: object
+  services.GuidelineUploadState:
+    properties:
+      checksum:
+        type: string
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      filename:
+        type: string
+      id:
+        type: string
+      job:
+        $ref: '#/definitions/models.IngestionJob'
+      job_id:
+        type: string
+      object_complete:
+        type: boolean
+      part_size:
+        type: integer
+      parts:
+        items:
+          $ref: '#/definitions/storage.UploadPart'
+        type: array
+      size_bytes:
+        type: integer
+      status:
+        type: string
+      updated_at:
+        type: string
+      version_id:
         type: string
     type: object
   services.LanguageInput:
@@ -7926,6 +8105,21 @@ definitions:
       total_pages:
         type: integer
     type: object
+  services.PageResult-models_DocumentKind:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/models.DocumentKind'
+        type: array
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total_items:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
   services.PageResult-models_Documentation:
     properties:
       items:
@@ -8642,6 +8836,15 @@ definitions:
       sort_order:
         type: integer
     type: object
+  services.PublicDocumentKind:
+    properties:
+      name:
+        type: string
+      publish_as_uploaded:
+        type: boolean
+      slug:
+        type: string
+    type: object
   services.PublicGuideline:
     properties:
       categories:
@@ -8652,6 +8855,12 @@ definitions:
         type: string
       description:
         type: string
+      document_kind:
+        allOf:
+        - $ref: '#/definitions/services.PublicDocumentKind'
+        description: |-
+          DocumentKind tells readers how to present the guideline. Kinds published
+          as uploaded (for example forms) are shown as their original file.
       healthcare_level:
         type: string
       id:
@@ -9702,6 +9911,8 @@ definitions:
         type: string
       description:
         type: string
+      document_kind_id:
+        type: string
       healthcare_level:
         type: string
       intended_population:
@@ -9869,6 +10080,15 @@ definitions:
       verified:
         type: boolean
     type: object
+  storage.UploadPart:
+    properties:
+      etag:
+        type: string
+      number:
+        type: integer
+      size:
+        type: integer
+    type: object
 info:
   contact:
     email: admin@mediguide.local
@@ -9878,7 +10098,7 @@ info:
     name: Proprietary
   termsOfService: https://mediguide.local/terms
   title: MediGuide Backend API
-  version: 2.1.4
+  version: 2.1.5
 paths:
   /api/public/assistant/ask:
     post:
@@ -13518,6 +13738,121 @@ paths:
       summary: Refresh legacy disease-name migration resolutions
       tags:
       - disease-taxonomy
+  /api/v2/document-kinds:
+    get:
+      description: Kinds are shared by guideline and outbreak documents. Readers see
+        active kinds only; each kind reports how many live documents of each type
+        use it.
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Name, slug, or description
+        in: query
+        name: search
+        type: string
+      - description: Status (editors only)
+        in: query
+        name: status
+        type: string
+      - description: Allowlisted sort field
+        in: query
+        name: sort
+        type: string
+      - description: asc or desc
+        in: query
+        name: order
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PaginatedDocumentKindsEnvelope'
+      security:
+      - BearerAuth: []
+      summary: List document kinds
+      tags:
+      - document-kinds
+    post:
+      parameters:
+      - description: Document kind
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/services.DocumentKindInput'
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.DocumentKindEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Create a document kind
+      tags:
+      - document-kinds
+  /api/v2/document-kinds/{id}:
+    delete:
+      parameters:
+      - description: Document kind UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Archive an unused document kind
+      tags:
+      - document-kinds
+    get:
+      parameters:
+      - description: Document kind UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.DocumentKindEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Get a document kind
+      tags:
+      - document-kinds
+    patch:
+      description: The slug cannot be changed after creation.
+      parameters:
+      - description: Document kind UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Document kind changes
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/services.DocumentKindInput'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.DocumentKindEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Update a document kind
+      tags:
+      - document-kinds
   /api/v2/documentation:
     get:
       parameters:
@@ -17011,6 +17346,9 @@ paths:
     post:
       consumes:
       - multipart/form-data
+      description: Documents whose kind publishes as uploaded (for example forms)
+        accept a PDF or Word (.docx) file, stored unchanged and indexed for search
+        only.
       parameters:
       - description: Guideline version ID
         format: uuid
@@ -17018,7 +17356,7 @@ paths:
         name: id
         required: true
         type: string
-      - description: PDF or Markdown file
+      - description: PDF or Markdown file; PDF or .docx for as-uploaded kinds
         in: formData
         name: file
         required: true
@@ -17055,6 +17393,198 @@ paths:
       summary: Upload a guideline PDF or Markdown source
       tags:
       - guidelines
+  /api/v2/guideline-versions/{id}/upload-capabilities:
+    get:
+      parameters:
+      - description: Version ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SourceUploadCapabilitiesResponse'
+      security:
+      - BearerAuth: []
+      summary: Discover guideline source upload capabilities
+      tags:
+      - guideline-uploads
+  /api/v2/guideline-versions/{id}/upload-jobs/{jobId}:
+    get:
+      parameters:
+      - description: Version ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Job ID
+        format: uuid
+        in: path
+        name: jobId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SourceUploadJobResponse'
+      security:
+      - BearerAuth: []
+      summary: Read source ingestion status and timing metrics
+      tags:
+      - guideline-uploads
+  /api/v2/guideline-versions/{id}/uploads:
+    get:
+      parameters:
+      - description: Version ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SourceUploadListResponse'
+      security:
+      - BearerAuth: []
+      summary: List the current editor's recent source uploads
+      tags:
+      - guideline-uploads
+    post:
+      parameters:
+      - description: Version ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Source identity
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/services.BeginGuidelineUpload'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SourceUploadResponse'
+      security:
+      - BearerAuth: []
+      summary: Begin a resumable source upload owned by the current editor
+      tags:
+      - guideline-uploads
+  /api/v2/guideline-versions/{id}/uploads/{session}:
+    delete:
+      parameters:
+      - description: Version ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Upload session ID
+        format: uuid
+        in: path
+        name: session
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cancel an unattached source upload
+      tags:
+      - guideline-uploads
+    get:
+      parameters:
+      - description: Version ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Upload session ID
+        format: uuid
+        in: path
+        name: session
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SourceUploadResponse'
+      security:
+      - BearerAuth: []
+      summary: Recover source upload parts and processing job
+      tags:
+      - guideline-uploads
+  /api/v2/guideline-versions/{id}/uploads/{session}/complete:
+    post:
+      parameters:
+      - description: Version ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Upload session ID
+        format: uuid
+        in: path
+        name: session
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SourceUploadJobResponse'
+      security:
+      - BearerAuth: []
+      summary: Verify source bytes and idempotently queue ingestion
+      tags:
+      - guideline-uploads
+  /api/v2/guideline-versions/{id}/uploads/{session}/parts/{part}:
+    post:
+      parameters:
+      - description: Version ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Upload session ID
+        format: uuid
+        in: path
+        name: session
+        required: true
+        type: string
+      - description: One-based part number
+        in: path
+        name: part
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SourceUploadPartResponse'
+      security:
+      - BearerAuth: []
+      summary: Sign one bounded source upload part
+      tags:
+      - guideline-uploads
   /api/v2/guideline-versions/{id}/validate-publication:
     post:
       parameters:
@@ -17098,6 +17628,10 @@ paths:
       - description: Assigned category UUID
         in: query
         name: category_id
+        type: string
+      - description: Document kind UUID
+        in: query
+        name: document_kind_id
         type: string
       - description: Page number
         in: query

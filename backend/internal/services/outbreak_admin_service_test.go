@@ -21,6 +21,7 @@ func outbreakAdminTestService(t *testing.T) OutbreakAdminService {
 	if err := db.AutoMigrate(&models.User{}, &models.AuditLog{}, &models.Region{}, &models.HealthSubRegion{}, &models.District{}, &models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}, &models.SituationReportAsset{}); err != nil {
 		t.Fatal(err)
 	}
+	seedDocumentKinds(t, db)
 	return OutbreakAdminService{DB: db}
 }
 

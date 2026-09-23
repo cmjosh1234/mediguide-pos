@@ -12,6 +12,7 @@ import {
   getPublicGuidelineMarkdown,
   getPublicGuidelineOriginal,
   getPublicGuidelineSection,
+  resolvePublicAssetUrl,
   listPublicGuidelineAlgorithms,
   listPublicGuidelineFigures,
   listPublicGuidelineSections,
@@ -41,6 +42,7 @@ import {
   StructuredTable,
 } from "./components/GuidelineBlockRenderer";
 import { EmptyReviewedSection } from "./components/EmptyReviewedSection";
+import { UploadedDocumentReader } from "./components/UploadedDocumentReader";
 import { reviewedDescendants } from "./components/empty-reviewed-section";
 import {
   isDocumentTitleWrapper,
@@ -187,6 +189,10 @@ export function PublicGuidelineReaderPage() {
   }
 
   const { data } = state;
+  // Forms and similar kinds are published as their uploaded file, not as chapters.
+  if (data.guideline.document_kind?.publish_as_uploaded) {
+    return <UploadedDocumentReader key={data.guideline.id} guideline={data.guideline} />;
+  }
   const displayedSections = readerSections(
     data.guideline,
     data.sections,
@@ -942,7 +948,7 @@ function safeExternalAssetUrl(value: string) {
 async function openOriginal(id: string, page?: number) {
   try {
     const asset = await getPublicGuidelineOriginal(id);
-    const url = new URL(asset.url);
+    const url = new URL(resolvePublicAssetUrl(asset.url));
     if (page) url.hash = `page=${page}`;
     window.open(url.toString(), "_blank", "noopener,noreferrer");
   } catch {

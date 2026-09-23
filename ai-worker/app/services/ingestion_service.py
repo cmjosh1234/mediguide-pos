@@ -5,12 +5,18 @@ import json
 import mimetypes
 import tempfile
 import time
+from datetime import datetime, timezone
 import structlog
 from app.core.config import get_settings
 from app.core.storage import ObjectStorage
 from app.document_processing.pdf_extractor import extract_pdf
 from app.document_processing.markdown_extractor import extract_markdown
 from app.document_processing.chunker import chunk_blocks, chunk_sections
+from app.document_processing.original_text import (
+    chunk_page_texts,
+    extract_docx_text,
+    extract_pdf_page_texts,
+)
 from app.document_processing.types import ExtractedAsset
 from app.embeddings.factory import get_embedding_provider
 from app.repositories.guideline_repo import (
@@ -18,6 +24,9 @@ from app.repositories.guideline_repo import (
     GuidelineSourceSupersededError,
 )
 from app.repositories.ingestion_repo import IngestionRepository
+from app.repositories.artifact_cache_repo import ArtifactCacheRepository
+from app.services.ingestion_artifacts import IngestionArtifacts
+from app.document_processing.artifact_identity import extraction_identity, embedding_identity, ocr_identity, identity
 
 log = structlog.get_logger()
 
@@ -30,6 +39,11 @@ class IngestionSuperseded(Exception):
     pass
 
 
+# Documents published as uploaded (for example forms) only get their original
+# file's text indexed for search and RAG.
+ORIGINAL_TEXT_INDEX_JOB = "original_text_index"
+
+
 class IngestionService:
     def __init__(self):
         self.settings = get_settings()
@@ -37,6 +51,7 @@ class IngestionService:
         self.guidelines = GuidelineRepository()
         self.storage = ObjectStorage()
         self.embedder = get_embedding_provider()
+        self.artifact_repository = ArtifactCacheRepository()
 
     def _source_is_current(
         self,
@@ -66,6 +81,13 @@ class IngestionService:
             return
         # For API-triggered runs the job may not be in 'running' state yet.
         self.jobs.mark_running(job_id)
+        self._metrics = {"stage_seconds": {}}
+        created = job.get("created_at")
+        if isinstance(created, datetime):
+            self._metrics["queue_seconds"] = round(max(0, (datetime.now(timezone.utc) - created.replace(tzinfo=created.tzinfo or timezone.utc)).total_seconds()), 3)
+        self._stage_name = None
+        self._stage_started = time.perf_counter()
+        job_started = self._stage_started
         try:
             self._process(job)
             self.jobs.mark_completed(job_id)
@@ -79,11 +101,28 @@ class IngestionService:
             log.exception("ingestion_job_failed", job_id=job_id, error=str(exc))
             self.jobs.mark_failed(job_id, str(exc))
             raise
+        finally:
+            self._finish_stage()
+            self._metrics["processing_seconds"] = round(time.perf_counter() - job_started, 3)
+            log.info("ingestion_benchmark", job_id=job_id, **self._metrics)
+            try:
+                self.jobs.record_metrics(job_id, self._metrics)
+            except Exception:
+                log.exception("ingestion_metrics_save_failed", job_id=job_id)
+
+    def _finish_stage(self):
+        if getattr(self, "_stage_name", None):
+            stages = self._metrics["stage_seconds"]
+            stages[self._stage_name] = round(stages.get(self._stage_name, 0) + time.perf_counter() - self._stage_started, 3)
+        self._stage_started = time.perf_counter()
 
     def _process(self, job: dict) -> None:
         job_id = str(job["id"])
 
         def stage(name: str, percent: int) -> None:
+            if hasattr(self, "_metrics") and name != self._stage_name:
+                self._finish_stage()
+                self._stage_name = name
             if self.jobs.cancellation_requested(job_id):
                 raise IngestionCanceled()
             self.jobs.set_progress(job_id, name, percent)
@@ -93,6 +132,9 @@ class IngestionService:
         if not version:
             raise ValueError(f"Guideline version not found: {version_id}")
         payload = self._job_payload(job)
+        if job.get("job_type") == ORIGINAL_TEXT_INDEX_JOB:
+            self._index_original_text(job, version, payload, stage)
+            return
         source_format = str(payload.get("source_format") or "").strip().lower()
         if not source_format:
             source_format = "markdown" if job.get("job_type") == "markdown_ingestion" else "pdf"
@@ -127,6 +169,8 @@ class IngestionService:
             started = time.perf_counter()
             self.storage.download_file(source_key, source_path)
             document_checksum = self._file_checksum(source_path)
+            if hasattr(self, "_metrics"):
+                self._metrics.update(source_bytes=source_path.stat().st_size, source_format=source_format, checksum=document_checksum)
             log.info(
                 "ingestion_download_completed",
                 job_id=str(job["id"]),
@@ -137,7 +181,18 @@ class IngestionService:
                 checksum=document_checksum,
             )
 
-            if self.guidelines.is_extraction_current(version_id, document_checksum):
+            reuse = getattr(self.settings, "ingestion_artifact_reuse", False)
+            artifacts = IngestionArtifacts(self.artifact_repository, self.storage, getattr(self, "_metrics", {})) if reuse else None
+            extraction_key = extraction_identity(document_checksum, source_format, self.settings, version.get("document_title") or "Guideline") if reuse else None
+            embedding_key = embedding_identity(self.settings, self.embedder) if reuse else None
+            processing_identity = identity({"extraction": extraction_key, "embedding": embedding_key, "chunking": [self.settings.chunk_size, self.settings.chunk_overlap, self.settings.min_chunk_chars]}) if extraction_key and embedding_key else None
+            previous_metadata = version.get("extraction_metadata_json") or {}
+            if isinstance(previous_metadata, str):
+                previous_metadata = json.loads(previous_metadata)
+            same_pipeline = not reuse or (processing_identity is not None and previous_metadata.get("processing_identity") == processing_identity and previous_metadata.get("source_file_key") == source_key and previous_metadata.get("markdown_revision_id") == revision_id)
+            if same_pipeline and self.guidelines.is_extraction_current(version_id, document_checksum):
+                if hasattr(self, "_metrics"):
+                    self._metrics["checksum_noop"] = True
                 log.info(
                     "ingestion_skipped_current_checksum",
                     job_id=str(job["id"]),
@@ -150,19 +205,36 @@ class IngestionService:
 
             stage("parsing", 20)
             started = time.perf_counter()
-            extracted = (
-                extract_markdown(
-                    source_path, fallback_title=version.get("document_title") or "Guideline"
-                )
-                if source_format == "markdown"
-                else extract_pdf(source_path)
-            )
+            last_parsing_check = 0.0
+            def check_parsing_cancel():
+                nonlocal last_parsing_check
+                now = time.perf_counter()
+                if now - last_parsing_check >= 1:
+                    stage("parsing", 20)
+                    last_parsing_check = now
+            def compute_extraction():
+                if source_format == "markdown":
+                    return extract_markdown(source_path, fallback_title=version.get("document_title") or "Guideline")
+                concurrent = getattr(self.settings, "ingestion_processing_concurrency", False)
+                parallel_options = {"page_workers": self.settings.pdf_page_workers, "ocr_workers": self.settings.ocr_workers,
+                    "check_cancel": check_parsing_cancel} if concurrent else {}
+                if artifacts is not None:
+                    ocr = ocr_identity()
+                    return extract_pdf(source_path, artifacts=artifacts, ocr_settings={"epoch": self.settings.artifact_cache_epoch, **ocr} if ocr else None, **parallel_options)
+                return extract_pdf(source_path, **parallel_options)
+            # Save raw extraction BEFORE enriching with revision/job IDs,
+            # version-owned storage keys or the original PDF attachment.
+            extracted = artifacts.extraction(extraction_key, compute_extraction) if artifacts else compute_extraction()
+            if artifacts is not None and not artifacts.extraction_complete:
+                processing_identity = None
             for block in extracted.blocks:
                 block.provenance = {
                     **block.provenance,
                     "markdown_revision_id": revision_id,
                     "ingestion_job_id": job_id,
                 }
+            if hasattr(self, "_metrics"):
+                self._metrics.update(pages=extracted.pages, blocks=len(extracted.blocks), sections=len(extracted.sections), tables=len(extracted.tables), assets=len(extracted.assets), extraction=extracted.metadata.get("extraction_timings", {}))
             markdown_bytes = extracted.markdown.encode("utf-8")
             markdown_checksum = hashlib.sha256(markdown_bytes).hexdigest()
             log.info(
@@ -181,6 +253,8 @@ class IngestionService:
             chunks = chunk_blocks(extracted.blocks)
             if not chunks:
                 chunks = chunk_sections(extracted.sections)
+            if hasattr(self, "_metrics"):
+                self._metrics["chunks"] = len(chunks)
             log.info(
                 "ingestion_chunking_completed",
                 job_id=str(job["id"]),
@@ -198,6 +272,7 @@ class IngestionService:
             )
 
             started = time.perf_counter()
+            stage("uploading_assets", 50)
             self.storage.upload_bytes(
                 extracted.html.encode("utf-8"), html_key, "text/html; charset=utf-8"
             )
@@ -248,7 +323,17 @@ class IngestionService:
             batch_size = max(1, self.settings.embedding_request_batch_size)
             started = time.perf_counter()
             stage("embeddings", 65)
-            for i in range(0, len(texts), batch_size):
+            concurrent = getattr(self.settings, "ingestion_processing_concurrency", False)
+            embedding_artifacts = artifacts or (IngestionArtifacts(self.artifact_repository, self.storage, getattr(self, "_metrics", {})) if concurrent else None)
+            if embedding_artifacts:
+                workers = self.settings.embedding_workers if concurrent else 1
+                # Never multiply in-process transformer model weights/GPU memory.
+                if self.settings.embedding_provider.lower() == "sentence_transformers":
+                    workers = 1
+                embeddings = embedding_artifacts.embeddings(texts, self.embedder, embedding_key, self.settings.embedding_dim, batch_size,
+                    lambda done, total: stage("embeddings", min(84, 65 + int((done / max(1, total)) * 19))),
+                    workers=workers, provider_factory=get_embedding_provider if workers > 1 else None)
+            for i in range(0, len(texts) if not embedding_artifacts else 0, batch_size):
                 stage("embeddings", min(84, 65 + int((i / max(1, len(texts))) * 19)))
                 batch_started = time.perf_counter()
                 batch = texts[i : i + batch_size]
@@ -304,6 +389,7 @@ class IngestionService:
                 checksum=document_checksum,
                 metadata={
                     **extracted.metadata,
+                    "processing_identity": processing_identity,
                     "source_format": source_format,
                     "source_file_key": source_key,
                     "markdown_checksum": markdown_checksum,
@@ -344,6 +430,57 @@ class IngestionService:
                 assets=len(extracted.assets),
                 source_format=source_format,
             )
+
+    def _index_original_text(self, job: dict, version: dict, payload: dict, stage) -> None:
+        """Index the text of a published-as-uploaded file without creating editable content."""
+        job_id = str(job["id"])
+        version_id = str(job["version_id"])
+        source_format = str(payload.get("source_format") or "pdf").strip().lower()
+        if source_format not in {"pdf", "docx"}:
+            raise ValueError(f"Unsupported original file format: {source_format}")
+        source_key = str(payload.get("file_key") or version.get("original_file_key") or "").strip()
+        if not source_key:
+            raise ValueError("Guideline version has no original file")
+        if str(version.get("original_file_key") or "").strip() != source_key:
+            raise IngestionSuperseded()
+
+        with tempfile.TemporaryDirectory(prefix="mediguide-original-") as tmp:
+            source_path = Path(tmp) / f"source.{source_format}"
+            stage("downloading", 5)
+            self.storage.download_file(source_key, source_path)
+            stage("extracting", 25)
+            if source_format == "pdf":
+                pages = extract_pdf_page_texts(source_path)
+            else:
+                pages = [(None, extract_docx_text(source_path))]
+
+        stage("chunking", 55)
+        chunks = chunk_page_texts(
+            pages,
+            title=str(version.get("document_title") or ""),
+            chunk_size=self.settings.chunk_size,
+            overlap=self.settings.chunk_overlap,
+        )
+        texts = [chunk.content for chunk in chunks]
+        embeddings: list[list[float]] = []
+        batch_size = max(1, self.settings.embedding_request_batch_size)
+        for start in range(0, len(texts), batch_size):
+            stage("embeddings", min(84, 65 + int((start / max(1, len(texts))) * 19)))
+            embeddings.extend(self.embedder.embed(texts[start : start + batch_size]))
+
+        stage("saving", 90)
+        # The repository re-checks the original under a row lock before writing.
+        self.guidelines.replace_original_text_chunks(
+            version=version, source_key=source_key, chunks=chunks, embeddings=embeddings
+        )
+        log.info(
+            "original_text_indexed",
+            job_id=job_id,
+            version_id=version_id,
+            source_format=source_format,
+            pages=len(pages),
+            chunks=len(chunks),
+        )
 
     @staticmethod
     def _job_payload(job: dict) -> dict:
