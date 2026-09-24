@@ -3,11 +3,35 @@ package main
 import (
 	"database/sql"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/pressly/goose/v3"
 )
+
+// Goose panics at startup when two files share a version, which parallel
+// branches cause easily; catch it here instead of in a running container.
+func TestMigrationVersionsAreUnique(t *testing.T) {
+	files, err := filepath.Glob("../../migrations/*.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatal("no migrations found")
+	}
+	seen := map[int64]string{}
+	for _, file := range files {
+		version, err := goose.NumericComponent(file)
+		if err != nil {
+			t.Fatalf("%s: %v", filepath.Base(file), err)
+		}
+		if previous, ok := seen[version]; ok {
+			t.Errorf("duplicate migration version %d: %s and %s; renumber the newer one", version, previous, filepath.Base(file))
+		}
+		seen[version] = filepath.Base(file)
+	}
+}
 
 func TestNotificationTemplateLegacyVariables(t *testing.T) {
 	dsn := os.Getenv("MEDIGUIDE_TEST_DATABASE_URL")
