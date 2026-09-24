@@ -15,7 +15,6 @@ import (
 	"mediguide/internal/middleware"
 	"mediguide/internal/observability"
 	"mediguide/internal/redisx"
-	"mediguide/internal/services"
 	"mediguide/internal/storage"
 
 	"github.com/gin-contrib/cors"
@@ -129,160 +128,54 @@ func New(cfg config.Config) (*App, error) {
 		})
 	})
 
-	authSvc := services.AuthService{DB: database, Cfg: cfg, Mailer: emailSender}
-	guidelineSvc := services.GuidelineService{DB: database, Store: store, Cache: cacheStore}
-	publicGuidelineSvc := services.PublicGuidelineService{DB: database, Store: store, Cache: cacheStore}
-	outbreakSvc := services.OutbreakService{DB: database, Store: store, AllowedExternalHosts: cfg.NotificationActionExternalHosts}
-	outbreakAdminSvc := services.OutbreakAdminService{DB: database, Store: store, AllowedExternalHosts: cfg.NotificationActionExternalHosts}
-	searchSvc := services.SearchService{DB: database, Cache: cacheStore}
-	ragSvc := services.RAGService{DB: database, Search: searchSvc, Cfg: cfg}
-	protocolSvc := services.ProtocolService{DB: database}
-	syncSvc := services.SyncService{DB: database, Store: store, Cfg: cfg}
-	referenceSvc := services.ReferenceService{DB: database}
-	calculatorSvc := services.CalculatorService{DB: database, LegacyClinicalToolsDir: cfg.LegacyClinicalToolsDir}
-	calculatorVersionSvc := services.CalculatorVersionService{DB: database}
-	drugSvc := services.DrugService{DB: database}
-	drugReferenceSvc := services.DrugReferenceService{DB: database, Cache: cacheStore}
-	userSvc := services.UserService{DB: database}
-	notificationSvc := services.NotificationService{DB: database, AllowedActionHosts: cfg.NotificationActionExternalHosts, DeviceStaleAfter: time.Duration(cfg.FirebaseDeviceStaleDays) * 24 * time.Hour}
-	outbreakAdminSvc.DocumentNotifications = &services.OutbreakDocumentNotificationService{DB: database, AllowedActionHosts: cfg.NotificationActionExternalHosts}
-	supportSvc := services.SupportService{DB: database}
-	helpContentSvc := services.HelpContentService{DB: database, Cache: cacheStore}
-	guidelineContentSvc := services.GuidelineContentService{DB: database, Cache: cacheStore}
-	diseaseSvc := services.DiseaseService{DB: database}
-	contentDiseaseSvc := services.ContentDiseaseService{DB: database}
-	contentHubSvc := services.ContentHubService{DB: database, AllowedExternalHosts: cfg.NotificationActionExternalHosts}
-	emergencyProtocolSvc := services.EmergencyProtocolService{DB: database}
-	contentReferenceSvc := services.ContentReferenceService{DB: database, Cache: cacheStore}
-	legacyAPISvc := services.LegacyAPIService{DB: database, Cache: cacheStore}
-	facilitySvc := services.FacilityService{DB: database, Cache: cacheStore}
-	firebaseSvc, err := services.NewFirebaseService(database, cfg)
+	wired, err := wireRoutes(cfg, database, store, cacheStore, emailSender)
 	if err != nil {
 		return nil, err
 	}
 
-	authH := handlers.AuthHandler{Service: authSvc}
-	guidelineH := handlers.GuidelineHandler{Service: guidelineSvc, MaxUploadMB: cfg.MaxUploadMB, DirectUploads: cfg.GuidelineDirectUploads && cfg.S3PublicEndpoint != ""}
-	publicGuidelineH := handlers.PublicGuidelineHandler{Service: publicGuidelineSvc, Content: publicGuidelineSvc}
-	outbreakH := handlers.OutbreakHandler{Service: outbreakSvc}
-	outbreakAdminH := handlers.OutbreakAdminHandler{Service: outbreakAdminSvc, MaxUploadMB: cfg.MaxUploadMB}
-	searchH := handlers.SearchHandler{Service: searchSvc}
-	ragH := handlers.RAGHandler{Service: ragSvc}
-	protocolH := handlers.ProtocolHandler{Service: protocolSvc}
-	syncH := handlers.SyncHandler{Service: syncSvc}
-	referenceH := handlers.ReferenceHandler{Service: referenceSvc}
-	calculatorH := handlers.CalculatorHandler{Service: calculatorSvc, Versions: calculatorVersionSvc}
-	drugH := handlers.DrugHandler{Service: drugSvc}
-	drugReferenceH := handlers.DrugReferenceHandler{Service: drugReferenceSvc}
-	userH := handlers.UserHandler{Service: userSvc}
-	notificationH := handlers.NotificationHandler{Service: notificationSvc, Outbox: services.NotificationOutboxService{DB: database}}
-	supportH := handlers.SupportHandler{Service: supportSvc}
-	helpContentH := handlers.HelpContentHandler{Service: helpContentSvc}
-	guidelineContentH := handlers.GuidelineContentHandler{Service: guidelineContentSvc}
-	diseaseH := handlers.DiseaseHandler{Service: diseaseSvc}
-	contentDiseaseH := handlers.ContentDiseaseHandler{Service: contentDiseaseSvc}
-	contentHubH := handlers.ContentHubHandler{Service: contentHubSvc}
-	emergencyProtocolH := handlers.EmergencyProtocolHandler{Service: emergencyProtocolSvc}
-	contentReferenceH := handlers.ContentReferenceHandler{Service: contentReferenceSvc}
-	progressUsageH := handlers.ProgressUsageHandler{Service: services.ProgressUsageService{DB: database}}
-	guidelineLibraryH := handlers.GuidelineLibraryHandler{Service: services.GuidelineLibraryService{DB: database}}
-	conversationH := handlers.ConversationHandler{Service: services.ConversationService{DB: database}}
-	legacyAPIH := handlers.LegacyAPIHandler{Service: legacyAPISvc, Cfg: cfg}
-	facilityH := handlers.NewFacilityHandler(facilitySvc)
-	firebaseH := handlers.FirebaseHandler{Service: firebaseSvc}
-
 	legacyV1 := r.Group("/api/v1")
-	legacyV1.GET("/stats", rateLimiter.Limit(middleware.Policy("legacy-public", 60, time.Minute, 10), middleware.IPIdentity), legacyAPIH.Stats)
-	legacyV1.GET("/health-facilities/tree", rateLimiter.Limit(middleware.Policy("legacy-public", 60, time.Minute, 10), middleware.IPIdentity), legacyAPIH.HealthFacilitiesTree)
-	legacyV1.GET("/ministry-directory/tree", rateLimiter.Limit(middleware.Policy("legacy-public", 60, time.Minute, 10), middleware.IPIdentity), legacyAPIH.MinistryDirectoryTree)
+	legacyV1.GET("/stats", rateLimiter.Limit(middleware.Policy("legacy-public", 60, time.Minute, 10), middleware.IPIdentity), wired.legacyAPIH.Stats)
+	legacyV1.GET("/health-facilities/tree", rateLimiter.Limit(middleware.Policy("legacy-public", 60, time.Minute, 10), middleware.IPIdentity), wired.legacyAPIH.HealthFacilitiesTree)
+	legacyV1.GET("/ministry-directory/tree", rateLimiter.Limit(middleware.Policy("legacy-public", 60, time.Minute, 10), middleware.IPIdentity), wired.legacyAPIH.MinistryDirectoryTree)
 	legacyProtected := legacyV1.Group("")
 	legacyProtected.Use(middleware.AuthRequired(cfg, database), middleware.PrivateNoStore())
-	legacyProtected.GET("/overview", legacyAPIH.Overview)
+	legacyProtected.GET("/overview", wired.legacyAPIH.Overview)
 
 	legacyCompat := r.Group("/api")
 	legacyCompat.Use(middleware.AuthRequired(cfg, database), middleware.PrivateNoStore())
-	legacyCompat.GET("/overview", legacyAPIH.Overview)
+	legacyCompat.GET("/overview", wired.legacyAPIH.Overview)
 
 	public := r.Group("/api/public")
 	public.Use(rateLimiter.Limit(middleware.Policy("public-guidelines", 120, time.Minute, 20), middleware.IPIdentity))
 	{
-		public.GET("/guidelines", publicGuidelineH.List)
-		public.GET("/search", rateLimiter.Limit(middleware.Policy("public-search", 60, time.Minute, 10), middleware.IPIdentity), searchH.PublicSearch)
-		public.GET("/guidelines/:id", publicGuidelineH.Get)
-		public.GET("/guidelines/:id/manifest", publicGuidelineH.Manifest)
-		public.GET("/guidelines/:id/content", publicGuidelineH.ContentBundle)
-		public.GET("/guidelines/:id/sections", publicGuidelineH.Sections)
-		public.GET("/guidelines/:id/sections/:sectionId", publicGuidelineH.Section)
-		public.GET("/guidelines/:id/tables", publicGuidelineH.Tables)
-		public.GET("/guidelines/:id/figures", publicGuidelineH.Figures)
-		public.GET("/guidelines/:id/algorithms", publicGuidelineH.Algorithms)
-		public.GET("/guidelines/:id/original", rateLimiter.Limit(middleware.Policy("public-guideline-original", 30, time.Minute, 5), middleware.IPIdentity), publicGuidelineH.Original)
-		public.GET("/guidelines/:id/original/download", rateLimiter.Limit(middleware.Policy("public-guideline-original-download", 20, time.Minute, 3), middleware.IPIdentity), publicGuidelineH.OriginalDownload)
-		public.GET("/guidelines/:id/offline-package", rateLimiter.Limit(middleware.Policy("public-guideline-offline", 20, time.Minute, 3), middleware.IPIdentity), publicGuidelineH.OfflinePackage)
-		public.GET("/guidelines/:id/offline-package/download", rateLimiter.Limit(middleware.Policy("public-guideline-offline-download", 10, time.Minute, 2), middleware.IPIdentity), publicGuidelineH.OfflinePackageDownload)
-		public.GET("/guidelines/:id/assets/:assetId/download", rateLimiter.Limit(middleware.Policy("public-guideline-asset-download", 60, time.Minute, 10), middleware.IPIdentity), publicGuidelineH.AssetDownload)
-		public.GET("/guidelines/:id/markdown", rateLimiter.Limit(middleware.Policy("public-markdown", 60, time.Minute, 10), middleware.IPIdentity), publicGuidelineH.Markdown)
-		public.GET("/hubs", contentHubH.PublicList)
-		public.GET("/hubs/:slug", contentHubH.PublicGet)
-		public.GET("/hubs/:slug/pillars/:pillarSlug", contentHubH.PublicPillar)
-		public.GET("/diseases", diseaseH.PublicList)
-		public.GET("/diseases/hierarchy", diseaseH.PublicHierarchy)
-		public.GET("/diseases/:slug", diseaseH.PublicGet)
-		public.POST("/assistant/ask",
-			middleware.PrivateNoStore(),
-			rateLimiter.Limit(middleware.Policy("public-general-ai-chat-minute", 6, time.Minute, 1), middleware.IPIdentity),
-			rateLimiter.Limit(middleware.Policy("public-general-ai-chat-daily", 30, 24*time.Hour, 0), middleware.IPIdentity),
-			rateLimiter.Concurrency("public-general-ai-chat-ip", 1, time.Minute, middleware.IPIdentity),
-			rateLimiter.Concurrency("public-general-ai-chat-global", 10, 2*time.Minute, middleware.StaticIdentity("global")),
-			ragH.AskPublic)
-		public.POST("/guidelines/:id/ask",
-			middleware.PrivateNoStore(),
-			rateLimiter.Limit(middleware.Policy("public-ai-chat-minute", 6, time.Minute, 1), middleware.IPIdentity),
-			rateLimiter.Limit(middleware.Policy("public-ai-chat-daily", 30, 24*time.Hour, 0), middleware.IPIdentity),
-			rateLimiter.Concurrency("public-ai-chat-ip", 1, time.Minute, middleware.IPIdentity),
-			rateLimiter.Concurrency("public-ai-chat-global", 10, 2*time.Minute, middleware.StaticIdentity("global")),
-			ragH.AskPublishedGuideline)
-		public.POST("/support/tickets", rateLimiter.Limit(middleware.Policy("public-support-ticket-create", 5, time.Hour, 1), middleware.IPIdentity), supportH.CreateGuestTicket)
-		outbreakReadLimit := rateLimiter.Limit(middleware.Policy("public-outbreaks", 90, time.Minute, 15), middleware.IPIdentity)
-		public.GET("/outbreaks", outbreakReadLimit, outbreakH.List)
-		public.GET("/outbreaks/:id", outbreakReadLimit, outbreakH.Get)
-		public.GET("/outbreaks/:id/hub", outbreakReadLimit, contentHubH.PublicOutbreakHub)
-		public.GET("/outbreaks/:id/updates", outbreakReadLimit, outbreakH.Updates)
-		public.GET("/outbreaks/:id/resources", outbreakReadLimit, outbreakH.Resources)
-		public.GET("/outbreak-resources", outbreakReadLimit, outbreakH.ListResources)
-		public.GET("/outbreaks/:id/documents", outbreakReadLimit, outbreakH.Documents)
-		public.GET("/outbreaks/:id/documents/:documentId", outbreakReadLimit, outbreakH.GetDocument)
-		public.GET("/outbreaks/:id/documents/:documentId/download", outbreakReadLimit, outbreakH.DocumentDownload)
-		public.GET("/outbreak-documents", outbreakReadLimit, outbreakH.SearchDocuments)
-		public.GET("/outbreak-documents/:documentId", outbreakReadLimit, outbreakH.GetDocumentGlobal)
-		public.GET("/outbreak-documents/:documentId/content", outbreakReadLimit, outbreakH.DocumentContent)
-		public.GET("/situation-reports", outbreakReadLimit, outbreakH.ListReports)
-		public.GET("/situation-reports/:id", outbreakReadLimit, outbreakH.GetReport)
-		public.GET("/situation-reports/:id/asset", outbreakReadLimit, outbreakH.ReportAsset)
+		registerPublicGuidelinesRoutes(public, rateLimiter, wired.publicGuidelineH, wired.searchH)
+		registerPublicHubsRoutes(public, wired.contentHubH, wired.diseaseH)
+		registerPublicAiRoutes(public, rateLimiter, wired.ragH)
+		registerPublicOutbreakRoutes(public, rateLimiter, wired.supportH, wired.outbreakH, wired.contentHubH)
 	}
 
 	v2 := r.Group("/api/v2")
 	{
 		privateNoStore := middleware.PrivateNoStore()
-		v2.POST("/auth/register", privateNoStore, rateLimiter.Limit(middleware.Policy("auth-register", 5, time.Hour, 1), middleware.IPIdentity), authH.Register)
+		v2.POST("/auth/register", privateNoStore, rateLimiter.Limit(middleware.Policy("auth-register", 5, time.Hour, 1), middleware.IPIdentity), wired.authH.Register)
 		v2.POST("/auth/login",
 			privateNoStore,
 			rateLimiter.Limit(middleware.Policy("auth-login-ip", 10, 5*time.Minute, 2), middleware.IPIdentity),
-			rateLimiter.Limit(middleware.Policy("auth-login-account", 5, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("email")), authH.Login)
+			rateLimiter.Limit(middleware.Policy("auth-login-account", 5, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("email")), wired.authH.Login)
 		v2.POST("/auth/refresh",
 			privateNoStore,
 			rateLimiter.Limit(middleware.Policy("auth-refresh-ip", 60, time.Minute, 5), middleware.IPIdentity),
-			rateLimiter.Limit(middleware.Policy("auth-refresh-session", 30, time.Minute, 5), middleware.IPAndJSONFieldIdentity("refresh_token")), authH.Refresh)
+			rateLimiter.Limit(middleware.Policy("auth-refresh-session", 30, time.Minute, 5), middleware.IPAndJSONFieldIdentity("refresh_token")), wired.authH.Refresh)
 		v2.POST("/auth/password-reset/request",
 			privateNoStore,
 			rateLimiter.Limit(middleware.Policy("password-reset-ip", 5, 15*time.Minute, 0), middleware.IPIdentity),
-			rateLimiter.Limit(middleware.Policy("password-reset-account", 3, time.Hour, 0), middleware.IPAndJSONFieldIdentity("email")), authH.RequestPasswordReset)
+			rateLimiter.Limit(middleware.Policy("password-reset-account", 3, time.Hour, 0), middleware.IPAndJSONFieldIdentity("email")), wired.authH.RequestPasswordReset)
 		v2.POST("/auth/password-reset/confirm",
 			privateNoStore,
 			rateLimiter.Limit(middleware.Policy("password-reset-confirm-ip", 10, 15*time.Minute, 0), middleware.IPIdentity),
-			rateLimiter.Limit(middleware.Policy("password-reset-confirm-token", 5, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("token")), authH.ConfirmPasswordReset)
-		v2.POST("/auth/email-verification/request", privateNoStore, rateLimiter.Limit(middleware.Policy("email-verification-request", 5, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("email")), authH.RequestEmailVerification)
-		v2.POST("/auth/email-verification/confirm", privateNoStore, rateLimiter.Limit(middleware.Policy("email-verification-confirm", 10, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("token")), authH.ConfirmEmailVerification)
+			rateLimiter.Limit(middleware.Policy("password-reset-confirm-token", 5, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("token")), wired.authH.ConfirmPasswordReset)
+		v2.POST("/auth/email-verification/request", privateNoStore, rateLimiter.Limit(middleware.Policy("email-verification-request", 5, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("email")), wired.authH.RequestEmailVerification)
+		v2.POST("/auth/email-verification/confirm", privateNoStore, rateLimiter.Limit(middleware.Policy("email-verification-confirm", 10, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("token")), wired.authH.ConfirmEmailVerification)
 		protected := v2.Group("")
 		protected.Use(
 			middleware.AuthRequired(cfg, database),
@@ -292,504 +185,39 @@ func New(cfg config.Config) (*App, error) {
 				rateLimiter.Limit(middleware.Policy("authenticated-write", 120, time.Minute, 20), middleware.UserIdentity),
 			),
 		)
-		protected.POST("/auth/logout", authH.Logout)
-		protected.GET("/me", authH.Me)
-		protected.POST("/me/password", rateLimiter.Limit(middleware.Policy("password-change", 5, time.Hour, 0), middleware.UserIdentity), authH.ChangePassword)
+		protected.POST("/auth/logout", wired.authH.Logout)
+		protected.GET("/me", wired.authH.Me)
+		protected.POST("/me/password", rateLimiter.Limit(middleware.Policy("password-change", 5, time.Hour, 0), middleware.UserIdentity), wired.authH.ChangePassword)
 
-		protected.GET("/outbreaks", middleware.RequirePermission("outbreak.read"), outbreakAdminH.ListOutbreaks)
-		protected.POST("/outbreaks", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.CreateOutbreak)
-		protected.GET("/outbreaks/:id", middleware.RequirePermission("outbreak.read"), outbreakAdminH.GetOutbreak)
-		protected.PATCH("/outbreaks/:id", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.UpdateOutbreak)
-		protected.PATCH("/outbreaks/:id/metrics", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.UpdateMetrics)
-		protected.DELETE("/outbreaks/:id", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.DeleteOutbreak)
-		protected.POST("/outbreaks/:id/submit", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.TransitionOutbreak("submit"))
-		protected.POST("/outbreaks/:id/approve", middleware.RequirePermission("outbreak.review"), outbreakAdminH.TransitionOutbreak("approve"))
-		protected.POST("/outbreaks/:id/publish", middleware.RequirePermission("outbreak.publish"), outbreakAdminH.TransitionOutbreak("publish"))
-		protected.POST("/outbreaks/:id/withdraw", middleware.RequirePermission("outbreak.withdraw"), outbreakAdminH.TransitionOutbreak("withdraw"))
-		protected.POST("/outbreaks/:id/update-status", middleware.RequirePermission("outbreak.publish"), outbreakAdminH.TransitionOutbreak("update_status"))
-		protected.POST("/outbreaks/:id/correct", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.CorrectOutbreak)
-		protected.GET("/outbreaks/:id/audit", middleware.RequirePermission("outbreak.read"), outbreakAdminH.ListAudit("outbreak"))
-		protected.POST("/outbreaks/:id/review-comments", middleware.RequirePermission("outbreak.review"), outbreakAdminH.AddReviewComment("outbreak"))
-		protected.GET("/outbreaks/:id/updates", middleware.RequirePermission("outbreak.read"), outbreakAdminH.ListUpdates)
-		protected.POST("/outbreaks/:id/updates", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.CreateUpdate)
-		protected.GET("/outbreaks/:id/updates/:updateId", middleware.RequirePermission("outbreak.read"), outbreakAdminH.GetUpdate)
-		protected.PATCH("/outbreaks/:id/updates/:updateId", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.UpdateUpdate)
-		protected.DELETE("/outbreaks/:id/updates/:updateId", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.DeleteUpdate)
-		protected.POST("/outbreaks/:id/updates/:updateId/submit", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.TransitionUpdate("submit"))
-		protected.POST("/outbreaks/:id/updates/:updateId/approve", middleware.RequirePermission("outbreak.review"), outbreakAdminH.TransitionUpdate("approve"))
-		protected.POST("/outbreaks/:id/updates/:updateId/publish", middleware.RequirePermission("outbreak.publish"), outbreakAdminH.TransitionUpdate("publish"))
-		protected.POST("/outbreaks/:id/updates/:updateId/withdraw", middleware.RequirePermission("outbreak.withdraw"), outbreakAdminH.TransitionUpdate("withdraw"))
-		protected.POST("/outbreaks/:id/updates/:updateId/correct", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.CorrectUpdate)
-		protected.GET("/outbreaks/:id/resources", middleware.RequirePermission("outbreak.read"), outbreakAdminH.ListResources)
-		protected.POST("/outbreaks/:id/resources", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.CreateResource)
-		protected.GET("/outbreaks/:id/resources/:resourceId", middleware.RequirePermission("outbreak.read"), outbreakAdminH.GetResource)
-		protected.PATCH("/outbreaks/:id/resources/:resourceId", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.UpdateResource)
-		protected.DELETE("/outbreaks/:id/resources/:resourceId", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.DeleteResource)
-		protected.POST("/outbreaks/:id/resources/:resourceId/submit", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.TransitionResource("submit"))
-		protected.POST("/outbreaks/:id/resources/:resourceId/approve", middleware.RequirePermission("outbreak.review"), outbreakAdminH.TransitionResource("approve"))
-		protected.POST("/outbreaks/:id/resources/:resourceId/publish", middleware.RequirePermission("outbreak.publish"), outbreakAdminH.TransitionResource("publish"))
-		protected.POST("/outbreaks/:id/resources/:resourceId/withdraw", middleware.RequirePermission("outbreak.withdraw"), outbreakAdminH.TransitionResource("withdraw"))
-		protected.POST("/outbreaks/:id/resources/:resourceId/correct", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.CorrectResource)
-		protected.GET("/outbreaks/:id/documents", middleware.RequirePermission("outbreak.read"), outbreakAdminH.ListDocuments)
-		protected.POST("/outbreaks/:id/documents", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.CreateDocument)
-		protected.GET("/outbreaks/:id/documents/:documentId", middleware.RequirePermission("outbreak.read"), outbreakAdminH.GetDocument)
-		protected.PATCH("/outbreaks/:id/documents/:documentId", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.UpdateDocument)
-		protected.DELETE("/outbreaks/:id/documents/:documentId", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.DeleteDocument)
-		protected.PUT("/outbreaks/:id/documents/:documentId/file", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.UploadDocument)
-		protected.GET("/outbreaks/:id/documents/:documentId/content", middleware.RequirePermission("outbreak.read"), outbreakAdminH.AdminDocumentContent)
-		protected.GET("/outbreaks/:id/documents/:documentId/search-preview", middleware.RequirePermission("outbreak.read"), outbreakAdminH.DocumentSearchPreview)
-		protected.POST("/outbreaks/:id/documents/:documentId/reprocess", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.ReprocessDocument)
-		protected.GET("/outbreaks/:id/documents/:documentId/versions", middleware.RequirePermission("outbreak.read"), outbreakAdminH.DocumentVersions)
-		protected.GET("/outbreaks/:id/documents/:documentId/audit", middleware.RequirePermission("outbreak.read"), outbreakAdminH.DocumentAudit)
-		protected.POST("/outbreaks/:id/documents/:documentId/review-comments", middleware.RequirePermission("outbreak.review"), outbreakAdminH.AddDocumentReviewComment)
-		protected.POST("/outbreaks/:id/documents/:documentId/submit", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.TransitionDocument("submit"))
-		protected.POST("/outbreaks/:id/documents/:documentId/approve", middleware.RequirePermission("outbreak.review"), outbreakAdminH.TransitionDocument("approve"))
-		protected.POST("/outbreaks/:id/documents/:documentId/publish", middleware.RequirePermission("outbreak.publish"), outbreakAdminH.TransitionDocument("publish"))
-		protected.POST("/outbreaks/:id/documents/:documentId/withdraw", middleware.RequirePermission("outbreak.withdraw"), outbreakAdminH.TransitionDocument("withdraw"))
-		protected.POST("/outbreaks/:id/documents/:documentId/corrections", middleware.RequirePermission("outbreak.manage"), outbreakAdminH.CorrectDocument)
-		protected.GET("/situation-reports", middleware.RequirePermission("situation_report.read"), outbreakAdminH.ListReports)
-		protected.POST("/situation-reports", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.CreateReport)
-		protected.GET("/situation-reports/:id", middleware.RequirePermission("situation_report.read"), outbreakAdminH.GetReport)
-		protected.PATCH("/situation-reports/:id", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.UpdateReport)
-		protected.DELETE("/situation-reports/:id", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.DeleteReport)
-		protected.POST("/situation-reports/:id/submit", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.TransitionReport("submit"))
-		protected.POST("/situation-reports/:id/approve", middleware.RequirePermission("situation_report.review"), outbreakAdminH.TransitionReport("approve"))
-		protected.POST("/situation-reports/:id/publish", middleware.RequirePermission("situation_report.publish"), outbreakAdminH.TransitionReport("publish"))
-		protected.POST("/situation-reports/:id/withdraw", middleware.RequirePermission("situation_report.withdraw"), outbreakAdminH.TransitionReport("withdraw"))
-		protected.POST("/situation-reports/:id/correct", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.CorrectReport)
-		protected.POST("/situation-reports/:id/asset", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.UploadReportAsset)
-		protected.GET("/situation-reports/:id/audit", middleware.RequirePermission("situation_report.read"), outbreakAdminH.ListAudit("situation_report"))
-		protected.POST("/situation-reports/:id/review-comments", middleware.RequirePermission("situation_report.review"), outbreakAdminH.AddReviewComment("situation_report"))
+		registerOutbreakRoutes(protected, wired.outbreakAdminH)
 
-		protected.GET("/calculators", middleware.RequireAnyPermission("calculator.read", "guideline.read"), calculatorH.List)
-		protected.GET("/calculators/:id", middleware.RequireAnyPermission("calculator.read", "guideline.read"), calculatorH.Get)
-		protected.POST("/calculators", middleware.RequireAnyPermission("calculator.write", "guideline.write"), calculatorH.Create)
-		protected.PATCH("/calculators/:id", middleware.RequireAnyPermission("calculator.write", "guideline.write"), calculatorH.Update)
-		protected.DELETE("/calculators/:id", middleware.RequireAnyPermission("calculator.write", "guideline.write"), calculatorH.Delete)
-		protected.GET("/calculators/:id/content", middleware.RequireAnyPermission("calculator.read", "guideline.read"), calculatorH.Content)
-		protected.GET("/calculators/:id/definition", middleware.RequireAnyPermission("calculator.read", "guideline.read"), calculatorH.Definition)
-		protected.GET("/calculators/:id/versions", middleware.RequirePermission("calculator.write"), calculatorH.ListVersions)
-		protected.POST("/calculators/:id/versions", middleware.RequirePermission("calculator.write"), calculatorH.CreateVersion)
-		protected.GET("/calculator-versions/review-queue", middleware.RequirePermission("calculator.review"), calculatorH.ReviewQueue)
-		protected.GET("/calculator-versions/:id", middleware.RequirePermission("calculator.write"), calculatorH.GetVersion)
-		protected.GET("/calculator-versions/:id/preview", middleware.RequirePermission("calculator.review"), calculatorH.PreviewVersion)
-		protected.PATCH("/calculator-versions/:id", middleware.RequirePermission("calculator.write"), calculatorH.UpdateVersion)
-		protected.DELETE("/calculator-versions/:id", middleware.RequirePermission("calculator.write"), calculatorH.DeleteVersion)
-		protected.POST("/calculator-versions/:id/duplicate", middleware.RequirePermission("calculator.write"), calculatorH.DuplicateVersion)
-		protected.POST("/calculator-versions/:id/validate", middleware.RequirePermission("calculator.write"), rateLimiter.Limit(middleware.Policy("calculator-version-validate", 30, time.Minute, 5), middleware.UserIdentity), calculatorH.ValidateVersion)
-		protected.POST("/calculator-versions/:id/test", middleware.RequirePermission("calculator.write"), rateLimiter.Limit(middleware.Policy("calculator-version-test", 20, time.Minute, 3), middleware.UserIdentity), calculatorH.TestVersion)
-		protected.POST("/calculator-versions/:id/submit", middleware.RequirePermission("calculator.write"), calculatorH.SubmitVersion)
-		protected.POST("/calculator-versions/:id/approve", middleware.RequirePermission("calculator.review"), calculatorH.ApproveVersion)
-		protected.POST("/calculator-versions/:id/publish", middleware.RequirePermission("calculator.publish"), rateLimiter.Limit(middleware.Policy("calculator-version-publish", 10, time.Hour, 1), middleware.UserIdentity), calculatorH.PublishVersion)
-		protected.POST("/calculators/:id/runtime/legacy", middleware.RequirePermission("calculator.publish"), rateLimiter.Limit(middleware.Policy("calculator-runtime-rollback", 10, time.Hour, 1), middleware.UserIdentity), calculatorH.SelectLegacyRuntime)
-		protected.POST("/calculator-versions/:id/withdraw", middleware.RequirePermission("calculator.withdraw"), calculatorH.WithdrawVersion)
-		protected.GET("/calculator-versions/:id/audit", middleware.RequirePermission("calculator.review"), calculatorH.VersionAudit)
-		protected.POST("/calculator-versions/:id/review-comments", middleware.RequirePermission("calculator.review"), calculatorH.AddVersionReviewComment)
-		protected.POST("/calculators/:id/usage", calculatorH.StartUsage)
-		protected.PATCH("/calculator-usage/:usageId", calculatorH.FinishUsage)
+		registerCalculatorsRoutes(protected, rateLimiter, wired.calculatorH)
 
-		protected.GET("/drugs", middleware.RequireAnyPermission("drug.read", "guideline.read"), drugH.List)
-		protected.GET("/drugs/:id", middleware.RequireAnyPermission("drug.read", "guideline.read"), drugH.Get)
-		protected.POST("/drugs", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugH.Create)
-		protected.PATCH("/drugs/:id", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugH.Update)
-		protected.DELETE("/drugs/:id", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugH.Delete)
-		protected.POST("/drugs/:id/usage", drugH.RecordUsage)
+		registerDrugsRoutes(protected, wired.drugH)
 
-		protected.GET("/users", middleware.RequirePermission("admin.all"), userH.List)
-		protected.GET("/users/:id", userH.Get)
-		protected.POST("/users", middleware.RequirePermission("admin.all"), userH.Create)
-		protected.PATCH("/users/:id", userH.Update)
-		protected.DELETE("/users/:id", middleware.RequirePermission("admin.all"), userH.Delete)
-		protected.POST("/users/:id/verification", middleware.RequirePermission("admin.all"), userH.Verify)
-		protected.GET("/roles", middleware.RequirePermission("admin.all"), userH.ListRoles)
-		protected.GET("/roles/:id", middleware.RequirePermission("admin.all"), userH.GetRole)
-		protected.POST("/roles", middleware.RequirePermission("admin.all"), userH.CreateRole)
-		protected.PATCH("/roles/:id", middleware.RequirePermission("admin.all"), userH.UpdateRole)
-		protected.DELETE("/roles/:id", middleware.RequirePermission("admin.all"), userH.DeleteRole)
-		protected.GET("/permissions", middleware.RequirePermission("admin.all"), userH.ListPermissions)
-		protected.GET("/roles/:id/permissions", middleware.RequirePermission("admin.all"), userH.GetRolePermissions)
-		protected.PUT("/roles/:id/permissions", middleware.RequirePermission("admin.all"), userH.SetRolePermissions)
+		registerUsersRoutes(protected, wired.userH)
 
-		protected.GET("/notifications", middleware.RequirePermission("notification.read"), notificationH.List)
-		protected.GET("/notifications/:id", middleware.RequirePermission("notification.read"), notificationH.Get)
-		protected.POST("/notifications", middleware.RequirePermission("notification.publish"), rateLimiter.Limit(middleware.Policy("notification-publication", 20, time.Hour, 0), middleware.UserIdentity), rateLimiter.LimitWhen(middleware.Policy("notification-urgent-publication", 3, time.Hour, 0), middleware.UserIdentity, middleware.JSONFieldEquals("priority", "urgent")), notificationH.Create)
-		protected.POST("/notifications/read-all", middleware.RequirePermission("notification.read"), notificationH.MarkAllRead)
-		protected.POST("/notifications/:id/read", middleware.RequirePermission("notification.read"), notificationH.MarkRead)
-		protected.POST("/notifications/:id/unread", middleware.RequirePermission("notification.read"), notificationH.MarkUnread)
-		protected.POST("/notification-deliveries/:id/open", middleware.RequirePermission("notification.read"), rateLimiter.Limit(middleware.Policy("notification-delivery-event", 120, time.Hour, 10), middleware.UserIdentity), notificationH.RecordDeliveryOpen)
-		protected.POST("/notification-deliveries/:id/click", middleware.RequirePermission("notification.read"), rateLimiter.Limit(middleware.Policy("notification-delivery-event", 120, time.Hour, 10), middleware.UserIdentity), notificationH.RecordDeliveryClick)
-		protected.GET("/firebase/status", middleware.RequirePermission("firebase.status.read"), firebaseH.Status)
-		protected.GET("/firebase/devices", firebaseH.ListDevices)
-		protected.POST("/firebase/devices", firebaseH.RegisterDevice)
-		protected.PATCH("/firebase/devices/:id", firebaseH.UpdateDevice)
-		protected.DELETE("/firebase/devices/:id", firebaseH.DeleteDevice)
-		protected.POST("/firebase/push/test", middleware.RequirePermission("firebase.push.test"), rateLimiter.Limit(middleware.Policy("firebase-test-push", 10, time.Hour, 0), middleware.UserIdentity), firebaseH.SendTestPush)
-		protected.GET("/firebase/test-recipients", middleware.RequirePermission("firebase.push.test"), firebaseH.SearchTestRecipients)
-		protected.GET("/firebase/remote-config", middleware.RequirePermission("firebase.config.manage"), firebaseH.GetRemoteConfig)
-		protected.PUT("/firebase/remote-config", middleware.RequirePermission("firebase.config.manage"), rateLimiter.Limit(middleware.Policy("firebase-remote-config-write", 10, time.Hour, 0), middleware.UserIdentity), firebaseH.PutRemoteConfig)
-		protected.GET("/notification-preferences", notificationH.GetPreferences)
-		protected.PATCH("/notification-preferences", rateLimiter.Limit(middleware.Policy("notification-preference-write", 30, time.Hour, 0), middleware.UserIdentity), notificationH.UpdatePreferences)
-		protected.GET("/notification-preferences/aggregates", middleware.RequirePermission("notification.analytics.read"), notificationH.PreferenceAggregates)
+		registerNotificationsRoutes(protected, rateLimiter, database, wired.notificationH, wired.firebaseH)
 
-		protected.GET("/notification-templates", middleware.RequirePermission("notification.template.read"), notificationH.ListTemplates)
-		protected.GET("/notification-templates/:id", middleware.RequirePermission("notification.template.read"), notificationH.GetTemplate)
-		protected.POST("/notification-templates", middleware.RequirePermission("notification.template.manage"), notificationH.CreateTemplate)
-		protected.PATCH("/notification-templates/:id", middleware.RequirePermission("notification.template.manage"), notificationH.UpdateTemplate)
-		protected.PATCH("/notification-templates/:id/status", middleware.RequirePermission("notification.template.manage"), notificationH.UpdateTemplateStatus)
-		protected.GET("/notification-templates/:id/versions", middleware.RequirePermission("notification.template.read"), notificationH.ListTemplateVersions)
-		protected.POST("/notification-template-versions/:id/preview", middleware.RequirePermission("notification.template.read"), notificationH.PreviewTemplateVersion)
-		protected.POST("/notification-templates/:id/clone", middleware.RequirePermission("notification.template.manage"), notificationH.CloneTemplate)
-		protected.DELETE("/notification-templates/:id", middleware.RequirePermission("notification.template.manage"), notificationH.DeleteTemplate)
-		protected.GET("/notification-campaigns", middleware.RequirePermission("notification.campaign.read"), notificationH.ListCampaigns)
-		protected.POST("/notification-campaigns/audience-estimate", middleware.RequirePermission("notification.campaign.manage"), rateLimiter.Limit(middleware.Policy("notification-audience-estimate", 60, time.Hour, 10), middleware.UserIdentity), notificationH.EstimateAudience)
-		protected.GET("/notification-campaigns/:id", middleware.RequirePermission("notification.campaign.read"), notificationH.GetCampaign)
-		campaignCreateLimit := rateLimiter.Limit(middleware.Policy("notification-campaign-creation", 10, time.Hour, 0), middleware.UserIdentity)
-		urgentCampaignCreateLimit := rateLimiter.LimitWhen(middleware.Policy("notification-urgent-campaign-creation", 3, time.Hour, 0), middleware.UserIdentity, middleware.JSONFieldEquals("priority", "urgent"))
-		protected.POST("/notification-campaigns", middleware.RequirePermission("notification.campaign.manage"), campaignCreateLimit, urgentCampaignCreateLimit, notificationH.CreateCampaign)
-		protected.POST("/guidelines/:id/notification-campaign", middleware.RequirePermission("notification.campaign.manage"), campaignCreateLimit, urgentCampaignCreateLimit, notificationH.CreateGuidelineCampaign)
-		protected.POST("/outbreaks/:id/notification-campaign", middleware.RequirePermission("notification.campaign.manage"), middleware.RequirePermission("outbreak.publish"), campaignCreateLimit, urgentCampaignCreateLimit, notificationH.CreateOutbreakCampaign)
-		protected.POST("/situation-reports/:id/notification-campaign", middleware.RequirePermission("notification.campaign.manage"), middleware.RequirePermission("situation_report.publish"), campaignCreateLimit, urgentCampaignCreateLimit, notificationH.CreateSituationReportCampaign)
-		protected.PATCH("/notification-campaigns/:id", middleware.RequirePermission("notification.campaign.manage"), notificationH.UpdateCampaign)
-		protected.POST("/notification-campaigns/:id/submit", middleware.RequirePermission("notification.campaign.manage"), rateLimiter.Limit(middleware.Policy("notification-campaign-write", 10, time.Hour, 0), middleware.UserIdentity), notificationH.TransitionCampaign)
-		protected.POST("/notification-campaigns/:id/approve", middleware.RequirePermission("notification.campaign.approve"), rateLimiter.Limit(middleware.Policy("notification-campaign-approval", 20, time.Hour, 0), middleware.UserIdentity), rateLimiter.LimitWhen(middleware.Policy("notification-urgent-campaign-approval", 3, time.Hour, 0), middleware.UserIdentity, middleware.CampaignIsUrgent(database)), notificationH.TransitionCampaign)
-		protected.POST("/notification-campaigns/:id/reject", middleware.RequirePermission("notification.campaign.approve"), notificationH.TransitionCampaign)
-		protected.POST("/notification-campaigns/:id/schedule", middleware.RequirePermission("notification.campaign.manage"), rateLimiter.Limit(middleware.Policy("notification-campaign-scheduling", 10, time.Hour, 0), middleware.UserIdentity), rateLimiter.LimitWhen(middleware.Policy("notification-urgent-campaign-scheduling", 3, time.Hour, 0), middleware.UserIdentity, middleware.CampaignIsUrgent(database)), notificationH.TransitionCampaign)
-		protected.POST("/notification-campaigns/:id/cancel", middleware.RequirePermission("notification.campaign.manage"), notificationH.TransitionCampaign)
-		protected.POST("/notification-campaigns/:id/pause", middleware.RequirePermission("notification.campaign.manage"), notificationH.TransitionCampaign)
-		protected.POST("/notification-campaigns/:id/resume", middleware.RequirePermission("notification.campaign.manage"), notificationH.TransitionCampaign)
-		protected.DELETE("/notification-campaigns/:id", middleware.RequirePermission("notification.campaign.manage"), notificationH.DeleteCampaign)
-		protected.GET("/notification-delivery-jobs", middleware.RequirePermission("notification.analytics.read"), notificationH.ListDeliveryJobs)
-		protected.GET("/notification-deliveries", middleware.RequirePermission("notification.analytics.read"), notificationH.ListDeliveries)
-		protected.GET("/notification-delivery-analytics/daily", middleware.RequirePermission("notification.analytics.read"), notificationH.DeliveryAnalytics)
-		protected.POST("/notification-delivery-jobs/:id/requeue", middleware.RequirePermission("notification.campaign.manage"), rateLimiter.Limit(middleware.Policy("notification-delivery-requeue", 20, time.Hour, 0), middleware.UserIdentity), notificationH.RequeueDeliveryJob)
+		registerSupportRoutes(protected, rateLimiter, wired.supportH, wired.helpContentH)
 
-		protected.GET("/support/tickets", supportH.ListTickets)
-		protected.GET("/support/tickets/:id", supportH.GetTicket)
-		protected.POST("/support/tickets", rateLimiter.Limit(middleware.Policy("support-ticket-create", 5, time.Hour, 1), middleware.UserIdentity), supportH.CreateTicket)
-		protected.PATCH("/support/tickets/:id", supportH.UpdateTicket)
-		protected.DELETE("/support/tickets/:id", supportH.DeleteTicket)
-		protected.GET("/support/tickets/:id/replies", supportH.ListReplies)
-		protected.POST("/support/tickets/:id/replies", rateLimiter.Limit(middleware.Policy("support-reply-create", 30, time.Minute, 5), middleware.UserIdentity), supportH.CreateReply)
+		registerClinicalContentRoutes(protected, wired.guidelineContentH, wired.diseaseH, wired.contentDiseaseH, wired.contentHubH, wired.emergencyProtocolH, wired.contentReferenceH)
 
-		protected.GET("/faqs", helpContentH.ListFAQs)
-		protected.GET("/faqs/:id", helpContentH.GetFAQ)
-		protected.POST("/faqs", middleware.RequireAnyPermission("admin.all", "content.write", "guideline.write"), helpContentH.CreateFAQ)
-		protected.PATCH("/faqs/:id", middleware.RequireAnyPermission("admin.all", "content.write", "guideline.write"), helpContentH.UpdateFAQ)
-		protected.DELETE("/faqs/:id", middleware.RequireAnyPermission("admin.all", "content.write", "guideline.write"), helpContentH.DeleteFAQ)
-		protected.GET("/faq-tags", helpContentH.ListTags)
-		protected.GET("/faq-tags/:id", helpContentH.GetTag)
-		protected.POST("/faq-tags", middleware.RequireAnyPermission("admin.all", "content.write", "guideline.write"), helpContentH.CreateTag)
-		protected.PATCH("/faq-tags/:id", middleware.RequireAnyPermission("admin.all", "content.write", "guideline.write"), helpContentH.UpdateTag)
-		protected.DELETE("/faq-tags/:id", middleware.RequireAnyPermission("admin.all", "content.write", "guideline.write"), helpContentH.DeleteTag)
-		protected.POST("/faq-tags/recalculate-usage", middleware.RequireAnyPermission("admin.all", "content.write", "guideline.write"), rateLimiter.Limit(middleware.Policy("faq-tag-recalculation", 5, 15*time.Minute, 0), middleware.UserIdentity), helpContentH.RecalculateTagUsage)
-		protected.GET("/documentation", helpContentH.ListDocumentation)
-		protected.GET("/documentation/:id", helpContentH.GetDocumentation)
-		protected.POST("/documentation", middleware.RequireAnyPermission("admin.all", "content.write", "guideline.write"), helpContentH.CreateDocumentation)
-		protected.PATCH("/documentation/:id", middleware.RequireAnyPermission("admin.all", "content.write", "guideline.write"), helpContentH.UpdateDocumentation)
-		protected.DELETE("/documentation/:id", middleware.RequireAnyPermission("admin.all", "content.write", "guideline.write"), helpContentH.DeleteDocumentation)
+		registerDrugReferenceRoutes(protected, wired.drugReferenceH)
 
-		protected.GET("/medical-guidelines", middleware.RequirePermission("guideline.read"), guidelineContentH.ListMedicalGuidelines)
-		protected.GET("/medical-guidelines/:id", middleware.RequirePermission("guideline.read"), guidelineContentH.GetMedicalGuideline)
-		protected.POST("/medical-guidelines", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateMedicalGuideline)
-		protected.PATCH("/medical-guidelines/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.UpdateMedicalGuideline)
-		protected.DELETE("/medical-guidelines/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.DeleteMedicalGuideline)
-		protected.GET("/guideline-categories", middleware.RequirePermission("guideline.read"), guidelineContentH.ListCategories)
-		protected.GET("/guideline-categories/:id", middleware.RequirePermission("guideline.read"), guidelineContentH.GetCategory)
-		protected.POST("/guideline-categories", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateCategory)
-		protected.PATCH("/guideline-categories/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.UpdateCategory)
-		protected.DELETE("/guideline-categories/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.DeleteCategory)
-		// Document kinds are shared: outbreak editors read them to classify outbreak documents.
-		protected.GET("/document-kinds", middleware.RequireAnyPermission("guideline.read", "outbreak.read"), guidelineContentH.ListDocumentKinds)
-		protected.GET("/document-kinds/:id", middleware.RequireAnyPermission("guideline.read", "outbreak.read"), guidelineContentH.GetDocumentKind)
-		protected.POST("/document-kinds", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateDocumentKind)
-		protected.PATCH("/document-kinds/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.UpdateDocumentKind)
-		protected.DELETE("/document-kinds/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.DeleteDocumentKind)
-		protected.GET("/diseases", middleware.RequireAnyPermission("disease.taxonomy.read", "disease.taxonomy.manage"), diseaseH.List)
-		protected.GET("/diseases/hierarchy", middleware.RequireAnyPermission("disease.taxonomy.read", "disease.taxonomy.manage"), diseaseH.Hierarchy)
-		protected.GET("/diseases/migration-report", middleware.RequireAnyPermission("disease.taxonomy.read", "disease.taxonomy.manage"), diseaseH.MigrationReport)
-		protected.POST("/diseases/migration-report/refresh", middleware.RequirePermission("disease.taxonomy.manage"), diseaseH.RefreshMigrationReport)
-		protected.GET("/diseases/:id", middleware.RequireAnyPermission("disease.taxonomy.read", "disease.taxonomy.manage"), diseaseH.Get)
-		protected.GET("/diseases/:id/aliases", middleware.RequireAnyPermission("disease.taxonomy.read", "disease.taxonomy.manage"), diseaseH.ListAliases)
-		protected.PUT("/diseases/:id/aliases", middleware.RequirePermission("disease.taxonomy.manage"), diseaseH.ReplaceAliases)
-		protected.GET("/diseases/:id/codes", middleware.RequireAnyPermission("disease.taxonomy.read", "disease.taxonomy.manage"), diseaseH.ListCodes)
-		protected.PUT("/diseases/:id/codes", middleware.RequirePermission("disease.taxonomy.manage"), diseaseH.ReplaceCodes)
-		protected.POST("/diseases", middleware.RequirePermission("disease.taxonomy.manage"), diseaseH.Create)
-		protected.PATCH("/diseases/:id", middleware.RequirePermission("disease.taxonomy.manage"), diseaseH.Update)
-		protected.DELETE("/diseases/:id", middleware.RequirePermission("disease.taxonomy.manage"), diseaseH.Archive)
-		protected.GET("/content-disease-assignments", middleware.RequireAnyPermission("disease.assignment.read", "disease.assignment.manage"), contentDiseaseH.List)
-		protected.POST("/content-disease-assignments", middleware.RequirePermission("disease.assignment.manage"), contentDiseaseH.Create)
-		protected.PUT("/content-disease-assignments/replace", middleware.RequirePermission("disease.assignment.manage"), contentDiseaseH.Replace)
-		protected.DELETE("/content-disease-assignments/:id", middleware.RequirePermission("disease.assignment.manage"), contentDiseaseH.Delete)
-		protected.GET("/content-hubs", middleware.RequireAnyPermission("content_hub.read", "content_hub.manage"), contentHubH.List)
-		protected.GET("/content-hubs/:id", middleware.RequireAnyPermission("content_hub.read", "content_hub.manage"), contentHubH.Get)
-		protected.GET("/content-hubs/:id/preview", middleware.RequireAnyPermission("content_hub.read", "content_hub.manage"), contentHubH.Preview)
-		protected.GET("/content-hubs/:id/diseases", middleware.RequireAnyPermission("content_hub.read", "content_hub.manage"), contentHubH.ListDiseases)
-		protected.PUT("/content-hubs/:id/diseases", middleware.RequirePermission("content_hub.manage"), contentHubH.ReplaceDiseases)
-		protected.GET("/content-hubs/:id/workspace", middleware.RequireAnyPermission("content_hub.read", "content_hub.manage"), contentHubH.Workspace)
-		protected.GET("/content-hubs/:id/audit", middleware.RequireAnyPermission("content_hub.read", "content_hub.manage"), contentHubH.Audit)
-		protected.GET("/content-hub-resources", middleware.RequireAnyPermission("content_pillar.read", "content_pillar.manage"), contentHubH.SearchResources)
-		protected.POST("/outbreaks/:id/content-hub", middleware.RequirePermission("content_hub.manage"), contentHubH.ConfigureOutbreak)
-		protected.POST("/content-hubs", middleware.RequirePermission("content_hub.manage"), contentHubH.Create)
-		protected.PATCH("/content-hubs/:id", middleware.RequirePermission("content_hub.manage"), contentHubH.Update)
-		protected.DELETE("/content-hubs/:id", middleware.RequirePermission("content_hub.manage"), contentHubH.Delete)
-		protected.POST("/content-hubs/:id/publish", middleware.RequirePermission("content_hub.publish"), contentHubH.Publish)
-		protected.POST("/content-hubs/:id/archive", middleware.RequirePermission("content_hub.archive"), contentHubH.Archive)
-		protected.GET("/content-hubs/:id/pillars", middleware.RequireAnyPermission("content_pillar.read", "content_pillar.manage"), contentHubH.ListPillars)
-		protected.POST("/content-hubs/:id/pillars", middleware.RequirePermission("content_pillar.manage"), contentHubH.CreatePillar)
-		protected.PATCH("/content-hubs/:id/pillars/:pillarId", middleware.RequirePermission("content_pillar.manage"), contentHubH.UpdatePillar)
-		protected.DELETE("/content-hubs/:id/pillars/:pillarId", middleware.RequirePermission("content_pillar.manage"), contentHubH.DeletePillar)
-		protected.PUT("/content-hubs/:id/pillars/reorder", middleware.RequirePermission("content_pillar.manage"), contentHubH.ReorderPillars)
-		protected.GET("/content-hubs/:id/pillars/:pillarId/items", middleware.RequireAnyPermission("content_pillar.read", "content_pillar.manage"), contentHubH.ListPillarItems)
-		protected.POST("/content-hubs/:id/pillars/:pillarId/items", middleware.RequirePermission("content_pillar.manage"), contentHubH.CreatePillarItem)
-		protected.PATCH("/content-hubs/:id/pillars/:pillarId/items/:itemId", middleware.RequirePermission("content_pillar.manage"), contentHubH.UpdatePillarItem)
-		protected.DELETE("/content-hubs/:id/pillars/:pillarId/items/:itemId", middleware.RequirePermission("content_pillar.manage"), contentHubH.DeletePillarItem)
-		protected.PUT("/content-hubs/:id/pillars/:pillarId/items/reorder", middleware.RequirePermission("content_pillar.manage"), contentHubH.ReorderPillarItems)
-		protected.GET("/content-hub-templates", middleware.RequireAnyPermission("content_hub.template.read", "content_hub.template.manage"), contentHubH.ListTemplates)
-		protected.GET("/content-hub-templates/:id", middleware.RequireAnyPermission("content_hub.template.read", "content_hub.template.manage"), contentHubH.GetTemplate)
-		protected.POST("/content-hubs/:id/apply-template", middleware.RequirePermission("content_hub.template.manage"), contentHubH.ApplyTemplate)
-		protected.GET("/guideline-tags", middleware.RequirePermission("guideline.read"), guidelineContentH.ListTags)
-		protected.GET("/guideline-tags/:id", middleware.RequirePermission("guideline.read"), guidelineContentH.GetTag)
-		protected.POST("/guideline-tags", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateTag)
-		protected.PATCH("/guideline-tags/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.UpdateTag)
-		protected.DELETE("/guideline-tags/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.DeleteTag)
-		protected.GET("/guideline-index", middleware.RequirePermission("guideline.read"), guidelineContentH.ListIndex)
-		protected.GET("/guideline-index/:id", middleware.RequirePermission("guideline.read"), guidelineContentH.GetIndex)
-		protected.GET("/guideline-index/:id/children", middleware.RequirePermission("guideline.read"), guidelineContentH.IndexChildren)
-		protected.POST("/guideline-index", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateIndex)
-		protected.PATCH("/guideline-index/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.UpdateIndex)
-		protected.DELETE("/guideline-index/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.DeleteIndex)
-		protected.GET("/abbreviations", middleware.RequirePermission("guideline.read"), guidelineContentH.ListAbbreviations)
-		protected.GET("/abbreviations/:id", middleware.RequirePermission("guideline.read"), guidelineContentH.GetAbbreviation)
-		protected.POST("/abbreviations", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateAbbreviation)
-		protected.PATCH("/abbreviations/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.UpdateAbbreviation)
-		protected.DELETE("/abbreviations/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.DeleteAbbreviation)
-		protected.GET("/emergency-protocols", middleware.RequireAnyPermission("protocol.read", "guideline.read"), emergencyProtocolH.List)
-		protected.GET("/emergency-protocols/:id", middleware.RequireAnyPermission("protocol.read", "guideline.read"), emergencyProtocolH.Get)
-		protected.POST("/emergency-protocols", middleware.RequireAnyPermission("protocol.write", "guideline.write"), emergencyProtocolH.Create)
-		protected.PATCH("/emergency-protocols/:id", middleware.RequireAnyPermission("protocol.write", "guideline.write"), emergencyProtocolH.Update)
-		protected.DELETE("/emergency-protocols/:id", middleware.RequireAnyPermission("protocol.write", "guideline.write"), emergencyProtocolH.Delete)
-		protected.GET("/pages", contentReferenceH.ListPages)
-		protected.GET("/pages/key/:key", contentReferenceH.GetPageByKey)
-		protected.GET("/pages/:id", contentReferenceH.GetPage)
-		protected.POST("/pages", middleware.RequireAnyPermission("content.write", "guideline.write"), contentReferenceH.CreatePage)
-		protected.PATCH("/pages/:id", middleware.RequireAnyPermission("content.write", "guideline.write"), contentReferenceH.UpdatePage)
-		protected.DELETE("/pages/:id", middleware.RequireAnyPermission("content.write", "guideline.write"), contentReferenceH.DeletePage)
-		protected.GET("/ministry-directory", contentReferenceH.ListDirectory)
-		protected.GET("/ministry-directory/:id", contentReferenceH.GetDirectory)
-		protected.POST("/ministry-directory", middleware.RequireAnyPermission("content.write", "facility.write"), contentReferenceH.CreateDirectory)
-		protected.PATCH("/ministry-directory/:id", middleware.RequireAnyPermission("content.write", "facility.write"), contentReferenceH.UpdateDirectory)
-		protected.DELETE("/ministry-directory/:id", middleware.RequireAnyPermission("content.write", "facility.write"), contentReferenceH.DeleteDirectory)
+		registerGuidelineEditorRoutes(protected, rateLimiter, wired.guidelineH)
 
-		protected.GET("/drug-categories", middleware.RequireAnyPermission("drug.read", "guideline.read"), drugReferenceH.ListCategories)
-		protected.GET("/drug-categories/:id", middleware.RequireAnyPermission("drug.read", "guideline.read"), drugReferenceH.GetCategory)
-		protected.POST("/drug-categories", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.CreateCategory)
-		protected.PATCH("/drug-categories/:id", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.UpdateCategory)
-		protected.DELETE("/drug-categories/:id", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.DeleteCategory)
+		registerDiscoveryRoutes(protected, rateLimiter, wired.searchH, wired.ragH, wired.protocolH)
 
-		protected.GET("/drug-tags", middleware.RequireAnyPermission("drug.read", "guideline.read"), drugReferenceH.ListTags)
-		protected.GET("/drug-tags/:id", middleware.RequireAnyPermission("drug.read", "guideline.read"), drugReferenceH.GetTag)
-		protected.POST("/drug-tags", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.CreateTag)
-		protected.PATCH("/drug-tags/:id", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.UpdateTag)
-		protected.DELETE("/drug-tags/:id", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.DeleteTag)
+		registerProfileRoutes(protected, rateLimiter, wired.referenceH, wired.contentReferenceH, wired.progressUsageH, wired.guidelineLibraryH, wired.conversationH)
 
-		protected.GET("/drug-classes", middleware.RequireAnyPermission("drug.read", "guideline.read"), drugReferenceH.ListClasses)
-		protected.GET("/drug-classes/:id", middleware.RequireAnyPermission("drug.read", "guideline.read"), drugReferenceH.GetClass)
-		protected.POST("/drug-classes", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.CreateClass)
-		protected.PATCH("/drug-classes/:id", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.UpdateClass)
-		protected.DELETE("/drug-classes/:id", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.DeleteClass)
+		registerFacilitiesRoutes(protected, wired.facilityH)
 
-		protected.GET("/therapeutic-categories", middleware.RequireAnyPermission("drug.read", "guideline.read"), drugReferenceH.ListTherapeuticCategories)
-		protected.GET("/therapeutic-categories/:id", middleware.RequireAnyPermission("drug.read", "guideline.read"), drugReferenceH.GetTherapeuticCategory)
-		protected.POST("/therapeutic-categories", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.CreateTherapeuticCategory)
-		protected.PATCH("/therapeutic-categories/:id", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.UpdateTherapeuticCategory)
-		protected.DELETE("/therapeutic-categories/:id", middleware.RequireAnyPermission("drug.write", "guideline.write"), drugReferenceH.DeleteTherapeuticCategory)
-
-		protected.POST("/guidelines", middleware.RequirePermission("guideline.write"), guidelineH.Create)
-		protected.GET("/guidelines", middleware.RequireAnyPermission("guideline.write", "guideline.markdown.read"), guidelineH.List)
-		protected.GET("/guidelines/:id", middleware.RequireAnyPermission("guideline.write", "guideline.markdown.read"), guidelineH.Get)
-		protected.PATCH("/guidelines/:id", middleware.RequirePermission("guideline.write"), guidelineH.Update)
-		protected.DELETE("/guidelines/:id", middleware.RequirePermission("guideline.write"), middleware.RequirePermission("guideline.publish"), guidelineH.Delete)
-		protected.POST("/guidelines/:id/versions", middleware.RequirePermission("guideline.write"), guidelineH.CreateVersion)
-		protected.POST("/guideline-versions/:id/upload", middleware.RequirePermission("guideline.markdown.upload"), rateLimiter.Limit(middleware.Policy("guideline-upload", 10, time.Hour, 0), middleware.UserIdentity), rateLimiter.Concurrency("guideline-upload", 1, 15*time.Minute, middleware.UserIdentity), guidelineH.UploadPDF)
-		protected.GET("/guideline-versions/:id/upload-capabilities", middleware.RequirePermission("guideline.markdown.upload"), guidelineH.UploadCapabilities)
-		protected.GET("/guideline-versions/:id/upload-jobs/:jobId", middleware.RequirePermission("guideline.markdown.upload"), guidelineH.SourceUploadJob)
-		protected.GET("/guideline-versions/:id/uploads", middleware.RequirePermission("guideline.markdown.upload"), guidelineH.ListSourceUploads)
-		protected.POST("/guideline-versions/:id/uploads", middleware.RequirePermission("guideline.markdown.upload"), rateLimiter.Limit(middleware.Policy("guideline-upload", 10, time.Hour, 0), middleware.UserIdentity), guidelineH.BeginSourceUpload)
-		protected.GET("/guideline-versions/:id/uploads/:session", middleware.RequirePermission("guideline.markdown.upload"), guidelineH.GetSourceUpload)
-		protected.DELETE("/guideline-versions/:id/uploads/:session", middleware.RequirePermission("guideline.markdown.upload"), guidelineH.AbortSourceUpload)
-		protected.POST("/guideline-versions/:id/uploads/:session/parts/:part", middleware.RequirePermission("guideline.markdown.upload"), rateLimiter.Limit(middleware.Policy("guideline-upload-part", 180, time.Minute, 10), middleware.UserIdentity), guidelineH.SignSourceUploadPart)
-		protected.POST("/guideline-versions/:id/uploads/:session/complete", middleware.RequirePermission("guideline.markdown.upload"), rateLimiter.Concurrency("guideline-upload", 1, 15*time.Minute, middleware.UserIdentity), guidelineH.CompleteSourceUpload)
-		protected.POST("/guideline-versions/:id/publish", middleware.RequirePermission("guideline.publish"), rateLimiter.Limit(middleware.Policy("guideline-publish", 10, time.Hour, 0), middleware.UserIdentity), guidelineH.Publish)
-		protected.GET("/guideline-versions/:id/review", middleware.RequirePermission("guideline.review"), guidelineH.ReviewWorkspace)
-		protected.GET("/guideline-versions/:id/review-blocks", middleware.RequirePermission("guideline.review"), guidelineH.ListReviewBlocks)
-		protected.GET("/guideline-versions/:id/completeness-report", middleware.RequirePermission("guideline.review"), guidelineH.CompletenessReport)
-		protected.GET("/guideline-versions/:id/completeness-report/export", middleware.RequirePermission("guideline.review"), guidelineH.ExportCompletenessReport)
-		protected.GET("/guideline-versions/:id/extraction-status", middleware.RequirePermission("guideline.markdown.read"), guidelineH.ExtractionStatus)
-		protected.GET("/guideline-versions/:id/preview", middleware.RequirePermission("guideline.markdown.read"), guidelineH.PreviewVersion)
-		protected.POST("/guideline-versions/:id/assets", middleware.RequirePermission("guideline.asset.manage"), rateLimiter.Limit(middleware.Policy("guideline-asset-upload", 60, time.Hour, 10), middleware.UserIdentity), guidelineH.RejectPublishedAsUploaded, guidelineH.CreateGuidelineAsset)
-		protected.GET("/guideline-versions/:id/assets", middleware.RequirePermission("guideline.markdown.read"), guidelineH.ListGuidelineAssets)
-		protected.GET("/guideline-versions/:id/assets/:assetId", middleware.RequirePermission("guideline.markdown.read"), guidelineH.GetGuidelineAsset)
-		protected.GET("/guideline-versions/:id/assets/:assetId/content", middleware.RequirePermission("guideline.markdown.read"), guidelineH.ReviewAsset)
-		protected.PATCH("/guideline-versions/:id/assets/:assetId", middleware.RequirePermission("guideline.asset.manage"), guidelineH.RejectPublishedAsUploaded, guidelineH.UpdateGuidelineAsset)
-		protected.DELETE("/guideline-versions/:id/assets/:assetId", middleware.RequirePermission("guideline.asset.manage"), guidelineH.RejectPublishedAsUploaded, guidelineH.DeleteGuidelineAsset)
-		protected.POST("/guideline-versions/:id/assets/:assetId/review", middleware.RequirePermission("guideline.high_risk.approve"), guidelineH.ReviewGuidelineAsset)
-		protected.POST("/guideline-versions/:id/validate-publication", middleware.RequirePermission("guideline.publish"), guidelineH.ValidatePublication)
-		protected.POST("/guideline-versions/:id/regenerate-manifest", middleware.RequirePermission("guideline.publish"), guidelineH.RegenerateManifest)
-		protected.GET("/guideline-versions/:id/sections", middleware.RequirePermission("guideline.write"), guidelineH.Sections)
-		protected.POST("/guideline-versions/:id/sections", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.CreateReviewSection)
-		protected.PUT("/guideline-versions/:id/sections/reorder", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.ReorderReviewSections)
-		protected.PATCH("/guideline-versions/:id/sections/:sectionId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.UpdateReviewSection)
-		protected.DELETE("/guideline-versions/:id/sections/:sectionId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.DeleteReviewSection)
-		protected.POST("/guideline-versions/:id/sections/:sectionId/split", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.SplitReviewSection)
-		protected.POST("/guideline-versions/:id/sections/:sectionId/merge", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.MergeReviewSection)
-		protected.PATCH("/guideline-versions/:id/blocks/:blockId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.UpdateReviewBlock)
-		protected.POST("/guideline-versions/:id/blocks", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.CreateReviewBlock)
-		protected.PUT("/guideline-versions/:id/blocks/reorder", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.ReorderReviewBlocks)
-		protected.DELETE("/guideline-versions/:id/blocks/:blockId", middleware.RequirePermission("guideline.markdown.edit"), guidelineH.RejectPublishedAsUploaded, guidelineH.DeleteReviewBlock)
-		protected.POST("/guideline-versions/:id/blocks/:blockId/review", middleware.RequirePermission("guideline.high_risk.approve"), guidelineH.ReviewBlock)
-		protected.POST("/guideline-versions/:id/blocks/bulk-review", middleware.RequirePermission("guideline.review"), guidelineH.BulkReviewBlocks)
-		protected.GET("/guideline-versions/:id/chunks", middleware.RequirePermission("guideline.write"), guidelineH.Chunks)
-		protected.GET("/guideline-versions/:id/extracted/:format", middleware.RequirePermission("guideline.write"), guidelineH.ExtractedAsset)
-		protected.PUT("/guideline-versions/:id/extracted/markdown", middleware.RequirePermission("guideline.write"), guidelineH.RejectPublishedAsUploaded, guidelineH.UpdateMarkdown)
-		protected.GET("/guideline-versions/:id/markdown-draft", middleware.RequirePermission("guideline.markdown.read"), guidelineH.GetMarkdownDraft)
-		protected.PUT("/guideline-versions/:id/markdown-draft", middleware.RequirePermission("guideline.markdown.edit"), rateLimiter.Limit(middleware.Policy("guideline-markdown-save", 120, time.Hour, 20), middleware.UserIdentity), guidelineH.RejectPublishedAsUploaded, guidelineH.SaveMarkdownDraft)
-		protected.GET("/guideline-versions/:id/markdown-revisions", middleware.RequirePermission("guideline.markdown.read"), guidelineH.ListMarkdownRevisions)
-		protected.POST("/guideline-versions/:id/markdown-revisions", middleware.RequirePermission("guideline.markdown.edit"), rateLimiter.Limit(middleware.Policy("guideline-markdown-checkpoint", 60, time.Hour, 10), middleware.UserIdentity), guidelineH.RejectPublishedAsUploaded, guidelineH.CreateMarkdownRevision)
-		protected.GET("/guideline-versions/:id/markdown-revisions/:revisionId", middleware.RequirePermission("guideline.markdown.read"), guidelineH.GetMarkdownRevision)
-		protected.GET("/guideline-versions/:id/markdown-revisions/:revisionId/validation", middleware.RequirePermission("guideline.markdown.read"), guidelineH.ValidateMarkdownRevision)
-		protected.GET("/guideline-versions/:id/markdown-revisions/:revisionId/download", middleware.RequirePermission("guideline.markdown.read"), guidelineH.DownloadMarkdownRevision)
-		protected.POST("/guideline-versions/:id/markdown-revisions/:revisionId/restore", middleware.RequirePermission("guideline.revision.restore"), guidelineH.RejectPublishedAsUploaded, guidelineH.RestoreMarkdownRevision)
-		protected.POST("/guideline-versions/:id/duplicate", middleware.RequirePermission("guideline.markdown.edit"), rateLimiter.Limit(middleware.Policy("guideline-markdown-duplicate", 30, time.Hour, 5), middleware.UserIdentity), guidelineH.RejectPublishedAsUploaded, guidelineH.DuplicateMarkdownVersion)
-		protected.POST("/guideline-versions/:id/regenerate", middleware.RequirePermission("guideline.structure.regenerate"), rateLimiter.Limit(middleware.Policy("guideline-regenerate", 20, time.Hour, 2), middleware.UserIdentity), rateLimiter.Concurrency("guideline-regenerate", 1, 15*time.Minute, middleware.UserIdentity), guidelineH.RejectPublishedAsUploaded, guidelineH.RegenerateMarkdown)
-		protected.GET("/guideline-versions/:id/regeneration-jobs/:jobId", middleware.RequirePermission("guideline.markdown.read"), guidelineH.GetRegenerationJob)
-		protected.POST("/guideline-versions/:id/regeneration-jobs/:jobId/cancel", middleware.RequirePermission("guideline.structure.regenerate"), guidelineH.RejectPublishedAsUploaded, guidelineH.CancelRegenerationJob)
-		protected.POST("/guideline-versions/:id/regeneration-jobs/:jobId/retry", middleware.RequirePermission("guideline.structure.regenerate"), guidelineH.RejectPublishedAsUploaded, guidelineH.RetryRegenerationJob)
-		protected.GET("/guideline-versions/:id/regeneration-reviews/:jobId", middleware.RequirePermission("guideline.review"), guidelineH.GetRegenerationReview)
-		protected.POST("/guideline-versions/:id/regeneration-reviews/:jobId/accept", middleware.RequirePermission("guideline.high_risk.approve"), guidelineH.RejectPublishedAsUploaded, guidelineH.AcceptRegeneration)
-		protected.POST("/guideline-versions/:id/regeneration-reviews/:jobId/reject", middleware.RequirePermission("guideline.review"), guidelineH.RejectRegeneration)
-		protected.GET("/guideline-versions/:id/regeneration-reviews/:jobId/comments", middleware.RequirePermission("guideline.review"), guidelineH.ListRegenerationComments)
-		protected.POST("/guideline-versions/:id/regeneration-reviews/:jobId/comments", middleware.RequirePermission("guideline.review"), guidelineH.AddRegenerationComment)
-		protected.GET("/guideline-reviewers", middleware.RequirePermission("guideline.review"), guidelineH.ListGuidelineReviewerCandidates)
-		protected.GET("/guideline-versions/:id/reviewers", middleware.RequirePermission("guideline.review"), guidelineH.ListGuidelineReviewAssignments)
-		protected.POST("/guideline-versions/:id/reviewers", middleware.RequirePermission("guideline.review"), guidelineH.AssignGuidelineReviewer)
-		protected.PATCH("/guideline-versions/:id/reviewers/:assignmentId", middleware.RequirePermission("guideline.review"), guidelineH.UpdateGuidelineReviewAssignment)
-		protected.GET("/guideline-versions/:id/review-comments", middleware.RequirePermission("guideline.review"), guidelineH.ListGuidelineEditorComments)
-		protected.POST("/guideline-versions/:id/review-comments", middleware.RequirePermission("guideline.review"), guidelineH.CreateGuidelineEditorComment)
-		protected.PATCH("/guideline-versions/:id/review-comments/:commentId", middleware.RequirePermission("guideline.review"), guidelineH.ResolveGuidelineEditorComment)
-		protected.GET("/guideline-versions/:id/activity", middleware.RequirePermission("guideline.review"), guidelineH.GuidelineActivity)
-
-		protected.GET("/search", middleware.RequirePermission("guideline.read"), rateLimiter.Limit(middleware.Policy("guideline-search", 60, time.Minute, 10), middleware.UserIdentity), searchH.Search)
-		protected.POST("/chat/ask", middleware.RequirePermission("chat.ask"),
-			rateLimiter.Limit(middleware.Policy("ai-chat-minute", 10, time.Minute, 2), middleware.UserIdentity),
-			rateLimiter.Limit(middleware.Policy("ai-chat-daily", 100, 24*time.Hour, 0), middleware.UserIdentity),
-			rateLimiter.Concurrency("ai-chat-user", 2, 3*time.Minute, middleware.UserIdentity),
-			rateLimiter.Concurrency("ai-chat-global", 20, 3*time.Minute, middleware.StaticIdentity("global")), ragH.Ask)
-
-		protected.POST("/protocols", middleware.RequirePermission("protocol.write"), protocolH.Create)
-		protected.GET("/protocols", middleware.RequirePermission("protocol.read"), protocolH.List)
-		protected.GET("/protocols/:id", middleware.RequirePermission("protocol.read"), protocolH.Get)
-		protected.POST("/protocols/:id/run", middleware.RequirePermission("protocol.read"), rateLimiter.Limit(middleware.Policy("protocol-run", 60, time.Minute, 10), middleware.UserIdentity), protocolH.Run)
-
-		protected.GET("/settings", middleware.RequirePermission("admin.all"), referenceH.ListSettings)
-		protected.POST("/settings", middleware.RequirePermission("admin.all"), referenceH.CreateSetting)
-		protected.GET("/languages", contentReferenceH.ListLanguages)
-		protected.GET("/languages/:id", contentReferenceH.GetLanguage)
-		protected.POST("/languages", middleware.RequirePermission("admin.all"), contentReferenceH.CreateLanguage)
-		protected.PATCH("/languages/:id", middleware.RequirePermission("admin.all"), contentReferenceH.UpdateLanguage)
-		protected.DELETE("/languages/:id", middleware.RequirePermission("admin.all"), contentReferenceH.DeleteLanguage)
-		protected.GET("/reading-progress", progressUsageH.ListProgress)
-		protected.GET("/reading-progress/:guidelineId", progressUsageH.GetProgress)
-		protected.PUT("/reading-progress/:guidelineId", rateLimiter.Limit(middleware.Policy("reading-progress-write", 120, time.Minute, 20), middleware.UserIdentity), progressUsageH.UpsertProgress)
-		protected.DELETE("/reading-progress/:guidelineId", progressUsageH.DeleteProgress)
-		protected.GET("/library/collections", guidelineLibraryH.ListCollections)
-		protected.POST("/library/collections", guidelineLibraryH.CreateCollection)
-		protected.GET("/library/collections/:id", guidelineLibraryH.GetCollection)
-		protected.PATCH("/library/collections/:id", guidelineLibraryH.UpdateCollection)
-		protected.DELETE("/library/collections/:id", guidelineLibraryH.DeleteCollection)
-		protected.POST("/library/collections/:id/items", guidelineLibraryH.AddCollectionItem)
-		protected.GET("/library/collections/:id/items", guidelineLibraryH.ListCollectionItems)
-		protected.DELETE("/library/collections/:id/items/:guidelineId", guidelineLibraryH.RemoveCollectionItem)
-		protected.GET("/library/downloads", guidelineLibraryH.ListDownloads)
-		protected.POST("/library/downloads", rateLimiter.Limit(middleware.Policy("guideline-download-record", 120, time.Minute, 20), middleware.UserIdentity), guidelineLibraryH.RecordDownload)
-		protected.POST("/usage/guidelines", rateLimiter.Limit(middleware.Policy("usage-event-write", 120, time.Minute, 20), middleware.UserIdentity), progressUsageH.RecordGuidelineUsage)
-		protected.POST("/usage/abbreviations", rateLimiter.Limit(middleware.Policy("usage-event-write", 120, time.Minute, 20), middleware.UserIdentity), progressUsageH.RecordAbbreviationUsage)
-		protected.POST("/usage/ai", rateLimiter.Limit(middleware.Policy("usage-event-write", 120, time.Minute, 20), middleware.UserIdentity), progressUsageH.RecordAIUsage)
-		protected.GET("/analytics/usage", middleware.RequireAnyPermission("admin.all", "analytics.read", "sync.read"), rateLimiter.Limit(middleware.Policy("analytics-read", 30, time.Minute, 5), middleware.UserIdentity), progressUsageH.UsageAggregates)
-		protected.GET("/conversations", conversationH.List)
-		protected.POST("/conversations", rateLimiter.Limit(middleware.Policy("conversation-create", 10, time.Hour, 2), middleware.UserIdentity), conversationH.Create)
-		protected.GET("/conversations/:id", conversationH.Get)
-		protected.DELETE("/conversations/:id", conversationH.Delete)
-		protected.GET("/conversations/:id/messages", conversationH.ListMessages)
-		protected.POST("/conversations/:id/messages", rateLimiter.Limit(middleware.Policy("conversation-message", 30, time.Minute, 5), middleware.UserIdentity), conversationH.CreateMessage)
-		protected.POST("/conversations/:id/messages/:messageId/read", conversationH.MarkRead)
-		protected.POST("/conversations/:id/messages/:messageId/reaction", conversationH.React)
-
-		protected.GET("/facilities", facilityH.ListFacilities)
-		protected.GET("/facilities/:id", facilityH.GetFacility)
-		protected.POST("/facilities", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.CreateFacility)
-		protected.PATCH("/facilities/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.UpdateFacility)
-		protected.DELETE("/facilities/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.DeleteFacility)
-		protected.POST("/facilities/:id/usage", facilityH.RecordUsage)
-
-		protected.GET("/health-sub-regions", facilityH.ListHealthSubRegions)
-		protected.GET("/health-sub-regions/:id", facilityH.GetHealthSubRegion)
-		protected.POST("/health-sub-regions", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.CreateHealthSubRegion)
-		protected.PATCH("/health-sub-regions/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.UpdateHealthSubRegion)
-		protected.DELETE("/health-sub-regions/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.DeleteHealthSubRegion)
-		protected.GET("/regions", facilityH.ListRegions)
-		protected.GET("/regions/:id", facilityH.GetRegion)
-		protected.GET("/regions/:id/children", facilityH.GetRegionChildren)
-		protected.POST("/regions", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.CreateRegion)
-		protected.PATCH("/regions/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.UpdateRegion)
-		protected.DELETE("/regions/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.DeleteRegion)
-		protected.GET("/districts", facilityH.ListDistricts)
-		protected.GET("/districts/:id", facilityH.GetDistrict)
-		protected.POST("/districts", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.CreateDistrict)
-		protected.PATCH("/districts/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.UpdateDistrict)
-		protected.DELETE("/districts/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.DeleteDistrict)
-		protected.GET("/health-sub-districts", facilityH.ListHealthSubDistricts)
-		protected.GET("/health-sub-districts/:id", facilityH.GetHealthSubDistrict)
-		protected.POST("/health-sub-districts", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.CreateHealthSubDistrict)
-		protected.PATCH("/health-sub-districts/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.UpdateHealthSubDistrict)
-		protected.DELETE("/health-sub-districts/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.DeleteHealthSubDistrict)
-		protected.GET("/counties", facilityH.ListCounties)
-		protected.GET("/counties/:id", facilityH.GetCounty)
-		protected.POST("/counties", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.CreateCounty)
-		protected.PATCH("/counties/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.UpdateCounty)
-		protected.DELETE("/counties/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.DeleteCounty)
-		protected.GET("/subcounties", facilityH.ListSubcounties)
-		protected.GET("/subcounties/:id", facilityH.GetSubcounty)
-		protected.POST("/subcounties", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.CreateSubcounty)
-		protected.PATCH("/subcounties/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.UpdateSubcounty)
-		protected.DELETE("/subcounties/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.DeleteSubcounty)
-		protected.GET("/parishes", facilityH.ListParishes)
-		protected.GET("/parishes/:id", facilityH.GetParish)
-		protected.POST("/parishes", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.CreateParish)
-		protected.PATCH("/parishes/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.UpdateParish)
-		protected.DELETE("/parishes/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.DeleteParish)
-		protected.GET("/facility-levels", facilityH.ListFacilityLevels)
-		protected.GET("/facility-levels/:id", facilityH.GetFacilityLevel)
-		protected.POST("/facility-levels", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.CreateFacilityLevel)
-		protected.PATCH("/facility-levels/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.UpdateFacilityLevel)
-		protected.DELETE("/facility-levels/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.DeleteFacilityLevel)
-		protected.GET("/ownership-types", facilityH.ListOwnershipTypes)
-		protected.GET("/ownership-types/:id", facilityH.GetOwnershipType)
-		protected.POST("/ownership-types", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.CreateOwnershipType)
-		protected.PATCH("/ownership-types/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.UpdateOwnershipType)
-		protected.DELETE("/ownership-types/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.DeleteOwnershipType)
-		protected.GET("/authorities", facilityH.ListAuthorities)
-		protected.GET("/authorities/:id", facilityH.GetAuthority)
-		protected.POST("/authorities", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.CreateAuthority)
-		protected.PATCH("/authorities/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.UpdateAuthority)
-		protected.DELETE("/authorities/:id", middleware.RequireAnyPermission("admin.all", "facility.write"), facilityH.DeleteAuthority)
-
-		protected.GET("/sync/manifest", middleware.RequirePermission("sync.read"), syncH.Manifest)
-		protected.POST("/sync/packages", middleware.RequirePermission("admin.all"), rateLimiter.Limit(middleware.Policy("sync-package-create", 5, time.Hour, 0), middleware.UserIdentity), rateLimiter.Concurrency("sync-package-create", 1, 30*time.Minute, middleware.UserIdentity), syncH.CreatePackage)
-		protected.GET("/sync/packages/:id/download", middleware.RequirePermission("sync.read"), rateLimiter.Limit(middleware.Policy("sync-download-url", 30, time.Minute, 5), middleware.UserIdentity), syncH.Download)
+		registerSyncRoutes(protected, rateLimiter, wired.syncH)
 
 	}
 	uploadContext, stopUploads := context.WithCancel(context.Background())
-	if guidelineH.DirectUploads {
+	if wired.guidelineH.DirectUploads {
 		go func() {
 			ticker := time.NewTicker(30 * time.Second)
 			defer ticker.Stop()
@@ -800,7 +228,7 @@ func New(cfg config.Config) (*App, error) {
 				case <-ticker.C:
 				}
 				ctx, cancel := context.WithTimeout(uploadContext, 25*time.Second)
-				if err := guidelineSvc.MaintainSourceUploads(ctx); err != nil {
+				if err := wired.guidelineSvc.MaintainSourceUploads(ctx); err != nil {
 					log.Error().Err(err).Msg("guideline upload maintenance failed")
 				}
 				cancel()
@@ -819,105 +247,3 @@ func (a *App) Close() error {
 	}
 	return a.Redis.Close()
 }
-
-const swaggerChooserHTML = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MediGuide Swagger</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --bg: #f3f4f6;
-      --panel: #ffffff;
-      --border: #d1d5db;
-      --text: #111827;
-      --muted: #4b5563;
-      --accent: #0f766e;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      background:
-        radial-gradient(circle at top left, rgba(15,118,110,0.12), transparent 28rem),
-        linear-gradient(180deg, #f8fafc 0%, var(--bg) 100%);
-      color: var(--text);
-      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-    }
-    .panel {
-      width: min(30rem, calc(100vw - 2rem));
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 1.5rem;
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-    }
-    h1 {
-      margin: 0 0 0.5rem;
-      font-size: 1.4rem;
-    }
-    p {
-      margin: 0 0 1rem;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-    label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 600;
-    }
-    select, button {
-      width: 100%;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      font: inherit;
-    }
-    select {
-      padding: 0.9rem 1rem;
-      background: #fff;
-      margin-bottom: 0.9rem;
-    }
-    button {
-      padding: 0.9rem 1rem;
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .links {
-      margin-top: 1rem;
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
-    a {
-      color: var(--accent);
-      text-decoration: none;
-      font-weight: 600;
-    }
-  </style>
-</head>
-<body>
-  <main class="panel">
-    <h1>Swagger Docs</h1>
-    <p>Select which route set you want to inspect. <code>v1</code> shows legacy compatibility APIs, while <code>v2</code> shows the current backend API.</p>
-    <label for="swagger-version">API Version</label>
-    <select id="swagger-version">
-      <option value="/swagger/v1/index.html">v1 legacy routes</option>
-      <option value="/swagger/v2/index.html" selected>v2 current routes</option>
-      <option value="/swagger/all/index.html">all routes</option>
-    </select>
-    <button type="button" onclick="window.location.href=document.getElementById('swagger-version').value">Open Swagger UI</button>
-    <div class="links">
-      <a href="/swagger/v1/index.html">Open v1</a>
-      <a href="/swagger/v2/index.html">Open v2</a>
-      <a href="/swagger/all/index.html">Open all</a>
-    </div>
-  </main>
-</body>
-</html>`
