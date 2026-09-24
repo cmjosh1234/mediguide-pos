@@ -33,7 +33,7 @@ func testProgressUsageHandler(t *testing.T) ProgressUsageHandler {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if e = db.AutoMigrate(&models.ReadingProgress{}, &models.GuidelineUsageLog{}, &models.AbbreviationUsageLog{}, &models.ConsultantUsageLog{}, &models.AIUsageLog{}); e != nil {
+	if e = db.AutoMigrate(&models.ReadingProgress{}, &models.GuidelineUsageLog{}, &models.AbbreviationUsageLog{}, &models.AIUsageLog{}); e != nil {
 		t.Fatal(e)
 	}
 	return ProgressUsageHandler{Service: services.ProgressUsageService{DB: db}}

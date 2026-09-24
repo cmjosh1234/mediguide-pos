@@ -6,7 +6,7 @@ import { CalendarDays, Mail, User, Phone, Building2, Briefcase, FileText, Globe,
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { DataTableColumnHeader } from "@/components/ui/datatable-column-header"
-import { UsersResponse, UsersStatusOptions, UsersPreferredLanguageOptions, ConsultantsSpecialtyOptions } from "@/types/backend-types"
+import { UsersResponse, UsersStatusOptions, UsersPreferredLanguageOptions, UsersSpecializationOptions } from "@/types/backend-types"
 import { ExtendedColumnDef } from "@/types/data-table"
 
 // Use the proper legacy collection API generated type
@@ -384,7 +384,7 @@ export const createColumns = (roleOptions: RoleOption[] = []): ExtendedColumnDef
         canSort={true}
         canFilter={true}
         filterType="select"
-        filterOptions={Object.values(ConsultantsSpecialtyOptions).map(specialty => ({
+        filterOptions={Object.values(UsersSpecializationOptions).map(specialty => ({
           label: specialty,
           value: specialty
         }))}

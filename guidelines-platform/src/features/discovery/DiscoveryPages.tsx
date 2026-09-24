@@ -11,6 +11,7 @@ import {
   type PublicHub,
   type PublicSearchResult,
 } from "../../api/public-guidelines";
+import { TaxonomyIcon } from "../../components/common/TaxonomyIcon";
 import {
   DiseaseHierarchy,
   HubCard,
@@ -263,7 +264,11 @@ export function HubPage() {
               to={`/hubs/${hub.slug}/pillars/${pillar.slug}`}
               key={pillar.id}
             >
-              <span>{pillar.icon || "▦"}</span>
+              <TaxonomyIcon
+                icon={pillar.icon}
+                label={pillar.name}
+                className="resource-icon pillar-icon"
+              />
               <h3>{pillar.name}</h3>
               <p>{countItems(pillar)} resources</p>
             </Link>

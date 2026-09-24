@@ -39,7 +39,7 @@ def ocr_identity():
         languages = subprocess.run(["tesseract", "--list-langs"], capture_output=True, text=True, check=True, timeout=10).stdout
         directory = Path(re.search(r'"([^"]+)"', languages).group(1))
         trained = hashlib.sha256((directory / "eng.traineddata").read_bytes()).hexdigest()
-        return {"engine": engine.strip(), "eng_traineddata": trained, "language": "eng", "matrix": [2, 2], "alpha": False, "args": ["stdout", "-l", "eng"], "wrapper": extractor_revision()}
+        return {"engine": engine.strip(), "eng_traineddata": trained, "language": "eng", "dpi": 300, "alpha": False, "args": ["stdout", "-l", "eng", "--dpi", "300"], "wrapper": extractor_revision()}
     except (OSError, ValueError, AttributeError, subprocess.SubprocessError):
         return None
 

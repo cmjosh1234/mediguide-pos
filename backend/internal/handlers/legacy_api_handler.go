@@ -17,27 +17,6 @@ type LegacyAPIHandler struct {
 	Cfg     config.Config
 }
 
-// ConsultantsTree godoc
-// @Summary Get consultants tree
-// @Description Legacy v1 endpoint that groups consultants by region, city, then specialty.
-// @Tags legacy-v1
-// @Produce json
-// @Param level query int false "Tree level" minimum(0) maximum(2)
-// @Param filters query string false "JSON encoded filters"
-// @Param context query string false "Optional JSON context"
-// @Success 200 {object} handlers.LegacyTreeResult
-// @Failure 500 {object} handlers.ErrorResponse
-// @Router /api/v1/consultants/tree [get]
-func (h LegacyAPIHandler) ConsultantsTree(c *gin.Context) {
-	level, filters := services.ParseTreeRequest(c.Query("level"), c.Query("filters"), 2, []string{"region", "city", "specialty", "status", "verified"})
-	result, err := h.Service.ConsultantsTree(level, filters)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to load consultants tree"})
-		return
-	}
-	c.JSON(http.StatusOK, result)
-}
-
 // HealthFacilitiesTree godoc
 // @Summary Get health facilities tree
 // @Description Legacy v1 endpoint that groups facilities by region, district, then facility level.

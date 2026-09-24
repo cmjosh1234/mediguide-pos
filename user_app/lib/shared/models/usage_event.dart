@@ -39,23 +39,6 @@ abstract class AiUsageLog with _$AiUsageLog {
 }
 
 @freezed
-abstract class ConsultantUsageLog with _$ConsultantUsageLog {
-  const factory ConsultantUsageLog({
-    required String id,
-    @JsonKey(name: 'user_id') required String userId,
-    @JsonKey(name: 'consultant_id') required String consultantId,
-    @JsonKey(name: 'created_at')
-    @NullableDateTimeConverter()
-    DateTime? createdAt,
-    @JsonKey(name: 'updated_at')
-    @NullableDateTimeConverter()
-    DateTime? updatedAt,
-  }) = _ConsultantUsageLog;
-  factory ConsultantUsageLog.fromJson(Map<String, dynamic> json) =>
-      _$ConsultantUsageLogFromJson(json);
-}
-
-@freezed
 abstract class DrugUsageLog with _$DrugUsageLog {
   const factory DrugUsageLog({
     required String id,

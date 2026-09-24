@@ -1,5 +1,19 @@
 # MediGuide platform release process
 
+## v2.1.6 corrective release — 23 September 2026
+
+- Replaces the undeployed v2.1.5 production release without moving its immutable
+  tag or image versions.
+- Renumbers the outbreak disease-link migration from `00059` to `00061` and the
+  consultant-removal migration to `00062`, so both follow the existing
+  disease-category and guest-support migrations.
+- Adds a release-readiness guard that rejects duplicate backend migration
+  versions before images are published or production deployment begins.
+- Synchronizes all services to 2.1.6 and mobile to 2.1.6+58. The Android alpha
+  continues to target the production API and Firebase group
+  `mediguide-alpha-testers`; signed iOS remains excluded until Apple signing
+  credentials are configured.
+
 ## v2.1.5 release cut — 23 September 2026
 
 - Synchronizes API, AI worker, dashboard, public portal and mobile to 2.1.5

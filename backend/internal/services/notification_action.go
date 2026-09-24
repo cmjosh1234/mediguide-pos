@@ -40,7 +40,7 @@ var notificationInternalRoutes = map[string]struct{}{
 	"/public/guidelines": {}, "/tools": {}, "/profile": {}, "/library": {},
 	"/offline-content": {}, "/outbreak-hub": {}, "/situation-reports": {},
 	"/drug-index": {}, "/abbreviations": {}, "/health-infrastructure": {},
-	"/health-facilities": {}, "/consultants": {}, "/ministry-directory": {},
+	"/health-facilities": {}, "/ministry-directory": {},
 	"/calculators": {}, "/ai-assistant": {}, "/chats": {}, "/all-actions": {},
 	"/notifications": {}, "/help-center": {}, "/faq": {}, "/about-us": {},
 	"/terms-and-conditions": {},

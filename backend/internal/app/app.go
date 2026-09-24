@@ -154,7 +154,6 @@ func New(cfg config.Config) (*App, error) {
 	contentHubSvc := services.ContentHubService{DB: database, AllowedExternalHosts: cfg.NotificationActionExternalHosts}
 	emergencyProtocolSvc := services.EmergencyProtocolService{DB: database}
 	contentReferenceSvc := services.ContentReferenceService{DB: database, Cache: cacheStore}
-	consultantSvc := services.ConsultantService{DB: database}
 	legacyAPISvc := services.LegacyAPIService{DB: database, Cache: cacheStore}
 	facilitySvc := services.FacilityService{DB: database, Cache: cacheStore}
 	firebaseSvc, err := services.NewFirebaseService(database, cfg)
@@ -188,14 +187,12 @@ func New(cfg config.Config) (*App, error) {
 	progressUsageH := handlers.ProgressUsageHandler{Service: services.ProgressUsageService{DB: database}}
 	guidelineLibraryH := handlers.GuidelineLibraryHandler{Service: services.GuidelineLibraryService{DB: database}}
 	conversationH := handlers.ConversationHandler{Service: services.ConversationService{DB: database}}
-	consultantH := handlers.ConsultantHandler{Service: consultantSvc}
 	legacyAPIH := handlers.LegacyAPIHandler{Service: legacyAPISvc, Cfg: cfg}
 	facilityH := handlers.NewFacilityHandler(facilitySvc)
 	firebaseH := handlers.FirebaseHandler{Service: firebaseSvc}
 
 	legacyV1 := r.Group("/api/v1")
 	legacyV1.GET("/stats", rateLimiter.Limit(middleware.Policy("legacy-public", 60, time.Minute, 10), middleware.IPIdentity), legacyAPIH.Stats)
-	legacyV1.GET("/consultants/tree", rateLimiter.Limit(middleware.Policy("legacy-public", 60, time.Minute, 10), middleware.IPIdentity), legacyAPIH.ConsultantsTree)
 	legacyV1.GET("/health-facilities/tree", rateLimiter.Limit(middleware.Policy("legacy-public", 60, time.Minute, 10), middleware.IPIdentity), legacyAPIH.HealthFacilitiesTree)
 	legacyV1.GET("/ministry-directory/tree", rateLimiter.Limit(middleware.Policy("legacy-public", 60, time.Minute, 10), middleware.IPIdentity), legacyAPIH.MinistryDirectoryTree)
 	legacyProtected := legacyV1.Group("")
@@ -716,7 +713,6 @@ func New(cfg config.Config) (*App, error) {
 		protected.POST("/library/downloads", rateLimiter.Limit(middleware.Policy("guideline-download-record", 120, time.Minute, 20), middleware.UserIdentity), guidelineLibraryH.RecordDownload)
 		protected.POST("/usage/guidelines", rateLimiter.Limit(middleware.Policy("usage-event-write", 120, time.Minute, 20), middleware.UserIdentity), progressUsageH.RecordGuidelineUsage)
 		protected.POST("/usage/abbreviations", rateLimiter.Limit(middleware.Policy("usage-event-write", 120, time.Minute, 20), middleware.UserIdentity), progressUsageH.RecordAbbreviationUsage)
-		protected.POST("/usage/consultants", rateLimiter.Limit(middleware.Policy("usage-event-write", 120, time.Minute, 20), middleware.UserIdentity), progressUsageH.RecordConsultantUsage)
 		protected.POST("/usage/ai", rateLimiter.Limit(middleware.Policy("usage-event-write", 120, time.Minute, 20), middleware.UserIdentity), progressUsageH.RecordAIUsage)
 		protected.GET("/analytics/usage", middleware.RequireAnyPermission("admin.all", "analytics.read", "sync.read"), rateLimiter.Limit(middleware.Policy("analytics-read", 30, time.Minute, 5), middleware.UserIdentity), progressUsageH.UsageAggregates)
 		protected.GET("/conversations", conversationH.List)
@@ -727,11 +723,6 @@ func New(cfg config.Config) (*App, error) {
 		protected.POST("/conversations/:id/messages", rateLimiter.Limit(middleware.Policy("conversation-message", 30, time.Minute, 5), middleware.UserIdentity), conversationH.CreateMessage)
 		protected.POST("/conversations/:id/messages/:messageId/read", conversationH.MarkRead)
 		protected.POST("/conversations/:id/messages/:messageId/reaction", conversationH.React)
-		protected.GET("/consultants", consultantH.List)
-		protected.GET("/consultants/:id", consultantH.Get)
-		protected.POST("/consultants", middleware.RequireAnyPermission("admin.all", "content.write", "consultant.write"), consultantH.Create)
-		protected.PATCH("/consultants/:id", middleware.RequireAnyPermission("admin.all", "content.write", "consultant.write"), consultantH.Update)
-		protected.DELETE("/consultants/:id", middleware.RequireAnyPermission("admin.all", "content.write", "consultant.write"), consultantH.Delete)
 
 		protected.GET("/facilities", facilityH.ListFacilities)
 		protected.GET("/facilities/:id", facilityH.GetFacility)

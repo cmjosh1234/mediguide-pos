@@ -637,16 +637,6 @@ func seedDemoOutbreaks(ctx context.Context, database *gorm.DB, store storage.Obj
 }
 
 func seedDemoPeopleAndHelp(database *gorm.DB, adminID, clinicianID uuid.UUID) error {
-	consultants := []map[string]any{
-		{"id": consultantOneID, "user_id": clinicianID, "name": "Dr. Sarah Nakato", "email": "clinician@mediguide.local", "phone": "+256700000002", "specialty": "Internal Medicine", "license_number": "DEMO-MED-001", "years_of_experience": 9.0, "qualifications": "MD", "city": "Kampala", "region": "Central", "country": "Uganda", "organization": "Kampala Central Health Centre III", "preferred_language": "English", "availability_json": mustJSON(`{"weekdays":"08:00-17:00"}`), "consultation_types": "Telemedicine", "status": "active", "is_verified": true, "rating": 4.8, "total_consultations": 124, "usage_count": 32},
-		{"id": consultantTwoID, "name": "Dr. Daniel Okello", "email": "daniel.okello@example.test", "phone": "+256700000004", "specialty": "Pediatrics", "license_number": "DEMO-MED-002", "years_of_experience": 7.0, "qualifications": "MD", "city": "Gulu", "region": "Northern", "country": "Uganda", "organization": "Regional Referral Hospital", "preferred_language": "English", "availability_json": mustJSON(`{"weekdays":"09:00-16:00"}`), "consultation_types": "In-Person", "status": "active", "is_verified": true, "rating": 4.7, "total_consultations": 86, "usage_count": 21},
-	}
-	for _, row := range consultants {
-		if err := upsertByID(database, "consultants", row); err != nil {
-			return err
-		}
-	}
-
 	var district struct{ ID uuid.UUID }
 	if err := database.Table("districts").Select("id").Order("name ASC").Take(&district).Error; err == nil {
 		var region struct{ ID uuid.UUID }

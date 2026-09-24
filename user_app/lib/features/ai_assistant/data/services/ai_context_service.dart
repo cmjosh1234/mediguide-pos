@@ -114,14 +114,6 @@ ${_getContextualHelpOptions(context)}
 • Best practices and tips
 • Related diagnostic tools''';
 
-      case AiContextType.consultant:
-        return '''
-• When to seek consultation
-• Preparation for specialist visits
-• Understanding specialties
-• Referral guidelines
-• Follow-up recommendations''';
-
       case AiContextType.facility:
         return '''
 • Available services and departments
@@ -182,14 +174,6 @@ ${_getContextualHelpOptions(context)}
           'What do these results mean?',
           'When is this assessment most useful?',
           'What are the next steps?',
-        ];
-
-      case AiContextType.consultant:
-        return [
-          'When should I refer to this specialist?',
-          'How do I prepare patients for consultation?',
-          'What information should I provide?',
-          'What are typical wait times?',
         ];
 
       case AiContextType.facility:

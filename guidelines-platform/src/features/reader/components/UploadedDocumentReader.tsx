@@ -1,5 +1,6 @@
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import {
   getPublicGuidelineOriginal,
@@ -60,6 +61,10 @@ export function UploadedDocumentView({
   guideline: PublicGuideline;
   file: UploadedFileState;
 }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  // A direct visit has no in-app history to return to, so fall back to the library.
+  const goBack = () => (location.key === "default" ? navigate("/") : navigate(-1));
   const isPdf = file.status === "ready" && file.asset.mime_type === "application/pdf";
   const meta = [guideline.source_org, guideline.version && `Version ${guideline.version}`, guideline.publication_date]
     .filter(Boolean)
@@ -77,6 +82,10 @@ export function UploadedDocumentView({
         </nav>
       </header>
       <main id="guideline-content" className="uploaded-document">
+        <button type="button" className="uploaded-document-back" onClick={goBack}>
+          <ArrowLeft size={18} aria-hidden="true" />
+          Back
+        </button>
         <div className="uploaded-document-heading">
           <div>
             {guideline.document_kind?.name && (

@@ -57,7 +57,13 @@ func (s *MinioStore) Get(ctx context.Context, key string) (io.ReadCloser, error)
 func (s *MinioStore) Delete(ctx context.Context, key string) error {
 	return s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{})
 }
+
+// PresignGet signs against the public endpoint when one is configured, because
+// callers hand the URL to browsers and apps that cannot resolve the internal host.
 func (s *MinioStore) PresignGet(ctx context.Context, key string, expiry time.Duration) (*url.URL, error) {
+	if s.uploadClient != nil {
+		return s.uploadClient.PresignedGetObject(ctx, s.bucket, key, expiry, nil)
+	}
 	return s.client.PresignedGetObject(ctx, s.bucket, key, expiry, nil)
 }
 func (s *MinioStore) Health(ctx context.Context) error {

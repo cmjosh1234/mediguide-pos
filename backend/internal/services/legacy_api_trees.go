@@ -6,57 +6,6 @@ import (
 	"strings"
 )
 
-// ConsultantsTree groups consultants by region → city → specialty.
-func (s LegacyAPIService) consultantsTreeUncached(level int, filters map[string]string) (TreeResult, error) {
-	var rows []treeRow
-	query := s.DB.Table("consultants").
-		Where("deleted_at IS NULL").
-		Where("status IN ?", []string{"active", "pendingApproval", "pending_approval"})
-
-	if value := filters["region"]; value != "" {
-		query = query.Where("coalesce(nullif(region, ''), 'Unknown Region') = ?", value)
-	}
-	if value := filters["city"]; value != "" {
-		query = query.Where("coalesce(nullif(city, ''), 'Unknown City') = ?", value)
-	}
-	if value := filters["specialty"]; value != "" {
-		query = query.Where("coalesce(nullif(specialty, ''), 'Other') = ?", value)
-	}
-	if value := filters["status"]; value != "" {
-		query = query.Where("status = ?", value)
-	}
-	if value, ok := parseBoolFilter(filters["verified"]); ok {
-		query = query.Where("is_verified = ?", value)
-	}
-
-	switch level {
-	case 0:
-		err := query.
-			Select("coalesce(nullif(region, ''), 'Unknown Region') AS id, coalesce(nullif(region, ''), 'Unknown Region') AS title, count(*) AS count").
-			Group("1,2").Order("2").
-			Scan(&rows).Error
-		return buildTreeResult(level, rows, true, func(r treeRow) map[string]string {
-			return map[string]string{"region": r.ID}
-		}), err
-	case 1:
-		err := query.
-			Select("coalesce(nullif(city, ''), 'Unknown City') AS id, coalesce(nullif(city, ''), 'Unknown City') AS title, count(*) AS count").
-			Group("1,2").Order("2").
-			Scan(&rows).Error
-		return buildTreeResult(level, rows, true, func(r treeRow) map[string]string {
-			return map[string]string{"region": filters["region"], "city": r.ID}
-		}), err
-	default:
-		err := query.
-			Select("coalesce(nullif(specialty, ''), 'Other') AS id, coalesce(nullif(specialty, ''), 'Other') AS title, count(*) AS count").
-			Group("1,2").Order("2").
-			Scan(&rows).Error
-		return buildTreeResult(level, rows, false, func(r treeRow) map[string]string {
-			return map[string]string{"region": filters["region"], "city": filters["city"], "specialty": r.ID}
-		}), err
-	}
-}
-
 // HealthFacilitiesTree groups facilities by region → district → facility level.
 func (s LegacyAPIService) healthFacilitiesTreeUncached(level int, filters map[string]string) (TreeResult, error) {
 	var rows []treeRow
@@ -217,18 +166,6 @@ func parseFilterMap(raw string, allowedKeys []string) map[string]string {
 		out[key] = str
 	}
 	return out
-}
-
-// parseBoolFilter converts "true"/"false"/etc. strings to bool.
-func parseBoolFilter(raw string) (bool, bool) {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "true", "1", "yes":
-		return true, true
-	case "false", "0", "no":
-		return false, true
-	default:
-		return false, false
-	}
 }
 
 // compactFilterMap removes empty string values from a filter map.

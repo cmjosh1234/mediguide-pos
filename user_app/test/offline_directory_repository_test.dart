@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:user_app/core/network/api_client.dart';
-import 'package:user_app/features/consultants/data/repositories/consultant_local_repository.dart';
-import 'package:user_app/features/consultants/data/repositories/consultant_repository.dart';
 import 'package:user_app/features/conversations/data/repositories/conversation_local_repository.dart';
 import 'package:user_app/features/conversations/data/repositories/conversation_repository.dart';
 import 'package:user_app/features/facilities/data/repositories/facility_local_repository.dart';
@@ -37,20 +35,6 @@ final class OfflineDirectoryApi extends BackendApiService {
     }
     if (path == '/api/v2/facilities/facility-1') {
       return {'data': _facility};
-    }
-    if (path == '/api/v2/consultants') {
-      return {
-        'data': {
-          'items': [_consultant],
-          'page': 1,
-          'per_page': 20,
-          'total_items': 1,
-          'total_pages': 1,
-        },
-      };
-    }
-    if (path == '/api/v2/consultants/consultant-1') {
-      return {'data': _consultant};
     }
     if (path == '/api/v2/conversations') {
       return {
@@ -90,22 +74,6 @@ const _facility = <String, dynamic>{
   'district_name': 'Kampala',
   'facility_level_id': 'level-1',
   'ownership_type_id': 'owner-1',
-  'updated_at': '2026-08-01T00:00:00Z',
-};
-
-const _consultant = <String, dynamic>{
-  'id': 'consultant-1',
-  'name': 'Dr Amina',
-  'email': 'amina@example.test',
-  'specialty': 'Cardiology',
-  'qualifications': ['Specialist'],
-  'preferred_language': 'English',
-  'consultation_types': ['Telemedicine'],
-  'region': 'Central',
-  'city': 'Kampala',
-  'status': 'active',
-  'is_verified': true,
-  'rating': 4.8,
   'updated_at': '2026-08-01T00:00:00Z',
 };
 
@@ -180,46 +148,6 @@ void main() {
         (await repository.facility('facility-1')).name,
         'Central Hospital',
       );
-    },
-  );
-
-  test(
-    'consultants cache list and detail with equivalent typed filters',
-    () async {
-      final api = OfflineDirectoryApi();
-      final store = TestLocalStore();
-      addTearDown(store.close);
-      final repository = ConsultantRepository(
-        api,
-        ConsultantLocalRepository(store.cache),
-      );
-
-      await repository.list(
-        specialty: 'Cardiology',
-        qualification: 'Specialist',
-        language: 'English',
-        consultationType: 'Telemedicine',
-        status: 'active',
-        verified: true,
-      );
-      expect(api.lastQuery?['qualification'], 'Specialist');
-      expect(api.lastQuery?['consultation_type'], 'Telemedicine');
-
-      api.offline = true;
-      final cached = await repository.list(
-        search: 'amina',
-        specialty: 'Cardiology',
-        qualification: 'Specialist',
-        language: 'English',
-        region: 'Central',
-        city: 'Kampala',
-        consultationType: 'Telemedicine',
-        status: 'active',
-        verified: true,
-      );
-
-      expect(cached.items.single.id, 'consultant-1');
-      expect((await repository.get('consultant-1')).name, 'Dr Amina');
     },
   );
 

@@ -617,7 +617,7 @@ wheels = [
 
 [[package]]
 name = "mediguide-ai-worker"
-version = "2.1.5"
+version = "2.1.6"
 source = { virtual = "." }
 dependencies = [
     { name = "beautifulsoup4" },

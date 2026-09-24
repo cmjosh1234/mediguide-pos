@@ -17,7 +17,7 @@ func progressUsageTestService(t *testing.T) ProgressUsageService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.GuidelineDocument{}, &models.ReadingProgress{}, &models.GuidelineUsageLog{}, &models.AbbreviationUsageLog{}, &models.ConsultantUsageLog{}, &models.AIUsageLog{}); err != nil {
+	if err := db.AutoMigrate(&models.GuidelineDocument{}, &models.ReadingProgress{}, &models.GuidelineUsageLog{}, &models.AbbreviationUsageLog{}, &models.AIUsageLog{}); err != nil {
 		t.Fatal(err)
 	}
 	return ProgressUsageService{DB: db}

@@ -28,12 +28,6 @@ func (s LegacyAPIService) Stats(userID string) (StatsResult, error) {
 	})
 }
 
-func (s LegacyAPIService) ConsultantsTree(level int, filters map[string]string) (TreeResult, error) {
-	return cachepkg.GetOrLoad(context.Background(), s.Cache, "consultant-hierarchy", treeCacheKey(level, filters), 10*time.Minute, func() (TreeResult, error) {
-		return s.consultantsTreeUncached(level, filters)
-	})
-}
-
 func (s LegacyAPIService) HealthFacilitiesTree(level int, filters map[string]string) (TreeResult, error) {
 	return cachepkg.GetOrLoad(context.Background(), s.Cache, "facility-hierarchy", treeCacheKey(level, filters), 10*time.Minute, func() (TreeResult, error) {
 		return s.healthFacilitiesTreeUncached(level, filters)
@@ -94,7 +88,6 @@ type StatsResult struct {
 	Calculators            int64  `json:"calculators"`
 	Abbreviations          int64  `json:"abbreviations"`
 	HealthFacilities       int64  `json:"health_facilities"`
-	Consultants            int64  `json:"consultants"`
 	TotalUsers             int64  `json:"total_users"`
 	MinistryDirectory      int64  `json:"ministry_directory"`
 	FAQs                   int64  `json:"faqs"`

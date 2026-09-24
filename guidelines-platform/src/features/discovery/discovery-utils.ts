@@ -43,3 +43,15 @@ export function dateLabel(value?: string) {
     ? value
     : new Intl.DateTimeFormat("en-UG", { dateStyle: "medium" }).format(date);
 }
+
+// The backend sanitises outbreak Markdown with an HTML policy that
+// entity-encodes Markdown syntax such as blockquote markers. Raw HTML is never
+// rendered by SecureMarkdown, so decoding these entities back is safe.
+export function decodeSanitizedMarkdown(value: string): string {
+  return value
+    .replace(/&gt;/g, ">")
+    .replace(/&lt;/g, "<")
+    .replace(/&#34;|&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&amp;/g, "&");
+}

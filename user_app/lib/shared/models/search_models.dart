@@ -6,7 +6,6 @@ enum SearchCategory {
   pillars(value: 'pillars', displayName: 'Hub Sections'),
   drugs(value: 'drugs', displayName: 'Drugs'),
   guidelines(value: 'guidelines', displayName: 'Guidelines'),
-  consultants(value: 'consultants', displayName: 'Consultants'),
   healthFacilities(
     value: 'health_facilities',
     displayName: 'Health Facilities',

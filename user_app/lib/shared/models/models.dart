@@ -14,8 +14,7 @@ export 'package:user_app/features/drugs/data/models/drug_tag.dart';
 export 'package:user_app/features/drugs/data/models/drug_class.dart';
 export 'package:user_app/features/drugs/data/models/therapeutic_category.dart';
 
-// Consultant model
-export 'package:user_app/features/consultants/data/models/consultant.dart';
+// Ministry directory model
 export 'package:user_app/features/content/data/models/ministry_directory.dart';
 
 // Geographic models
@@ -49,7 +48,6 @@ export 'package:user_app/features/calculators/data/models/calculator_usage_log.d
 export 'package:user_app/features/guidelines/data/models/guideline_usage_log.dart';
 export 'package:user_app/features/drugs/data/models/drug_usage_log.dart';
 export 'package:user_app/features/abbreviations/data/models/abbreviation_usage_log.dart';
-export 'package:user_app/features/consultants/data/models/consultant_usage_log.dart';
 export 'package:user_app/features/facilities/data/models/facility_usage_log.dart';
 export 'package:user_app/features/ai_assistant/data/models/ai_usage_log.dart';
 
@@ -78,7 +76,6 @@ export 'package:user_app/features/conversations/data/models/message.dart';
 // Enums
 export 'package:user_app/features/authentication/data/models/user_enums.dart';
 export 'package:user_app/features/drugs/data/models/drug_enums.dart';
-export 'package:user_app/features/consultants/data/models/consultant_enums.dart';
 export 'package:user_app/features/content/data/models/ministry_directory_enums.dart';
 export 'package:user_app/shared/models/common_enums.dart';
 export 'package:user_app/features/calculators/data/models/calculator_enums.dart';

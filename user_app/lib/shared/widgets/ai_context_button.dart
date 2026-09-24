@@ -105,8 +105,6 @@ class AiContextButton extends StatelessWidget {
         return 'Get AI help with this calculator';
       case AiContextType.tool:
         return 'Ask AI about this tool';
-      case AiContextType.consultant:
-        return 'Ask AI about this consultant';
       case AiContextType.facility:
         return 'Ask AI about this facility';
       case AiContextType.faq:

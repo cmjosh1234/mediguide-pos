@@ -177,3 +177,70 @@ def test_document_checksum_and_asset_extension_are_deterministic(tmp_path: Path)
 
     assert first == second
     assert len(first) == 64
+
+
+def test_extract_pdf_font_styles_reject_numbered_dosing_lines(tmp_path: Path):
+    path = tmp_path / "styled.pdf"
+    with fitz.open() as document:
+        page = document.new_page()
+        page.insert_text((50, 60), "1.3.1 General Management", fontname="hebo", fontsize=11)
+        page.insert_text((50, 90), "Give diazepam rectally, repeated if necessary, for convulsions.", fontsize=10)
+        page.insert_text((50, 110), "0.5 mg/kg per dose for children under two years", fontsize=10)
+        page.insert_text((50, 140), "1.3.2 Organophosphate Poisoning", fontname="hebo", fontsize=11)
+        page.insert_text((50, 170), "Give atropine and provide supportive care until stable.", fontsize=10)
+        document.save(path)
+
+    extracted = extract_pdf(path)
+
+    assert [section.title for section in extracted.sections] == [
+        "1.3.1 General Management",
+        "1.3.2 Organophosphate Poisoning",
+    ]
+    assert extracted.sections[0].provenance["heading_detection"] == "heuristic+font"
+
+
+def test_extract_pdf_renders_vector_diagrams_but_not_tables(tmp_path: Path):
+    path = tmp_path / "diagram.pdf"
+    with fitz.open() as document:
+        page = document.new_page()
+        page.insert_text((50, 50), "1 Surveillance Overview", fontname="hebo")
+        # A flowchart: boxes joined by arrows, drawn as vectors.
+        for index in range(4):
+            top = 80 + index * 70
+            page.draw_rect(fitz.Rect(150, top, 400, top + 40))
+            page.draw_line((275, top + 40), (275, top + 70))
+            page.draw_line((270, top + 64), (275, top + 70))
+            page.draw_line((280, top + 64), (275, top + 70))
+        page.draw_circle((275, 390), 20)
+        page.insert_text((50, 440), "Figure 1: Flow chart of the reporting pathway")
+        # A ruled table further down the page.
+        for x in (50, 250, 450):
+            page.draw_line((x, 480), (x, 600))
+        for y in (480, 520, 560, 600):
+            page.draw_line((50, y), (450, y))
+        for row, y in enumerate((505, 545, 585)):
+            page.insert_text((60, y), f"Indicator {row}")
+            page.insert_text((260, y), f"Value {row}")
+        document.save(path)
+
+    extracted = extract_pdf(path)
+
+    vectors = [asset for asset in extracted.assets if asset.provenance.get("source") == "vector_drawing"]
+    assert len(vectors) == 1
+    assert vectors[0].type == "diagram"
+    assert vectors[0].mime_type == "image/png"
+    assert vectors[0].provenance["caption"].startswith("Figure 1")
+    assert vectors[0].provenance["bbox"][3] < 480
+    assert extracted.tables
+
+
+def test_ocr_renders_pages_at_300_dpi(monkeypatch: pytest.MonkeyPatch):
+    import app.document_processing.pdf_extractor as module
+
+    captured = []
+    monkeypatch.setattr(module, "_ocr_image_text", lambda image, *_: captured.append(image) or "")
+    with fitz.open() as document:
+        page = document.new_page(width=595, height=842)
+        module._ocr_page_text(page)
+
+    assert abs(fitz.Pixmap(captured[0]).width - 595 * 300 / 72) <= 1

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -934,4 +935,22 @@ func guidelineReviewTestDB(t *testing.T) *gorm.DB {
 		t.Fatal(err)
 	}
 	return db
+}
+
+func TestGuidelineIssueLabelCleansExtractedTitles(t *testing.T) {
+	cases := map[string]string{
+		`Standard case definition\nSuspected case`: "Standard case definition Suspected case",
+		`\u009f Treat STIs`:                        "Treat STIs",
+		"Line one\n\u009fLine two":                 "Line one Line two",
+		"  Plague  ":                               "Plague",
+	}
+	for input, expected := range cases {
+		if got := guidelineIssueLabel(input); got != expected {
+			t.Errorf("guidelineIssueLabel(%q) = %q, want %q", input, got, expected)
+		}
+	}
+	long := guidelineIssueLabel(strings.Repeat("word ", 40))
+	if runes := []rune(long); len(runes) > guidelineIssueLabelMaxRunes || !strings.HasSuffix(long, "…") {
+		t.Errorf("long label was not truncated: %q", long)
+	}
 }

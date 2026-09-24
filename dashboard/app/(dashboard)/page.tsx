@@ -5,10 +5,8 @@ import {
   Activity,
   AlertTriangle,
   Building2,
-  CheckCircle2,
   ClipboardCheck,
   Hospital,
-  Stethoscope,
   Users,
 } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -54,7 +52,7 @@ function DashboardMetrics({
   const { metrics } = data
   
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       <StatCard
         title="Total Users"
         value={metrics.totalUsers}
@@ -74,13 +72,6 @@ function DashboardMetrics({
         value={metrics.totalFacilities}
         helper="Total facilities"
         icon={Building2}
-      />
-
-      <StatCard
-        title="Consultants"
-        value={metrics.totalConsultants}
-        helper={`${metrics.activeConsultants.toLocaleString()} active`}
-        icon={Stethoscope}
       />
     </div>
   )
@@ -120,18 +111,6 @@ function OverviewState({
       value: pipeline.drugsInactive,
       icon: Activity,
       tone: "text-muted-foreground",
-    },
-    {
-      title: "Consultants Pending Approval",
-      value: pipeline.consultantsPendingApproval,
-      icon: Stethoscope,
-      tone: "text-amber-500",
-    },
-    {
-      title: "Verified Consultants",
-      value: pipeline.consultantsVerified,
-      icon: CheckCircle2,
-      tone: "text-emerald-500",
     },
   ]
 

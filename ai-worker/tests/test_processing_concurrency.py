@@ -93,7 +93,8 @@ def test_parallel_ocr_is_bounded_and_pymupdf_stays_on_caller_thread(tmp_path, mo
         with lock:
             active += 1
             peak = max(peak, active)
-        time.sleep(0.03)
+        # Outlast a 300 DPI page render so concurrent recognitions overlap.
+        time.sleep(0.5)
         with lock:
             active -= 1
         return "OCR result"

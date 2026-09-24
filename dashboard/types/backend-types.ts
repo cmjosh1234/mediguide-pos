@@ -17,8 +17,6 @@ export const Collections = {
 	Authorities: "authorities",
 	CalculatorUsageLogs: "calculator_usage_logs",
 	Calculators: "calculators",
-	ConsultantUsageLogs: "consultant_usage_logs",
-	Consultants: "consultants",
 	Conversations: "conversations",
 	Counties: "counties",
 	Districts: "districts",
@@ -249,134 +247,6 @@ export type CalculatorsRecord = {
 	updated: IsoAutoDateString
 	usageCount?: number
 	version: string
-}
-
-export type ConsultantUsageLogsRecord = {
-	consultant_id: RecordIdString
-	created: IsoAutoDateString
-	id: string
-	updated: IsoAutoDateString
-	user_id: RecordIdString
-}
-
-export const ConsultantsSpecialtyOptions = {
-	"General Practice": "General Practice",
-	"Internal Medicine": "Internal Medicine",
-	"Pediatrics": "Pediatrics",
-	"Surgery": "Surgery",
-	"Cardiology": "Cardiology",
-	"Neurology": "Neurology",
-	"Psychiatry": "Psychiatry",
-	"Orthopedics": "Orthopedics",
-	"Dermatology": "Dermatology",
-	"Ophthalmology": "Ophthalmology",
-	"Emergency Medicine": "Emergency Medicine",
-	"Radiology": "Radiology",
-	"Anesthesiology": "Anesthesiology",
-	"Pathology": "Pathology",
-	"Oncology": "Oncology",
-	"Endocrinology": "Endocrinology",
-	"Gastroenterology": "Gastroenterology",
-	"Pulmonology": "Pulmonology",
-	"Nephrology": "Nephrology",
-	"Infectious Diseases": "Infectious Diseases",
-	"Rheumatology": "Rheumatology",
-	"Public Health": "Public Health",
-	"Nursing": "Nursing",
-	"Pharmacy": "Pharmacy",
-	"Laboratory Medicine": "Laboratory Medicine",
-	"Other": "Other",
-} as const
-export type ConsultantsSpecialtyOptions = typeof ConsultantsSpecialtyOptions[keyof typeof ConsultantsSpecialtyOptions]
-
-export const ConsultantsQualificationsOptions = {
-	"MD": "MD",
-	"MBBS": "MBBS",
-	"DDS": "DDS",
-	"PharmD": "PharmD",
-	"RN": "RN",
-	"BSN": "BSN",
-	"MSN": "MSN",
-	"DNP": "DNP",
-	"PhD": "PhD",
-	"MPH": "MPH",
-	"MS": "MS",
-	"MA": "MA",
-	"Diploma": "Diploma",
-	"Certificate": "Certificate",
-	"Fellowship": "Fellowship",
-	"Residency": "Residency",
-	"Other": "Other",
-	"DO_DEGREE": "DO_DEGREE",
-} as const
-export type ConsultantsQualificationsOptions = typeof ConsultantsQualificationsOptions[keyof typeof ConsultantsQualificationsOptions]
-
-export const ConsultantsPreferredLanguageOptions = {
-	"English": "English",
-	"French": "French",
-	"Spanish": "Spanish",
-	"Portuguese": "Portuguese",
-	"Arabic": "Arabic",
-	"Swahili": "Swahili",
-	"Amharic": "Amharic",
-	"Other": "Other",
-} as const
-export type ConsultantsPreferredLanguageOptions = typeof ConsultantsPreferredLanguageOptions[keyof typeof ConsultantsPreferredLanguageOptions]
-
-export const ConsultantsConsultationTypesOptions = {
-	"In-Person": "In-Person",
-	"Telemedicine": "Telemedicine",
-	"Phone Consultation": "Phone Consultation",
-	"Emergency Consultation": "Emergency Consultation",
-	"Second Opinion": "Second Opinion",
-	"Follow-up": "Follow-up",
-	"Diagnostic Review": "Diagnostic Review",
-	"Treatment Planning": "Treatment Planning",
-	"Medication Review": "Medication Review",
-	"Health Education": "Health Education",
-} as const
-export type ConsultantsConsultationTypesOptions = typeof ConsultantsConsultationTypesOptions[keyof typeof ConsultantsConsultationTypesOptions]
-
-export const ConsultantsStatusOptions = {
-	"active": "active",
-	"inactive": "inactive",
-	"pendingApproval": "pendingApproval",
-	"suspended": "suspended",
-} as const
-export type ConsultantsStatusOptions = typeof ConsultantsStatusOptions[keyof typeof ConsultantsStatusOptions]
-export type ConsultantsRecord<Tavailability = unknown> = {
-	address?: string
-	alternativePhone?: string
-	availability?: null | Tavailability
-	avatar?: FileNameString
-	certifications?: string
-	city?: string
-	consultationTypes?: ConsultantsConsultationTypesOptions
-	country: string
-	created: IsoAutoDateString
-	department?: string
-	email: string
-	id: string
-	isVerified?: boolean
-	licenseNumber?: string
-	name: string
-	notes?: string
-	organization?: string
-	phone: string
-	postalCode?: string
-	preferredLanguage?: ConsultantsPreferredLanguageOptions
-	profilePicture?: FileNameString
-	qualifications?: ConsultantsQualificationsOptions[]
-	rating?: number
-	region?: string
-	specialty: ConsultantsSpecialtyOptions
-	status: ConsultantsStatusOptions
-	timezone?: string
-	totalConsultations?: number
-	updated: IsoAutoDateString
-	usageCount?: number
-	user?: RecordIdString
-	yearsOfExperience?: number
 }
 
 export type ConversationsRecord = {
@@ -1184,6 +1054,35 @@ export const UsersPreferredLanguageOptions = {
 	"amharic": "amharic",
 } as const
 export type UsersPreferredLanguageOptions = typeof UsersPreferredLanguageOptions[keyof typeof UsersPreferredLanguageOptions]
+export const UsersSpecializationOptions = {
+	"General Practice": "General Practice",
+	"Internal Medicine": "Internal Medicine",
+	"Pediatrics": "Pediatrics",
+	"Surgery": "Surgery",
+	"Cardiology": "Cardiology",
+	"Neurology": "Neurology",
+	"Psychiatry": "Psychiatry",
+	"Orthopedics": "Orthopedics",
+	"Dermatology": "Dermatology",
+	"Ophthalmology": "Ophthalmology",
+	"Emergency Medicine": "Emergency Medicine",
+	"Radiology": "Radiology",
+	"Anesthesiology": "Anesthesiology",
+	"Pathology": "Pathology",
+	"Oncology": "Oncology",
+	"Endocrinology": "Endocrinology",
+	"Gastroenterology": "Gastroenterology",
+	"Pulmonology": "Pulmonology",
+	"Nephrology": "Nephrology",
+	"Infectious Diseases": "Infectious Diseases",
+	"Rheumatology": "Rheumatology",
+	"Public Health": "Public Health",
+	"Nursing": "Nursing",
+	"Pharmacy": "Pharmacy",
+	"Laboratory Medicine": "Laboratory Medicine",
+	"Other": "Other",
+} as const
+export type UsersSpecializationOptions = typeof UsersSpecializationOptions[keyof typeof UsersSpecializationOptions]
 export type UsersRecord = {
 	address?: string
 	alternativePhone?: string
@@ -1226,8 +1125,6 @@ export type AiUsageLogsResponse<Texpand = unknown> = Required<AiUsageLogsRecord>
 export type AuthoritiesResponse<Texpand = unknown> = Required<AuthoritiesRecord> & BaseSystemFields<Texpand>
 export type CalculatorUsageLogsResponse<Texpand = unknown> = Required<CalculatorUsageLogsRecord> & BaseSystemFields<Texpand>
 export type CalculatorsResponse<Texpand = unknown> = Required<CalculatorsRecord> & BaseSystemFields<Texpand>
-export type ConsultantUsageLogsResponse<Texpand = unknown> = Required<ConsultantUsageLogsRecord> & BaseSystemFields<Texpand>
-export type ConsultantsResponse<Tavailability = unknown, Texpand = unknown> = Required<ConsultantsRecord<Tavailability>> & BaseSystemFields<Texpand>
 export type ConversationsResponse<Texpand = unknown> = Required<ConversationsRecord> & BaseSystemFields<Texpand>
 export type CountiesResponse<Texpand = unknown> = Required<CountiesRecord> & BaseSystemFields<Texpand>
 export type DistrictsResponse<Texpand = unknown> = Required<DistrictsRecord> & BaseSystemFields<Texpand>
@@ -1283,8 +1180,6 @@ export type CollectionRecords = {
 	authorities: AuthoritiesRecord
 	calculator_usage_logs: CalculatorUsageLogsRecord
 	calculators: CalculatorsRecord
-	consultant_usage_logs: ConsultantUsageLogsRecord
-	consultants: ConsultantsRecord
 	conversations: ConversationsRecord
 	counties: CountiesRecord
 	districts: DistrictsRecord
@@ -1339,8 +1234,6 @@ export type CollectionResponses = {
 	authorities: AuthoritiesResponse
 	calculator_usage_logs: CalculatorUsageLogsResponse
 	calculators: CalculatorsResponse
-	consultant_usage_logs: ConsultantUsageLogsResponse
-	consultants: ConsultantsResponse
 	conversations: ConversationsResponse
 	counties: CountiesResponse
 	districts: DistrictsResponse

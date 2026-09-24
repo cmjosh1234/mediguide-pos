@@ -543,7 +543,6 @@ final class ReadingProgressRepository {
 // We deliberately DO NOT make a failed usage event prevent:
 // - reading guidelines
 // - opening abbreviations
-// - viewing consultants
 // - using AI
 //
 // Later this repository can write events to the generic pending
@@ -561,10 +560,6 @@ final class UsageRepository {
 
   Future<void> abbreviation(String id) {
     return _record('abbreviations', id);
-  }
-
-  Future<void> consultant(String id) {
-    return _record('consultants', id);
   }
 
   Future<void> ai() {

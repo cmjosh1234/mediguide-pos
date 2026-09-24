@@ -190,7 +190,6 @@ class HomeController extends _$HomeController {
         'calculators',
         'abbreviations',
         'health_facilities',
-        'consultants',
         'ministry_directory',
         'faqs',
         'user_conversations_count',

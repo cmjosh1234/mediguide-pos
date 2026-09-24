@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -694,10 +695,10 @@ func validateGuidelinePublication(tx *gorm.DB, version *models.GuidelineVersion)
 			if block.Type == models.GuidelineBlockTable {
 				var payload models.GuidelineTableBlockPayload
 				if json.Unmarshal(block.ContentJSON, &payload) == nil && strings.TrimSpace(payload.Title) != "" {
-					label = fmt.Sprintf("table %q", strings.TrimSpace(payload.Title))
+					label = fmt.Sprintf("table %q", guidelineIssueLabel(payload.Title))
 				} else if block.SectionID != nil {
 					if section, exists := sectionMap[*block.SectionID]; exists && strings.TrimSpace(section.Title) != "" {
-						label = fmt.Sprintf("table in section %q", strings.TrimSpace(section.Title))
+						label = fmt.Sprintf("table in section %q", guidelineIssueLabel(section.Title))
 					}
 				}
 			}
@@ -1078,6 +1079,31 @@ func guidelineLeafReviewExempt(title string) bool {
 		}
 	}
 	return false
+}
+
+// guidelineIssueEscapePattern matches escape sequences that PDF extraction
+// sometimes leaves in titles as literal text (for example `\n` or `\u009f`).
+var guidelineIssueEscapePattern = regexp.MustCompile(`\\(?:u[0-9a-fA-F]{4}|[nrt])`)
+
+const guidelineIssueLabelMaxRunes = 80
+
+// guidelineIssueLabel turns an extracted title into a short, single-line label
+// for review messages. Extracted table titles often contain the whole first
+// cell, so long values are truncated.
+func guidelineIssueLabel(value string) string {
+	value = guidelineIssueEscapePattern.ReplaceAllString(value, " ")
+	value = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, value)
+	value = strings.Join(strings.Fields(value), " ")
+	runes := []rune(value)
+	if len(runes) > guidelineIssueLabelMaxRunes {
+		value = strings.TrimSpace(string(runes[:guidelineIssueLabelMaxRunes-1])) + "…"
+	}
+	return value
 }
 
 func guidelineIssueRemediation(code string) string {

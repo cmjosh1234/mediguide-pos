@@ -94,22 +94,6 @@ class AiContext {
     );
   }
 
-  /// Create context for consultant profiles
-  factory AiContext.consultant({
-    required String consultantName,
-    required String content,
-    String? consultantId,
-    Map<String, dynamic>? metadata,
-  }) {
-    return AiContext(
-      title: consultantName,
-      content: content,
-      sourceType: AiContextType.consultant,
-      sourceId: consultantId,
-      metadata: metadata,
-    );
-  }
-
   /// Create context for health facilities
   factory AiContext.facility({
     required String facilityName,
@@ -199,11 +183,6 @@ enum AiContextType {
     label: 'Medical Tool',
     contextInstructions: 'Medical tool or assessment reference',
     icon: '🔧',
-  ),
-  consultant(
-    label: 'Medical Consultant',
-    contextInstructions: 'Consultation reference information',
-    icon: '👨‍⚕️',
   ),
   facility(
     label: 'Health Facility',

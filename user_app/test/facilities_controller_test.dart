@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:user_app/features/consultants/data/repositories/consultant_repository.dart';
-import 'package:user_app/features/consultants/data/repositories/consultant_local_repository.dart';
 import 'package:user_app/features/facilities/data/repositories/facility_repository.dart';
 import 'package:user_app/features/facilities/data/repositories/facility_local_repository.dart';
 import 'package:user_app/core/network/api_client.dart';
-import 'package:user_app/features/consultants/presentation/controllers/consultants_controller.dart';
 import 'package:user_app/features/facilities/presentation/controllers/health_infrastructure_controller.dart';
 import 'package:user_app/features/facilities/presentation/screens/health_facility_detail_page.dart';
 import 'package:user_app/app/providers/app_providers.dart';
@@ -27,21 +24,6 @@ final class DirectoryApi extends BackendApiService {
     lastPath = path;
     lastQuery = query;
     if (method == 'POST') return {'data': {}};
-    if (path == '/api/v2/consultants') {
-      return {
-        'data': {
-          'items': [
-            {
-              'id': 'consultant-1',
-              'name': 'Dr Amina',
-              'specialty': 'cardiology',
-              'city': 'Kampala',
-              'status': 'active',
-            },
-          ],
-        },
-      };
-    }
     if (path == '/api/v2/regions') {
       return {
         'data': {
@@ -129,36 +111,6 @@ void main() {
     expect(state.availableRegions.single.name, 'Central');
   });
 
-  test('consultant catalogue restores region and specialty filters', () async {
-    final store = TestLocalStore();
-    addTearDown(store.close);
-    final repository = ConsultantRepository(
-      DirectoryApi(),
-      ConsultantLocalRepository(store.cache),
-    );
-    const arguments = {
-      'treeFilters': {
-        'region': 'Central',
-        'city': 'Kampala',
-        'specialty': 'cardiology',
-      },
-    };
-    final provider = consultantsControllerProvider(arguments);
-    final container = ProviderContainer(
-      overrides: [consultantRepositoryProvider.overrideWithValue(repository)],
-    );
-    addTearDown(container.dispose);
-    container.listen(provider, (_, _) {});
-    await container.read(provider.notifier).reloadFilterOptions();
-    final state = container.read(provider);
-
-    expect(state.selectedRegion, 'Central');
-    expect(state.selectedCity, 'Kampala');
-    expect(state.selectedSpecialty, 'cardiology');
-    expect(state.hasActiveFilters, isTrue);
-    expect(state.availableLocations, contains('Kampala'));
-  });
-
   test('facility list and usage use dedicated typed endpoints', () async {
     final api = DirectoryApi();
     final store = TestLocalStore();
@@ -208,15 +160,4 @@ void main() {
       expect(find.text('Facility unavailable'), findsNothing);
     },
   );
-
-  test('consultant usage uses its dedicated endpoint', () async {
-    final api = DirectoryApi();
-    final store = TestLocalStore();
-    addTearDown(store.close);
-    await ConsultantRepository(
-      api,
-      ConsultantLocalRepository(store.cache),
-    ).recordUsage('consultant-1');
-    expect(api.lastPath, '/api/v2/consultants/consultant-1/usage');
-  });
 }

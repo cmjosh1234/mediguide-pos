@@ -138,13 +138,6 @@ class _AboutUsPageState extends State<AboutUsPage> {
                       ),
                       const _SectionDivider(),
                       _FeatureTile(
-                        icon: LucideIcons.stethoscope,
-                        title: AppTranslationKey.consultants.tr,
-                        description:
-                            AppTranslationKey.medicalExpertsDirectory.tr,
-                      ),
-                      const _SectionDivider(),
-                      _FeatureTile(
                         icon: LucideIcons.hospital,
                         title: AppTranslationKey.healthInfrastructure.tr,
                         description:

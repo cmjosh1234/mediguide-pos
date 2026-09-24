@@ -5,6 +5,7 @@ import {
   type PublicHub,
   type PublicResource,
 } from "../../api/public-guidelines";
+import { TaxonomyIcon } from "../../components/common/TaxonomyIcon";
 import { dateLabel } from "./discovery-utils";
 import {
   confirmExternalResource,
@@ -62,7 +63,7 @@ export function DiseaseHierarchy({
   const card = (disease: PublicDiseasePage["items"][number]) => (
     <div key={disease.id}>
       <Link className="discovery-card" to={`/diseases/${disease.slug}`}>
-        <span className="resource-icon">{disease.icon || "✚"}</span>
+        <TaxonomyIcon icon={disease.icon} label={disease.name} />
         <div>
           <h2>{disease.name}</h2>
           {disease.short_name && <b>{disease.short_name}</b>}
@@ -85,7 +86,7 @@ export function DiseaseHierarchy({
 export function HubCard({ hub }: { hub: PublicHub }) {
   return (
     <Link className="discovery-card" to={`/hubs/${hub.slug}`}>
-      <span className="resource-icon">{hub.icon || "✚"}</span>
+      <TaxonomyIcon icon={hub.icon} label={hub.name} />
       <div>
         <h2>{hub.name}</h2>
         <p>{hub.description}</p>

@@ -12,6 +12,7 @@ import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import {
   AlertCircle,
+  ArrowRight,
   CheckCircle2,
   Clock3,
   CloudOff,
@@ -27,7 +28,9 @@ import {
   Settings2,
   ShieldAlert,
   Upload,
+  UserCheck,
   Users,
+  Wand2,
 } from "lucide-react"
 
 import {
@@ -185,6 +188,27 @@ const editorFormattingKeymap = [
     run: (view: EditorView) => { prefixLines(view, `${"#".repeat(level)} `); return true },
   })),
 ]
+
+const PREPARATION_CATEGORIES = [
+  { category: "automatic", label: "Automatic", hint: "Safe formatting fixes", icon: Wand2, tone: "border-emerald-300 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/30" },
+  { category: "editor-review", label: "Editor review", hint: "Check before saving", icon: UserCheck, tone: "border-amber-300 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30" },
+  { category: "manual-review", label: "Manual review", hint: "Needs a human decision", icon: ShieldAlert, tone: "border-red-300 bg-red-50/60 dark:border-red-900 dark:bg-red-950/30" },
+] as const
+
+function IssueDelta({ label, before, after }: { label: string; before: number; after: number }) {
+  const delta = after - before
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="flex items-center gap-1.5 tabular-nums">
+        <span className="text-muted-foreground line-through decoration-muted-foreground/40">{before.toLocaleString()}</span>
+        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+        <span className="font-semibold">{after.toLocaleString()}</span>
+        {delta !== 0 && <span className={cn("rounded px-1 font-medium", delta < 0 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300")}>{delta > 0 ? "+" : "−"}{Math.abs(delta).toLocaleString()}</span>}
+      </span>
+    </div>
+  )
+}
 
 function downloadText(filename: string, content: string) {
   const url = URL.createObjectURL(new Blob([content], { type: "text/markdown;charset=utf-8" }))
@@ -1280,41 +1304,44 @@ export function GuidelineMarkdownEditor({
       </Dialog>
 
       <Dialog open={preparationOpen} onOpenChange={setPreparationOpen}>
-        <DialogContent className="max-w-6xl">
-          <DialogHeader>
-            <DialogTitle>Prepare Markdown for editorial review</DialogTitle>
+        <DialogContent className="flex max-h-[94dvh] max-w-6xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b px-6 py-4 pr-12">
+            <DialogTitle className="flex items-center gap-2"><Wand2 className="h-5 w-5 text-primary" />Prepare Markdown for editorial review</DialogTitle>
             <DialogDescription>
               Ruleset v{preparationResult?.rulesetVersion ?? "1"} only normalizes document structure. It never changes doses, units, routes, frequencies, recommendations, contraindications, table-cell meaning, or image references.
             </DialogDescription>
           </DialogHeader>
           {preparationResult && (
-            <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-3">
-                {(["automatic", "editor-review", "manual-review"] as const).map((category) => {
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
+              <div className="grid gap-3 md:grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,0.9fr)]">
+                {PREPARATION_CATEGORIES.map(({ category, label, hint, icon: Icon, tone }) => {
                   const categoryChanges = preparationResult.changes.filter((change) => change.category === category)
                   const count = categoryChanges.reduce((total, change) => total + change.count, 0)
                   return (
-                    <div key={category} className="rounded-lg border p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium capitalize">{category.replace("-", " ")}</span>
-                        <Badge variant={category === "manual-review" && count ? "destructive" : "outline"}>{count}</Badge>
+                    <div key={category} className={cn("min-w-0 rounded-lg border p-3 transition-colors", count > 0 && tone)}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted", count > 0 && "bg-background/70")}><Icon className="h-4 w-4" /></span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{label}</p>
+                            <p className="truncate text-[11px] text-muted-foreground">{hint}</p>
+                          </div>
+                        </div>
+                        <span className="text-xl font-semibold tabular-nums">{count.toLocaleString()}</span>
                       </div>
                       <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                         {categoryChanges.length === 0
                           ? <p>No changes.</p>
-                          : categoryChanges.map((change) => <p key={change.code}>{change.label}: {change.count}</p>)}
+                          : categoryChanges.map((change) => <p key={change.code} className="break-words">{change.label}: {change.count.toLocaleString()}</p>)}
                       </div>
                     </div>
                   )
                 })}
-              </div>
-              <div className="flex flex-wrap gap-2 text-sm">
-                <Badge variant={preparationResult.afterIssues.some((issue) => issue.severity === "error") ? "destructive" : "outline"}>
-                  Errors: {preparationResult.beforeIssues.filter((issue) => issue.severity === "error").length} → {preparationResult.afterIssues.filter((issue) => issue.severity === "error").length}
-                </Badge>
-                <Badge variant="outline">
-                  Warnings: {preparationResult.beforeIssues.filter((issue) => issue.severity === "warning").length} → {preparationResult.afterIssues.filter((issue) => issue.severity === "warning").length}
-                </Badge>
+                <div className="min-w-0 space-y-2 rounded-lg border p-3">
+                  <p className="text-sm font-medium">Validation impact</p>
+                  <IssueDelta label="Errors" before={preparationResult.beforeIssues.filter((issue) => issue.severity === "error").length} after={preparationResult.afterIssues.filter((issue) => issue.severity === "error").length} />
+                  <IssueDelta label="Warnings" before={preparationResult.beforeIssues.filter((issue) => issue.severity === "warning").length} after={preparationResult.afterIssues.filter((issue) => issue.severity === "warning").length} />
+                </div>
               </div>
               {!preparationResult.changed ? (
                 <Alert><CheckCircle2 className="h-4 w-4" /><AlertTitle>Formatting is already prepared</AlertTitle><AlertDescription>No safe structural changes were found. Any remaining clinical or asset warnings must be handled during human review.</AlertDescription></Alert>
@@ -1329,9 +1356,12 @@ export function GuidelineMarkdownEditor({
               )}
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPreparationOpen(false)}>Cancel</Button>
-            <Button disabled={!preparationResult?.changed} onClick={applyPreparation}>Apply to draft</Button>
+          <DialogFooter className="items-center gap-2 border-t bg-muted/30 px-6 py-3 sm:justify-between">
+            <p className="text-xs text-muted-foreground">Nothing is saved until you apply and then save the draft.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setPreparationOpen(false)}>Cancel</Button>
+              <Button disabled={!preparationResult?.changed} onClick={applyPreparation}>Apply to draft</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

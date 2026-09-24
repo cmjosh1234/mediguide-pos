@@ -69,6 +69,17 @@ if [[ -n "${tracked_generated_dart_files}" ]]; then
   exit 1
 fi
 
+duplicate_migration_versions="$({
+  find "${repository_root}/backend/migrations" -maxdepth 1 -type f -name '*.sql' -exec basename {} \;
+} | sed -n 's/^\([0-9][0-9]*\)_.*/\1/p' | sort | uniq -d)"
+if [[ -n "${duplicate_migration_versions}" ]]; then
+  echo "Duplicate backend migration versions detected:" >&2
+  while IFS= read -r version; do
+    find "${repository_root}/backend/migrations" -maxdepth 1 -type f -name "${version}_*.sql" -exec basename {} \; | sort >&2
+  done <<< "${duplicate_migration_versions}"
+  exit 1
+fi
+
 echo "Release metadata is consistent: ${release_tag} / mobile ${mobile_version} / all services ${platform_version}."
 
 if [[ "${mode}" == "--metadata-only" ]]; then

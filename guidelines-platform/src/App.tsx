@@ -22,6 +22,11 @@ const DiseaseDirectoryPage = lazy(() => discovery().then((module) => ({ default:
 const DiseaseDetailPage = lazy(() => discovery().then((module) => ({ default: module.DiseaseDetailPage })));
 const HubPage = lazy(() => discovery().then((module) => ({ default: module.HubPage })));
 const PillarPage = lazy(() => discovery().then((module) => ({ default: module.PillarPage })));
+const OutbreakDocumentPage = lazy(() =>
+  import("./features/discovery/OutbreakDocumentPage").then((module) => ({
+    default: module.OutbreakDocumentPage,
+  })),
+);
 const SearchPage = lazy(() => discovery().then((module) => ({ default: module.SearchPage })));
 
 export default function App() {
@@ -35,6 +40,7 @@ export default function App() {
 		  <Route path="hubs/:slug" element={<HubPage />} />
 		  <Route path="hubs/:slug/pillars/:pillarSlug" element={<PillarPage />} />
 		  <Route path="search" element={<SearchPage />} />
+		  <Route path="outbreaks/:outbreakId/documents/:documentId" element={<OutbreakDocumentPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
         <Route

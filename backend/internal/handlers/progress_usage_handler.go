@@ -120,15 +120,6 @@ func (h ProgressUsageHandler) RecordGuidelineUsage(c *gin.Context) { h.record(c,
 // @Router /api/v2/usage/abbreviations [post]
 func (h ProgressUsageHandler) RecordAbbreviationUsage(c *gin.Context) { h.record(c, "abbreviation") }
 
-// RecordConsultantUsage godoc
-// @Summary Record idempotent consultant usage
-// @Tags progress-usage
-// @Security BearerAuth
-// @Param payload body services.UsageEventInput true "Usage event"
-// @Success 200 {object} handlers.UsageEventEnvelope
-// @Router /api/v2/usage/consultants [post]
-func (h ProgressUsageHandler) RecordConsultantUsage(c *gin.Context) { h.record(c, "consultant") }
-
 // RecordAIUsage godoc
 // @Summary Record idempotent AI usage
 // @Tags progress-usage

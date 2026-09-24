@@ -36,15 +36,6 @@ type AbbreviationUsageLog struct {
 
 func (AbbreviationUsageLog) TableName() string { return "abbreviation_usage_logs" }
 
-type ConsultantUsageLog struct {
-	Base
-	UserID         uuid.UUID `json:"user_id"`
-	ConsultantID   uuid.UUID `json:"consultant_id"`
-	IdempotencyKey *string   `json:"idempotency_key,omitempty"`
-}
-
-func (ConsultantUsageLog) TableName() string { return "consultant_usage_logs" }
-
 type AIUsageLog struct {
 	Base
 	UserID         uuid.UUID `json:"user_id"`

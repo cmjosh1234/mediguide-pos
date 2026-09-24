@@ -8,8 +8,6 @@ import 'package:user_app/features/abbreviations/data/models/abbreviation.dart';
 import 'package:user_app/features/authentication/presentation/controllers/auth_controller.dart';
 import 'package:user_app/features/calculators/data/models/calculator.dart';
 import 'package:user_app/features/calculators/data/repositories/calculator_repository.dart';
-import 'package:user_app/features/consultants/data/models/consultant.dart';
-import 'package:user_app/features/consultants/data/repositories/consultant_repository.dart';
 import 'package:user_app/features/drugs/data/models/drug.dart';
 import 'package:user_app/features/drugs/data/repositories/drug_repository.dart';
 import 'package:user_app/features/facilities/data/models/health_facility.dart';
@@ -115,7 +113,6 @@ GlobalSearchDataSource globalSearchDataSource(GlobalSearchDataSourceRef ref) {
     drugs: ref.watch(drugRepositoryProvider),
     guidelines: ref.watch(guidelineContentRepositoryProvider),
     publications: ref.watch(guidelinePublicationRepositoryProvider),
-    consultants: ref.watch(consultantRepositoryProvider),
     facilities: ref.watch(facilityRepositoryProvider),
     helpContent: ref.watch(helpContentRepositoryProvider),
     calculators: ref.watch(calculatorRepositoryProvider),
@@ -253,7 +250,6 @@ final class RepositoryGlobalSearchDataSource implements GlobalSearchDataSource {
     required DrugRepository drugs,
     required GuidelineContentRepository guidelines,
     required GuidelinePublicationRepository publications,
-    required ConsultantRepository consultants,
     required FacilityRepository facilities,
     required HelpContentRepository helpContent,
     required CalculatorRepository calculators,
@@ -264,7 +260,6 @@ final class RepositoryGlobalSearchDataSource implements GlobalSearchDataSource {
        _drugs = drugs,
        _guidelines = guidelines,
        _publications = publications,
-       _consultants = consultants,
        _facilities = facilities,
        _helpContent = helpContent,
        _calculators = calculators,
@@ -276,7 +271,6 @@ final class RepositoryGlobalSearchDataSource implements GlobalSearchDataSource {
   final BackendApiService _api;
   final GuidelineContentRepository _guidelines;
   final GuidelinePublicationRepository _publications;
-  final ConsultantRepository _consultants;
   final FacilityRepository _facilities;
   final HelpContentRepository _helpContent;
   final CalculatorRepository _calculators;
@@ -366,17 +360,6 @@ final class RepositoryGlobalSearchDataSource implements GlobalSearchDataSource {
 
       case SearchCategory.abbreviations:
         final response = await _guidelines.abbreviations(
-          page: 1,
-          perPage: 10,
-          search: query,
-        );
-
-        return response.items
-            .map((item) => _toSearchResult(item, category, query))
-            .toList(growable: false);
-
-      case SearchCategory.consultants:
-        final response = await _consultants.list(
           page: 1,
           perPage: 10,
           search: query,
@@ -759,25 +742,6 @@ final class RepositoryGlobalSearchDataSource implements GlobalSearchDataSource {
             route: AppRoutes.publicGuideline(guideline.id),
             routeArguments: {'guidelineId': guideline.id},
             item: guideline,
-          ),
-          query,
-        );
-
-      case SearchCategory.consultants:
-        final consultant = record as Consultant;
-
-        return _withRelevance(
-          SearchResult(
-            id: consultant.id,
-            title: consultant.name,
-            subtitle: consultant.specialty?.name,
-            description: consultant.department.isEmpty
-                ? null
-                : consultant.department,
-            category: category,
-            route: AppRoutes.consultant(consultant.id),
-            routeArguments: {'consultantId': consultant.id},
-            item: consultant,
           ),
           query,
         );

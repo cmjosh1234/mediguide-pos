@@ -36,7 +36,6 @@ history and must not be rewritten or deleted.
 - Conversation screens poll every five seconds; there is no realtime transport.
 - The Go backend does not expose `/api/files/...`. Callers must not assume that
   generated file URLs are downloadable.
-- Typed domain endpoints do not support consultant profile-asset uploads yet.
 - OAuth login is unsupported.
 - Password-reset and email-verification tokens are hashed, expiring, single
   use, and rate limited. Delivery supports explicit `disabled`, `development`,
@@ -110,8 +109,8 @@ history and must not be rewritten or deleted.
   `MinistryDirectoryRepository`, and `LanguageRepository`. Their transitional
   specifications and client routing-map entries are removed. Generic page
   updates remain request/response based; no realtime delivery is claimed.
-- Reading progress and the remaining guideline, abbreviation, consultant, and
-  AI usage events are migrated to typed APIs. Progress ownership is derived
+- Reading progress and the remaining guideline, abbreviation, and AI
+  usage events are migrated to typed APIs. Progress ownership is derived
   from JWT claims and keyed by user plus guideline; the Flutter
   `ReadingProgressRepository` writes through an offline cache and retries
   pending synchronization. Usage events accept explicit resource IDs and
@@ -129,13 +128,10 @@ history and must not be rewritten or deleted.
   Flutter uses `ConversationRepository`; chat controllers poll every five
   seconds because no realtime transport is currently implemented. The UI no
   longer registers inert local callbacks or claims realtime delivery.
-- Consultants are migrated to typed list/detail/create/update/delete routes.
-  Readers see active consultants; content, consultant, and administrative
-  writers can manage all states. PostgreSQL performs typed specialty,
-  qualification, language, region, city, status, verification, consultation
-  type, search, pagination, and allowlisted sorting. Dashboard screens use
-  `consultant.service.ts`; Flutter consultant and global-search flows use
-  `ConsultantRepository`. Usage remains JWT-owned through the typed usage API.
+- Consultants were migrated to typed routes and later removed from the
+  product entirely. Migration `00059_drop_consultants.sql` drops the
+  `consultants` and `consultant_usage_logs` tables, and the API, dashboard and
+  Flutter app no longer expose a consultant directory.
 - The final neutral bridge is removed. Dashboard tables require a focused
   domain loader, relation filters require typed option loaders, and Flutter's
   `BackendApiService` is limited to HTTP/authentication/error concerns rather
@@ -201,11 +197,11 @@ domain PR before replacing a transitional resource specification.
 | Facilities and regions — migrated | Former compatibility resources: `health_facilities`, `facility_levels`, `ownership_types`, `authorities`, `regions`, `health_sub_regions`, `districts`, `counties`, `subcounties`, `parishes`, `health_sub_districts`, `facility_usage_logs` | Dashboard facility administration and mobile infrastructure use focused services/repositories with explicit UUID filters, search, safe sorting and pagination. Parent-child relationships and related display values are server validated/projected. | `facility.write` CRUD; JWT-owned usage create; no file requirement. | `/api/v2/facilities`, `/api/v2/facilities/{id}`, `/api/v2/facilities/{id}/usage`, dedicated geographic/reference CRUD routes, and `/api/v2/regions/{id}/children`. | Authenticated read under existing application behavior; facility editor/admin write; usage owner is derived from JWT claims. |
 | Guidelines and taxonomy — migrated | Former compatibility resources: `medical_guidelines`, `guideline_categories`, `guideline_tags`, `guideline_index`, `abbreviations`; usage resources remain separate | Dashboard uses focused services; mobile uses `GuidelineContentRepository`. Publication, hierarchy, category/tag, audience, search, pagination and allowlisted sorting are explicit. | Editorial CRUD plus the existing typed document/version/Markdown publishing workflow. Usage writes remain in the progress/analytics phase. | Typed `/api/v2/medical-guidelines`, `/api/v2/guideline-categories`, `/api/v2/guideline-tags`, `/api/v2/guideline-index`, `/api/v2/abbreviations`, plus existing `/api/v2/guidelines` version routes. | Published/active read visibility; `guideline.write` for legacy content and taxonomy; existing version publishing permissions remain unchanged. |
 | Users, roles and permissions — migrated | Former compatibility resources: `users`, `roles`, `permissions`, `role_permissions` | Dashboard user actions, login, recovery, email verification, support assignment and profile use focused services. Mobile profile update, refresh, password change, recovery and verification use `UserRepository`. Filtering and sorting are server-side and allowlisted. | Registration, profile update, role assignment, audited administrative verification, hashed single-use reset and email-verification tokens, and authenticated password change. Avatar upload remains explicitly unsupported. | `/api/v2/auth/*`, `/api/v2/auth/email-verification/request`, `/api/v2/auth/email-verification/confirm`, `/api/v2/me`, `/api/v2/me/password`, `/api/v2/users`, `/api/v2/roles`, `/api/v2/permissions`, and `/api/v2/roles/{id}/permissions`. | Self-service profile DTO excludes administrative fields; `admin.all` controls management, administrative verification, role and permission changes. Reset confirmation revokes active sessions; password change preserves the current session and revokes the others. |
-| Consultants — migrated | Former compatibility resources: `consultants`, `consultant_usage_logs` | Dashboard uses `consultant.service.ts`; mobile consultants and global search use `ConsultantRepository`. Search/filter specialty, qualification, language, region, city, status, verification and consultation type are explicit. | Editor CRUD; JWT-owned typed usage create; profile asset upload remains unsupported. | `/api/v2/consultants`, `/api/v2/consultants/{id}`, and `/api/v2/usage/consultants`. | Active reader visibility; `content.write`, `consultant.write`, or `admin.all` for writes; user owns usage. |
+| Consultants — removed | Former compatibility resources: `consultants`, `consultant_usage_logs` | No client surface; the directory was removed from the dashboard and the Flutter app. | None. | None; migration `00059_drop_consultants.sql` drops both tables. | Not applicable. |
 | Notifications — migrated | Former compatibility collections: `notifications`, `notification_templates`, `notification_campaigns` | Dashboard notices and campaign settings use `notificationsService`; published v2 guideline documents create reviewable draft campaigns through a focused action. Mobile uses an owner-scoped offline `NotificationRepository`, live unread count, explicit OS permission states, and one safe action resolver for in-app and push opens. Search, type, priority, read-state, date, pagination and allowlisted sorting execute in PostgreSQL. Templates are versioned and campaigns use an audited approval state machine. | Users own read receipts. Focused publish, template read/manage, campaign read/manage/approve permissions separate duties; urgent and national campaigns require a second approver. | Typed `/api/v2/notifications`, read-state routes, versioned template/preview routes, guarded campaign workflow routes, and `/api/v2/guidelines/{id}/notification-campaign`. | A user sees only global or directly addressed notices. Approved campaign snapshots are immutable; transactional delivery, idempotent open/click receipts, quiet hours, and owner-scoped device preferences are implemented. |
 | Support and help content — migrated | Former compatibility resources: `support_tickets`, `support_ticket_replies`, `faqs`, `faq_tags`, `documentation` | Dashboard uses focused ticket, FAQ, tag, and documentation services. Mobile uses `SupportRepository` and `HelpContentRepository`. Search, publication, priority, audience, featured, tag/category, pagination, and allowlisted sorting are explicit query parameters. | JWT-owned ticket/reply create, staff assignment/status/internal notes; editorial FAQ/tag/documentation CRUD; recalculated tag usage counts. | Typed `/api/v2/support/tickets`, `/api/v2/support/tickets/{id}`, `/api/v2/support/tickets/{id}/replies`, `/api/v2/faqs`, `/api/v2/faq-tags`, and `/api/v2/documentation`. | User owns tickets; support staff triage/reply; readers see published help content; `content.write`, `guideline.write`, or `admin.all` controls editorial writes. |
 | Conversations and messages — migrated | Former compatibility resources: `conversations`, `messages` | Flutter chat list/interface use `ConversationRepository`, explicit participant search/recent filters, and deterministic nested-message pagination. | Participant-owned conversation create/delete, message send, read receipts, and reactions. Polling is used; realtime transport remains future work. | `/api/v2/conversations`, `/api/v2/conversations/{id}`, `/api/v2/conversations/{id}/messages`, `/api/v2/conversations/{id}/messages/{messageId}/read`, and `/reaction`. | Participants only; sender and read/reaction actor come from JWT claims. |
-| Progress and usage — migrated | Former compatibility resources: `reading_progress`, `guideline_usage_logs`, `abbreviation_usage_logs`, `consultant_usage_logs`, `ai_usage_logs`; calculator, drug, and facility usage were already typed | Flutter uses offline-aware progress and focused usage repositories. Dashboard analytics reads aggregates. Filtering and pagination are explicit and server-side. | JWT-owned idempotent events and progress upserts; no files. | `/api/v2/reading-progress`, `/api/v2/reading-progress/{guidelineId}`, `/api/v2/usage/guidelines`, `/api/v2/usage/abbreviations`, `/api/v2/usage/consultants`, `/api/v2/usage/ai`, and `/api/v2/analytics/usage`. | Users manage only their own progress and create their own events; raw events are not listed; aggregate reads require analytics/reporting administration. |
+| Progress and usage — migrated | Former compatibility resources: `reading_progress`, `guideline_usage_logs`, `abbreviation_usage_logs`, `ai_usage_logs`; calculator, drug, and facility usage were already typed | Flutter uses offline-aware progress and focused usage repositories. Dashboard analytics reads aggregates. Filtering and pagination are explicit and server-side. | JWT-owned idempotent events and progress upserts; no files. | `/api/v2/reading-progress`, `/api/v2/reading-progress/{guidelineId}`, `/api/v2/usage/guidelines`, `/api/v2/usage/abbreviations`, `/api/v2/usage/ai`, and `/api/v2/analytics/usage`. | Users manage only their own progress and create their own events; raw events are not listed; aggregate reads require analytics/reporting administration. |
 | Reference and content data — migrated | Former compatibility resources: `languages`, `generic_pages`, `ministry_directory`; settings were already typed | Dashboard pages/localization and mobile language, generic viewer, all-actions, and ministry directory use focused services/repositories. Search, status, geographic and locale filters are explicit. | Admin/editor CRUD; JSON content and translation payloads. | Typed `/api/v2/pages`, `/api/v2/pages/key/{key}`, `/api/v2/ministry-directory`, `/api/v2/languages`, and existing `/api/v2/settings`. | Authenticated read under existing behavior; `content.write`/`guideline.write` controls pages, `content.write`/`facility.write` controls directory writes, and `admin.all` controls languages. |
 
 ## Completed migration order
@@ -213,8 +209,8 @@ domain PR before replacing a transitional resource specification.
 Calculators, decision tools, drugs, users/roles/permissions, facilities with
 geographic reference data, support/help content, guideline content/taxonomy,
 emergency protocols, generic pages, ministry directory, and languages are
-complete. Progress/analytics usage, conversations/messages, and consultants
-are complete. The neutral layer has been deleted; only final platform
+complete. Progress/analytics usage and conversations/messages are complete;
+consultants were migrated and later removed. The neutral layer has been deleted; only final platform
 validation and documented operational checks remain.
 
 For each domain:

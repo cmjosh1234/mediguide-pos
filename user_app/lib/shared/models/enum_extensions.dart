@@ -1,6 +1,5 @@
 import 'package:user_app/features/authentication/data/models/user_enums.dart';
 import 'package:user_app/features/drugs/data/models/drug_enums.dart';
-import 'package:user_app/features/consultants/data/models/consultant_enums.dart';
 import 'package:user_app/shared/models/common_enums.dart';
 
 /// Extension methods for user role enum
@@ -162,52 +161,6 @@ extension StatusExtension on Status {
     Status.active => "Active",
     Status.inactive => "Inactive",
     Status.unknown => "Unknown",
-  };
-
-  String get value => name;
-}
-
-/// Extension methods for consultant specialty enum
-extension ConsultantSpecialtyExtension on ConsultantSpecialty {
-  String get displayName => switch (this) {
-    ConsultantSpecialty.generalPractice => "General Practice",
-    ConsultantSpecialty.internalMedicine => "Internal Medicine",
-    ConsultantSpecialty.pediatrics => "Pediatrics",
-    ConsultantSpecialty.surgery => "Surgery",
-    ConsultantSpecialty.cardiology => "Cardiology",
-    ConsultantSpecialty.neurology => "Neurology",
-    ConsultantSpecialty.psychiatry => "Psychiatry",
-    ConsultantSpecialty.orthopedics => "Orthopedics",
-    ConsultantSpecialty.dermatology => "Dermatology",
-    ConsultantSpecialty.ophthalmology => "Ophthalmology",
-    ConsultantSpecialty.emergencyMedicine => "Emergency Medicine",
-    ConsultantSpecialty.radiology => "Radiology",
-    ConsultantSpecialty.anesthesiology => "Anesthesiology",
-    ConsultantSpecialty.pathology => "Pathology",
-    ConsultantSpecialty.oncology => "Oncology",
-    ConsultantSpecialty.endocrinology => "Endocrinology",
-    ConsultantSpecialty.gastroenterology => "Gastroenterology",
-    ConsultantSpecialty.pulmonology => "Pulmonology",
-    ConsultantSpecialty.nephrology => "Nephrology",
-    ConsultantSpecialty.infectiousDiseases => "Infectious Diseases",
-    ConsultantSpecialty.rheumatology => "Rheumatology",
-    ConsultantSpecialty.publicHealth => "Public Health",
-    ConsultantSpecialty.nursing => "Nursing",
-    ConsultantSpecialty.pharmacy => "Pharmacy",
-    ConsultantSpecialty.laboratoryMedicine => "Laboratory Medicine",
-    ConsultantSpecialty.other => "Other",
-  };
-
-  String get value => displayName;
-}
-
-/// Extension methods for consultant status enum
-extension ConsultantStatusExtension on ConsultantStatus {
-  String get displayName => switch (this) {
-    ConsultantStatus.active => "Active",
-    ConsultantStatus.inactive => "Inactive",
-    ConsultantStatus.pendingApproval => "Pending Approval",
-    ConsultantStatus.suspended => "Suspended",
   };
 
   String get value => name;

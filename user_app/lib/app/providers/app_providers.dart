@@ -6,8 +6,6 @@ import 'package:dio/dio.dart';
 import 'package:user_app/features/calculators/data/repositories/calculator_repository.dart';
 import 'package:user_app/features/calculators/data/repositories/calculator_review_repository.dart';
 import 'package:user_app/features/calculators/data/repositories/calculator_local_repository.dart';
-import 'package:user_app/features/consultants/data/repositories/consultant_repository.dart';
-import 'package:user_app/features/consultants/data/repositories/consultant_local_repository.dart';
 import 'package:user_app/features/content/data/repositories/content_reference_repository.dart';
 import 'package:user_app/features/conversations/data/repositories/conversation_repository.dart';
 import 'package:user_app/features/conversations/data/repositories/conversation_local_repository.dart';
@@ -219,13 +217,6 @@ final facilityRepositoryProvider = Provider<FacilityRepository>(
     ref.watch(backendApiServiceProvider),
     ref.watch(facilityLocalRepositoryProvider),
     cache: ref.watch(ttlResponseCacheProvider),
-  ),
-);
-
-final consultantRepositoryProvider = Provider<ConsultantRepository>(
-  (ref) => ConsultantRepository(
-    ref.watch(backendApiServiceProvider),
-    ref.watch(consultantLocalRepositoryProvider),
   ),
 );
 

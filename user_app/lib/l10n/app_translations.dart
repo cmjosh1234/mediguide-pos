@@ -199,7 +199,6 @@ class AppTranslationKey {
   static String get ok => "ok".tr;
   static String get welcomeBack => "welcomeBack".tr;
   static String get quickActions => "quickActions".tr;
-  static String get chatWithConsultant => "chatWithConsultant".tr;
   static String get connectWithExpert => "connectWithExpert".tr;
   static String get healthInfrastructure => "healthInfrastructure".tr;
   static String get findNearbyFacilities => "findNearbyFacilities".tr;
@@ -294,27 +293,14 @@ class AppTranslationKey {
   static String get antimicrobialOnly => "antimicrobialOnly".tr;
   static String get noDrugsMatchFilters => "noDrugsMatchFilters".tr;
   static String get drugsWillAppearHere => "drugsWillAppearHere".tr;
-  static String get consultants => "consultants".tr;
-  static String get consultantDetails => "consultantDetails".tr;
   static String get viewDetails => "viewDetails".tr;
   static String get startChat => "startChat".tr;
   static String get professionalInfo => "professionalInfo".tr;
   static String get contactLocation => "contactLocation".tr;
   static String get additionalInfo => "additionalInfo".tr;
   static String get preferredLanguage => "preferredLanguage".tr;
-  static String get consultantAvailable => "consultantAvailable".tr;
-  static String get consultantOffline => "consultantOffline".tr;
-  static String get failedToLoadConsultants => "failedToLoadConsultants".tr;
-  static String get failedToLoadMoreConsultants =>
-      "failedToLoadMoreConsultants".tr;
-  static String get noConsultantsMatchFilters => "noConsultantsMatchFilters".tr;
-  static String get noConsultantsFound => "noConsultantsFound".tr;
-  static String get consultantsWillAppearHere => "consultantsWillAppearHere".tr;
-  static String get filterConsultants => "filterConsultants".tr;
-  static String get searchConsultants => "searchConsultants".tr;
   static String get showOnlineOnly => "showOnlineOnly".tr;
   static String get showVerifiedOnly => "showVerifiedOnly".tr;
-  static String get errorLoadingConsultants => "errorLoadingConsultants".tr;
   static String get termsAndConditions => "termsAndConditions".tr;
   static String get lastUpdated => "lastUpdated".tr;
   static String get acceptanceOfTerms => "acceptanceOfTerms".tr;
@@ -337,7 +323,6 @@ class AppTranslationKey {
   static String get accessToClinicGuidelines => "accessToClinicGuidelines".tr;
   static String get comprehensiveMedicationDatabase =>
       "comprehensiveMedicationDatabase".tr;
-  static String get medicalExpertsDirectory => "medicalExpertsDirectory".tr;
   static String get healthcareFacilitiesList => "healthcareFacilitiesList".tr;
   static String get emailSupport => "emailSupport".tr;
   static String get shareYourFeedback => "shareYourFeedback".tr;

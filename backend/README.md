@@ -57,7 +57,7 @@ make seed
 The idempotent seed creates development users, imports the Ministry of Health
 facility registry, and adds representative guidelines, structured reader
 blocks, offline packages, outbreaks, situation reports, drugs, calculators,
-consultants, abbreviations, help content, directory contacts, and support data.
+abbreviations, help content, directory contacts, and support data.
 After facilities have already been imported, set
 `SEED_SKIP_MASTER_FACILITIES=true` for a fast content-only rerun.
 
@@ -91,7 +91,6 @@ seed never makes historical surveillance figures appear current.
 
 ```text
 GET    /api/v1/stats
-GET    /api/v1/consultants/tree
 GET    /api/v1/health-facilities/tree
 GET    /api/v1/ministry-directory/tree
 GET    /api/v1/overview

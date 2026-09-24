@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 import hashlib
@@ -64,6 +65,16 @@ _NUMBERED_HEADING_RE = re.compile(r"^(\d{1,3}(?:\.\d{1,3}){0,5}\.?)\s+(.+)$")
 _TOC_DOT_LEADER_RE = re.compile(r"\.{4,}\s*\d+\s*$")
 _TRAILING_PAGE_RE = re.compile(r"(?:\s+|\.{1,})\d{1,4}\s*$")
 _DOT_LEADER_ONLY_RE = re.compile(r"\.{6,}\s*$")
+_BOLD_FONT_RE = re.compile(r"bold|black|heavy|semibold|demi", re.I)
+# A heading's ICD-10 code often wraps onto the next line ("... ICD10" /
+# "CODE: T53.7", or "... ICD10 CODE:" / "Z20.3, Z23").
+_ICD_CONTINUATION_RE = re.compile(r"^(?:ICD[- ]?10\s+)?CODE:?\s*[A-Z]\d{2}", re.I)
+_ICD_TRAILING_RE = re.compile(r"ICD[- ]?10(?:\s+CODE:?)?$", re.I)
+_ICD_CODE_RE = re.compile(r"^[A-Z]\d{2}(?:\.\d+)?\b")
+# Tesseract is most accurate around 300 DPI; PDF user space is 72 DPI.
+_OCR_DPI = 300
+_OCR_ZOOM = _OCR_DPI / 72
+_FIGURE_ZOOM = 2
 
 
 @dataclass
@@ -99,8 +110,6 @@ def _has_meaningful_content(text: str) -> bool:
 
 def _is_noise_line(line: str) -> bool:
     if not line:
-        return True
-    if re.fullmatch(r"Uganda Clinical Guidelines 2023", line, re.I):
         return True
     if re.fullmatch(r"CHAPTER \d+:\s+.+", line, re.I):
         return True
@@ -305,7 +314,44 @@ def _populate_breadcrumbs(sections: list[ExtractedSection]) -> None:
         section.breadcrumb = " > ".join(build_titles(section))
 
 
-def _split_sections(page_lines: list[tuple[int, str]]) -> list[ExtractedSection]:
+def _is_heading_continuation(line: str, current: ExtractedSection | None) -> bool:
+    if current is None or current.text or not _NUMBERED_HEADING_RE.match(current.title):
+        return False
+    if _ICD_CONTINUATION_RE.match(line):
+        return True
+    return bool(_ICD_TRAILING_RE.search(current.title) and _ICD_CODE_RE.match(line))
+
+
+def _outline_heading(
+    line: str, page: int, outline: dict[int, dict[str, int]] | None
+) -> HeadingInfo | None:
+    level = (outline or {}).get(page, {}).get(_normalize_for_match(line))
+    if level is None:
+        return None
+    return HeadingInfo(title=line.rstrip(":"), level=min(max(level, 1), 6), primary=True)
+
+
+def _font_gate_enabled(page_lines: list[tuple[int, str]], line_style) -> bool:
+    """Only trust font styling when the document emphasizes most numbered headings."""
+    if line_style is None:
+        return False
+    verdicts = []
+    for page, raw in page_lines:
+        for line in _content_lines(raw):
+            info = _heading_info(line, 1)
+            if info and info.primary and not info.title.startswith("Chapter "):
+                verdict = line_style(page, line)
+                if verdict is not None:
+                    verdicts.append(verdict)
+    return bool(verdicts) and sum(verdicts) / len(verdicts) >= 0.5
+
+
+def _split_sections(
+    page_lines: list[tuple[int, str]],
+    line_style=None,
+    outline: dict[int, dict[str, int]] | None = None,
+) -> list[ExtractedSection]:
+    """line_style(page, line) -> bool | None vetoes unemphasized numbered headings."""
     sections: list[ExtractedSection] = []
     current: ExtractedSection | None = None
     fallback_order = 0
@@ -315,9 +361,26 @@ def _split_sections(page_lines: list[tuple[int, str]]) -> list[ExtractedSection]
 
     for page, raw in page_lines:
         for line in _content_lines(raw):
-            info = _heading_info(
+            if _is_heading_continuation(line, current):
+                current.title = f"{current.title} {line}"
+                continue
+            outline_info = _outline_heading(line, page, outline)
+            info = outline_info or _heading_info(
                 line, current.level if current else 1, current.title if current else None
             )
+            if (
+                info
+                and outline_info is None
+                and line_style is not None
+                and info.primary
+                and not info.title.startswith("Chapter ")
+                and line_style(page, line) is False
+            ):
+                # Plain body text such as "0.5 mg/kg per dose ..." that only
+                # looks like a numbered heading. It still marks where body
+                # content starts, so front matter text is not dropped.
+                info = None
+                seen_primary_heading = True
             if info:
                 if info.primary:
                     seen_primary_heading = True
@@ -919,6 +982,140 @@ def _remove_repeated_margin_lines(page_lines: list[tuple[int, str]]) -> list[tup
     return cleaned
 
 
+def _page_line_styles(page: fitz.Page) -> dict[str, tuple[float, float, int]]:
+    """Map each cleaned text line to (leading bold share, largest size, characters).
+
+    Only the leading characters count towards the bold share: headings often
+    end in a regular-weight suffix such as "ICD10 CODE: S00-T88".
+    """
+    styles: dict[str, tuple[float, float, int]] = {}
+    for block in page.get_text("dict", flags=fitz.TEXTFLAGS_BLOCKS).get("blocks", []):
+        for line in block.get("lines", []):
+            text = _clean_line("".join(span.get("text", "") for span in line.get("spans", [])))
+            spans = [span for span in line.get("spans", []) if span.get("text", "").strip()]
+            if not text or not spans:
+                continue
+            leading = bold = 0
+            for span in spans:
+                if leading and re.match(r"\s*ICD[- ]?10", span["text"], re.I):
+                    break
+                chars = min(len(re.sub(r"\s", "", span["text"])), 20 - leading)
+                leading += chars
+                if int(span.get("flags", 0)) & 16 or _BOLD_FONT_RE.search(span.get("font", "")):
+                    bold += chars
+                if leading >= 20:
+                    break
+            total = sum(len(span["text"].strip()) for span in spans)
+            style = (bold / leading, max(float(span.get("size", 0)) for span in spans), total)
+            previous = styles.get(text)
+            styles[text] = style if previous is None else max(previous, style)
+    return styles
+
+
+class _LineStyles:
+    def __init__(self, pages: dict[int, dict[str, tuple[float, float, int]]]):
+        self.pages = pages
+        sizes: Counter[float] = Counter()
+        for styles in pages.values():
+            for _, size, chars in styles.values():
+                sizes[round(size, 1)] += chars
+        self.body_size = sizes.most_common(1)[0][0] if sizes else 0.0
+
+    def __call__(self, page: int, line: str) -> bool | None:
+        """Whether a line is visually emphasized, or None when its style is unknown."""
+        style = self.pages.get(page, {}).get(line)
+        if style is None:
+            return None
+        bold_share, size, _ = style
+        return bold_share >= 0.6 or (self.body_size > 0 and size >= self.body_size * 1.2)
+
+
+def _outline_by_page(doc: fitz.Document) -> dict[int, dict[str, int]]:
+    outline: dict[int, dict[str, int]] = {}
+    for level, title, page in doc.get_toc(simple=True) or []:
+        normalized = _normalize_for_match(_clean_line(title))
+        if normalized and page >= 1:
+            outline.setdefault(page, {}).setdefault(normalized, level)
+    return outline
+
+
+def _extract_vector_figures(
+    page: fitz.Page,
+    page_number: int,
+    table_bboxes: list[tuple[float, float, float, float]],
+) -> list[ExtractedAsset]:
+    """Render vector-drawn diagrams and charts, which have no embedded image."""
+    width, height = page.rect.width, page.rect.height
+    paths = page.get_drawings()
+    if not paths:
+        return []
+    assets: list[ExtractedAsset] = []
+    for rect in page.cluster_drawings(drawings=paths):
+        if rect.width < width * 0.25 or rect.height < height * 0.1:
+            continue
+        bbox = (rect.x0, rect.y0, rect.x1, rect.y1)
+        area = _bbox_area(bbox)
+        if any(
+            _bbox_intersection_area(bbox, table) >= 0.3 * min(area, _bbox_area(table))
+            for table in table_bboxes
+        ):
+            continue
+        # Shaded callouts, ruled text boxes and table backgrounds use only
+        # horizontal/vertical rules. Diagrams and charts are built from many
+        # strokes including arrowheads, connectors, curves or plotted lines.
+        padded = rect + (-1, -1, 1, 1)
+        items = [
+            item for path in paths if fitz.Rect(path["rect"]) in padded for item in path["items"]
+        ]
+        strokes = sum(1 for item in items if item[0] in ("l", "c"))
+        slanted = sum(
+            1
+            for item in items
+            if item[0] == "c"
+            or (
+                item[0] == "l"
+                and abs(item[2].x - item[1].x) > 1
+                and abs(item[2].y - item[1].y) > 1
+            )
+        )
+        if len(items) < 12 or strokes < 6 or slanted < 2:
+            continue
+        zoom = fitz.Matrix(_FIGURE_ZOOM, _FIGURE_ZOOM)
+        data = page.get_pixmap(clip=rect, matrix=zoom, alpha=False).tobytes("png")
+        checksum = hashlib.sha256(data).hexdigest()
+        caption = _image_caption(page, rect)
+        source_key = f"page-{page_number}-vector-{round(rect.y0)}-{checksum[:12]}"
+        assets.append(
+            ExtractedAsset(
+                type=(
+                    "diagram"
+                    if re.search(r"algorithm|flowchart|flow chart", caption, re.I)
+                    else "figure"
+                ),
+                source_key=source_key,
+                source_fingerprint=hashlib.sha256(
+                    f"{page_number}:vector:{checksum}".encode()
+                ).hexdigest(),
+                mime_type="image/png",
+                checksum=checksum,
+                size_bytes=len(data),
+                original_filename=f"{source_key}.png",
+                page_start=page_number,
+                page_end=page_number,
+                data=data,
+                provenance={
+                    "page": page_number,
+                    "bbox": list(bbox),
+                    "source": "vector_drawing",
+                    "drawing_items": len(items),
+                    "caption": caption,
+                    "review_required": True,
+                },
+            )
+        )
+    return assets
+
+
 def _image_caption(page: fitz.Page, rect: fitz.Rect) -> str:
     candidates: list[tuple[float, str]] = []
     for block in page.get_text("blocks") or []:
@@ -1107,7 +1304,7 @@ def _is_low_signal_page_text(text: str) -> bool:
 
 def _ocr_page_text(page: fitz.Page, artifacts=None, ocr_settings=None) -> str:
     try:
-        pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+        pixmap = page.get_pixmap(matrix=fitz.Matrix(_OCR_ZOOM, _OCR_ZOOM), alpha=False)
         image = pixmap.tobytes("png")
         return _ocr_image_text(image, artifacts, ocr_settings)
     except Exception:
@@ -1123,7 +1320,7 @@ def _ocr_image_text(image, artifacts=None, ocr_settings=None):
                 image_path = Path(tmp) / "page.png"
                 image_path.write_bytes(image)
                 proc = subprocess.run(
-                    ["tesseract", str(image_path), "stdout", "-l", "eng"],
+                    ["tesseract", str(image_path), "stdout", "-l", "eng", "--dpi", str(_OCR_DPI)],
                     check=True, capture_output=True, text=True, timeout=120,
                 )
                 return _clean_text(proc.stdout)
@@ -1159,6 +1356,8 @@ def extract_pdf(path: Path, *, artifacts=None, ocr_settings=None, page_workers=1
     multi_column_pages: list[int] = []
     toc_entries: list[str] = []
     warnings: list[str] = []
+    page_styles: dict[int, dict[str, tuple[float, float, int]]] = {}
+    vector_assets: list[ExtractedAsset] = []
 
     parallel_ocr = {}
     if ocr_workers > 1:
@@ -1174,7 +1373,7 @@ def extract_pdf(path: Path, *, artifacts=None, ocr_settings=None, page_workers=1
                 text = raw if _should_use_raw_page_text(filtered, raw) else filtered
                 if _is_low_signal_page_text(text):
                     try:
-                        image = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False).tobytes("png")
+                        image = page.get_pixmap(matrix=fitz.Matrix(_OCR_ZOOM, _OCR_ZOOM), alpha=False).tobytes("png")
                     except Exception:
                         if artifacts is not None:
                             artifacts.extraction_incomplete()
@@ -1198,6 +1397,13 @@ def extract_pdf(path: Path, *, artifacts=None, ocr_settings=None, page_workers=1
         multi_column = _is_multi_column_layout(blocks, float(page.rect.width))
         if multi_column:
             multi_column_pages.append(page_number)
+        try:
+            vector_assets.extend(
+                _extract_vector_figures(page, page_number, table_bboxes_by_page.get(page_number, []))
+            )
+        except Exception:
+            if artifacts is not None:
+                artifacts.extraction_incomplete()
         text = _clean_text(
             _page_text_from_blocks(
                 blocks,
@@ -1226,6 +1432,8 @@ def extract_pdf(path: Path, *, artifacts=None, ocr_settings=None, page_workers=1
                     f"Page {page_number} has no extractable text and OCR produced no result"
                 )
         page_methods[page_number] = method
+        if method == "embedded_text":
+            page_styles[page_number] = _page_line_styles(page)
         toc_entries.extend(
             line[:500] for line in raw_text.splitlines() if _looks_like_toc_entry(_clean_line(line))
         )
@@ -1238,7 +1446,11 @@ def extract_pdf(path: Path, *, artifacts=None, ocr_settings=None, page_workers=1
         all_text.append(text)
 
     page_lines = _remove_repeated_margin_lines(page_lines)
-    sections = _split_sections(page_lines)
+    outline = _outline_by_page(doc)
+    line_styles = _LineStyles(page_styles)
+    font_gate = _font_gate_enabled(page_lines, line_styles)
+    sections = _split_sections(page_lines, line_styles if font_gate else None, outline)
+    heading_detection = ("outline" if outline else "heuristic") + ("+font" if font_gate else "")
     for section in sections:
         methods = {
             page_methods.get(page, "embedded_text")
@@ -1251,7 +1463,7 @@ def extract_pdf(path: Path, *, artifacts=None, ocr_settings=None, page_workers=1
             "page_start": section.page_start,
             "page_end": section.page_end,
             "page_methods": sorted(methods),
-            "heading_detection": "heuristic",
+            "heading_detection": heading_detection,
             "review_required": True,
         }
     section_by_page: dict[int, ExtractedSection] = {}
@@ -1285,6 +1497,7 @@ def extract_pdf(path: Path, *, artifacts=None, ocr_settings=None, page_workers=1
     markdown = md(clean_html, heading_style="ATX")
     text = _clean_text("\n\n".join(all_text))
     assets = _extract_embedded_images(doc, artifacts.extraction_incomplete) if artifacts is not None else _extract_embedded_images(doc)
+    assets.extend(vector_assets)
     blocks = build_structured_blocks(
         sections,
         tables,

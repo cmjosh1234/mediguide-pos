@@ -332,3 +332,82 @@ def test_split_sections_falls_back_to_introduction_when_no_headings_exist():
 
     assert [section.title for section in sections] == ["Introduction"]
     assert sections[0].text.startswith("This guidance provides detailed operational steps")
+
+
+def test_split_sections_joins_icd_code_wrapped_onto_next_line():
+    sections = _split_sections(
+        [
+            (
+                1,
+                "\n".join(
+                    [
+                        "1.3.3 Paraffin and Other Petroleum Products Poisoning ICD10",
+                        "CODE: T53.7",
+                        "Includes paraffin, petrol and paint thinners.",
+                        "1.2.1.4 Rabies Post Exposure Prophylaxis ICD10 CODE:",
+                        "Z20.3, Z23",
+                        "Post exposure prophylaxis prevents rabies.",
+                    ]
+                ),
+            )
+        ]
+    )
+
+    assert [section.title for section in sections] == [
+        "1.3.3 Paraffin and Other Petroleum Products Poisoning ICD10 CODE: T53.7",
+        "1.2.1.4 Rabies Post Exposure Prophylaxis ICD10 CODE: Z20.3, Z23",
+    ]
+    assert sections[0].text == "Includes paraffin, petrol and paint thinners."
+
+
+def test_split_sections_rejects_unemphasized_numbered_lines_when_styles_are_known():
+    emphasized = {"1.3.1 General Management of Poisoning", "1.3.2 Organophosphate Poisoning"}
+    sections = _split_sections(
+        [
+            (
+                1,
+                "\n".join(
+                    [
+                        "1.3.1 General Management of Poisoning",
+                        "Diazepam 10 mg rectally repeated if necessary Child:",
+                        "0.5 mg/kg per dose (1.5-2.5 mg if <1 month)",
+                        "1.3.2 Organophosphate Poisoning",
+                        "Atropine and supportive care.",
+                    ]
+                ),
+            )
+        ],
+        line_style=lambda _page, line: line in emphasized,
+    )
+
+    assert [section.title for section in sections] == [
+        "1.3.1 General Management of Poisoning",
+        "1.3.2 Organophosphate Poisoning",
+    ]
+    assert "0.5 mg/kg per dose" in sections[0].text
+
+
+def test_split_sections_keeps_front_matter_text_before_rejected_numbered_line():
+    sections = _split_sections(
+        [
+            (1, "2.3 Report monthly summaries for other diseases\nIntroduction to surveillance."),
+            (2, "1.0 Identify and record cases\nCase definitions."),
+        ],
+        line_style=lambda _page, line: line.startswith("1.0"),
+    )
+
+    assert [section.title for section in sections] == ["Introduction", "1.0 Identify and record cases"]
+    assert "Introduction to surveillance." in sections[0].text
+
+
+def test_split_sections_uses_pdf_outline_titles_as_headings():
+    sections = _split_sections(
+        [(3, "Foreword\nThe Ministry thanks contributors.\nAcknowledgements\nPartners.")],
+        outline={3: {"foreword": 1, "acknowledgements": 1}},
+    )
+
+    assert [(section.title, section.level) for section in sections] == [
+        ("Foreword", 1),
+        ("Acknowledgements", 1),
+    ]
+    assert sections[0].text == "The Ministry thanks contributors."

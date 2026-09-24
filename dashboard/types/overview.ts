@@ -15,16 +15,12 @@ export type OverviewData = {
     totalDrugs: number
     activeDrugs: number
     totalFacilities: number
-    totalConsultants: number
-    activeConsultants: number
   }
   pipeline: {
     usersPendingActivation: number
     drugsUnderReview: number
     drugsPendingReview: number
     drugsInactive: number
-    consultantsPendingApproval: number
-    consultantsVerified: number
   }
   engagement: {
     aiUsage7d: number

@@ -462,9 +462,6 @@ class BackendApiService {
         'backgroundColor' => 'background_color',
         'appFile' => 'app_file',
         'addedBy' => 'added_by',
-        'totalConsultations' => 'total_consultations',
-        'yearsOfExperience' => 'years_of_experience',
-        'consultationTypes' => 'consultation_types',
         'parentCategory' => 'parent_category',
         _ => _toSnakeCase(key),
       };
@@ -491,7 +488,6 @@ class BackendApiService {
   String _normalizeCustomPath(String path) {
     return switch (path) {
       '/api/stats' => '/api/v1/stats',
-      '/api/consultants/tree' => '/api/v1/consultants/tree',
       '/api/health-facilities/tree' => '/api/v1/health-facilities/tree',
       '/api/ministry-directory/tree' => '/api/v1/ministry-directory/tree',
       '/api/overview' => '/api/v1/overview',

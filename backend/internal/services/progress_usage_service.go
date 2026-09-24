@@ -159,8 +159,6 @@ func (s ProgressUsageService) RecordUsage(userID uuid.UUID, eventType string, in
 		return createUsage(s.DB, &models.GuidelineUsageLog{}, models.GuidelineUsageLog{UserID: userID, GuidelineDocumentID: resourceID, IdempotencyKey: &key}, userID, key)
 	case "abbreviation":
 		return createUsage(s.DB, &models.AbbreviationUsageLog{}, models.AbbreviationUsageLog{UserID: userID, AbbreviationID: resourceID, IdempotencyKey: &key}, userID, key)
-	case "consultant":
-		return createUsage(s.DB, &models.ConsultantUsageLog{}, models.ConsultantUsageLog{UserID: userID, ConsultantID: resourceID, IdempotencyKey: &key}, userID, key)
 	case "ai":
 		return createUsage(s.DB, &models.AIUsageLog{}, models.AIUsageLog{UserID: userID, IdempotencyKey: &key}, userID, key)
 	default:
@@ -201,7 +199,6 @@ func (s ProgressUsageService) UsageAggregates(since *time.Time) ([]UsageAggregat
 	query := `SELECT event_type, COUNT(*) AS count FROM (
 	SELECT 'guideline' event_type, created_at FROM guideline_usage_logs WHERE deleted_at IS NULL UNION ALL
 	SELECT 'abbreviation', created_at FROM abbreviation_usage_logs WHERE deleted_at IS NULL UNION ALL
-	SELECT 'consultant', created_at FROM consultant_usage_logs WHERE deleted_at IS NULL UNION ALL
 	SELECT 'ai', created_at FROM ai_usage_logs WHERE deleted_at IS NULL) usage_events`
 	args := []any{}
 	if since != nil {

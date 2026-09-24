@@ -21,7 +21,6 @@ import 'package:user_app/features/all_actions/presentation/screens/all_actions_p
 import 'package:user_app/features/calculators/presentation/screens/tools_page.dart';
 import 'package:user_app/features/calculators/presentation/screens/use_calculator_page.dart';
 import 'package:user_app/features/calculators/presentation/screens/calculator_review_page.dart';
-import 'package:user_app/features/consultants/presentation/screens/consultants_page.dart';
 import 'package:user_app/features/content/presentation/screens/about_us_page.dart';
 import 'package:user_app/features/content/presentation/screens/generic_viewer_page.dart';
 import 'package:user_app/features/content/presentation/screens/ministry_directory_page.dart';
@@ -365,26 +364,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 ? state.extra as HealthFacility
                 : null,
           );
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.consultants,
-        builder: (_, state) {
-          return ConsultantsPage(arguments: state.extra);
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.consultantDetails,
-        builder: (_, state) {
-          final consultantId = state.pathParameters['consultantId'];
-
-          if (consultantId == null || consultantId.isEmpty) {
-            return const _InvalidRoutePage(
-              message: 'Consultant ID is missing.',
-            );
-          }
-
-          return ConsultantsPage(arguments: state.extra ?? consultantId);
         },
       ),
       GoRoute(

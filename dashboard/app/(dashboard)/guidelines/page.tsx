@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { DataTable } from "@/components/ui/data-table"
 import { LoadingState } from "@/components/ui/loading-state"
 import { PageHeader } from "@/components/ui/page-header"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { usePermissionContext } from "@/lib/permission-context"
 import { hasBackendPermission } from "@/lib/backend-client"
 import { showToast } from "@/lib/toast"
@@ -62,9 +63,9 @@ export default function GuidelinesPage() {
   })
 
   const documents = React.useMemo(() => documentsQuery.data?.items || [], [documentsQuery.data])
-  // One tab per active kind, plus any inactive kind that still has documents
-  // so no document is unreachable from the tabs.
-  const kindTabs = React.useMemo(() => {
+  // One filter option per active kind, plus any inactive kind that still has documents
+  // so no document is unreachable from the filter.
+  const kindOptions = React.useMemo(() => {
     const counts = new Map<string, number>()
     for (const document of documents) {
       if (document.document_kind_id) {
@@ -75,7 +76,7 @@ export default function GuidelinesPage() {
       .filter((kind) => kind.status === "active" || counts.has(kind.id))
       .map((kind) => ({ ...kind, count: counts.get(kind.id) || 0 }))
   }, [documents, kindsQuery.data])
-  const selectedKind = kindTabs.find((kind) => kind.slug === searchParams.get("kind"))
+  const selectedKind = kindOptions.find((kind) => kind.slug === searchParams.get("kind"))
   const visibleDocuments = React.useMemo(
     () => (selectedKind ? documents.filter((document) => document.document_kind_id === selectedKind.id) : documents),
     [documents, selectedKind]
@@ -187,21 +188,27 @@ export default function GuidelinesPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {kindTabs.length > 0 ? (
-            <Tabs value={selectedKind?.slug ?? ALL_KINDS} onValueChange={selectKind}>
-              <TabsList className="h-auto max-w-full justify-start overflow-x-auto">
-                <TabsTrigger value={ALL_KINDS} className="flex-none gap-2">
-                  All
-                  <Badge variant="secondary" className="px-1.5 tabular-nums">{documents.length}</Badge>
-                </TabsTrigger>
-                {kindTabs.map((kind) => (
-                  <TabsTrigger key={kind.id} value={kind.slug} className="flex-none gap-2">
-                    {kind.name}
-                    <Badge variant="secondary" className="px-1.5 tabular-nums">{kind.count}</Badge>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+          {kindOptions.length > 0 ? (
+            <div className="flex flex-col gap-1.5 sm:w-72">
+              <Label htmlFor="guideline-kind-filter">Document kind</Label>
+              <Select value={selectedKind?.slug ?? ALL_KINDS} onValueChange={selectKind}>
+                <SelectTrigger id="guideline-kind-filter" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_KINDS}>
+                    All
+                    <Badge variant="secondary" className="px-1.5 tabular-nums">{documents.length}</Badge>
+                  </SelectItem>
+                  {kindOptions.map((kind) => (
+                    <SelectItem key={kind.id} value={kind.slug}>
+                      {kind.name}
+                      <Badge variant="secondary" className="px-1.5 tabular-nums">{kind.count}</Badge>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           ) : null}
           <DataTable
             columns={columns}

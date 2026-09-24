@@ -163,15 +163,19 @@ the reported storage, worker, parsing, or validation problem.
 ### 7. Review generated sections and blocks
 
 1. Return to the guideline detail page.
-2. On the draft version, select **Editorial Review**.
-3. Select a section in the structure panel.
-4. Select each generated block under **Blocks**.
-5. Compare the rendered block and typed payload with the original PDF or other
-   approved source.
-6. Correct extraction mistakes with **Save correction**. Saving a correction
-   resets the decision to `draft`, so review the corrected result again.
-7. Select **Approve** when the block is faithful and clinically correct, or
-   **Reject** when it must not be published.
+2. On the draft version, select **Editorial Review**. The workspace opens on
+   the first pending high-risk block. See
+   [guideline-editorial-review-workspace.md](guideline-editorial-review-workspace.md)
+   for the layout and keyboard shortcuts.
+3. Pick a section in the **Sections** outline (the amber count is the number
+   of blocks still pending), then a block in the right-hand column's list.
+4. Compare the rendered block with the original PDF, which opens on the
+   block's page in the middle column.
+5. Correct extraction mistakes under **Correct extraction** with **Save
+   correction**. Saving a correction resets the decision to `draft`, so review
+   the corrected result again.
+6. Select **Approve & next** when the block is faithful and clinically correct,
+   or **Reject** when it must not be published.
 
 The badge beside a successfully approved block changes from `draft` to
 `reviewed`. The authenticated reviewer and decision time are recorded in the
@@ -182,14 +186,14 @@ audit trail.
 For every table warning:
 
 1. Open **Editorial Review** for the same guideline version.
-2. In **Blocks**, locate the block labelled **table**. The card shows the table
-   title or its section name.
+2. Select **Review next pending**, or pick a section in the outline and a
+   **table** row in the block list.
 3. Select the table and compare every column heading, row, value, unit,
    footnote, caption, and source with the authoritative source.
 4. If anything is wrong, correct the Markdown, save, regenerate, and return to
    review. Use **Save correction** only for an intentional structured-content
    correction.
-5. If the generated table is correct, select **Approve**.
+5. If the generated table is correct, select **Approve & next**.
 6. Confirm that its badge reads `reviewed`.
 7. Repeat for every table. There is no bulk clinical-table approval because
    each decision must be deliberate and auditable.
@@ -221,15 +225,17 @@ sample of the pending block types and source pages. When the count is nonzero:
 
 1. Select **Review pending blocks**.
 2. The Editorial Review workspace opens the first pending high-risk block.
-3. The block list defaults to **Pending high-risk only**. Choose **High-risk
-   only** to include approved safety-sensitive blocks, or **All blocks** when
-   ordinary surrounding content is needed for context or correction.
-4. Compare it with the original source and select **Approve**, or correct and
-   re-review it. The queue advances to the next pending block after approval.
+3. The block filter defaults to **Pending review only**. Choose **All
+   high-risk blocks** to include approved safety-sensitive blocks, or **All
+   blocks** when ordinary surrounding content is needed for context or
+   correction.
+4. Compare it with the original source and select **Approve & next**, or
+   correct and re-review it. The queue advances to the next pending block after
+   approval.
 5. A rejected block is intentionally still pending. Correct its source or typed
    payload, regenerate when the source changed, and approve the corrected block.
-6. When the queue reports that all high-risk blocks are approved, select
-   **Return to regeneration review**.
+6. When the header reports that all high-risk blocks are approved, select
+   **Regeneration review**.
 7. Select **Refresh approval status**, then **Accept regenerated projection**.
 
 There is no bulk-approval or force-accept action. Tables, dosages,
@@ -260,8 +266,10 @@ authoritative publication validator. It checks, among other things:
 - reviewed coverage has not substantially regressed from the current version;
 - the regeneration review is accepted.
 
-If the toast says **Publication needs review**, return to **Editorial Review**.
-The message now names the affected table or section where possible. Reviewer
+If the toast says **Publication needs review**, return to **Editorial Review**
+and open the blockers button in the header. The **Publication checklist**
+groups the issues, lists real defects first and names the affected table or
+section where possible. Reviewer
 assignment by itself cannot satisfy this gate.
 
 ### 11. Publish and verify
@@ -364,7 +372,8 @@ records `guideline.manifest.regenerated` in the audit log.
 
 ### Controlled low-risk bulk review
 
-Editorial Review provides a paginated bulk-review queue for large guidelines.
+Editorial Review provides a paginated bulk-review queue for large guidelines
+in its **Bulk approve low-risk** tab.
 Reviewers can filter by review state, risk, block type, and section; select
 eligible blocks on the visible page or across the selected section; and approve
 at most 500 blocks in one operation. Selection IDs remain stable while moving
@@ -479,7 +488,7 @@ For implementation details, see
 ## Completeness report and recovery gate
 
 Before accepting a regenerated projection or publishing a large guideline,
-open **Publication completeness** in Editorial Review. The read-only report
+open the **Completeness report** tab in Editorial Review. The read-only report
 combines block counts by type/state, reviewed percentage, total and reviewed
 section/leaf counts, empty leaves, reviewed fallback availability, exact
 revision/job acceptance identity, RAG chunks/embeddings, validation issues, and

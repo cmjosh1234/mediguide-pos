@@ -53,7 +53,7 @@ class ChatListPage extends ConsumerWidget {
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
             Text(
-              'Messages and consultations',
+              'Messages and conversations',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(
@@ -133,7 +133,7 @@ class ChatListPage extends ConsumerWidget {
                     Text(
                       state.hasActiveFilters
                           ? 'Showing conversations matching your current filters.'
-                          : 'Continue previous conversations and consultations.',
+                          : 'Continue previous conversations.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: colors.onSurfaceVariant,
                       ),

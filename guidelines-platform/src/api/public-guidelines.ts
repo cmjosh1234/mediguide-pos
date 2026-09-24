@@ -271,6 +271,17 @@ export type PublicSearchResult = PublicResource & {
   categories?: DiscoveryFacet[]; diseases?: DiscoveryFacet[]; hubs?: DiscoveryFacet[]; pillars?: DiscoveryFacet[];
   metadata?: Record<string, unknown>;
 };
+export type PublicOutbreakDocument = {
+  id: string; outbreak_id: string; title: string; description?: string; document_kind?: string;
+  issuing_authority?: string; document_number?: string; version?: string; language?: string;
+  audience?: string; effective_date?: string; review_date?: string; expires_at?: string;
+  original_filename?: string; mime_type?: string; file_size?: number; download_url?: string;
+  published_at?: string; outbreak_title?: string; outbreak_disease?: string; outbreak_area?: string;
+  content_url?: string; content_format?: string; supports_inline?: boolean;
+};
+export type PublicOutbreakDocumentContent = {
+  document_id: string; title: string; format: string; mime_type?: string; content: string;
+};
 export type PublicSearchFilters = { categoryId?: string; diseaseSlug?: string; hubSlug?: string; pillarSlug?: string; contentType?: string; limit?: number };
 
 export type PublicApiErrorKind =
@@ -781,6 +792,22 @@ export async function searchPublicContent(queryText: string, filters: PublicSear
   if (filters.pillarSlug) query.set("pillar_slug", filters.pillarSlug);
   if (filters.contentType) query.set("content_type", filters.contentType);
   return requestJson<PublicSearchResult[]>(publicUrl("/search", query), signal);
+}
+
+export function getPublicOutbreakDocument(outbreakId: string, documentId: string, signal?: AbortSignal) {
+  return requestDiscovery<PublicOutbreakDocument>(
+    `outbreak-document:${documentId}`,
+    publicUrl(`/outbreaks/${encodeURIComponent(outbreakId)}/documents/${encodeURIComponent(documentId)}`),
+    signal,
+  );
+}
+
+export function getPublicOutbreakDocumentContent(documentId: string, signal?: AbortSignal) {
+  return requestDiscovery<PublicOutbreakDocumentContent>(
+    `outbreak-document-content:${documentId}`,
+    publicUrl(`/outbreak-documents/${encodeURIComponent(documentId)}/content`),
+    signal,
+  );
 }
 
 export function clearPublicMarkdownCache() {

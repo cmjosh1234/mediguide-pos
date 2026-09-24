@@ -27,7 +27,6 @@ abstract final class NotificationActionResolver {
     AppRoutes.abbreviations,
     AppRoutes.healthInfrastructure,
     AppRoutes.healthFacilities,
-    AppRoutes.consultants,
     AppRoutes.ministryDirectory,
     AppRoutes.calculators,
     AppRoutes.aiAssistant,

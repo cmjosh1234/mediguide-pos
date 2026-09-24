@@ -36,12 +36,6 @@ func (s LegacyAPIService) overviewUncached() (OverviewResult, error) {
 	if metrics["totalFacilities"], err = s.count("health_facilities", "deleted_at IS NULL"); err != nil {
 		return OverviewResult{}, err
 	}
-	if metrics["totalConsultants"], err = s.count("consultants", "deleted_at IS NULL"); err != nil {
-		return OverviewResult{}, err
-	}
-	if metrics["activeConsultants"], err = s.count("consultants", "deleted_at IS NULL AND status = ?", "active"); err != nil {
-		return OverviewResult{}, err
-	}
 
 	if pipeline["usersPendingActivation"], err = s.count("users", "deleted_at IS NULL AND status IN ?", []string{"pending_activation", "pendingActivation"}); err != nil {
 		return OverviewResult{}, err
@@ -53,12 +47,6 @@ func (s LegacyAPIService) overviewUncached() (OverviewResult, error) {
 		return OverviewResult{}, err
 	}
 	if pipeline["drugsInactive"], err = s.count("drugs", "deleted_at IS NULL AND status = ?", "inactive"); err != nil {
-		return OverviewResult{}, err
-	}
-	if pipeline["consultantsPendingApproval"], err = s.count("consultants", "deleted_at IS NULL AND status IN ?", []string{"pending_approval", "pendingApproval"}); err != nil {
-		return OverviewResult{}, err
-	}
-	if pipeline["consultantsVerified"], err = s.count("consultants", "deleted_at IS NULL AND is_verified = ?", true); err != nil {
 		return OverviewResult{}, err
 	}
 
@@ -241,9 +229,6 @@ func (s LegacyAPIService) statsUncached(userID string) (StatsResult, error) {
 		return StatsResult{}, err
 	}
 	if res.HealthFacilities, err = s.count("health_facilities", "deleted_at IS NULL"); err != nil {
-		return StatsResult{}, err
-	}
-	if res.Consultants, err = s.count("consultants", "deleted_at IS NULL AND status = ?", "active"); err != nil {
 		return StatsResult{}, err
 	}
 	if res.TotalUsers, err = s.count("users", "deleted_at IS NULL"); err != nil {

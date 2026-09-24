@@ -70,7 +70,7 @@ and fallback state without raw identities.
 | `facility-references` | reference detail | 30 minutes |
 | `languages`, `drug-references`, `guideline-taxonomy` | stable selector/reference lists | 30 minutes |
 | `published-help-content` | published FAQs/documentation (common lists and detail) | 15–30 minutes |
-| facility, consultant and ministry hierarchy namespaces | legacy trees | 10 minutes |
+| facility and ministry hierarchy namespaces | legacy trees | 10 minutes |
 | `dashboard-aggregates` | public/global overview and statistics | 45 seconds |
 
 TTLs receive up to ten percent positive jitter. Entries have an explicit schema

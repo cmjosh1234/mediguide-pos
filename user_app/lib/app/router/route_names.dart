@@ -48,7 +48,6 @@ abstract final class AppRoutes {
   // Health directory
   static const String healthInfrastructure = '/health-infrastructure';
   static const String healthFacilities = '/health-facilities';
-  static const String consultants = '/consultants';
   static const String ministryDirectory = '/ministry-directory';
 
   // Calculators
@@ -81,7 +80,6 @@ abstract final class AppRoutes {
   static const String calculatorDetails = '/calculators/:calculatorId';
   static const String calculatorReview = '/clinical-tools/review/:versionId';
   static const String healthFacilityDetails = '/health-facilities/:facilityId';
-  static const String consultantDetails = '/consultants/:consultantId';
   static const String chatDetails = '/chats/:conversationId';
   static const String viewerDetails = '/viewer/:contentType/:contentId';
 
@@ -225,10 +223,6 @@ abstract final class AppRoutes {
 
   static String healthFacility(String facilityId) {
     return '/health-facilities/${Uri.encodeComponent(facilityId)}';
-  }
-
-  static String consultant(String consultantId) {
-    return '/consultants/${Uri.encodeComponent(consultantId)}';
   }
 
   static String chat(String conversationId) {
