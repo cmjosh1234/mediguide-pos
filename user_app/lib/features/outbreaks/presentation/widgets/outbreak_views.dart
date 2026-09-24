@@ -14,6 +14,7 @@ import 'package:user_app/core/widgets/app_error_view.dart';
 import 'package:user_app/core/widgets/app_loading_view.dart';
 import 'package:user_app/features/documents/presentation/screens/document_reader_page.dart';
 import 'package:user_app/features/notifications/domain/notification_action_resolver.dart';
+import 'package:user_app/features/notifications/presentation/widgets/notification_permission_prompt_card.dart';
 import 'package:user_app/features/outbreaks/data/models/outbreak_models.dart';
 import 'package:user_app/features/outbreaks/presentation/providers/outbreak_providers.dart';
 import 'package:user_app/features/outbreaks/presentation/widgets/outbreak_metrics.dart';
@@ -106,6 +107,10 @@ class OutbreakHubPage extends ConsumerWidget {
                 if (page.cache.isOffline || page.cache.isStale)
                   AppSpacing.gapSm,
                 const _OutbreakHubIntro(),
+
+                const NotificationPermissionPromptCard(
+                  padding: EdgeInsets.only(top: AppSpacing.md),
+                ),
 
                 AppSpacing.gapLg,
 

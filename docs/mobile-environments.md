@@ -47,6 +47,18 @@ flutter run \
   --dart-define-from-file=config/firebase-production.json
 ```
 
+The development command above runs with Firebase disabled, so push
+notifications, Remote Config and Crashlytics are off. To test push end to end
+locally:
+
+1. Add `--dart-define-from-file` with the development Firebase configuration
+   described in `docs/firebase-mobile-distribution.md`.
+2. Start the API and notification worker with the development service account,
+   as described under "Firebase credential injection" in `infra/README.md`.
+3. Sign in, allow notifications, then send a test push from the dashboard
+   Firebase page. Campaign pushes also need the worker's `/readyz` to report
+   `firebase_configured: true`.
+
 Override the endpoint when required:
 
 ```bash

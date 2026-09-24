@@ -17,6 +17,7 @@ import 'package:user_app/features/authentication/presentation/controllers/auth_c
 import 'package:user_app/features/home/presentation/controllers/home_controller.dart';
 import 'package:user_app/features/home/presentation/controllers/home_state.dart';
 import 'package:user_app/app/providers/app_providers.dart';
+import 'package:user_app/features/notifications/presentation/widgets/notification_permission_prompt_card.dart';
 import 'package:user_app/features/outbreaks/data/models/outbreak_models.dart';
 import 'package:user_app/features/outbreaks/data/repositories/outbreak_repository.dart';
 import 'package:user_app/features/outbreaks/presentation/providers/outbreak_providers.dart';
@@ -186,6 +187,10 @@ class HomePage extends ConsumerWidget {
             AppSpacing.lg.gap,
             _LoggedInOutbreakBanner(outbreak: active),
           ],
+
+          const NotificationPermissionPromptCard(
+            padding: EdgeInsets.only(top: AppSpacing.lg),
+          ),
 
           AppSpacing.lg.gap,
 

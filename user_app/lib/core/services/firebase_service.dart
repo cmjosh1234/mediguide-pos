@@ -10,6 +10,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleListener;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,6 +25,24 @@ const _permissionRequestedKey = 'firebase_notification_permission_requested';
 const _outbreakTopicPreferenceKey = 'firebase_outbreak_topic_preference';
 const _outbreakTopicSubscribedKey = 'firebase_outbreak_topic_subscribed';
 const _publicOutbreakTopic = 'public-outbreaks';
+
+// Channel IDs must match notificationAndroidChannel in the backend
+// (internal/services/notification_outbox_service.go). A push naming a channel
+// the app never created falls back to the default channel from the manifest.
+const _urgentChannel = AndroidNotificationChannel(
+  'mediguide_emergency',
+  'Urgent alerts',
+  description: 'Emergency and urgent clinical alerts',
+  importance: Importance.high,
+);
+const _updatesChannel = AndroidNotificationChannel(
+  'mediguide_updates',
+  'MediGuide updates',
+  description: 'Guideline updates, reminders, and general notifications',
+  importance: Importance.defaultImportance,
+);
+// Created by earlier builds for in-app banners. Nothing is sent to it now.
+const _retiredAlertsChannelId = 'mediguide_alerts';
 
 enum AppNotificationPermissionState {
   notDetermined,
@@ -63,8 +82,10 @@ final class MediGuideFirebaseService {
   StreamSubscription<RemoteMessage>? _openedSubscription;
   StreamSubscription<RemoteConfigUpdate>? _remoteConfigSubscription;
   VoidCallback? _authListener;
+  AppLifecycleListener? _lifecycleListener;
   RemoteMessage? _initialMessage;
   bool _enabled = false;
+  bool _deviceRegistered = false;
   bool _crashReportingEnabled = false;
   AppNotificationPermissionState _permissionState =
       AppNotificationPermissionState.notDetermined;
@@ -117,6 +138,9 @@ final class MediGuideFirebaseService {
       FirebaseRemoteConfig.instance.getBool('unified_document_search');
   bool get pillarRagMetadataEnabled =>
       !_enabled || FirebaseRemoteConfig.instance.getBool('pillar_rag_metadata');
+  bool get pushNotificationsEnabled =>
+      _enabled &&
+      FirebaseRemoteConfig.instance.getBool('enable_push_notifications');
   bool get maintenanceMode =>
       _enabled && FirebaseRemoteConfig.instance.getBool('maintenance_mode');
   String get maintenanceMessage => _enabled
@@ -161,17 +185,22 @@ final class MediGuideFirebaseService {
       return this;
     }
 
-    await Firebase.initializeApp(
-      options: MediGuideFirebaseConfig.currentPlatform,
-    );
-    _enabled = true;
-    await _initializeCrashReporting();
-    FirebaseMessaging.onBackgroundMessage(firebaseBackgroundMessageHandler);
+    try {
+      await Firebase.initializeApp(
+        options: MediGuideFirebaseConfig.currentPlatform,
+      );
+      _enabled = true;
+      await _initializeCrashReporting();
+      FirebaseMessaging.onBackgroundMessage(firebaseBackgroundMessageHandler);
 
-    await _initializeRemoteConfig();
-    await _initializeLocalNotifications();
-    await _initializeMessaging();
-    await _syncPublicOutbreakTopic();
+      await _initializeRemoteConfig();
+      await _initializeLocalNotifications();
+      await _initializeMessaging();
+      await _syncPublicOutbreakTopic();
+    } catch (error, stack) {
+      await _disableAfterFailedInit(error, stack);
+      return this;
+    }
 
     _auth.beforeLogout = _beforeLogout;
     _authListener = () {
@@ -182,11 +211,29 @@ final class MediGuideFirebaseService {
       }
     };
     _auth.currentUser.addListener(_authListener!);
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () => unawaited(_refreshAfterResume()),
+    );
     if (_auth.currentUser.value != null) {
-      await registerCurrentDevice();
-      await syncOutbreakTopicPreferenceFromServer();
+      // Both calls reach the network. Startup must not wait on them, and an
+      // offline launch must still reach the first screen.
+      unawaited(registerCurrentDevice());
+      unawaited(syncOutbreakTopicPreferenceFromServer());
     }
     return this;
+  }
+
+  /// Falls back to the same Firebase-disabled mode that builds without client
+  /// configuration run in, so a failed setup never keeps the app from starting.
+  Future<void> _disableAfterFailedInit(Object error, StackTrace stack) async {
+    debugPrint('Firebase initialization failed; continuing without it: $error');
+    _enabled = false;
+    _initialMessage = null;
+    await _tokenSubscription?.cancel();
+    await _foregroundSubscription?.cancel();
+    await _openedSubscription?.cancel();
+    await _remoteConfigSubscription?.cancel();
+    await _recordNonFatalQuietly(error, stack, 'Firebase initialization');
   }
 
   Future<void> _initializeCrashReporting() async {
@@ -292,52 +339,47 @@ final class MediGuideFirebaseService {
   }
 
   Future<void> _initializeLocalNotifications() async {
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const darwin = DarwinInitializationSettings();
+    const android = AndroidInitializationSettings('@drawable/ic_notification');
+    // The plugin asks for permission on iOS by default. The app asks only
+    // from its own prompt, after explaining why.
+    const darwin = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
     await _localNotifications.initialize(
       settings: const InitializationSettings(android: android, iOS: darwin),
       onDidReceiveNotificationResponse: (response) {
-        final payload = response.payload;
-        if (payload == null || payload.isEmpty) return;
-        try {
-          final data = Map<String, dynamic>.from(jsonDecode(payload) as Map);
-          _openedMessages.add(RemoteMessage(data: data));
-        } catch (_) {}
+        final message = messageFromNotificationPayload(response.payload);
+        if (message != null) _openedMessages.add(message);
       },
     );
-    const channel = AndroidNotificationChannel(
-      'mediguide_alerts',
-      'MediGuide alerts',
-      description: 'Clinical updates, reminders, and urgent alerts',
-      importance: Importance.high,
-    );
-    const updatesChannel = AndroidNotificationChannel(
-      'mediguide_updates',
-      'MediGuide updates',
-      description: 'Guideline updates, reminders, and general notifications',
-      importance: Importance.defaultImportance,
-    );
+    // A banner shown while the app was open can be tapped after the app has
+    // been closed. That tap launches the app and arrives only here.
+    final launch = await _localNotifications.getNotificationAppLaunchDetails();
+    if (launch != null && launch.didNotificationLaunchApp) {
+      _initialMessage = messageFromNotificationPayload(
+        launch.notificationResponse?.payload,
+      );
+    }
     final androidNotifications = _localNotifications
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
-    await androidNotifications?.createNotificationChannel(channel);
-    await androidNotifications?.createNotificationChannel(updatesChannel);
+    await androidNotifications?.createNotificationChannel(_urgentChannel);
+    await androidNotifications?.createNotificationChannel(_updatesChannel);
+    await androidNotifications?.deleteNotificationChannel(
+      channelId: _retiredAlertsChannelId,
+    );
   }
 
   Future<void> _initializeMessaging() async {
     final messaging = FirebaseMessaging.instance;
-    final settings = await messaging.getNotificationSettings();
-    _setPermissionState(
-      permissionStateFor(
-        settings.authorizationStatus,
-        previouslyRequested:
-            _preferences.getBool(_permissionRequestedKey) ?? false,
-      ),
-    );
+    _setPermissionState(await _readPermissionState());
     await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
 
     _tokenSubscription = messaging.onTokenRefresh.listen((_) {
+      _deviceRegistered = false;
       unawaited(registerCurrentDevice());
     });
     _foregroundSubscription = FirebaseMessaging.onMessage.listen(
@@ -354,31 +396,71 @@ final class MediGuideFirebaseService {
     _foregroundMessages.add(message);
     final notification = message.notification;
     if (notification == null) return;
-    await _localNotifications.show(
-      id: message.messageId.hashCode,
-      title: notification.title,
-      body: notification.body,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'mediguide_alerts',
-          'MediGuide alerts',
-          channelDescription: 'Clinical updates, reminders, and urgent alerts',
-          importance: Importance.high,
-          priority: Priority.high,
+    final channel = foregroundChannelFor(notification.android?.channelId);
+    try {
+      await _localNotifications.show(
+        id: message.messageId.hashCode,
+        title: notification.title,
+        body: notification.body,
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
+            importance: channel.importance,
+            priority: channel.importance == Importance.high
+                ? Priority.high
+                : Priority.defaultPriority,
+            visibility: NotificationVisibility.private,
+          ),
+          iOS: const DarwinNotificationDetails(),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      payload: jsonEncode(message.data),
+        payload: jsonEncode(message.data),
+      );
+    } catch (error, stack) {
+      // The inbox has already been told about the message, so a banner that
+      // fails to show loses nothing the user cannot reach.
+      debugPrint('Foreground notification could not be shown: $error');
+      await _recordNonFatalQuietly(error, stack, 'foreground notification');
+    }
+  }
+
+  Future<AppNotificationPermissionState> _readPermissionState() async {
+    final settings = await FirebaseMessaging.instance.getNotificationSettings();
+    return permissionStateFor(
+      settings.authorizationStatus,
+      previouslyRequested:
+          _preferences.getBool(_permissionRequestedKey) ?? false,
     );
+  }
+
+  /// The user can change the permission in system Settings while the app is
+  /// in the background, and a registration can fail while offline. Both are
+  /// picked up here instead of waiting for the next cold start.
+  Future<void> _refreshAfterResume() async {
+    if (!_enabled) return;
+    try {
+      final state = await _readPermissionState();
+      final changed = state != _permissionState;
+      if (changed) {
+        _setPermissionState(state);
+        await _syncPublicOutbreakTopic();
+      }
+      if (changed || !_deviceRegistered) await registerCurrentDevice();
+    } catch (error) {
+      debugPrint('Notification permission refresh failed: $error');
+    }
   }
 
   Future<AppNotificationPermissionState> requestNotificationPermission() async {
     if (!_enabled) return _permissionState;
+    // Only called when the user asks for notifications, so iOS must show the
+    // system prompt. A provisional request is granted silently and delivers
+    // to Notification Center only, without banners or sounds.
     final settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
-      provisional: Platform.isIOS,
     );
     await _preferences.setBool(_permissionRequestedKey, true);
     final state = permissionStateFor(
@@ -489,7 +571,33 @@ final class MediGuideFirebaseService {
     _permissionStates.add(value);
   }
 
+  /// Registers this device for pushes. It never throws: registration is
+  /// retried on the next launch, login and token refresh, so a failure only
+  /// delays delivery and must not block startup or surface as a crash.
   Future<void> registerCurrentDevice() async {
+    try {
+      await _registerCurrentDevice();
+    } catch (error, stack) {
+      debugPrint('Push device registration failed: $error');
+      if (isReportableRegistrationFailure(error)) {
+        await _recordNonFatalQuietly(error, stack, 'push device registration');
+      }
+    }
+  }
+
+  Future<void> _recordNonFatalQuietly(
+    Object error,
+    StackTrace stack,
+    String reason,
+  ) async {
+    try {
+      await recordNonFatalError(error, stack, reason: reason);
+    } catch (_) {
+      // Crash reporting must never interrupt access to clinical content.
+    }
+  }
+
+  Future<void> _registerCurrentDevice() async {
     if (!_enabled || _auth.currentUser.value == null) return;
     if (_permissionState != AppNotificationPermissionState.authorized &&
         _permissionState != AppNotificationPermissionState.provisional) {
@@ -517,6 +625,7 @@ final class MediGuideFirebaseService {
         'locale': Platform.localeName,
       },
     );
+    _deviceRegistered = true;
     final data = response['data'];
     if (data is Map && data['id'] != null) {
       await _preferences.setString(_deviceRecordKey, data['id'].toString());
@@ -525,6 +634,7 @@ final class MediGuideFirebaseService {
 
   Future<void> unregisterCurrentDevice() async {
     if (!_enabled) return;
+    _deviceRegistered = false;
     await _preferences.setBool(_outbreakTopicPreferenceKey, false);
     await _syncPublicOutbreakTopic();
     final id = _preferences.getString(_deviceRecordKey);
@@ -554,6 +664,7 @@ final class MediGuideFirebaseService {
 
   Future<void> dispose() async {
     if (_authListener != null) _auth.currentUser.removeListener(_authListener!);
+    _lifecycleListener?.dispose();
     await _tokenSubscription?.cancel();
     await _foregroundSubscription?.cancel();
     await _openedSubscription?.cancel();
@@ -576,4 +687,38 @@ bool shouldSubscribeToPublicOutbreaks({
       permissionState == AppNotificationPermissionState.authorized ||
       permissionState == AppNotificationPermissionState.provisional;
   return remoteEnabled && pushEnabled && userOptedIn && permitted;
+}
+
+/// The channel for a banner shown while the app is open, so it alerts the same
+/// way the push would have with the app in the background.
+@visibleForTesting
+AndroidNotificationChannel foregroundChannelFor(String? requestedChannelId) =>
+    requestedChannelId == _urgentChannel.id ? _urgentChannel : _updatesChannel;
+
+/// Rebuilds the push data stored in a local notification's payload, or null
+/// when there is nothing to open.
+@visibleForTesting
+RemoteMessage? messageFromNotificationPayload(String? payload) {
+  if (payload == null || payload.isEmpty) return null;
+  try {
+    final decoded = jsonDecode(payload);
+    if (decoded is! Map) return null;
+    return RemoteMessage(data: Map<String, dynamic>.from(decoded));
+  } on FormatException {
+    return null;
+  }
+}
+
+/// Whether a failed device registration is worth a Crashlytics report.
+/// Being offline, timeouts, server outages, rate limits and expired sessions
+/// clear up on their own; a rejected request or a platform error does not.
+@visibleForTesting
+bool isReportableRegistrationFailure(Object error) {
+  if (error is! BackendApiException) return true;
+  final status = error.statusCode;
+  return status >= 400 &&
+      status < 500 &&
+      status != 401 &&
+      status != 408 &&
+      status != 429;
 }

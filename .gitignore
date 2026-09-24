@@ -77,3 +77,7 @@ mediguide/*.plist
 mediguide/*.jks
 mediguide/*.pfx
 mediguide/*.base64
+
+# JVM crash reports (e.g. Gradle daemon out of memory)
+hs_err_pid*.log
+replay_pid*.log

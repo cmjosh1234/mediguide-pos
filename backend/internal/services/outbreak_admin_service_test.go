@@ -18,7 +18,7 @@ func outbreakAdminTestService(t *testing.T) OutbreakAdminService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.AuditLog{}, &models.Region{}, &models.HealthSubRegion{}, &models.District{}, &models.Disease{}, &models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}, &models.SituationReportAsset{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.AuditLog{}, &models.Region{}, &models.HealthSubRegion{}, &models.District{}, &models.Disease{}, &models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}, &models.SituationReportAsset{}, &models.NotificationTopicJob{}); err != nil {
 		t.Fatal(err)
 	}
 	seedDocumentKinds(t, db)

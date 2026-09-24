@@ -196,6 +196,28 @@ type NotificationOutboxJob struct {
 	ExpiresAt         *time.Time     `json:"expires_at,omitempty"`
 }
 
+// NotificationTopicJob is a public broadcast to a Firebase topic. It is written
+// in the same transaction as the content it announces.
+type NotificationTopicJob struct {
+	Base
+	Topic             string         `gorm:"not null" json:"topic"`
+	SourceType        string         `gorm:"not null" json:"source_type"`
+	SourceID          uuid.UUID      `gorm:"type:uuid;not null" json:"source_id"`
+	Status            string         `gorm:"not null;default:'pending'" json:"status"`
+	IdempotencyKey    string         `gorm:"not null;uniqueIndex" json:"idempotency_key"`
+	PayloadJSON       datatypes.JSON `gorm:"column:payload_json;type:jsonb;not null" json:"payload" swaggertype:"object"`
+	AttemptCount      int            `gorm:"not null;default:0" json:"attempt_count"`
+	MaxAttempts       int            `gorm:"not null;default:8" json:"max_attempts"`
+	NextAttemptAt     time.Time      `gorm:"not null" json:"next_attempt_at"`
+	LockedAt          *time.Time     `json:"locked_at,omitempty"`
+	LockedBy          *string        `json:"locked_by,omitempty"`
+	ProviderMessageID *string        `json:"provider_message_id,omitempty"`
+	LastErrorCode     *string        `json:"last_error_code,omitempty"`
+	LastErrorMessage  *string        `json:"last_error_message,omitempty"`
+	CompletedAt       *time.Time     `json:"completed_at,omitempty"`
+	ExpiresAt         *time.Time     `json:"expires_at,omitempty"`
+}
+
 type NotificationDeliveryAttempt struct {
 	Base
 	OutboxJobID       uuid.UUID `gorm:"type:uuid;not null;index" json:"outbox_job_id"`

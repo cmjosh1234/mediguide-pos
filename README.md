@@ -8,6 +8,7 @@ Firebase-backed push notifications and Remote Config.
 
 
  <!-- MINIO_PUBLIC_PORT=9010 MINIO_CONSOLE_PUBLIC_PORT=9011 make up -->
+ <!-- MINIO_PUBLIC_PORT=9010 MINIO_CONSOLE_PUBLIC_PORT=9011 S3_PUBLIC_ENDPOINT=localhost:9010 make up -->
 
 ## Repository map
 

@@ -469,6 +469,7 @@ func (s OutbreakAdminService) TransitionOutbreak(actor OutbreakActor, id uuid.UU
 	}
 	now := time.Now()
 	updates := map[string]any{"lock_version": gorm.Expr("lock_version + 1")}
+	var alert *outbreakTopicAlert
 	switch action {
 	case "submit":
 		if row.Status != "draft" {
@@ -520,6 +521,9 @@ func (s OutbreakAdminService) TransitionOutbreak(actor OutbreakActor, id uuid.UU
 		updates["published_at"] = now
 		updates["withdrawn_at"] = nil
 		updates["withdrawal_reason"] = ""
+		if outbreakPublishAnnounced(row, status) {
+			alert = &outbreakTopicAlert{SourceType: "outbreak", SourceID: row.ID, OutbreakID: row.ID, Title: "Outbreak alert: " + row.Title, Body: row.Summary, Urgent: row.VisualTone == "critical"}
+		}
 	case "withdraw":
 		if !publicOutbreakStatus(row.Status) {
 			return nil, invalidf("Only a published outbreak can be withdrawn. This outbreak is %s.", outbreakStatusLabel(row.Status))
@@ -559,7 +563,13 @@ func (s OutbreakAdminService) TransitionOutbreak(actor OutbreakActor, id uuid.UU
 		if r.RowsAffected == 0 {
 			return ErrOutbreakConflict
 		}
-		return auditOutbreak(tx, actor, "outbreak."+action, "outbreak", id, map[string]any{"reason": in.Reason})
+		if err := auditOutbreak(tx, actor, "outbreak."+action, "outbreak", id, map[string]any{"reason": in.Reason}); err != nil {
+			return err
+		}
+		if alert != nil {
+			return enqueueOutbreakTopicAlertTx(tx, *alert, now)
+		}
+		return nil
 	}); err != nil {
 		return nil, err
 	}
@@ -697,7 +707,18 @@ func (s OutbreakAdminService) TransitionUpdate(actor OutbreakActor, id, child uu
 	if err := validateUpdateFields(row); err != nil {
 		return nil, err
 	}
-	if err := s.transitionChild(actor, id, child, action, in, "outbreak_update", &models.OutbreakUpdate{}); err != nil {
+	var announce func(*gorm.DB) error
+	// A correction republishes an update that was already announced.
+	if action == "publish" && row.SupersedesID == nil {
+		announce = func(tx *gorm.DB) error {
+			var outbreak models.Outbreak
+			if err := tx.Select("id", "title").First(&outbreak, "id = ?", id).Error; err != nil {
+				return err
+			}
+			return enqueueOutbreakTopicAlertTx(tx, outbreakTopicAlert{SourceType: "outbreak_update", SourceID: row.ID, OutbreakID: id, Title: outbreak.Title, Body: row.Title}, time.Now())
+		}
+	}
+	if err := s.transitionChildWithHook(actor, id, child, action, in, "outbreak_update", &models.OutbreakUpdate{}, announce); err != nil {
 		return nil, err
 	}
 	return s.GetUpdate(id, child)

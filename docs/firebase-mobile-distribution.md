@@ -231,9 +231,10 @@ commands should run through the project-supported Ruby environment; a completed
 
 ## Cloud Messaging and APNs
 
-Android notification permission and the `mediguide_alerts` notification channel
-are created by the app. Test on a physical device or an emulator image that
-includes Google Play services.
+The app asks for Android notification permission and creates the
+`mediguide_emergency` (urgent, heads-up) and `mediguide_updates` notification
+channels that the backend sends to. Test on a physical device or an emulator
+image that includes Google Play services.
 
 For Apple applications:
 

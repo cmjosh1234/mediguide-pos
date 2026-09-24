@@ -68,7 +68,9 @@ NOTIFICATION_WORKER_LEASE_SECONDS=120
 
 FCM delivery uses the official Firebase Admin Go SDK, initialized once after verifying that `FIREBASE_PROJECT_ID` matches the base64 service-account JSON. Targeted campaign sends use server-resolved device tokens. Topic sends are allowed only through an explicit `public-*` topic operation with content marked public; audience breadth never implicitly enables topic delivery.
 
-Android and APNs payloads explicitly carry priority, TTL, collapse/thread key, Android channel, sound, badge, typed action data, and permitted interruption behavior. User-targeted campaign text is replaced with generic lock-screen copy; the application fetches protected content after authentication. Provider responses mean:
+The only topic send is `public-outbreaks`, which the mobile app subscribes to when a signed-in user turns on outbreak alerts. Publishing an outbreak, or an update to one, queues a broadcast in the same transaction (`notification_topic_jobs`), and the notification worker sends it with retries. Corrections and outbreaks published as contained or closed are not announced, alerts for critical outbreaks use the urgent channel, and an alert not sent within 24 hours is dropped.
+
+Android and APNs payloads explicitly carry priority, TTL, collapse/thread key, Android channel, sound, badge, typed action data, and permitted interruption behavior. Campaign text is shown on the device as written. Android marks every push private, so secure lock screens hide it; iOS follows the user's notification preview setting. Provider responses mean:
 
 - `validated`: Firebase dry-run validation succeeded;
 - `accepted`: FCM accepted the request and returned a message ID;

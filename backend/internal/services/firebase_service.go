@@ -378,7 +378,7 @@ func (s FirebaseService) SendToUser(ctx context.Context, in FirebasePushInput) (
 		return nil, err
 	}
 	result := &FirebasePushResult{Attempted: len(devices), Devices: make([]FirebasePushDeviceResult, 0, len(devices))}
-	payload := NotificationDeliveryPayload{Title: strings.TrimSpace(in.Title), Body: strings.TrimSpace(in.Body), Action: action, Priority: "normal", AndroidChannel: "mediguide_updates", PublicContent: false}
+	payload := NotificationDeliveryPayload{Title: strings.TrimSpace(in.Title), Body: strings.TrimSpace(in.Body), Action: action, Priority: "normal", AndroidChannel: "mediguide_updates", PublicContent: true}
 	if compatibilityURL != nil && payload.Action.Route == nil {
 		payload.Action.Route = compatibilityURL
 	}

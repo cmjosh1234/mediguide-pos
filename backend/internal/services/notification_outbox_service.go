@@ -126,9 +126,10 @@ func (s NotificationService) prepareCampaignDispatch(tx *gorm.DB, item *models.N
 	if item.TTLSeconds != nil {
 		ttl = *item.TTLSeconds
 	}
-	// Resolved user fan-out is always treated as private. Public topic delivery
-	// is a separate explicit operation and never inferred from audience breadth.
-	payload, err := json.Marshal(NotificationDeliveryPayload{CampaignID: item.ID.String(), Title: item.RenderedTitle, Body: item.RenderedBody, Action: action, Priority: item.Priority, PreferenceCategory: preferenceCategory, CollapseKey: notificationStringValue(item.CollapseKey), TTLSeconds: ttl, AndroidChannel: notificationAndroidChannel(item.Type, item.Priority), PublicContent: false})
+	// Campaign text is shown on the device as written; Android still hides it on
+	// secure lock screens. Public topic delivery is a separate explicit
+	// operation and never inferred from audience breadth.
+	payload, err := json.Marshal(NotificationDeliveryPayload{CampaignID: item.ID.String(), Title: item.RenderedTitle, Body: item.RenderedBody, Action: action, Priority: item.Priority, PreferenceCategory: preferenceCategory, CollapseKey: notificationStringValue(item.CollapseKey), TTLSeconds: ttl, AndroidChannel: notificationAndroidChannel(item.Type, item.Priority), PublicContent: true})
 	if err != nil {
 		return nil, err
 	}

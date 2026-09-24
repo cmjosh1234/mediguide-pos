@@ -18,8 +18,8 @@ class _SystemPermissionCard extends ConsumerWidget {
       ),
       AppNotificationPermissionState.provisional => (
         'Notifications delivered quietly',
-        'iOS is delivering provisional notifications. You can allow prominent alerts in Settings.',
-        false,
+        'Notifications go to Notification Center without banners or sounds. Allow alerts to see them as they arrive.',
+        true,
         true,
       ),
       AppNotificationPermissionState.authorized => (

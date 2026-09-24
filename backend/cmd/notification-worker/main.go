@@ -38,6 +38,7 @@ func main() {
 		MaxAge:        time.Duration(cfg.NotificationWorkerMaxAgeHours) * time.Hour,
 		LeaseDuration: time.Duration(cfg.NotificationWorkerLeaseSeconds) * time.Second,
 	}
+	topics := services.NotificationTopicService{DB: database, Firebase: firebaseService, WorkerID: worker.WorkerID, LeaseDuration: worker.LeaseDuration}
 	reminders := services.OutbreakDocumentNotificationService{DB: database, AllowedActionHosts: cfg.NotificationActionExternalHosts}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -86,6 +87,14 @@ func main() {
 				log.Error().Err(err).Msg("notification delivery batch failed")
 			} else if result != nil && result.Claimed > 0 {
 				log.Info().Int("claimed", result.Claimed).Int("accepted", result.Accepted).Int("retried", result.Retried).Int("failed", result.Failed).Msg("notification delivery batch completed")
+			}
+			topicCtx, topicCancel := context.WithTimeout(ctx, 45*time.Second)
+			topicResult, err := topics.ProcessBatch(topicCtx)
+			topicCancel()
+			if err != nil && ctx.Err() == nil {
+				log.Error().Err(err).Msg("topic broadcast batch failed")
+			} else if topicResult != nil && topicResult.Claimed > 0 {
+				log.Info().Int("claimed", topicResult.Claimed).Int("accepted", topicResult.Accepted).Int("retried", topicResult.Retried).Int("failed", topicResult.Failed).Msg("topic broadcast batch completed")
 			}
 		case <-pruneTicker.C:
 			count, err := worker.PruneStaleDevices()
