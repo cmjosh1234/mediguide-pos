@@ -1,0 +1,21 @@
+{
+  "document": "Framework for Multi-hazard Preparedness and Response to Public Health Emergencies",
+  "figures": [
+    { "number": 1, "file": "figure-01-uganda-district-map.png", "source_page": 20 },
+    { "number": 2, "file": "figure-02-population-age-sex-distribution.png", "source_page": 21 },
+    { "number": 3, "file": "figure-03-cholera-cases-2011-2022.png", "source_page": 25 },
+    { "number": 4, "file": "figure-04-cholera-hotspots-2011-2016.png", "source_page": 26 },
+    { "number": 5, "file": "figure-05-cholera-hotspot-priority-map.png", "source_page": 26 },
+    { "number": 6, "file": "figure-06-oral-cholera-vaccine-campaigns.png", "source_page": 27 },
+    { "number": 7, "file": "figure-07-yellow-fever-vaccination-phases.png", "source_page": 29 },
+    { "number": 8, "file": "figure-08-anthrax-outbreak-risk-map.png", "source_page": 30 },
+    { "number": 9, "file": "figure-09-health-facility-levels.png", "source_page": 34 },
+    { "number": 10, "file": "figure-10-moh-governance-structure.png", "source_page": 35 },
+    { "number": 11, "file": "figure-11-national-incident-management-system.png", "source_page": 51 },
+    { "number": 12, "file": "figure-12-phe-preparedness-response-coordination.png", "source_page": 52 },
+    { "number": 13, "file": "figure-13-access-to-funds-process.png", "source_page": 56 },
+    { "number": 14, "file": "figure-14-district-financing-algorithm.png", "source_page": 57 },
+    { "number": 15, "file": "figure-15-incident-reporting-information-flow.png", "source_page": 59 },
+    { "number": 16, "file": "figure-16-medical-countermeasures-supply-chain.png", "source_page": 70 }
+  ]
+}
