@@ -17,7 +17,6 @@ import 'package:user_app/features/authentication/presentation/screens/register_p
 
 import 'package:user_app/features/abbreviations/presentation/screens/abbreviations_page.dart';
 import 'package:user_app/features/ai_assistant/presentation/screens/ai_assistant_page.dart';
-import 'package:user_app/features/all_actions/presentation/screens/all_actions_page.dart';
 import 'package:user_app/features/calculators/presentation/screens/tools_page.dart';
 import 'package:user_app/features/calculators/presentation/screens/use_calculator_page.dart';
 import 'package:user_app/features/calculators/presentation/screens/calculator_review_page.dart';
@@ -404,7 +403,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // General pages
       GoRoute(
         path: AppRoutes.allActions,
-        builder: (_, _) => const AllActionsPage(),
+        redirect: (_, _) => AppRoutes.tools,
       ),
       GoRoute(
         path: AppRoutes.notifications,

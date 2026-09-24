@@ -9,7 +9,6 @@ import 'package:user_app/features/guidelines/data/repositories/progress_usage_re
 import 'package:user_app/core/network/api_client.dart';
 import 'package:user_app/features/content/data/models/generic_page.dart';
 import 'package:user_app/features/abbreviations/presentation/controllers/abbreviations_controller.dart';
-import 'package:user_app/features/all_actions/presentation/controllers/all_actions_controller.dart';
 import 'package:user_app/features/support/presentation/controllers/faq_controller.dart';
 import 'package:user_app/features/content/presentation/controllers/generic_viewer_controller.dart';
 import 'package:user_app/features/guidelines/presentation/controllers/guidelines_indexer_controller.dart';
@@ -207,7 +206,7 @@ void main() {
     },
   );
 
-  test('generic page and action notifiers use focused repositories', () async {
+  test('generic page notifier uses its focused repository', () async {
     final api = RemainingFeaturesApi();
     final page = GenericPage(
       id: 'page-1',
@@ -228,7 +227,6 @@ void main() {
     );
     addTearDown(container.dispose);
     container.listen(genericViewerControllerProvider, (_, _) {});
-    container.listen(allActionsControllerProvider, (_, _) {});
     final viewer = container.read(genericViewerControllerProvider.notifier);
 
     await viewer.initialize(pageArgument: page);
@@ -237,10 +235,6 @@ void main() {
     final viewerState = container.read(genericViewerControllerProvider);
     expect(viewerState.pageTitle, 'Privacy');
     expect(viewerState.hasContent, isTrue);
-    expect(
-      container.read(allActionsControllerProvider).genericPages.single.title,
-      'Privacy',
-    );
   });
 
   test('guideline index loads without service locators', () async {
