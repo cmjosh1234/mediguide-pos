@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { getBackendClient } from "@/lib/backend-client"
 import { showToast } from "@/lib/toast"
 import type { IngestionJobRecord } from "@/services/guideline-documents.service"
-import { abortSourceUpload, listSourceUploads, sourceUploadStatus, type UploadOptions, type UploadProgress } from "@/services/guideline-upload.service"
+import { abortSourceUpload, listSourceUploads, retrySourceIngestion, sourceUploadStatus, type UploadOptions, type UploadProgress } from "@/services/guideline-upload.service"
 
 const terminal = (status: string) => ["completed", "failed", "canceled", "superseded"].includes(status)
 
@@ -19,6 +19,7 @@ export function GuidelineUploadProgress({ versionId, file, submitting, onSubmit 
   const [message, setMessage] = React.useState("")
   const [restoring, setRestoring] = React.useState(true)
   const [canceling, setCanceling] = React.useState(false)
+  const [retrying, setRetrying] = React.useState(false)
   const controller = React.useRef<AbortController | null>(null)
   const activeSession = React.useRef<string | undefined>(undefined)
   const key = `mediguide-upload:${getBackendClient().authStore.record?.id}:${versionId}`
@@ -99,11 +100,37 @@ export function GuidelineUploadProgress({ versionId, file, submitting, onSubmit 
     } catch (error) { showToast.error("Cancel failed", error instanceof Error ? error.message : "Refresh the upload status before retrying.") }
     finally { setCanceling(false) }
   }
+  async function retryProcessing() {
+    if (!job) return
+    setRetrying(true)
+    try {
+      const value = await retrySourceIngestion(versionId, job.id)
+      setJob(value)
+      remember({ session: activeSession.current, job: value.id })
+      showToast.success("Processing queued again", "Completed extraction and embedding checkpoints will be reused where possible.")
+    } catch (error) {
+      showToast.error("Retry failed", error instanceof Error ? error.message : "Refresh the processing status and try again.")
+    } finally { setRetrying(false) }
+  }
   if (job) return <div className="space-y-3" role="status" aria-live="polite">
-    <p>{job.status === "completed" ? "Ready for editorial review" : `Processing: ${job.progress_stage || job.status}`}</p>
+    <p>{job.status === "completed" ? "Ready for editorial review" : `Processing: ${(job.progress_stage || job.status).replaceAll("_", " ")}`}</p>
     <progress className="w-full" max={100} value={job.progress_percent || 0} aria-label="Document processing progress" />
+    <div className="text-sm text-muted-foreground space-y-1">
+      <p>{job.progress_percent || 0}% complete{typeof job.attempt_count === "number" ? ` · attempt ${job.attempt_count + (job.status === "running" ? 1 : 0)}` : ""}</p>
+      {job.started_at && <p>Started {new Date(job.started_at).toLocaleString()}</p>}
+      {job.status === "failed" && job.next_attempt_at && <p>Automatic retry eligible after {new Date(job.next_attempt_at).toLocaleString()}</p>}
+    </div>
+    {job.stages?.length ? <ol className="space-y-1 text-sm" aria-label="Processing stages">
+      {job.stages.map(stage => <li key={stage.id} className="flex items-center justify-between gap-3">
+        <span className="capitalize">{stage.stage.replaceAll("_", " ")}</span>
+        <span className="text-muted-foreground">{stage.status}{stage.attempt_count > 1 ? ` · attempt ${stage.attempt_count}` : ""}</span>
+      </li>)}
+    </ol> : null}
     <p className="text-sm text-muted-foreground">{job.error || "You can close this dialog. Processing continues on the server; no content is approved or published automatically."}</p>
-    {terminal(job.status) && <Button variant="outline" onClick={() => { setJob(undefined); setSession(undefined); activeSession.current = undefined; remember({}) }}>Start another upload</Button>}
+    <div className="flex flex-wrap gap-2">
+      {(job.status === "failed" || job.status === "canceled") && job.progress_stage !== "superseded" && (job.attempt_count ?? 0) < 3 && <Button variant="outline" disabled={retrying} onClick={() => void retryProcessing()}>{retrying ? "Retrying…" : "Retry processing"}</Button>}
+      {terminal(job.status) && <Button variant="outline" onClick={() => { setJob(undefined); setSession(undefined); activeSession.current = undefined; remember({}) }}>Start another upload</Button>}
+    </div>
   </div>
   return <div className="space-y-3">
     <div role="status" aria-live="polite">

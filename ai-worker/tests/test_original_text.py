@@ -125,6 +125,9 @@ class FakeJobs:
     def cancellation_requested(self, job_id: str) -> bool:
         return False
 
+    def start_stage(self, job_id: str, stage: str, percent: int) -> None:
+        self.stages.append(stage)
+
     def set_progress(self, job_id: str, stage: str, percent: int) -> None:
         self.stages.append(stage)
 

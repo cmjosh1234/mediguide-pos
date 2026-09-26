@@ -69,16 +69,25 @@ class Settings(BaseSettings):
     )
 
     worker_enabled: bool = True
-    ingestion_artifact_reuse: bool = Field(default=False, validation_alias="INGESTION_ARTIFACT_REUSE")
-    ingestion_processing_concurrency: bool = Field(default=False, validation_alias="INGESTION_PROCESSING_CONCURRENCY")
+    ingestion_artifact_reuse: bool = Field(default=True, validation_alias="INGESTION_ARTIFACT_REUSE")
+    ingestion_processing_concurrency: bool = Field(default=True, validation_alias="INGESTION_PROCESSING_CONCURRENCY")
     pdf_page_workers: int = Field(default=2, ge=1, le=4, validation_alias="PDF_PAGE_WORKERS")
     ocr_workers: int = Field(default=2, ge=1, le=4, validation_alias="OCR_WORKERS")
-    embedding_workers: int = Field(default=1, ge=1, le=4, validation_alias="EMBEDDING_WORKERS")
+    embedding_workers: int = Field(default=2, ge=1, le=4, validation_alias="EMBEDDING_WORKERS")
     artifact_cache_epoch: str = Field(default="1", min_length=1, validation_alias="ARTIFACT_CACHE_EPOCH")
     # Pin this to deployed weights/settings for providers without digest discovery.
     embedding_cache_model_revision: str = Field(default="", validation_alias="EMBEDDING_CACHE_MODEL_REVISION")
     worker_poll_interval_seconds: int = 5
     worker_batch_size: int = 2
+    worker_concurrency: int = Field(
+        default=2, ge=1, le=16, validation_alias=AliasChoices("INGESTION_WORKER_CONCURRENCY", "WORKER_CONCURRENCY")
+    )
+    worker_id: str = Field(default="", validation_alias=AliasChoices("INGESTION_WORKER_ID", "WORKER_ID"))
+    worker_lease_seconds: int = Field(default=120, ge=30, le=3600, validation_alias="INGESTION_LEASE_SECONDS")
+    worker_heartbeat_seconds: int = Field(default=30, ge=5, le=600, validation_alias="INGESTION_HEARTBEAT_SECONDS")
+    worker_priority_aging_seconds: int = Field(
+        default=900, ge=60, le=86400, validation_alias="INGESTION_PRIORITY_AGING_SECONDS"
+    )
     # Maximum ingestion attempts before a job is permanently marked failed.
     worker_max_attempts: int = Field(
         default=3, validation_alias=AliasChoices("WORKER_MAX_ATTEMPTS")

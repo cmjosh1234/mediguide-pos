@@ -212,3 +212,58 @@ func TestSourceUploadRejectsInvalidContentAndCanceledSessions(t *testing.T) {
 		t.Fatalf("canceled signing: %v", err)
 	}
 }
+
+func TestRetrySourceIngestionJobResetsRuntimeState(t *testing.T) {
+	s, _, row := uploadFixture(t, "source.pdf", "%PDF-1.7\nTest document")
+	ctx := context.Background()
+	job, err := s.CompleteSourceUpload(ctx, row.VersionID, row.UserID, row.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	if err = s.DB.Model(job).Updates(map[string]any{
+		"status": "failed", "progress_stage": "embeddings", "progress_percent": 72,
+		"attempt_count": 1, "worker_id": "dead-worker", "claimed_at": now,
+		"heartbeat_at": now, "lease_expires_at": now, "next_attempt_at": now.Add(time.Minute),
+		"completed_at": now, "error": "temporary failure",
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	actor := uuid.New()
+	if err = s.DB.Create(&models.User{Base: models.Base{ID: actor}, Email: "retry@test.invalid", Name: "Retry User"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	retried, err := s.RetrySourceIngestionJob(ctx, row.VersionID, job.ID, actor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retried.Status != "queued" || retried.ProgressStage != "queued" || retried.ProgressPercent != 0 || retried.WorkerID != "" || retried.LeaseExpiresAt != nil || retried.NextAttemptAt != nil || retried.CompletedAt != nil {
+		t.Fatalf("job was not reset for retry: %+v", retried)
+	}
+}
+
+func TestUpdateSourceIngestionPriorityOnlyAllowsWaitingWork(t *testing.T) {
+	s, _, row := uploadFixture(t, "source.pdf", "%PDF-1.7\nTest document")
+	ctx := context.Background()
+	job, err := s.CompleteSourceUpload(ctx, row.VersionID, row.UserID, row.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor := uuid.New()
+	if err = s.DB.Create(&models.User{Base: models.Base{ID: actor}, Email: "priority@test.invalid", Name: "Priority User"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	updated, err := s.UpdateSourceIngestionPriority(ctx, row.VersionID, job.ID, actor, 100)
+	if err != nil || updated.Priority != 100 {
+		t.Fatalf("priority update failed: %+v %v", updated, err)
+	}
+	if _, err = s.UpdateSourceIngestionPriority(ctx, row.VersionID, job.ID, actor, 101); !errors.Is(err, ErrUploadInvalid) {
+		t.Fatalf("invalid priority accepted: %v", err)
+	}
+	if err = s.DB.Model(job).Update("status", "running").Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.UpdateSourceIngestionPriority(ctx, row.VersionID, job.ID, actor, 75); !errors.Is(err, ErrUploadConflict) {
+		t.Fatalf("running job priority changed: %v", err)
+	}
+}

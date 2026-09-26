@@ -11251,6 +11251,93 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/guideline-versions/{id}/upload-jobs/{jobId}/priority": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "guideline-uploads"
+                ],
+                "summary": "Change queue priority for a queued or retryable source ingestion job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Job ID",
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Priority from 0 to 100; normal is 50",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.IngestionPriorityInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SourceUploadJobResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/guideline-versions/{id}/upload-jobs/{jobId}/retry": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "guideline-uploads"
+                ],
+                "summary": "Retry a failed source ingestion job without re-uploading the document",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Job ID",
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SourceUploadJobResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/guideline-versions/{id}/uploads": {
             "get": {
                 "security": [
@@ -19452,6 +19539,9 @@ const docTemplate = `{
                 "canceled_at": {
                     "type": "string"
                 },
+                "claimed_at": {
+                    "type": "string"
+                },
                 "completed_at": {
                     "type": "string"
                 },
@@ -19461,23 +19551,41 @@ const docTemplate = `{
                 "error": {
                     "type": "string"
                 },
+                "heartbeat_at": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
                 "job_type": {
                     "type": "string"
                 },
+                "lease_expires_at": {
+                    "type": "string"
+                },
                 "metrics": {
                     "type": "object"
                 },
+                "next_attempt_at": {
+                    "type": "string"
+                },
                 "payload_json": {
                     "type": "string"
+                },
+                "priority": {
+                    "type": "integer"
                 },
                 "progress_percent": {
                     "type": "integer"
                 },
                 "progress_stage": {
                     "type": "string"
+                },
+                "stages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.IngestionTask"
+                    }
                 },
                 "started_at": {
                     "type": "string"
@@ -19489,6 +19597,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "version_id": {
+                    "type": "string"
+                },
+                "worker_id": {
                     "type": "string"
                 }
             }
@@ -24086,6 +24197,9 @@ const docTemplate = `{
                 "canceled_at": {
                     "type": "string"
                 },
+                "claimed_at": {
+                    "type": "string"
+                },
                 "completed_at": {
                     "type": "string"
                 },
@@ -24095,23 +24209,41 @@ const docTemplate = `{
                 "error": {
                     "type": "string"
                 },
+                "heartbeat_at": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
                 "job_type": {
                     "type": "string"
                 },
+                "lease_expires_at": {
+                    "type": "string"
+                },
                 "metrics": {
                     "type": "object"
                 },
+                "next_attempt_at": {
+                    "type": "string"
+                },
                 "payload_json": {
                     "type": "string"
+                },
+                "priority": {
+                    "type": "integer"
                 },
                 "progress_percent": {
                     "type": "integer"
                 },
                 "progress_stage": {
                     "type": "string"
+                },
+                "stages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.IngestionTask"
+                    }
                 },
                 "started_at": {
                     "type": "string"
@@ -24123,6 +24255,44 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "version_id": {
+                    "type": "string"
+                },
+                "worker_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.IngestionTask": {
+            "type": "object",
+            "properties": {
+                "attempt_count": {
+                    "type": "integer"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "job_id": {
+                    "type": "string"
+                },
+                "progress_percent": {
+                    "type": "integer"
+                },
+                "stage": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -28033,6 +28203,14 @@ const docTemplate = `{
                 },
                 "version_id": {
                     "type": "string"
+                }
+            }
+        },
+        "services.IngestionPriorityInput": {
+            "type": "object",
+            "properties": {
+                "priority": {
+                    "type": "integer"
                 }
             }
         },

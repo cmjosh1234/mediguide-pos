@@ -93,11 +93,100 @@ func (h GuidelineHandler) SourceUploadJob(c *gin.Context) {
 		httpx.Error(c, 404, "Job not found")
 		return
 	}
+	if err = h.Service.DB.WithContext(c.Request.Context()).Where("job_id=?", jobID).Order("created_at ASC, id ASC").Find(&job.Stages).Error; err != nil {
+		httpx.Error(c, 500, "Unable to read processing stages")
+		return
+	}
 	job.PayloadJSON = ""
 	if job.Error != "" {
 		job.Error = "Document processing failed. Open the version review workspace or ask an administrator to inspect the job logs."
 	}
 	c.Header("Cache-Control", "private, no-store")
+	httpx.OK(c, job)
+}
+
+// RetrySourceUploadJob godoc
+// @Summary Retry a failed source ingestion job without re-uploading the document
+// @Tags guideline-uploads
+// @Security BearerAuth
+// @Param id path string true "Version ID" format(uuid)
+// @Param jobId path string true "Job ID" format(uuid)
+// @Success 200 {object} SourceUploadJobResponse
+// @Router /api/v2/guideline-versions/{id}/upload-jobs/{jobId}/retry [post]
+func (h GuidelineHandler) RetrySourceUploadJob(c *gin.Context) {
+	versionID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.Error(c, http.StatusBadRequest, "invalid version")
+		return
+	}
+	jobID, err := uuid.Parse(c.Param("jobId"))
+	if err != nil {
+		httpx.Error(c, http.StatusBadRequest, "invalid job")
+		return
+	}
+	actor := c.MustGet(middleware.ClaimsKey).(*security.Claims).UserID
+	job, err := h.Service.RetrySourceIngestionJob(c.Request.Context(), versionID, jobID, actor)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		httpx.Error(c, http.StatusNotFound, "Job not found")
+		return
+	}
+	if errors.Is(err, services.ErrUploadConflict) {
+		httpx.Error(c, http.StatusConflict, "This processing job cannot be retried. Refresh its status or upload a newer source.")
+		return
+	}
+	if err != nil {
+		httpx.Error(c, http.StatusInternalServerError, "Unable to retry document processing.")
+		return
+	}
+	job.PayloadJSON = ""
+	c.Header("Cache-Control", "private, no-store")
+	httpx.OK(c, job)
+}
+
+// UpdateSourceUploadJobPriority godoc
+// @Summary Change queue priority for a queued or retryable source ingestion job
+// @Tags guideline-uploads
+// @Security BearerAuth
+// @Param id path string true "Version ID" format(uuid)
+// @Param jobId path string true "Job ID" format(uuid)
+// @Param body body services.IngestionPriorityInput true "Priority from 0 to 100; normal is 50"
+// @Success 200 {object} SourceUploadJobResponse
+// @Router /api/v2/guideline-versions/{id}/upload-jobs/{jobId}/priority [post]
+func (h GuidelineHandler) UpdateSourceUploadJobPriority(c *gin.Context) {
+	versionID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.Error(c, http.StatusBadRequest, "invalid version")
+		return
+	}
+	jobID, err := uuid.Parse(c.Param("jobId"))
+	if err != nil {
+		httpx.Error(c, http.StatusBadRequest, "invalid job")
+		return
+	}
+	var in services.IngestionPriorityInput
+	if c.ShouldBindJSON(&in) != nil || in.Priority < 0 || in.Priority > 100 {
+		httpx.Error(c, http.StatusBadRequest, "priority must be between 0 and 100")
+		return
+	}
+	actor := c.MustGet(middleware.ClaimsKey).(*security.Claims).UserID
+	job, err := h.Service.UpdateSourceIngestionPriority(c.Request.Context(), versionID, jobID, actor, in.Priority)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		httpx.Error(c, http.StatusNotFound, "Job not found")
+		return
+	}
+	if errors.Is(err, services.ErrUploadConflict) {
+		httpx.Error(c, http.StatusConflict, "Only queued or retryable processing jobs can change priority.")
+		return
+	}
+	if errors.Is(err, services.ErrUploadInvalid) {
+		httpx.Error(c, http.StatusBadRequest, "priority must be between 0 and 100")
+		return
+	}
+	if err != nil {
+		httpx.Error(c, http.StatusInternalServerError, "Unable to update processing priority.")
+		return
+	}
+	job.PayloadJSON = ""
 	httpx.OK(c, job)
 }
 
