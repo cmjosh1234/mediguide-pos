@@ -14,6 +14,8 @@ const path = (version: string) => `/api/v2/guideline-versions/${version}/uploads
 export const listSourceUploads = (version: string) => getBackendClient().request<SourceUpload[]>(path(version))
 export const sourceUploadStatus = (version: string, id: string) => getBackendClient().request<SourceUpload>(`${path(version)}/${id}`)
 export const abortSourceUpload = (version: string, id: string) => getBackendClient().request(`${path(version)}/${id}`, { method: "DELETE" })
+export const retrySourceIngestion = (version: string, job: string) => getBackendClient().request<IngestionJobRecord>(`/api/v2/guideline-versions/${version}/upload-jobs/${job}/retry`, { method: "POST" })
+export const updateSourceIngestionPriority = (version: string, job: string, priority: number) => getBackendClient().request<IngestionJobRecord>(`/api/v2/guideline-versions/${version}/upload-jobs/${job}/priority`, { method: "POST", body: JSON.stringify({ priority }) })
 
 function putPart(url: string, part: Blob, signal: AbortSignal | undefined, progress: (bytes: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {

@@ -37,6 +37,10 @@ type GuidelineUploadState struct {
 	ObjectComplete bool                 `json:"object_complete"`
 }
 
+type IngestionPriorityInput struct {
+	Priority int `json:"priority"`
+}
+
 func (s GuidelineService) BeginSourceUpload(ctx context.Context, versionID, userID uuid.UUID, in BeginGuidelineUpload, maxBytes int64) (*models.GuidelineUpload, error) {
 	ext := strings.ToLower(filepath.Ext(in.Filename))
 	checksum, err := hex.DecodeString(in.Checksum)
@@ -281,4 +285,57 @@ func (s GuidelineService) AbortSourceUpload(ctx context.Context, versionID, user
 		}
 		return tx.Model(&row).Update("status", "aborted").Error
 	})
+}
+
+func (s GuidelineService) RetrySourceIngestionJob(ctx context.Context, versionID, jobID, actorID uuid.UUID) (*models.IngestionJob, error) {
+	var job models.IngestionJob
+	err := s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&job, "id=? AND version_id=?", jobID, versionID).Error; err != nil {
+			return err
+		}
+		if job.Status != "failed" && job.Status != "canceled" {
+			return ErrUploadConflict
+		}
+		if job.ProgressStage == "superseded" || job.AttemptCount >= 3 {
+			return ErrUploadConflict
+		}
+		job.Status = "queued"
+		job.Error = ""
+		job.ProgressStage = "queued"
+		job.ProgressPercent = 0
+		job.WorkerID = ""
+		job.ClaimedAt = nil
+		job.HeartbeatAt = nil
+		job.LeaseExpiresAt = nil
+		job.NextAttemptAt = nil
+		job.CompletedAt = nil
+		job.CanceledAt = nil
+		job.CancelRequestedAt = nil
+		if err := tx.Save(&job).Error; err != nil {
+			return err
+		}
+		return writeGuidelineAudit(tx, actorID, "guideline.ingestion.retried", "ingestion_job", jobID, "", map[string]any{"version_id": versionID})
+	})
+	return &job, err
+}
+
+func (s GuidelineService) UpdateSourceIngestionPriority(ctx context.Context, versionID, jobID, actorID uuid.UUID, priority int) (*models.IngestionJob, error) {
+	if priority < 0 || priority > 100 {
+		return nil, ErrUploadInvalid
+	}
+	var job models.IngestionJob
+	err := s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&job, "id=? AND version_id=?", jobID, versionID).Error; err != nil {
+			return err
+		}
+		if job.Status != "queued" && job.Status != "failed" {
+			return ErrUploadConflict
+		}
+		job.Priority = priority
+		if err := tx.Model(&job).Update("priority", priority).Error; err != nil {
+			return err
+		}
+		return writeGuidelineAudit(tx, actorID, "guideline.ingestion.priority_changed", "ingestion_job", jobID, "", map[string]any{"version_id": versionID, "priority": priority})
+	})
+	return &job, err
 }

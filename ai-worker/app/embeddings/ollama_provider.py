@@ -1,12 +1,12 @@
 import httpx
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.embeddings.base import EmbeddingProvider
 
 
 class OllamaEmbeddingProvider(EmbeddingProvider):
-    def __init__(self):
-        settings = get_settings()
+    def __init__(self, settings: Settings | None = None):
+        settings = settings or get_settings()
         self.base_url = settings.ollama_base_url.rstrip("/")
         self.model = settings.ollama_embedding_model
         self.dim = settings.embedding_dim

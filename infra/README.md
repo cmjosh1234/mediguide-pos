@@ -293,6 +293,51 @@ Guidelines health route, Dashboard route, and API readiness route through
 `PUBLIC_SITE_URL`, `DASHBOARD_PUBLIC_URL`, and `PUBLIC_API_BASE_URL`. This
 separates a genuine public routing failure from worker-loop liveness.
 
+### Ingestion worker concurrency and recovery
+
+Guideline ingestion is safe to run with multiple queue consumers. Workers claim
+rows with PostgreSQL `FOR UPDATE SKIP LOCKED`, record their worker identity, and
+hold a renewable lease while processing. If a worker exits or loses its lease,
+another worker returns the abandoned job to the queue after the lease expires.
+The same document job is therefore never intentionally assigned to two healthy
+workers at the same time.
+
+The main tuning variables are:
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `INGESTION_WORKER_CONCURRENCY` | `2` | Concurrent documents processed inside one queue consumer |
+| `INGESTION_LEASE_SECONDS` | `120` | Processing lease lifetime before abandoned work is reclaimable |
+| `INGESTION_HEARTBEAT_SECONDS` | `30` | Lease renewal interval |
+| `INGESTION_PRIORITY_AGING_SECONDS` | `900` | Adds one effective priority point per waiting interval to prevent starvation |
+| `PDF_PAGE_WORKERS` | `2` | Bounded PDF page extraction parallelism |
+| `OCR_WORKERS` | `2` | Bounded OCR parallelism |
+| `EMBEDDING_WORKERS` | `2` | Bounded embedding-batch parallelism for providers that support isolated clients |
+| `EMBEDDING_REQUEST_BATCH_SIZE` | `8` | Texts sent in one embedding provider request |
+
+`INGESTION_ARTIFACT_REUSE=true` checkpoints reusable extraction and embedding
+artifacts. Failed jobs can therefore restart safely without repeating successful
+expensive work when the source and processing identity are unchanged. Stage
+state is also recorded in `ingestion_tasks` for operational diagnosis.
+
+To increase document-level capacity, scale the queue-only service rather than
+the HTTP AI service. For example:
+
+```bash
+docker compose \
+  --env-file infra/production.env \
+  -f infra/docker-compose.yml \
+  up -d --scale ai-worker-loop=3 ai-worker-loop
+```
+
+Start conservatively: effective document concurrency is approximately
+`replicas × INGESTION_WORKER_CONCURRENCY`, while extraction and embedding stages
+also have their own bounded worker pools. Increase one dimension at a time and
+watch database connections, memory, Ollama/GPU saturation, MinIO throughput,
+queue wait time, job duration, retry count, and expired-lease recovery logs.
+Emergency/high-priority jobs receive the next available capacity; queue aging
+gradually raises older normal work so lower-priority documents are not starved.
+
 CI runs `infra/check-production-ports.py` against the rendered production
 definition and fails if a data or worker service is published, a public service
 targets the wrong container port, or one of the three HTTP listeners is not

@@ -579,19 +579,26 @@ export interface HandlersIngestionJobResponse {
   attempt_count?: number;
   cancel_requested_at?: string;
   canceled_at?: string;
+  claimed_at?: string;
   completed_at?: string;
   created_at?: string;
   error?: string;
+  heartbeat_at?: string;
   id?: string;
   job_type?: string;
+  lease_expires_at?: string;
   metrics?: object;
+  next_attempt_at?: string;
   payload_json?: string;
+  priority?: number;
   progress_percent?: number;
   progress_stage?: string;
+  stages?: ModelsIngestionTask[];
   started_at?: string;
   status?: string;
   updated_at?: string;
   version_id?: string;
+  worker_id?: string;
 }
 
 export type HandlersJSONMap = Record<string, any>;
@@ -2437,19 +2444,39 @@ export interface ModelsIngestionJob {
   attempt_count?: number;
   cancel_requested_at?: string;
   canceled_at?: string;
+  claimed_at?: string;
   completed_at?: string;
   created_at?: string;
   error?: string;
+  heartbeat_at?: string;
   id?: string;
   job_type?: string;
+  lease_expires_at?: string;
   metrics?: object;
+  next_attempt_at?: string;
   payload_json?: string;
+  priority?: number;
   progress_percent?: number;
   progress_stage?: string;
+  stages?: ModelsIngestionTask[];
   started_at?: string;
   status?: string;
   updated_at?: string;
   version_id?: string;
+  worker_id?: string;
+}
+
+export interface ModelsIngestionTask {
+  attempt_count?: number;
+  completed_at?: string;
+  created_at?: string;
+  id?: string;
+  job_id?: string;
+  progress_percent?: number;
+  stage?: string;
+  started_at?: string;
+  status?: string;
+  updated_at?: string;
 }
 
 export interface ModelsLanguage {
@@ -3855,6 +3882,10 @@ export interface ServicesGuidelineUploadState {
   status?: string;
   updated_at?: string;
   version_id?: string;
+}
+
+export interface ServicesIngestionPriorityInput {
+  priority?: number;
 }
 
 export interface ServicesLanguageInput {

@@ -2205,23 +2205,42 @@ final class HandlersIngestionJobResponse {
 
   String? get canceledAt => value['canceled_at']?.toString();
 
+  String? get claimedAt => value['claimed_at']?.toString();
+
   String? get completedAt => value['completed_at']?.toString();
 
   String? get createdAt => value['created_at']?.toString();
 
   String? get error => value['error']?.toString();
 
+  String? get heartbeatAt => value['heartbeat_at']?.toString();
+
   String? get id => value['id']?.toString();
 
   String? get jobType => value['job_type']?.toString();
 
+  String? get leaseExpiresAt => value['lease_expires_at']?.toString();
+
   Map<String, dynamic> get metrics => _jsonMap(value['metrics']);
 
+  String? get nextAttemptAt => value['next_attempt_at']?.toString();
+
   String? get payloadJson => value['payload_json']?.toString();
+
+  int? get priority => (value['priority'] as num?)?.toInt();
 
   int? get progressPercent => (value['progress_percent'] as num?)?.toInt();
 
   String? get progressStage => value['progress_stage']?.toString();
+
+  List<ModelsIngestionTask> get stages {
+    final raw = value['stages'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => ModelsIngestionTask.fromJson(_jsonMap(item)))
+        .toList(growable: false);
+  }
 
   String? get startedAt => value['started_at']?.toString();
 
@@ -2230,6 +2249,8 @@ final class HandlersIngestionJobResponse {
   String? get updatedAt => value['updated_at']?.toString();
 
   String? get versionId => value['version_id']?.toString();
+
+  String? get workerId => value['worker_id']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }
@@ -8080,23 +8101,42 @@ final class ModelsIngestionJob {
 
   String? get canceledAt => value['canceled_at']?.toString();
 
+  String? get claimedAt => value['claimed_at']?.toString();
+
   String? get completedAt => value['completed_at']?.toString();
 
   String? get createdAt => value['created_at']?.toString();
 
   String? get error => value['error']?.toString();
 
+  String? get heartbeatAt => value['heartbeat_at']?.toString();
+
   String? get id => value['id']?.toString();
 
   String? get jobType => value['job_type']?.toString();
 
+  String? get leaseExpiresAt => value['lease_expires_at']?.toString();
+
   Map<String, dynamic> get metrics => _jsonMap(value['metrics']);
 
+  String? get nextAttemptAt => value['next_attempt_at']?.toString();
+
   String? get payloadJson => value['payload_json']?.toString();
+
+  int? get priority => (value['priority'] as num?)?.toInt();
 
   int? get progressPercent => (value['progress_percent'] as num?)?.toInt();
 
   String? get progressStage => value['progress_stage']?.toString();
+
+  List<ModelsIngestionTask> get stages {
+    final raw = value['stages'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => ModelsIngestionTask.fromJson(_jsonMap(item)))
+        .toList(growable: false);
+  }
 
   String? get startedAt => value['started_at']?.toString();
 
@@ -8105,6 +8145,41 @@ final class ModelsIngestionJob {
   String? get updatedAt => value['updated_at']?.toString();
 
   String? get versionId => value['version_id']?.toString();
+
+  String? get workerId => value['worker_id']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ModelsIngestionTask {
+  ModelsIngestionTask(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ModelsIngestionTask.fromJson(Map<String, dynamic> json) =>
+      ModelsIngestionTask(json);
+
+  static const schemaName = 'models.IngestionTask';
+  final Map<String, dynamic> value;
+
+  int? get attemptCount => (value['attempt_count'] as num?)?.toInt();
+
+  String? get completedAt => value['completed_at']?.toString();
+
+  String? get createdAt => value['created_at']?.toString();
+
+  String? get id => value['id']?.toString();
+
+  String? get jobId => value['job_id']?.toString();
+
+  int? get progressPercent => (value['progress_percent'] as num?)?.toInt();
+
+  String? get stage => value['stage']?.toString();
+
+  String? get startedAt => value['started_at']?.toString();
+
+  String? get status => value['status']?.toString();
+
+  String? get updatedAt => value['updated_at']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }
@@ -12277,6 +12352,21 @@ final class ServicesGuidelineUploadState {
   String? get updatedAt => value['updated_at']?.toString();
 
   String? get versionId => value['version_id']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesIngestionPriorityInput {
+  ServicesIngestionPriorityInput(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesIngestionPriorityInput.fromJson(Map<String, dynamic> json) =>
+      ServicesIngestionPriorityInput(json);
+
+  static const schemaName = 'services.IngestionPriorityInput';
+  final Map<String, dynamic> value;
+
+  int? get priority => (value['priority'] as num?)?.toInt();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }

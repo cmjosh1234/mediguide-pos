@@ -149,7 +149,12 @@ def test_jobs_reuse_raw_pdf_but_keep_version_references_separate(monkeypatch):
     saved = []
     for target in ("version-A", "version-B"):
         service = IngestionService.__new__(IngestionService)
-        service.settings = Settings(INGESTION_ARTIFACT_REUSE=True, embedding_provider="hash", embedding_dim=2)
+        service.settings = Settings(
+            INGESTION_ARTIFACT_REUSE=True,
+            EMBEDDING_WORKERS=1,
+            embedding_provider="hash",
+            embedding_dim=2,
+        )
         service.artifact_repository = repo
         service.storage = storage
         service.embedder = provider
@@ -169,6 +174,19 @@ def test_jobs_reuse_raw_pdf_but_keep_version_references_separate(monkeypatch):
         assert row["assets"][1].storage_key.startswith("guidelines/" + target + "/")
         assert row["metadata"]["ingestion_job_id"] == target + "-job"
     assert saved[0]["embeddings"] == saved[1]["embeddings"]
+
+
+def test_embedding_provider_factory_uses_explicit_job_settings():
+    from app.core.config import Settings
+    from app.embeddings.factory import get_embedding_provider
+    from app.embeddings.hash_provider import HashEmbeddingProvider
+
+    provider = get_embedding_provider(
+        Settings(embedding_provider="hash", embedding_dim=3)
+    )
+
+    assert isinstance(provider, HashEmbeddingProvider)
+    assert len(provider.embed(["text"])[0]) == 3
 
 
 def test_identity_invalidates_on_settings_revision_and_exact_source(monkeypatch):

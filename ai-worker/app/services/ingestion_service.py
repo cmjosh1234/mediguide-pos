@@ -39,6 +39,10 @@ class IngestionSuperseded(Exception):
     pass
 
 
+class IngestionLeaseLost(Exception):
+    pass
+
+
 # Documents published as uploaded (for example forms) only get their original
 # file's text indexed for search and RAG.
 ORIGINAL_TEXT_INDEX_JOB = "original_text_index"
@@ -70,7 +74,7 @@ class IngestionService:
             )
         return str(version.get("original_file_key") or "").strip() == source_key
 
-    def run_job(self, job_id: str) -> None:
+    def run_job(self, job_id: str, lease_guard=None) -> None:
         job = self.jobs.get_job(job_id)
         if not job:
             raise ValueError(f"Ingestion job not found: {job_id}")
@@ -89,7 +93,9 @@ class IngestionService:
         self._stage_started = time.perf_counter()
         job_started = self._stage_started
         try:
-            self._process(job)
+            self._process(job, lease_guard=lease_guard)
+            if lease_guard is not None and not lease_guard():
+                raise IngestionLeaseLost()
             self.jobs.mark_completed(job_id)
         except IngestionCanceled:
             self.jobs.mark_canceled(job_id)
@@ -97,9 +103,20 @@ class IngestionService:
         except (IngestionSuperseded, GuidelineSourceSupersededError):
             self.jobs.mark_superseded(job_id)
             log.info("ingestion_job_superseded", job_id=job_id)
+        except IngestionLeaseLost:
+            # Ownership has moved (or is about to move) to another worker. The
+            # stale worker must not change durable job state after losing its lease.
+            log.warning("ingestion_job_lease_lost", job_id=job_id)
         except Exception as exc:
             log.exception("ingestion_job_failed", job_id=job_id, error=str(exc))
-            self.jobs.mark_failed(job_id, str(exc))
+            self.jobs.fail_active_stage(job_id, str(exc))
+            self.jobs.mark_failed(
+                job_id,
+                str(exc),
+                retry_backoff_seconds=getattr(
+                    getattr(self, "settings", None), "worker_retry_backoff_seconds", 30
+                ),
+            )
             raise
         finally:
             self._finish_stage()
@@ -116,7 +133,7 @@ class IngestionService:
             stages[self._stage_name] = round(stages.get(self._stage_name, 0) + time.perf_counter() - self._stage_started, 3)
         self._stage_started = time.perf_counter()
 
-    def _process(self, job: dict) -> None:
+    def _process(self, job: dict, lease_guard=None) -> None:
         job_id = str(job["id"])
 
         def stage(name: str, percent: int) -> None:
@@ -125,7 +142,9 @@ class IngestionService:
                 self._stage_name = name
             if self.jobs.cancellation_requested(job_id):
                 raise IngestionCanceled()
-            self.jobs.set_progress(job_id, name, percent)
+            if lease_guard is not None and not lease_guard():
+                raise IngestionLeaseLost()
+            self.jobs.start_stage(job_id, name, percent)
 
         version_id = str(job["version_id"])
         version = self.guidelines.get_version_with_document(version_id)
@@ -332,7 +351,13 @@ class IngestionService:
                     workers = 1
                 embeddings = embedding_artifacts.embeddings(texts, self.embedder, embedding_key, self.settings.embedding_dim, batch_size,
                     lambda done, total: stage("embeddings", min(84, 65 + int((done / max(1, total)) * 19))),
-                    workers=workers, provider_factory=get_embedding_provider if workers > 1 else None)
+                    workers=workers,
+                    provider_factory=(
+                        (lambda: get_embedding_provider(self.settings))
+                        if workers > 1
+                        else None
+                    ),
+                )
             for i in range(0, len(texts) if not embedding_artifacts else 0, batch_size):
                 stage("embeddings", min(84, 65 + int((i / max(1, len(texts))) * 19)))
                 batch_started = time.perf_counter()

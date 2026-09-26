@@ -7,6 +7,63 @@ from app.core.db import db_conn
 
 
 class IngestionRepository:
+    def start_stage(self, job_id: str, stage: str, percent: int) -> None:
+        value = max(0, min(100, percent))
+        with db_conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE ingestion_tasks
+                SET status='completed', progress_percent=100, completed_at=now(), updated_at=now()
+                WHERE job_id=%s AND status='running' AND stage<>%s
+                """,
+                (job_id, stage),
+            )
+            cur.execute(
+                """
+                INSERT INTO ingestion_tasks (job_id, stage, status, progress_percent, attempt_count, started_at)
+                VALUES (%s, %s, 'running', %s, 1, now())
+                ON CONFLICT (job_id, stage) DO UPDATE
+                SET status='running',
+                    progress_percent=EXCLUDED.progress_percent,
+                    error=NULL,
+                    started_at=CASE
+                      WHEN ingestion_tasks.status='running' THEN ingestion_tasks.started_at
+                      ELSE now()
+                    END,
+                    completed_at=NULL,
+                    attempt_count=CASE
+                      WHEN ingestion_tasks.status='running' THEN ingestion_tasks.attempt_count
+                      ELSE ingestion_tasks.attempt_count + 1
+                    END,
+                    updated_at=now()
+                """,
+                (job_id, stage, value),
+            )
+            cur.execute(
+                "UPDATE ingestion_jobs SET progress_stage=%s, progress_percent=%s, updated_at=now() WHERE id=%s AND status='running'",
+                (stage, value, job_id),
+            )
+            conn.commit()
+
+    def fail_active_stage(self, job_id: str, error: str) -> None:
+        with db_conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE ingestion_tasks
+                SET status='failed', error=%s, completed_at=now(), updated_at=now()
+                WHERE job_id=%s AND status='running'
+                """,
+                (error[:4000], job_id),
+            )
+            conn.commit()
+
+    def list_stages(self, job_id: str) -> list[dict[str, Any]]:
+        with db_conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                "SELECT stage, status, progress_percent, attempt_count, error, started_at, completed_at FROM ingestion_tasks WHERE job_id=%s ORDER BY created_at ASC, id ASC",
+                (job_id,),
+            )
+            return cur.fetchall()
     def record_metrics(self, job_id: str, metrics: dict) -> None:
         with db_conn() as conn, conn.cursor() as cur:
             cur.execute("UPDATE ingestion_jobs SET metrics_json=COALESCE(metrics_json, '{}'::jsonb) || %s::jsonb WHERE id=%s", (json.dumps(metrics), job_id))
@@ -27,7 +84,13 @@ class IngestionRepository:
             row = cur.fetchone()
             return bool(row and row.get("present"))
 
-    def claim_queued_jobs(self, limit: int = 1) -> list[dict[str, Any]]:
+    def claim_queued_jobs(
+        self,
+        limit: int = 1,
+        worker_id: str = "",
+        lease_seconds: int = 120,
+        priority_aging_seconds: int = 900,
+    ) -> list[dict[str, Any]]:
         """Atomically pick up queued jobs and mark them running."""
         with db_conn() as conn, conn.cursor() as cur:
             cur.execute(
@@ -38,18 +101,32 @@ class IngestionRepository:
                     WHERE status = 'queued'
                       AND job_type IN ('pdf_ingestion', 'markdown_ingestion', 'original_text_index')
                       AND deleted_at IS NULL
-                    ORDER BY created_at ASC
+                      AND (next_attempt_at IS NULL OR next_attempt_at <= now())
+                    ORDER BY
+                      (
+                        priority
+                        + LEAST(
+                            50,
+                            FLOOR(EXTRACT(EPOCH FROM (now() - created_at)) / %s)::int
+                          )
+                      ) DESC,
+                      priority DESC,
+                      created_at ASC,
+                      id ASC
                     LIMIT %s
                     FOR UPDATE SKIP LOCKED
                 )
                 UPDATE ingestion_jobs j
                 SET status = 'running', progress_stage='downloading', progress_percent=5,
+                    worker_id = NULLIF(%s, ''), claimed_at = now(), heartbeat_at = now(),
+                    lease_expires_at = now() + (%s * interval '1 second'),
+                    next_attempt_at = NULL,
                     started_at = coalesce(started_at, now()), updated_at = now()
                 FROM picked
                 WHERE j.id = picked.id
                 RETURNING j.*
                 """,
-                (limit,),
+                (max(60, priority_aging_seconds), limit, worker_id, max(30, lease_seconds)),
             )
             rows = cur.fetchall()
             conn.commit()
@@ -71,22 +148,85 @@ class IngestionRepository:
                       AND job_type IN ('pdf_ingestion', 'markdown_ingestion', 'original_text_index')
                       AND deleted_at IS NULL
                       AND coalesce(attempt_count, 0) < %s
-                      AND (completed_at IS NULL OR completed_at < now() - (coalesce(attempt_count, 1) * %s * interval '1 second'))
+                      AND COALESCE(
+                        next_attempt_at,
+                        completed_at + (coalesce(attempt_count, 1) * %s * interval '1 second'),
+                        now()
+                      ) <= now()
                     ORDER BY completed_at ASC NULLS FIRST
                     LIMIT %s
                     FOR UPDATE SKIP LOCKED
                 )
                 UPDATE ingestion_jobs j
-                SET status = 'queued', error = NULL, updated_at = now()
+                SET status = 'queued', error = NULL, worker_id=NULL,
+                    heartbeat_at=NULL, lease_expires_at=NULL, updated_at = now()
                 FROM picked
                 WHERE j.id = picked.id
                 RETURNING j.*
                 """,
-                (max_attempts, backoff_seconds, limit),
+                (max_attempts, max(1, backoff_seconds), limit),
             )
             rows = cur.fetchall()
             conn.commit()
             return rows
+
+    def recover_expired_leases(self, limit: int = 100) -> int:
+        """Return abandoned running jobs to the queue after their worker lease expires."""
+        with db_conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                WITH expired AS (
+                    SELECT id
+                    FROM ingestion_jobs
+                    WHERE status = 'running'
+                      AND deleted_at IS NULL
+                      AND lease_expires_at IS NOT NULL
+                      AND lease_expires_at < now()
+                    ORDER BY lease_expires_at ASC
+                    LIMIT %s
+                    FOR UPDATE SKIP LOCKED
+                )
+                UPDATE ingestion_jobs j
+                SET status='queued', progress_stage='queued',
+                    worker_id=NULL, heartbeat_at=NULL, lease_expires_at=NULL,
+                    updated_at=now()
+                FROM expired
+                WHERE j.id=expired.id
+                RETURNING j.id
+                """,
+                (limit,),
+            )
+            rows = cur.fetchall()
+            for row in rows:
+                cur.execute(
+                    """
+                    UPDATE ingestion_tasks
+                    SET status='failed',
+                        error=COALESCE(error, 'worker lease expired'),
+                        completed_at=COALESCE(completed_at, now()),
+                        updated_at=now()
+                    WHERE job_id=%s AND status='running'
+                    """,
+                    (row["id"],),
+                )
+            conn.commit()
+            return len(rows)
+
+    def renew_lease(self, job_id: str, worker_id: str, lease_seconds: int) -> bool:
+        with db_conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE ingestion_jobs
+                SET heartbeat_at=now(),
+                    lease_expires_at=now() + (%s * interval '1 second'),
+                    updated_at=now()
+                WHERE id=%s AND status='running' AND worker_id=%s
+                """,
+                (max(30, lease_seconds), job_id, worker_id),
+            )
+            renewed = cur.rowcount == 1
+            conn.commit()
+            return renewed
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:
         with db_conn() as conn, conn.cursor() as cur:
@@ -126,7 +266,11 @@ class IngestionRepository:
     def mark_completed(self, job_id: str) -> None:
         with db_conn() as conn, conn.cursor() as cur:
             cur.execute(
-                "UPDATE ingestion_jobs SET status='completed', progress_stage='completed', progress_percent=100, completed_at=now(), updated_at=now(), error=NULL WHERE id=%s AND status='running'",
+                "UPDATE ingestion_tasks SET status='completed', progress_percent=100, completed_at=now(), updated_at=now() WHERE job_id=%s AND status='running'",
+                (job_id,),
+            )
+            cur.execute(
+                "UPDATE ingestion_jobs SET status='completed', progress_stage='completed', progress_percent=100, completed_at=now(), updated_at=now(), error=NULL, heartbeat_at=NULL, lease_expires_at=NULL WHERE id=%s AND status='running'",
                 (job_id,),
             )
             conn.commit()
@@ -151,7 +295,11 @@ class IngestionRepository:
     def mark_canceled(self, job_id: str) -> None:
         with db_conn() as conn, conn.cursor() as cur:
             cur.execute(
-                "UPDATE ingestion_jobs SET status='canceled', progress_stage='canceled', canceled_at=now(), completed_at=now(), updated_at=now() WHERE id=%s AND status='cancel_requested'",
+                "UPDATE ingestion_tasks SET status='canceled', completed_at=now(), updated_at=now() WHERE job_id=%s AND status='running'",
+                (job_id,),
+            )
+            cur.execute(
+                "UPDATE ingestion_jobs SET status='canceled', progress_stage='canceled', canceled_at=now(), completed_at=now(), updated_at=now(), heartbeat_at=NULL, lease_expires_at=NULL WHERE id=%s AND status='cancel_requested'",
                 (job_id,),
             )
             cur.execute(
@@ -167,7 +315,11 @@ class IngestionRepository:
     def mark_superseded(self, job_id: str) -> None:
         with db_conn() as conn, conn.cursor() as cur:
             cur.execute(
-                "UPDATE ingestion_jobs SET status='canceled', progress_stage='superseded', canceled_at=now(), completed_at=now(), updated_at=now() WHERE id=%s AND status='running'",
+                "UPDATE ingestion_tasks SET status='canceled', completed_at=now(), updated_at=now() WHERE job_id=%s AND status='running'",
+                (job_id,),
+            )
+            cur.execute(
+                "UPDATE ingestion_jobs SET status='canceled', progress_stage='superseded', canceled_at=now(), completed_at=now(), updated_at=now(), heartbeat_at=NULL, lease_expires_at=NULL WHERE id=%s AND status='running'",
                 (job_id,),
             )
             cur.execute(
@@ -268,7 +420,7 @@ class IngestionRepository:
             )
             conn.commit()
 
-    def mark_failed(self, job_id: str, error: str) -> None:
+    def mark_failed(self, job_id: str, error: str, retry_backoff_seconds: int = 30) -> None:
         """Increment attempt_count and mark job failed."""
         if not self._has_attempt_count():
             with db_conn() as conn, conn.cursor() as cur:
@@ -277,7 +429,9 @@ class IngestionRepository:
                        SET status='failed',
                            error=%s,
                            completed_at=now(),
-                           updated_at=now()
+                           updated_at=now(),
+                           heartbeat_at=NULL,
+                           lease_expires_at=NULL
                        WHERE id=%s""",
                     (error[:4000], job_id),
                 )
@@ -291,9 +445,12 @@ class IngestionRepository:
                        error=%s,
                        completed_at=now(),
                        updated_at=now(),
-                       attempt_count=coalesce(attempt_count, 0) + 1
+                       attempt_count=coalesce(attempt_count, 0) + 1,
+                       next_attempt_at=now() + ((coalesce(attempt_count, 0) + 1) * %s * interval '1 second'),
+                       heartbeat_at=NULL,
+                       lease_expires_at=NULL
                    WHERE id=%s""",
-                (error[:4000], job_id),
+                (error[:4000], max(1, retry_backoff_seconds), job_id),
             )
             self._mark_revision_failed(cur, job_id)
             conn.commit()

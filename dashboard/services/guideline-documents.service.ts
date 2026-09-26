@@ -145,6 +145,25 @@ export interface IngestionJobRecord {
   status: string;
   progress_stage?: string;
   progress_percent?: number;
+  attempt_count?: number;
+  priority?: number;
+  worker_id?: string;
+  claimed_at?: string;
+  heartbeat_at?: string;
+  lease_expires_at?: string;
+  next_attempt_at?: string;
+  started_at?: string;
+  completed_at?: string;
+  stages?: Array<{
+    id: string;
+    job_id: string;
+    stage: string;
+    status: string;
+    progress_percent: number;
+    attempt_count: number;
+    started_at?: string;
+    completed_at?: string;
+  }>;
   metrics?: Record<string, unknown>;
   payload_json?: string;
   error?: string;

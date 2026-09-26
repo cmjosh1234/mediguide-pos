@@ -401,10 +401,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // General pages
-      GoRoute(
-        path: AppRoutes.allActions,
-        redirect: (_, _) => AppRoutes.tools,
-      ),
+      GoRoute(path: AppRoutes.allActions, redirect: (_, _) => AppRoutes.tools),
       GoRoute(
         path: AppRoutes.notifications,
         builder: (_, _) => const NotificationsPage(),

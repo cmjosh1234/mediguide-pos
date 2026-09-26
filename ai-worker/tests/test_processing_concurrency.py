@@ -31,7 +31,9 @@ def test_worker_limits_are_validated():
     for field in ("PDF_PAGE_WORKERS", "OCR_WORKERS", "EMBEDDING_WORKERS"):
         with pytest.raises(ValueError):
             Settings(**{field: 50})
-    assert not Settings().ingestion_processing_concurrency
+    assert Settings().ingestion_processing_concurrency
+    assert Settings().embedding_workers == 2
+    assert Settings().worker_priority_aging_seconds == 900
 
 
 def test_pdf_parallel_content_equivalence(tmp_path):
