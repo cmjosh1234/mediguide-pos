@@ -10019,7 +10019,7 @@ info:
     name: Proprietary
   termsOfService: https://mediguide.local/terms
   title: MediGuide Backend API
-  version: 2.1.6
+  version: 2.1.7
 paths:
   /api/public/assistant/ask:
     post:
