@@ -206,41 +206,35 @@ func TestDiseaseContentValidatorSupportsOnlyTheDeclaredResourceKinds(t *testing.
 	db := classificationTestDB(t)
 	guideline := models.GuidelineDocument{Title: "Guideline"}
 	outbreak := models.Outbreak{Title: "Outbreak"}
-	document := models.OutbreakResource{ResourceType: "managed_document", DocumentKind: "guideline"}
-	form := models.OutbreakResource{ResourceType: "downloadable_asset", DocumentKind: "form"}
-	ordinaryLink := models.OutbreakResource{ResourceType: "approved_external_url", DocumentKind: "guideline"}
 	report := models.SituationReport{Title: "Report"}
 	algorithm := models.GuidelineContentBlock{Type: models.GuidelineBlockAlgorithm, ContentJSON: []byte(`{}`), SourceFingerprint: "algorithm"}
 	calculator := models.Calculator{Name: "Tool", AddedByUserID: uuid.New(), AppFileJSON: datatypes.JSON(`{}`), Version: "1", Type: "clinical"}
 	drug := models.Drug{Name: "Drug"}
-	for _, item := range []any{&guideline, &outbreak, &document, &form, &ordinaryLink, &report, &algorithm, &calculator, &drug} {
+	for _, item := range []any{&guideline, &outbreak, &report, &algorithm, &calculator, &drug} {
 		if err := db.Create(item).Error; err != nil {
 			t.Fatal(err)
 		}
 	}
 	valid := map[string]uuid.UUID{
-		models.ContentDiseaseGuideline:        guideline.ID,
-		models.ContentDiseaseOutbreak:         outbreak.ID,
-		models.ContentDiseaseOutbreakDocument: document.ID,
-		models.ContentDiseaseSituationReport:  report.ID,
-		models.ContentDiseaseAlgorithm:        algorithm.ID,
-		models.ContentDiseaseClinicalTool:     calculator.ID,
-		models.ContentDiseaseForm:             form.ID,
-		models.ContentDiseaseDrugReference:    drug.ID,
+		models.ContentDiseaseGuideline:       guideline.ID,
+		models.ContentDiseaseOutbreak:        outbreak.ID,
+		models.ContentDiseaseSituationReport: report.ID,
+		models.ContentDiseaseAlgorithm:       algorithm.ID,
+		models.ContentDiseaseClinicalTool:    calculator.ID,
+		models.ContentDiseaseDrugReference:   drug.ID,
 	}
 	for kind, id := range valid {
 		if err := validateDiseaseContentResource(db, kind, id); err != nil {
 			t.Errorf("%s should be supported: %v", kind, err)
 		}
 	}
-	if err := validateDiseaseContentResource(db, models.ContentDiseaseForm, document.ID); !errors.Is(err, ErrContentDiseaseResourceNotFound) {
-		t.Fatalf("non-form resource accepted as form: %v", err)
-	}
 	if err := validateDiseaseContentResource(db, models.ContentDiseaseAlgorithm, guideline.ID); !errors.Is(err, ErrContentDiseaseResourceNotFound) {
 		t.Fatalf("non-algorithm resource accepted as algorithm: %v", err)
 	}
-	if err := validateDiseaseContentResource(db, models.ContentDiseaseOutbreakDocument, ordinaryLink.ID); !errors.Is(err, ErrContentDiseaseResourceNotFound) {
-		t.Fatalf("ordinary outbreak link accepted as an outbreak document: %v", err)
+	for _, removed := range []string{"outbreak_document", "form"} {
+		if err := validateDiseaseContentResource(db, removed, guideline.ID); !errors.Is(err, ErrContentDiseaseUnsupported) {
+			t.Fatalf("removed content type %q is still accepted: %v", removed, err)
+		}
 	}
 }
 

@@ -323,11 +323,9 @@ func (s SearchService) SearchApprovedContentContextFiltered(ctx context.Context,
 		contentTypes = []string{
 			"guideline",
 			models.ContentDiseaseOutbreak,
-			models.ContentDiseaseOutbreakDocument,
 			models.ContentDiseaseSituationReport,
 			models.ContentDiseaseAlgorithm,
 			models.ContentDiseaseClinicalTool,
-			models.ContentDiseaseForm,
 			models.ContentDiseaseDrugReference,
 		}
 		perTypeLimit = 3

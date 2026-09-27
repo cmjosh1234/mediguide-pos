@@ -8,6 +8,8 @@ vi.mock("@/lib/backend-client", () => ({
 
 import {
   GuidelineDocumentsService,
+  guidelineLinkError,
+  isPublishedAsLink,
   isPublishedAsUploaded,
   originalFileName,
 } from "./guideline-documents.service"
@@ -123,5 +125,33 @@ describe("as-uploaded guideline helpers", () => {
     expect(originalFileName("guidelines/v1/original/1726999999_HMIS 105.docx")).toBe("HMIS 105.docx")
     expect(originalFileName("guidelines/v1/original/form_2024.pdf")).toBe("form_2024.pdf")
     expect(originalFileName(undefined)).toBe("")
+  })
+})
+
+describe("link guideline helpers", () => {
+  beforeEach(() => request.mockReset())
+
+  it("detects documents whose kind publishes a link", () => {
+    const kind = { id: "k", name: "Link", slug: "link", status: "active" }
+    expect(isPublishedAsLink({ document_kind: { ...kind, publish_as_link: true } })).toBe(true)
+    expect(isPublishedAsLink({ document_kind: { ...kind, publish_as_link: false } })).toBe(false)
+    expect(isPublishedAsLink(null)).toBe(false)
+  })
+
+  it("accepts only full https links", () => {
+    expect(guidelineLinkError("https://www.who.int/publications")).toBeNull()
+    expect(guidelineLinkError("  https://www.who.int  ")).toBeNull()
+    for (const invalid of ["", "   ", "www.who.int", "who", "http://www.who.int", "ftp://who.int", "javascript:alert(1)", "https://user:secret@who.int", `https://who.int/${"a".repeat(2048)}`]) {
+      expect(guidelineLinkError(invalid)).not.toBeNull()
+    }
+  })
+
+  it("saves a trimmed link on the version", async () => {
+    request.mockResolvedValue({ id: "version-1", external_url: "https://www.who.int" })
+    await GuidelineDocumentsService.setVersionLink("version-1", "  https://www.who.int  ")
+    expect(request).toHaveBeenCalledWith("/api/v2/guideline-versions/version-1/link", {
+      method: "PUT",
+      body: JSON.stringify({ url: "https://www.who.int" }),
+    })
   })
 })

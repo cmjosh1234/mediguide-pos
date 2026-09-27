@@ -20,7 +20,7 @@ describe("document kind service", () => {
       json({
         items: [
           { id: "k1", name: "Guideline", slug: "guideline", sort_order: 10, status: "active", guideline_document_count: 3 },
-          { id: "k2", name: "Contact Tracing Guide", slug: "contact_tracing_guide", outbreak_document_count: 1 },
+          { id: "k2", name: "Contact Tracing Guide", slug: "contact_tracing_guide", outbreak_resource_count: 1 },
         ],
         page: 1,
         per_page: 100,
@@ -37,8 +37,8 @@ describe("document kind service", () => {
     expect(url).toContain("sort=sort_order");
     expect(url).toContain("status=active");
     expect(kinds).toEqual([
-      { id: "k1", name: "Guideline", slug: "guideline", description: "", sort_order: 10, status: "active", publish_as_uploaded: false, guideline_document_count: 3, outbreak_document_count: 0 },
-      { id: "k2", name: "Contact Tracing Guide", slug: "contact_tracing_guide", description: "", sort_order: 0, status: "active", publish_as_uploaded: false, guideline_document_count: 0, outbreak_document_count: 1 },
+      { id: "k1", name: "Guideline", slug: "guideline", description: "", sort_order: 10, status: "active", publish_as_uploaded: false, publish_as_link: false, guideline_document_count: 3, outbreak_resource_count: 0 },
+      { id: "k2", name: "Contact Tracing Guide", slug: "contact_tracing_guide", description: "", sort_order: 0, status: "active", publish_as_uploaded: false, publish_as_link: false, guideline_document_count: 0, outbreak_resource_count: 1 },
     ]);
   });
 

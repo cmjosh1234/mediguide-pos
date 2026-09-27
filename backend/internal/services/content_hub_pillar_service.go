@@ -12,9 +12,9 @@ import (
 )
 
 var supportedPillarItemTypes = map[string]struct{}{
-	models.ContentDiseaseGuideline: {}, models.ContentDiseaseOutbreakDocument: {},
+	models.ContentDiseaseGuideline:       {},
 	models.ContentDiseaseSituationReport: {}, models.ContentDiseaseAlgorithm: {},
-	models.ContentDiseaseClinicalTool: {}, models.ContentDiseaseForm: {},
+	models.ContentDiseaseClinicalTool:  {},
 	models.ContentDiseaseDrugReference: {}, models.ContentPillarItemInternalRoute: {},
 	models.ContentPillarItemApprovedExternalURL: {},
 }

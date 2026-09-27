@@ -83,6 +83,44 @@ func enqueueOutbreakTopicAlertTx(tx *gorm.DB, alert outbreakTopicAlert, now time
 	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&job).Error
 }
 
+// enqueueOutbreakChildAlertTx announces content published under an outbreak,
+// titled with the outbreak so subscribers know which one it concerns.
+func enqueueOutbreakChildAlertTx(tx *gorm.DB, sourceType string, sourceID, outbreakID uuid.UUID, body string) error {
+	var outbreak models.Outbreak
+	if err := tx.Select("id", "title").First(&outbreak, "id = ?", outbreakID).Error; err != nil {
+		return err
+	}
+	return enqueueOutbreakTopicAlertTx(tx, outbreakTopicAlert{SourceType: sourceType, SourceID: sourceID, OutbreakID: outbreakID, Title: outbreak.Title, Body: body}, time.Now())
+}
+
+// addedMetrics returns the metrics in next whose keys weren't in previous.
+func addedMetrics(previous, next []OutbreakMetric) []OutbreakMetric {
+	existing := make(map[string]struct{}, len(previous))
+	for _, metric := range previous {
+		existing[metric.Key] = struct{}{}
+	}
+	added := []OutbreakMetric{}
+	for _, metric := range next {
+		if _, ok := existing[metric.Key]; !ok {
+			added = append(added, metric)
+		}
+	}
+	return added
+}
+
+// metricAlertBody reads like "New figure: Confirmed cases 34 cases".
+func metricAlertBody(metrics []OutbreakMetric) string {
+	parts := make([]string, 0, len(metrics))
+	for _, metric := range metrics {
+		parts = append(parts, strings.TrimSpace(metric.Label+" "+metric.Value+" "+metric.Unit))
+	}
+	prefix := "New figure: "
+	if len(parts) > 1 {
+		prefix = "New figures: "
+	}
+	return prefix + strings.Join(parts, "; ")
+}
+
 func truncateRunes(value string, limit int) string {
 	if utf8.RuneCountInString(value) <= limit {
 		return value

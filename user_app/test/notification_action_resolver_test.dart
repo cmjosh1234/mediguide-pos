@@ -78,10 +78,8 @@ void main() {
           },
         },
       );
-      expect(
-        target?.location,
-        '/outbreak-hub/$outbreakId/documents/$documentId',
-      );
+      // Outbreak documents were removed, so old notifications open nothing.
+      expect(target?.location, isNull);
     });
 
     test('rejects malformed, hostile, and unsupported internal actions', () {

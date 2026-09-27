@@ -167,32 +167,29 @@ void main() {
   );
 
   test(
-    'outbreak reconciliation flags updates and removes revoked files',
+    'saved outbreak documents are removed because they are no longer published',
     () async {
-      final current = await service.download(
-        guidelineId: 'document-current',
-        title: 'Current SOP',
+      final guideline = await service.download(
+        guidelineId: 'guideline-1',
+        title: 'Malaria guideline',
+        version: '1',
+        assetType: 'original_pdf',
+        asset: asset(),
+        scope: 'public',
+      );
+      final document = await service.download(
+        guidelineId: 'document-1',
+        title: 'Retired SOP',
         version: '1',
         assetType: 'outbreak_document',
         asset: asset(),
         scope: 'public',
       );
-      final revoked = await service.download(
-        guidelineId: 'document-revoked',
-        title: 'Revoked SOP',
-        version: '1',
-        assetType: 'outbreak_document',
-        asset: asset(),
-        scope: 'public',
-      );
-
-      await service.reconcileOutbreakDocuments({'document-current': '2'});
 
       final rows = await service.list('public');
-      expect(rows.single.guidelineId, 'document-current');
-      expect(rows.single.status, OfflineDownloadStatus.updateAvailable);
-      expect(await File(current.localPath).exists(), isTrue);
-      expect(await File(revoked.localPath).exists(), isFalse);
+      expect(rows.single.guidelineId, 'guideline-1');
+      expect(await File(guideline.localPath).exists(), isTrue);
+      expect(await File(document.localPath).exists(), isFalse);
     },
   );
 }

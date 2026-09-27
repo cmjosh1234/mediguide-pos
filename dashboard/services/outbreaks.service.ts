@@ -8,18 +8,15 @@ import type {
   ServicesOutbreakMetricsInput,
   ServicesOutbreakNotificationCampaignInput,
   ServicesOutbreakMetric,
-  ServicesOutbreakDocumentAdminDTO,
-  ServicesOutbreakDocumentInput,
-  ServicesOutbreakDocumentSearchPreview,
   ServicesOutbreakResourceAdminDTO,
   ServicesOutbreakUpdateAdminDTO,
   ServicesSituationReportAdminDTO,
   ServicesSituationReportAssetDTO,
   ServicesSituationReportInput,
+  ServicesResourceCorrectionInput,
   ServicesTransitionInput,
   ServicesNotificationCampaignDTO,
   ServicesPublicGuideline,
-  ServicesPublicOutbreakDocumentContent,
 } from "@/types/generated/backend-openapi";
 
 export type OutbreakRecord = ServicesOutbreakAdminDTO;
@@ -32,11 +29,7 @@ export type SituationReportInput = ServicesSituationReportInput;
 export type ChildContentInput = ServicesChildContentInput;
 export type OutbreakCampaignInput = ServicesOutbreakNotificationCampaignInput;
 export type OutbreakMetric = ServicesOutbreakMetric;
-export type OutbreakDocumentRecord = ServicesOutbreakDocumentAdminDTO;
-export type OutbreakDocumentInput = ServicesOutbreakDocumentInput;
 export type PublishedGuidelineRecord = ServicesPublicGuideline;
-export type OutbreakDocumentContent = ServicesPublicOutbreakDocumentContent;
-export type OutbreakDocumentSearchPreview = ServicesOutbreakDocumentSearchPreview;
 
 export interface PagedResult<T> {
   items: T[];
@@ -73,21 +66,6 @@ export interface OutbreakListQuery {
   order?: "asc" | "desc";
 }
 
-export interface OutbreakDocumentQuery {
-  page?: number;
-  per_page?: number;
-  search?: string;
-  document_kind?: string;
-  issuing_authority?: string;
-  language?: string;
-  audience?: string;
-  status?: string;
-  effective_from?: string;
-  effective_to?: string;
-  sort?: string;
-  order?: "asc" | "desc";
-}
-
 const client = () => getBackendClient();
 
 function transition(path: string, input: ServicesTransitionInput) {
@@ -100,10 +78,10 @@ export const outbreaksService = {
       query: { ...query },
     });
   },
-  listPublishedGuidelines(search = "") {
+  listPublishedGuidelines(search = "", documentKind = "") {
     return client().send<PagedResult<PublishedGuidelineRecord>>(
       "/api/public/guidelines",
-      { query: { search, page: 1, per_page: 100 } },
+      { query: { search, document_kind: documentKind, page: 1, per_page: 100 } },
     );
   },
   get(id: string) {
@@ -190,6 +168,18 @@ export const outbreaksService = {
       input,
     ) as Promise<OutbreakUpdateRecord>;
   },
+  editPublishedUpdate(id: string, childId: string, input: ServicesResourceCorrectionInput) {
+    return client().send<OutbreakUpdateRecord>(
+      `/api/v2/outbreaks/${id}/updates/${childId}/correct`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
+  },
+  deleteUpdate(id: string, childId: string, lockVersion: number) {
+    return client().send<void>(
+      `/api/v2/outbreaks/${id}/updates/${childId}`,
+      { method: "DELETE", query: { lock_version: lockVersion } },
+    );
+  },
   listResources(id: string, page = 1) {
     return client().send<PagedResult<OutbreakResourceRecord>>(
       `/api/v2/outbreaks/${id}/resources`,
@@ -225,87 +215,16 @@ export const outbreaksService = {
       input,
     ) as Promise<OutbreakResourceRecord>;
   },
-  listDocuments(id: string, query: OutbreakDocumentQuery = {}) {
-    return client().send<PagedResult<OutbreakDocumentRecord>>(
-      `/api/v2/outbreaks/${id}/documents`,
-      { query: { page: 1, per_page: 100, ...query } },
-    );
-  },
-  createDocument(id: string, input: OutbreakDocumentInput) {
-    return client().send<OutbreakDocumentRecord>(
-      `/api/v2/outbreaks/${id}/documents`,
+  editPublishedResource(id: string, childId: string, input: ServicesResourceCorrectionInput) {
+    return client().send<OutbreakResourceRecord>(
+      `/api/v2/outbreaks/${id}/resources/${childId}/correct`,
       { method: "POST", body: JSON.stringify(input) },
     );
   },
-  updateDocument(id: string, documentId: string, input: OutbreakDocumentInput) {
-    return client().send<OutbreakDocumentRecord>(
-      `/api/v2/outbreaks/${id}/documents/${documentId}`,
-      { method: "PATCH", body: JSON.stringify(input) },
-    );
-  },
-  removeDocument(id: string, documentId: string, lockVersion: number) {
+  deleteResource(id: string, childId: string, lockVersion: number) {
     return client().send<void>(
-      `/api/v2/outbreaks/${id}/documents/${documentId}`,
+      `/api/v2/outbreaks/${id}/resources/${childId}`,
       { method: "DELETE", query: { lock_version: lockVersion } },
-    );
-  },
-  uploadDocument(id: string, documentId: string, lockVersion: number, file: File) {
-    const body = new FormData();
-    body.append("file", file);
-    return client().send<OutbreakDocumentRecord>(
-      `/api/v2/outbreaks/${id}/documents/${documentId}/file`,
-      { method: "PUT", query: { lock_version: lockVersion }, body },
-    );
-  },
-  documentContent(id: string, documentId: string) {
-    return client().send<OutbreakDocumentContent>(
-      `/api/v2/outbreaks/${id}/documents/${documentId}/content`,
-    );
-  },
-  documentSearchPreview(id: string, documentId: string, query: string) {
-    return client().send<OutbreakDocumentSearchPreview>(
-      `/api/v2/outbreaks/${id}/documents/${documentId}/search-preview`,
-      { query: { query } },
-    );
-  },
-  reprocessDocument(id: string, documentId: string, lockVersion: number) {
-    return client().send<OutbreakDocumentRecord>(
-      `/api/v2/outbreaks/${id}/documents/${documentId}/reprocess`,
-      { method: "POST", body: JSON.stringify({ lock_version: lockVersion }) },
-    );
-  },
-  transitionDocument(
-    id: string,
-    documentId: string,
-    action: "submit" | "approve" | "publish" | "withdraw",
-    input: ServicesTransitionInput,
-  ) {
-    return transition(
-      `/api/v2/outbreaks/${id}/documents/${documentId}/${action}`,
-      input,
-    ) as Promise<OutbreakDocumentRecord>;
-  },
-  correctDocument(id: string, documentId: string, input: ServicesTransitionInput) {
-    return client().send<OutbreakDocumentRecord>(
-      `/api/v2/outbreaks/${id}/documents/${documentId}/corrections`,
-      { method: "POST", body: JSON.stringify(input) },
-    );
-  },
-  documentVersions(id: string, documentId: string) {
-    return client().send<OutbreakDocumentRecord[]>(
-      `/api/v2/outbreaks/${id}/documents/${documentId}/versions`,
-    );
-  },
-  documentAudit(id: string, documentId: string) {
-    return client().send<PagedResult<OutbreakAuditRecord>>(
-      `/api/v2/outbreaks/${id}/documents/${documentId}/audit`,
-      { query: { page: 1, per_page: 100 } },
-    );
-  },
-  addDocumentReviewComment(id: string, documentId: string, comment: string) {
-    return client().send<void>(
-      `/api/v2/outbreaks/${id}/documents/${documentId}/review-comments`,
-      { method: "POST", body: JSON.stringify({ comment }) },
     );
   },
   createCampaign(id: string, input: OutbreakCampaignInput) {
@@ -317,7 +236,7 @@ export const outbreaksService = {
   audit(id: string) {
     return client().send<PagedResult<OutbreakAuditRecord>>(
       `/api/v2/outbreaks/${id}/audit`,
-      { query: { page: 1, per_page: 50 } },
+      { query: { page: 1, per_page: 100 } },
     );
   },
   addReviewComment(id: string, comment: string) {

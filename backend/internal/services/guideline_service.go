@@ -283,6 +283,9 @@ func (s GuidelineService) UploadPDF(ctx context.Context, versionID uuid.UUID, fi
 	} else if asUploaded {
 		return nil, ErrGuidelinePublishedAsUploaded
 	}
+	if err := rejectLinkVersion(s.DB, versionID); err != nil {
+		return nil, err
+	}
 	key := fmt.Sprintf("guidelines/%s/original/%d_%s", versionID.String(), time.Now().Unix(), filepath.Base(header.Filename))
 	if err := s.Store.Put(ctx, key, file, header.Size, header.Header.Get("Content-Type")); err != nil {
 		return nil, err
@@ -326,6 +329,9 @@ func (s GuidelineService) UploadMarkdown(ctx context.Context, versionID uuid.UUI
 		return nil, err
 	} else if asUploaded {
 		return nil, ErrGuidelinePublishedAsUploaded
+	}
+	if err := rejectLinkVersion(s.DB, versionID); err != nil {
+		return nil, err
 	}
 	return s.queueMarkdownSource(ctx, versionID, file, header.Size, header.Filename, "uploaded_markdown")
 }
@@ -759,6 +765,11 @@ func ensureDraftProtocol(tx *gorm.DB, document *models.GuidelineDocument, versio
 
 func ensureVersionReadyForPublish(tx *gorm.DB, version *models.GuidelineVersion) error {
 	if strings.TrimSpace(version.OriginalFileKey) == "" && strings.TrimSpace(version.MarkdownFileKey) == "" {
+		// Link versions never have a file; their URL is the published content.
+		// Only link kinds can set a URL, and the kind is locked once one is set.
+		if strings.TrimSpace(version.ExternalURL) != "" {
+			return ensureLinkVersionReadyForPublish(version)
+		}
 		return fmt.Errorf("%w: no PDF or Markdown source has been uploaded for this version", ErrGuidelineIngestionIncomplete)
 	}
 	if asUploaded, err := versionPublishesAsUploaded(tx, version.ID); err != nil {

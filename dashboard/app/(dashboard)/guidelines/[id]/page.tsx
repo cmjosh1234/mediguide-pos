@@ -7,9 +7,11 @@ import {
   BookOpen,
   ClipboardCheck,
   Download,
+  ExternalLink,
   Eye,
   FileCode2,
   FilePlus2,
+  Link2,
   Pencil,
   Send,
   Upload,
@@ -30,11 +32,13 @@ import {
   guidelineDocumentsQueryKey,
   GuidelineDocumentsService,
   GuidelineVersionRecord,
+  isPublishedAsLink,
   isPublishedAsUploaded,
 } from "@/services/guideline-documents.service";
 import {
   CreateVersionDialog,
   UploadVersionDialog,
+  VersionLinkDialog,
 } from "../components/guideline-version-dialogs";
 
 export default function GuidelineDetailsPage() {
@@ -49,6 +53,8 @@ export default function GuidelineDetailsPage() {
   const [viewVersion, setViewVersion] =
     React.useState<GuidelineVersionRecord | null>(null);
   const [previewVersion, setPreviewVersion] =
+    React.useState<GuidelineVersionRecord | null>(null);
+  const [linkVersion, setLinkVersion] =
     React.useState<GuidelineVersionRecord | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -102,7 +108,9 @@ export default function GuidelineDetailsPage() {
       await refresh();
       showToast.success(
         "Version created",
-        "Upload PDF or Markdown to start extraction.",
+        isPublishedAsLink(documentQuery.data)
+          ? "Add the link readers will open."
+          : "Upload PDF or Markdown to start extraction.",
       );
     } catch (error) {
       showToast.error(
@@ -190,6 +198,8 @@ export default function GuidelineDetailsPage() {
   const document = documentQuery.data;
   // Forms and similar kinds publish the uploaded file itself: no editor or extraction review.
   const asUploaded = isPublishedAsUploaded(document);
+  // Link kinds publish an external https URL: no file, extraction or editor.
+  const asLink = isPublishedAsLink(document);
 
   return (
     <div className="space-y-6">
@@ -259,9 +269,11 @@ export default function GuidelineDetailsPage() {
               const hasHtml = Boolean(version.html_file_key);
               const publishable =
                 version.status !== "published" &&
-                (asUploaded
-                  ? Boolean(version.original_file_key)
-                  : Boolean(hasMarkdown && hasHtml));
+                (asLink
+                  ? Boolean(version.external_url)
+                  : asUploaded
+                    ? Boolean(version.original_file_key)
+                    : Boolean(hasMarkdown && hasHtml));
               const reviewAvailable =
                 version.status !== "published" &&
                 Boolean(
@@ -294,7 +306,43 @@ export default function GuidelineDetailsPage() {
                         Review: {version.review_date || "not set"}
                       </div>
                     </div>
-                    {asUploaded ? (
+                    {asLink ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {version.external_url ? (
+                        <a
+                          href={version.external_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex max-w-xs items-center gap-1 truncate text-sm text-primary underline-offset-4 hover:underline"
+                          title={version.external_url}
+                        >
+                          <span className="truncate">{version.external_url}</span>
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        </a>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">No link yet</span>
+                      )}
+                      {canUpdate && version.status !== "published" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setLinkVersion(version)}
+                        >
+                          <Link2 className="h-4 w-4" />{" "}
+                          {version.external_url ? "Change link" : "Add link"}
+                        </Button>
+                      )}
+                      {canUpdate && publishable && (
+                        <Button
+                          size="sm"
+                          disabled={submitting}
+                          onClick={() => publish(version)}
+                        >
+                          <Send className="h-4 w-4" /> Publish
+                        </Button>
+                      )}
+                    </div>
+                    ) : asUploaded ? (
                     <div className="flex flex-wrap gap-2">
                       {canUpdate && version.status !== "published" && (
                         <Button
@@ -435,7 +483,7 @@ export default function GuidelineDetailsPage() {
         </CardContent>
       </Card>
 
-      {viewVersion && (
+      {viewVersion && !asLink && (
         <Card>
           <CardHeader>
             <CardTitle>Version {viewVersion.version} content</CardTitle>
@@ -561,6 +609,15 @@ export default function GuidelineDetailsPage() {
         submitting={submitting}
         onOpenChange={(open) => !open && setUploadVersion(null)}
         onSubmit={uploadSource}
+      />
+      <VersionLinkDialog
+        version={linkVersion}
+        open={Boolean(linkVersion)}
+        onOpenChange={(open) => !open && setLinkVersion(null)}
+        onSaved={async () => {
+          setLinkVersion(null);
+          await refresh();
+        }}
       />
     </div>
   );

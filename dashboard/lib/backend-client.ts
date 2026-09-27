@@ -367,6 +367,11 @@ export function getBackendClient(): BackendClient {
 
 export const backendClient = getBackendClient()
 
+/** Absolute URL for an API path, for links the browser opens directly. */
+export function apiUrl(path: string) {
+  return new URL(path, getBackendClient().baseUrl).toString()
+}
+
 if (typeof window !== "undefined") {
   ;(window as unknown as { __backendClient: unknown }).__backendClient =
     backendClient

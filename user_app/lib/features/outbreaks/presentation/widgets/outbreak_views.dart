@@ -587,7 +587,6 @@ class _OutbreakDetail extends ConsumerWidget {
         ? ref.watch(publicOutbreakHubProvider(outbreak.id)).valueOrNull
         : null;
     final hasQuickAccess =
-        detail.documents.isNotEmpty ||
         detail.resources.isNotEmpty ||
         detail.reports.isNotEmpty ||
         (configuredHub?.pillars.isNotEmpty ?? false);
@@ -659,29 +658,6 @@ class _OutbreakDetail extends ConsumerWidget {
             ),
         ],
 
-        if (detail.documents.isNotEmpty) ...[
-          AppSpacing.gapLg,
-
-          SectionHeader(
-            title: 'Official documents and SOPs',
-            subtitle: 'Clinically reviewed response guidance',
-            icon: LucideIcons.files,
-            onSeeAll: () => context.push(
-              AppRoutes.outbreakDocumentsFor(detail.outbreak.id),
-            ),
-          ),
-
-          AppSpacing.gapSm,
-
-          for (final document in detail.documents)
-            _OutbreakDocumentTile(
-              document: document,
-              onTap: () => context.push(
-                AppRoutes.outbreakDocument(document.outbreakId, document.id),
-              ),
-            ),
-        ],
-
         if (detail.resources.isNotEmpty) ...[
           AppSpacing.gapLg,
 
@@ -749,92 +725,13 @@ class _OutbreakQuickAccessGrid extends StatelessWidget {
           .toList(growable: false);
       return _OutbreakQuickActionWrap(actions: actions);
     }
-    final clinicalCare = _firstOutbreakDocument(detail.documents, const [
-      'treatment_protocol',
-      'sop',
-      'case_definition',
-    ]);
-    final ipc = _firstOutbreakDocument(detail.documents, const [
-      'ipc_protocol',
-    ]);
-    final algorithm = _firstOutbreakDocument(detail.documents, const [
-      'treatment_protocol',
-    ]);
-    final laboratory = _firstOutbreakDocument(detail.documents, const [
-      'laboratory_protocol',
-    ]);
-    final medicines = _firstOutbreakDocument(detail.documents, const [
-      'policy',
-    ]);
-    final forms = _firstOutbreakDocument(detail.documents, const ['form']);
-    final training = _firstOutbreakDocument(detail.documents, const [
-      'training_material',
-    ]);
-    final contacts = _firstOutbreakDocument(detail.documents, const [
-      'contact_tracing_guide',
-    ]);
-    final faqs = _firstOutbreakDocument(detail.documents, const ['other']);
-
     final actions = <_OutbreakQuickAction>[
-      if (clinicalCare != null)
-        _OutbreakQuickAction(
-          label: 'Clinical Care',
-          icon: LucideIcons.stethoscope,
-          onTap: () => context.push(
-            AppRoutes.outbreakSectionFor(detail.outbreak.id, 'clinical-care'),
-          ),
-        ),
-      if (ipc != null) _documentQuickAction(context, 'IPC & PPE', ipc),
-      if (algorithm != null)
-        _documentQuickAction(
-          context,
-          'Algorithms',
-          algorithm,
-          icon: LucideIcons.gitBranch,
-        ),
-      if (laboratory != null)
-        _documentQuickAction(context, 'Laboratory', laboratory),
-      if (medicines != null)
-        _documentQuickAction(
-          context,
-          'Medicines',
-          medicines,
-          icon: LucideIcons.pill,
-        ),
-      if (forms != null)
-        _documentQuickAction(
-          context,
-          'Forms',
-          forms,
-          icon: LucideIcons.fileText,
-        ),
-      if (training != null)
-        _documentQuickAction(
-          context,
-          'Training',
-          training,
-          icon: LucideIcons.graduationCap,
-        ),
       if (detail.reports.isNotEmpty)
         _OutbreakQuickAction(
           label: 'Situation reports',
           icon: LucideIcons.fileChartColumn,
           onTap: () =>
               context.push(AppRoutes.situationReport(detail.reports.first.id)),
-        ),
-      if (contacts != null)
-        _documentQuickAction(
-          context,
-          'Contacts',
-          contacts,
-          icon: LucideIcons.users,
-        ),
-      if (faqs != null)
-        _documentQuickAction(
-          context,
-          'FAQs',
-          faqs,
-          icon: LucideIcons.messageCircleQuestion,
         ),
     ];
 
@@ -892,34 +789,6 @@ IconData _configuredPillarIcon(String configured, String slug) {
   };
 }
 
-_OutbreakQuickAction _documentQuickAction(
-  BuildContext context,
-  String label,
-  PublicOutbreakDocument document, {
-  IconData? icon,
-}) {
-  return _OutbreakQuickAction(
-    label: label,
-    icon: icon ?? _documentQuickIcon(document),
-    onTap: () => context.push(
-      AppRoutes.outbreakDocument(document.outbreakId, document.id),
-      extra: document,
-    ),
-  );
-}
-
-PublicOutbreakDocument? _firstOutbreakDocument(
-  List<PublicOutbreakDocument> documents,
-  List<String> kinds,
-) {
-  for (final kind in kinds) {
-    for (final document in documents) {
-      if (document.documentKind == kind) return document;
-    }
-  }
-  return null;
-}
-
 class _OutbreakQuickAccessTile extends StatelessWidget {
   const _OutbreakQuickAccessTile({required this.action});
 
@@ -969,18 +838,6 @@ class _OutbreakQuickAction {
   final String label;
   final IconData icon;
   final VoidCallback onTap;
-}
-
-IconData _documentQuickIcon(PublicOutbreakDocument document) {
-  return switch (document.documentKind) {
-    'ipc_protocol' => LucideIcons.shieldCheck,
-    'laboratory_protocol' => LucideIcons.flaskConical,
-    'contact_tracing_guide' => LucideIcons.users,
-    'checklist' => LucideIcons.listChecks,
-    'communication_material' => LucideIcons.messagesSquare,
-    'sop' => LucideIcons.stethoscope,
-    _ => LucideIcons.fileText,
-  };
 }
 
 // ===========================================================================
@@ -1201,62 +1058,6 @@ class _ResourceTile extends StatelessWidget {
         subtitle: type.trim().isEmpty ? null : Text(type),
         trailing: const Icon(LucideIcons.chevronRight),
         onTap: onTap,
-      ),
-    );
-  }
-}
-
-class _OutbreakDocumentTile extends StatelessWidget {
-  const _OutbreakDocumentTile({required this.document, required this.onTap});
-
-  final PublicOutbreakDocument document;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final metadata = <String>[
-      if (document.issuingAuthority.trim().isNotEmpty)
-        document.issuingAuthority,
-      if (document.version.trim().isNotEmpty) 'Version ${document.version}',
-      if (document.language.trim().isNotEmpty) document.language.toUpperCase(),
-      if (document.fileSize > 0) _fileSize(document.fileSize),
-    ];
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: ListTile(
-        minVerticalPadding: AppSpacing.md,
-        leading: ClinicalIconTile(
-          icon: document.mimeType == 'application/pdf'
-              ? LucideIcons.fileText
-              : LucideIcons.file,
-        ),
-        title: Text(
-          document.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 3),
-            Text(
-              document.documentKind.split('_').map(_capitalize).join(' '),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (metadata.isNotEmpty)
-              Text(
-                metadata.join(' • '),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-          ],
-        ),
-        trailing: const Icon(LucideIcons.download, size: 19),
-        onTap: document.downloadUrl.trim().isEmpty ? null : onTap,
       ),
     );
   }
@@ -1847,26 +1648,6 @@ Future<void> _openOutbreakResource(
   BuildContext context,
   PublicOutbreakResource resource,
 ) async {
-  if ((resource.resourceType == 'managed_document' ||
-          resource.resourceType == 'downloadable_asset') &&
-      _isManagedOutbreakAssetPath(resource.assetUrl)) {
-    final base = Uri.parse('${AppConfig.current.apiBaseUrl}/');
-    final target = base.resolve(resource.assetUrl.replaceFirst('/', ''));
-    try {
-      final launched = await launchUrl(
-        target,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched && context.mounted) {
-        AppMessage.error(context, 'Unable to open this managed document.');
-      }
-    } catch (_) {
-      if (context.mounted) {
-        AppMessage.error(context, 'Unable to open this managed document.');
-      }
-    }
-    return;
-  }
   final target = NotificationActionResolver.fromOutbreakResource(
     type: resource.resourceType,
     url: resource.url,
@@ -1895,40 +1676,4 @@ Future<void> _openOutbreakResource(
   if (context.mounted) {
     AppMessage.warning(context, 'This resource link is unavailable.');
   }
-}
-
-String _fileSize(int bytes) {
-  if (bytes < 1024) return '$bytes B';
-  final kilobytes = bytes / 1024;
-  if (kilobytes < 1024) return '${kilobytes.toStringAsFixed(1)} KB';
-  return '${(kilobytes / 1024).toStringAsFixed(1)} MB';
-}
-
-bool _isManagedOutbreakAssetPath(String value) {
-  final uri = Uri.tryParse(value);
-  if (uri == null ||
-      uri.hasScheme ||
-      uri.hasAuthority ||
-      uri.hasQuery ||
-      uri.hasFragment) {
-    return false;
-  }
-  final parts = uri.pathSegments;
-  if (parts.length != 5 ||
-      parts[0] != 'api' ||
-      parts[1] != 'public' ||
-      parts[2] != 'situation-reports' ||
-      parts[4] != 'asset') {
-    return false;
-  }
-  final id = parts[3].split('-');
-  const lengths = <int>[8, 4, 4, 4, 12];
-  if (id.length != lengths.length) return false;
-  for (var index = 0; index < id.length; index++) {
-    if (id[index].length != lengths[index] ||
-        int.tryParse(id[index], radix: 16) == null) {
-      return false;
-    }
-  }
-  return true;
 }

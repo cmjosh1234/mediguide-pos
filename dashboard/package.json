@@ -65,6 +65,7 @@
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
     "tinymce": "^8.8.2",
+    "world-countries": "^5.1.0",
     "zod": "^4.0.13"
   },
   "devDependencies": {

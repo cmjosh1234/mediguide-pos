@@ -37,11 +37,9 @@ import {
 
 const itemTypes = [
   "guideline",
-  "outbreak_document",
   "situation_report",
   "algorithm",
   "clinical_tool",
-  "form",
   "drug_reference",
   "internal_route",
   "approved_external_url",
@@ -646,7 +644,7 @@ function ResourceAssignment({
   const [pillarId, setPillarId] = React.useState(
     workspace.pillars[0]?.id || "",
   );
-  const [type, setType] = React.useState("outbreak_document");
+  const [type, setType] = React.useState("guideline");
   const [search, setSearch] = React.useState("");
   const [results, setResults] = React.useState<AssignableResource[]>([]);
   const [target, setTarget] = React.useState("");

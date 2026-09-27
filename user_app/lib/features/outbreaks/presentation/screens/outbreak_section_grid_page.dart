@@ -10,13 +10,11 @@ import 'package:user_app/core/constants/app_spacing.dart';
 import 'package:user_app/core/utils/app_message.dart';
 import 'package:user_app/core/widgets/app_error_view.dart';
 import 'package:user_app/core/widgets/app_loading_view.dart';
+import 'package:user_app/core/widgets/empty_state.dart';
 import 'package:user_app/features/outbreaks/data/models/outbreak_models.dart';
 import 'package:user_app/features/outbreaks/presentation/providers/outbreak_providers.dart';
 import 'package:user_app/shared/widgets/clinical_icon_tile.dart';
 
-part '../widgets/outbreak_section_grid_page_clinical_care_grid.dart';
-part '../widgets/outbreak_section_grid_page_clinical_section_card.dart';
-part '../widgets/outbreak_section_grid_page_clinical_care_section.dart';
 part '../widgets/outbreak_section_grid_page_configured_pillar.dart';
 
 class OutbreakSectionGridPage extends ConsumerWidget {
@@ -59,12 +57,23 @@ class OutbreakSectionGridPage extends ConsumerWidget {
               );
             }
           }
-          return _ClinicalCareGrid(
-            outbreak: content.value.outbreak,
-            documents: content.value.documents,
+          return EmptyState.noData(
+            title: 'Nothing published here yet',
+            description:
+                'This section has no published content for this outbreak.',
           );
         },
       ),
     );
   }
 }
+
+String _sectionTitle(String sectionId) => switch (sectionId) {
+  'clinical-care' => 'Clinical Care',
+  _ =>
+    sectionId
+        .split('-')
+        .where((value) => value.isNotEmpty)
+        .map((value) => '${value[0].toUpperCase()}${value.substring(1)}')
+        .join(' '),
+};

@@ -33,10 +33,7 @@ func invalidf(format string, args ...any) error {
 	return &OutbreakValidationError{Message: fmt.Sprintf(format, args...)}
 }
 
-var (
-	outbreakMetricKey        = regexp.MustCompile(`^[a-z][a-z0-9_]{1,63}$`)
-	managedOutbreakAssetPath = regexp.MustCompile(`^/api/public/situation-reports/[0-9a-fA-F-]{36}/asset$`)
-)
+var outbreakMetricKey = regexp.MustCompile(`^[a-z][a-z0-9_]{1,63}$`)
 
 // OutbreakMetric is the only supported outbreak/report metric transport shape.
 // NumericValue is optional because some public-health metrics are categorical.
@@ -229,10 +226,25 @@ func (s OutbreakAdminService) validateResource(row models.OutbreakResource) erro
 			parts = strings.Split(strings.Trim(parsed.Path, "/"), "/")
 		}
 		if len(parts) != 3 || parts[0] != "public" || parts[1] != "guidelines" {
-			return invalid("Select a published guideline.")
+			return invalid("Select a published document.")
 		}
-		if _, err := uuid.Parse(parts[2]); err != nil {
-			return invalid("Select a published guideline.")
+		documentID, err := uuid.Parse(parts[2])
+		if err != nil {
+			return invalid("Select a published document.")
+		}
+		var kinds []string
+		if err := s.DB.Table("guideline_documents AS gd").
+			Joins("JOIN guideline_versions AS gv ON gv.id = gd.current_version_id AND gv.document_id = gd.id").
+			Joins("JOIN document_kinds AS dk ON dk.id = gd.document_kind_id").
+			Where("gd.id = ? AND gd.deleted_at IS NULL AND gv.deleted_at IS NULL AND LOWER(gv.status) = ?", documentID, "published").
+			Pluck("dk.slug", &kinds).Error; err != nil {
+			return err
+		}
+		if len(kinds) == 0 {
+			return invalid("Select a published document.")
+		}
+		if kinds[0] != row.DocumentKind {
+			return invalid("The selected document doesn't belong to the chosen document type.")
 		}
 	case "situation_report":
 		parsed, err := url.ParseRequestURI(strings.TrimSpace(row.URL))
@@ -253,19 +265,6 @@ func (s OutbreakAdminService) validateResource(row models.OutbreakResource) erro
 	case "approved_external_url", "official_statement", "official_update", "link":
 		if err := validateSourceURL("Resource URL", row.URL, s.AllowedExternalHosts); err != nil {
 			return err
-		}
-	case "managed_document", "downloadable_asset":
-		asset := strings.TrimSpace(row.AssetURL)
-		if asset == "" {
-			return invalid("An asset path or approved https:// link is required for this resource type.")
-		}
-		if strings.TrimSpace(row.URL) != "" {
-			return invalid("This resource type uses an asset path, not a URL. Clear the URL field.")
-		}
-		if !managedOutbreakAssetPath.MatchString(asset) {
-			if err := validateSourceURL("Asset path", asset, s.AllowedExternalHosts); err != nil {
-				return err
-			}
 		}
 	default:
 		return invalid("This resource type isn't supported.")

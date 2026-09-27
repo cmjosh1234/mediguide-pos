@@ -297,9 +297,6 @@ final outbreakRepositoryProvider = Provider<OutbreakRepository>(
     ref.watch(backendApiServiceProvider),
     ref.watch(localCacheServiceProvider),
     recordMetric: ref.watch(firebaseServiceProvider).recordOperationalEvent,
-    reconcileDocumentDownloads: ref
-        .watch(guidelineDownloadServiceProvider)
-        .reconcileOutbreakDocuments,
   ),
 );
 

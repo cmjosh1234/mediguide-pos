@@ -8,7 +8,7 @@ export const documentKindsQueryKey = ["document-kinds"] as const;
 
 export type DocumentKindStatus = "active" | "inactive";
 
-/** A kind shared by guideline documents and outbreak documents. */
+/** A kind shared by guideline documents and outbreak typed resources. */
 export interface DocumentKind {
   id: string;
   name: string;
@@ -22,10 +22,12 @@ export interface DocumentKind {
    * PDF or Word file, with their text indexed for search but never edited.
    */
   publish_as_uploaded: boolean;
+  /** Documents of this kind publish an external https link instead of a file. */
+  publish_as_link: boolean;
   /** Live guideline documents assigned to this kind. */
   guideline_document_count: number;
-  /** Live outbreak documents and resources assigned to this kind. */
-  outbreak_document_count: number;
+  /** Live outbreak typed resources assigned to this kind. */
+  outbreak_resource_count: number;
 }
 
 export interface DocumentKindInput {
@@ -53,8 +55,9 @@ export function normalizeDocumentKind(value: ModelsDocumentKind): DocumentKind {
     sort_order: value.sort_order ?? 0,
     status: value.status === "inactive" ? "inactive" : "active",
     publish_as_uploaded: value.publish_as_uploaded === true,
+    publish_as_link: value.publish_as_link === true,
     guideline_document_count: value.guideline_document_count ?? 0,
-    outbreak_document_count: value.outbreak_document_count ?? 0,
+    outbreak_resource_count: value.outbreak_resource_count ?? 0,
   };
 }
 

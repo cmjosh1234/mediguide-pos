@@ -50,8 +50,8 @@ func TestConfigureOutbreakHubMapsPublishedResourcesAndSurveillance(t *testing.T)
 	if err := db.Create(&outbreak).Error; err != nil {
 		t.Fatal(err)
 	}
-	document := models.OutbreakResource{OutbreakID: outbreak.ID, Title: "Surveillance protocol", ResourceType: "managed_document", DocumentKind: "surveillance_protocol", Status: "published", PublishedAt: &now, ApprovedAt: &now}
-	if err := db.Create(&document).Error; err != nil {
+	typedResource := models.OutbreakResource{OutbreakID: outbreak.ID, Title: "Surveillance protocol", ResourceType: "guideline", DocumentKind: "surveillance_protocol", Status: "published", PublishedAt: &now, ApprovedAt: &now}
+	if err := db.Create(&typedResource).Error; err != nil {
 		t.Fatal(err)
 	}
 	report := models.SituationReport{OutbreakID: &outbreak.ID, Title: "Situation report", Status: "published", PublicationDate: now, PublishedAt: &now, ApprovedAt: &now}
@@ -70,8 +70,8 @@ func TestConfigureOutbreakHubMapsPublishedResourcesAndSurveillance(t *testing.T)
 	for _, pillar := range workspace.Pillars {
 		bySlug[pillar.Slug] = pillar
 	}
-	if got := bySlug["surveillance-guidance"].Items; len(got) != 1 || got[0].ContentID == nil || *got[0].ContentID != document.ID {
-		t.Fatalf("surveillance mapping failed: %#v", got)
+	if got := bySlug["surveillance-guidance"].Items; len(got) != 0 {
+		t.Fatalf("typed resources must not be mapped into hub pillars: %#v", got)
 	}
 	if got := bySlug["situation-reports"].Items; len(got) != 1 || got[0].ContentID == nil || *got[0].ContentID != report.ID {
 		t.Fatalf("report mapping failed: %#v", got)

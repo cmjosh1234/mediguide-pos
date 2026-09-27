@@ -107,7 +107,7 @@ export default function GuidelineDocumentKindsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Document Kinds"
-        description="Kinds shared by guideline and outbreak documents, such as guidelines, forms and SOPs. Each kind is a tab on the guidelines list and an option on outbreak documents."
+        description="Kinds of guideline documents, such as guidelines, forms and SOPs. Each kind is a tab on the guidelines list and a document type for outbreak typed resources."
         actions={
           canManage
             ? [{ label: "Add Document Kind", onClick: () => openDialog(null), icon: <Plus className="h-4 w-4" /> }]
@@ -135,7 +135,7 @@ export default function GuidelineDocumentKindsPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Slug</TableHead>
                   <TableHead className="text-right">Guidelines</TableHead>
-                  <TableHead className="text-right">Outbreak docs</TableHead>
+                  <TableHead className="text-right">Outbreak resources</TableHead>
                   <TableHead className="text-right">Sort order</TableHead>
                   <TableHead>Status</TableHead>
                   {canManage ? <TableHead className="w-[1%] text-right">Actions</TableHead> : null}
@@ -143,7 +143,7 @@ export default function GuidelineDocumentKindsPage() {
               </TableHeader>
               <TableBody>
                 {kinds.map((kind) => {
-                  const inUse = kind.guideline_document_count + kind.outbreak_document_count
+                  const inUse = kind.guideline_document_count + kind.outbreak_resource_count
                   return (
                   <TableRow key={kind.id}>
                     <TableCell>
@@ -152,6 +152,9 @@ export default function GuidelineDocumentKindsPage() {
                         {kind.publish_as_uploaded ? (
                           <Badge variant="outline" className="font-normal">As uploaded</Badge>
                         ) : null}
+                        {kind.publish_as_link ? (
+                          <Badge variant="outline" className="font-normal">Link</Badge>
+                        ) : null}
                       </div>
                       {kind.description ? (
                         <div className="text-sm text-muted-foreground">{kind.description}</div>
@@ -159,7 +162,7 @@ export default function GuidelineDocumentKindsPage() {
                     </TableCell>
                     <TableCell className="font-mono text-sm">{kind.slug}</TableCell>
                     <TableCell className="text-right tabular-nums">{kind.guideline_document_count}</TableCell>
-                    <TableCell className="text-right tabular-nums">{kind.outbreak_document_count}</TableCell>
+                    <TableCell className="text-right tabular-nums">{kind.outbreak_resource_count}</TableCell>
                     <TableCell className="text-right tabular-nums">{kind.sort_order}</TableCell>
                     <TableCell>
                       <Badge variant={kind.status === "active" ? "default" : "secondary"}>

@@ -100,7 +100,6 @@ class _DownloadTile extends StatelessWidget {
                           _MetadataChip(
                             label: switch (item.assetType) {
                               'original_pdf' => 'Original PDF',
-                              'outbreak_document' => 'Outbreak document',
                               _ => 'Offline package',
                             },
                           ),

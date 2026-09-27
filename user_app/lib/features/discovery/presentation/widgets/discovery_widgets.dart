@@ -270,19 +270,10 @@ String? mobileRoute(DiscoveryResource value) => switch (value.contentType) {
   'situation_report' => AppRoutes.situationReport(value.id),
   'clinical_tool' => AppRoutes.calculator(value.id),
   'drug_reference' => AppRoutes.drugIndex,
-  'outbreak_document' || 'form' => outbreakDocumentRoute(value.route),
   'algorithm' => algorithmRoute(value.route, value.id),
   'internal_route' => value.route.startsWith('/') ? value.route : null,
   _ => null,
 };
-
-String? outbreakDocumentRoute(String route) {
-  final parts = Uri.tryParse(route)?.pathSegments ?? const <String>[];
-  if (parts.length >= 4 && parts[0] == 'outbreaks' && parts[2] == 'documents') {
-    return AppRoutes.outbreakDocument(parts[1], parts[3]);
-  }
-  return null;
-}
 
 String? algorithmRoute(String route, String blockId) {
   final parts = Uri.tryParse(route)?.pathSegments ?? const <String>[];

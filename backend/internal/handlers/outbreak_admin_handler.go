@@ -63,8 +63,6 @@ func (h OutbreakAdminHandler) result(c *gin.Context, status int, value any, err 
 	case errors.As(err, &validation):
 		// A specific, administrator-facing reason (for example which field to fix).
 		httpx.Error(c, http.StatusBadRequest, validation.Message)
-	case errors.Is(err, services.ErrOutbreakDocumentKind):
-		httpx.Error(c, http.StatusBadRequest, err.Error())
 	case errors.Is(err, services.ErrOutbreakInvalid):
 		httpx.Error(c, http.StatusBadRequest, "invalid outbreak operation")
 	case errors.Is(err, services.ErrOutbreakConflict):
@@ -373,10 +371,11 @@ func (h OutbreakAdminHandler) TransitionUpdate(action string) gin.HandlerFunc {
 }
 
 // CorrectUpdate godoc
-// @Summary Create a correction draft for a published outbreak update
+// @Summary Create a correction for a published outbreak update
+// @Description With changes, the edited version is submitted for review and replaces the original once published. Without changes, an unedited correction draft is created.
 // @Tags outbreak-administration
 // @Security BearerAuth
-// @Param payload body services.TransitionInput true "Correction"
+// @Param payload body services.ResourceCorrectionInput true "Correction"
 // @Success 201 {object} services.OutbreakUpdateAdminDTO
 // @Router /api/v2/outbreaks/{id}/updates/{updateId}/correct [post]
 func (h OutbreakAdminHandler) CorrectUpdate(c *gin.Context) {
@@ -384,11 +383,17 @@ func (h OutbreakAdminHandler) CorrectUpdate(c *gin.Context) {
 	if !ok {
 		return
 	}
-	in, ok := bindTransition(c)
-	if !ok {
+	var in services.ResourceCorrectionInput
+	if c.ShouldBindJSON(&in) != nil || in.LockVersion < 1 {
+		httpx.Error(c, http.StatusBadRequest, "valid correction payload is required")
 		return
 	}
-	v, e := h.Service.CorrectUpdate(outbreakActor(c), id, child, in)
+	if in.Changes == nil {
+		v, e := h.Service.CorrectUpdate(outbreakActor(c), id, child, services.TransitionInput{LockVersion: in.LockVersion, Reason: in.Reason})
+		h.result(c, 201, v, e)
+		return
+	}
+	v, e := h.Service.EditPublishedUpdate(outbreakActor(c), id, child, in)
 	h.result(c, 201, v, e)
 }
 
@@ -517,10 +522,11 @@ func (h OutbreakAdminHandler) TransitionResource(action string) gin.HandlerFunc 
 }
 
 // CorrectResource godoc
-// @Summary Create a correction draft for a published outbreak resource
+// @Summary Create a correction for a published outbreak resource
+// @Description With changes, the edited version is submitted for review and replaces the original once published. Without changes, an unedited correction draft is created.
 // @Tags outbreak-administration
 // @Security BearerAuth
-// @Param payload body services.TransitionInput true "Correction"
+// @Param payload body services.ResourceCorrectionInput true "Correction"
 // @Success 201 {object} services.OutbreakResourceAdminDTO
 // @Router /api/v2/outbreaks/{id}/resources/{resourceId}/correct [post]
 func (h OutbreakAdminHandler) CorrectResource(c *gin.Context) {
@@ -528,11 +534,17 @@ func (h OutbreakAdminHandler) CorrectResource(c *gin.Context) {
 	if !ok {
 		return
 	}
-	in, ok := bindTransition(c)
-	if !ok {
+	var in services.ResourceCorrectionInput
+	if c.ShouldBindJSON(&in) != nil || in.LockVersion < 1 {
+		httpx.Error(c, http.StatusBadRequest, "valid correction payload is required")
 		return
 	}
-	v, e := h.Service.CorrectResource(outbreakActor(c), id, child, in)
+	if in.Changes == nil {
+		v, e := h.Service.CorrectResource(outbreakActor(c), id, child, services.TransitionInput{LockVersion: in.LockVersion, Reason: in.Reason})
+		h.result(c, 201, v, e)
+		return
+	}
+	v, e := h.Service.EditPublishedResource(outbreakActor(c), id, child, in)
 	h.result(c, 201, v, e)
 }
 

@@ -54,7 +54,66 @@ func (h GuidelineHandler) RejectPublishedAsUploaded(c *gin.Context) {
 		c.Abort()
 		return
 	}
+	asLink, err := h.Service.VersionPublishesAsLink(id)
+	if err != nil {
+		httpx.Error(c, http.StatusInternalServerError, "failed to load guideline version")
+		c.Abort()
+		return
+	}
+	if asLink {
+		httpx.Error(c, http.StatusConflict, services.ErrGuidelinePublishedAsLink.Error())
+		c.Abort()
+		return
+	}
 	c.Next()
+}
+
+// SetVersionLinkInput is the external https URL a link version publishes.
+type SetVersionLinkInput struct {
+	URL string `json:"url" binding:"required" example:"https://www.who.int/publications/i/item/9789240081888"`
+}
+
+// SetLink godoc
+// @Summary Set the external link of a guideline version
+// @Description Only versions whose document kind publishes as a link accept a URL. It must be a full https URL of at most 2048 characters.
+// @Tags guidelines
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Guideline version ID" format(uuid)
+// @Param payload body handlers.SetVersionLinkInput true "External link"
+// @Success 200 {object} handlers.GuidelineVersionEnvelope
+// @Failure 400 {object} handlers.ErrorResponse
+// @Failure 401 {object} handlers.ErrorResponse
+// @Failure 403 {object} handlers.ErrorResponse
+// @Failure 404 {object} handlers.ErrorResponse
+// @Failure 409 {object} handlers.ErrorResponse
+// @Router /api/v2/guideline-versions/{id}/link [put]
+func (h GuidelineHandler) SetLink(c *gin.Context) {
+	versionID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.Error(c, http.StatusBadRequest, "invalid id")
+		return
+	}
+	var in SetVersionLinkInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		httpx.Error(c, http.StatusBadRequest, services.ErrGuidelineLinkInvalid.Error())
+		return
+	}
+	claims := c.MustGet(middleware.ClaimsKey).(*security.Claims)
+	version, err := h.Service.SetVersionLink(versionID, claims.UserID, in.URL, c.ClientIP())
+	switch {
+	case err == nil:
+		httpx.OK(c, version)
+	case errors.Is(err, services.ErrGuidelineLinkInvalid):
+		httpx.Error(c, http.StatusBadRequest, err.Error())
+	case errors.Is(err, services.ErrGuidelineLinkNotSupported), errors.Is(err, services.ErrPublishedVersionImmutable):
+		httpx.Error(c, http.StatusConflict, err.Error())
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		httpx.Error(c, http.StatusNotFound, "guideline version not found")
+	default:
+		httpx.Error(c, http.StatusInternalServerError, "failed to save the link")
+	}
 }
 
 // Create godoc
@@ -336,7 +395,7 @@ func (h GuidelineHandler) UploadPDF(c *gin.Context) {
 			httpx.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
-		if errors.Is(err, services.ErrPublishedVersionImmutable) {
+		if errors.Is(err, services.ErrPublishedVersionImmutable) || errors.Is(err, services.ErrGuidelinePublishedAsLink) {
 			httpx.Error(c, http.StatusConflict, err.Error())
 			return
 		}

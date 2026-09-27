@@ -540,6 +540,15 @@ func validateGuidelinePublication(tx *gorm.DB, version *models.GuidelineVersion)
 		result.Errors = append(result.Errors, GuidelineReviewIssue{Code: code, Message: message, Remediation: guidelineIssueRemediation(code), SectionID: sectionID, BlockID: blockID})
 		result.Valid = false
 	}
+	if asLink, err := versionPublishesAsLink(tx, version.ID); err != nil {
+		return nil, err
+	} else if asLink {
+		// Link documents publish their URL; there is no file or structure to validate.
+		if !validGuidelineLink(strings.TrimSpace(version.ExternalURL)) {
+			addError("missing_external_url", "Add the https link before publishing.", nil, nil)
+		}
+		return result, nil
+	}
 	if asUploaded, err := versionPublishesAsUploaded(tx, version.ID); err != nil {
 		return nil, err
 	} else if asUploaded {

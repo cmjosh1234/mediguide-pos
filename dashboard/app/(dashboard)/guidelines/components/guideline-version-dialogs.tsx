@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Loader2, Plus } from "lucide-react"
+import { GuidelineLinkForm } from "./guideline-link-form"
 import { GuidelineUploadProgress } from "./guideline-upload-progress"
 import type { UploadOptions } from "@/services/guideline-upload.service"
 
@@ -168,6 +169,38 @@ export function UploadVersionDialog({
         {version && <GuidelineUploadProgress key={version.id} versionId={version.id} file={file} submitting={submitting} onSubmit={onSubmit} />}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Sets the https link of a version whose document kind publishes as a link. */
+export function VersionLinkDialog({
+  version,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  version: GuidelineVersionRecord | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSaved: (version: GuidelineVersionRecord) => void | Promise<void>
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{version?.external_url ? "Change Link" : "Add Link"}</DialogTitle>
+          <DialogDescription>
+            {`Readers of version ${version?.version || ""} open this link directly. Nothing is uploaded or extracted.`}
+          </DialogDescription>
+        </DialogHeader>
+        {version && <GuidelineLinkForm key={version.id} version={version} onSaved={onSaved} />}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
         </DialogFooter>

@@ -87,8 +87,7 @@ classifying content:
   metadata, aliases and representative ICD-10 codes;
 - Infectious Diseases, Emergency Preparedness and Non-Communicable Diseases
   guideline-category links;
-- disease assignments for the demo guidelines, outbreak, situation report and
-  all managed outbreak documents;
+- disease assignments for the demo guidelines, outbreak and situation report;
 - published `demo-ebola-response`, `demo-malaria-care` and
   `demo-hypertension-care` content hubs with usable pillars and items.
 
@@ -114,13 +113,10 @@ These are deterministic development fixtures. Rerunning `SEED_SCOPE=demo`
 restores their repository-defined state and does not create duplicate hubs,
 pillars, category links or disease assignments.
 
-The additional Cholera and Measles scenarios each include six published,
-searchable managed-document fixtures stored in MinIO: case definition,
-case-management SOP, IPC SOP, health-worker checklist, response form and
-situation-report attachment. They are prominently marked as synthetic
-development content and intentionally omit clinical thresholds, treatment and
-dosing instructions. Replace them through the governed dashboard workflow
-before any operational or clinical use.
+The additional Cholera and Measles scenarios are prominently marked as
+synthetic development content and intentionally omit clinical thresholds,
+treatment and dosing instructions. Replace them through the governed dashboard
+workflow before any operational or clinical use.
 
 ### Exercise the guideline review workflow
 
@@ -166,16 +162,8 @@ Check API readiness and public data:
 ```bash
 curl --fail --silent http://localhost:8080/api/readyz
 curl --fail --silent \
-  'http://localhost:8080/api/public/outbreaks/8148f968-ed21-5145-8100-89e89b948a4f/documents?page=1&per_page=20' \
-  | jq '.data | {total_items, documents: [.items[] | {document_number, title, document_kind}]}'
-
-curl --fail --silent \
   'http://localhost:8080/api/public/outbreak-resources?search=Bundibugyo&page=1&per_page=20' \
   | jq '.data | {total_items, resources: [.items[] | {title, resource_type, target_type, issuing_organization}]}'
-
-curl --fail --silent \
-  'http://localhost:8080/api/public/outbreak-documents?search=environmental%20decontamination&page=1&per_page=20' \
-  | jq '.data | {total_items, documents: [.items[] | {document_number, title, extraction_status}]}'
 
 curl --fail --silent \
   'http://localhost:8080/api/public/diseases' \
@@ -192,21 +180,6 @@ curl --fail --silent \
 curl --fail --silent \
   'http://localhost:8080/api/public/outbreaks?page=1&per_page=20' \
   | jq '.data.items[] | {title, disease_type, status, data_as_of, metrics}'
-```
-
-Check deterministic outbreak-document metadata directly when troubleshooting:
-
-```bash
-docker compose \
-  --env-file infra/development.env \
-  -f infra/docker-compose.yml \
-  -f infra/docker-compose.dev.yml \
-  exec -T postgres sh -eu -c \
-  'psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -c \
-    "SELECT document_number,title,document_kind,status,storage_key
-       FROM outbreak_resources
-      WHERE document_number LIKE '\''DEMO-EVD-%'\''
-      ORDER BY sort_order;"'
 ```
 
 Inspect the seeded application metadata directly:

@@ -1,5 +1,11 @@
 # Disease-aware content classification: phases 3 and 4
 
+> **Note:** Outbreak documents and SOPs (managed uploads owned by an outbreak,
+> content types `outbreak_document` and `form`) were later removed by migration
+> `00073_remove_outbreak_documents.sql`. SOPs, forms and links are now published
+> in the guideline library and linked to outbreaks as typed resources. References
+> to outbreak documents below describe the historical design.
+
 ## What changed
 
 Phase 3 connects modern `guideline_documents` to the existing hierarchical

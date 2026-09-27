@@ -192,7 +192,6 @@ class _SearchResultTile extends ConsumerWidget {
       SearchCategory.abbreviations => LucideIcons.languages,
       SearchCategory.faq => LucideIcons.circleHelp,
       SearchCategory.outbreaks => LucideIcons.siren,
-      SearchCategory.outbreakDocuments => LucideIcons.files,
       SearchCategory.outbreakResources => LucideIcons.externalLink,
       SearchCategory.situationReports => LucideIcons.fileChartColumn,
       SearchCategory.tools => LucideIcons.calculator,

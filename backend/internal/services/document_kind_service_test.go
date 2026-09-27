@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"mediguide/internal/models"
 
@@ -156,7 +155,7 @@ func TestDocumentKindGuidelineAssignment(t *testing.T) {
 		t.Fatalf("moved = %#v err=%v", moved, err)
 	}
 	counted, err := content.GetDocumentKind(form.ID, true)
-	if err != nil || counted.GuidelineDocumentCount != 2 || counted.OutbreakDocumentCount != 0 {
+	if err != nil || counted.GuidelineDocumentCount != 2 || counted.OutbreakResourceCount != 0 {
 		t.Fatalf("form count = %#v err=%v", counted, err)
 	}
 	if err := content.DeleteDocumentKind(form.ID); !errors.Is(err, ErrDocumentKindInUse) {
@@ -174,64 +173,6 @@ func TestDocumentKindGuidelineAssignment(t *testing.T) {
 	}
 	if _, err := content.GetDocumentKind(form.ID, true); !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("deleted kind still readable: %v", err)
-	}
-}
-
-func TestDocumentKindOutbreakAssignment(t *testing.T) {
-	db := documentKindTestDB(t)
-	content := GuidelineContentService{DB: db}
-	outbreaks := OutbreakAdminService{DB: db}
-	hmis, err := content.SaveDocumentKind(nil, DocumentKindInput{Name: stringPtr("HMIS Form")})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := content.SaveDocumentKind(nil, DocumentKindInput{Name: stringPtr("Other")}); err != nil {
-		t.Fatal(err)
-	}
-	legacy, err := content.SaveDocumentKind(nil, DocumentKindInput{Name: stringPtr("Legacy"), Status: stringPtr("inactive")})
-	if err != nil {
-		t.Fatal(err)
-	}
-	parent := models.Outbreak{Title: "Response", Status: "draft", LastUpdate: time.Now().UTC(), LockVersion: 1}
-	if err := db.Create(&parent).Error; err != nil {
-		t.Fatal(err)
-	}
-	actor := OutbreakActor{ID: uuid.New()}
-
-	defaulted, err := outbreaks.CreateDocument(actor, parent.ID, OutbreakDocumentInput{Title: stringPtr("Untyped")})
-	if err != nil || defaulted.DocumentKind != "other" {
-		t.Fatalf("default outbreak kind = %#v err=%v", defaulted, err)
-	}
-	document, err := outbreaks.CreateDocument(actor, parent.ID, OutbreakDocumentInput{Title: stringPtr("HMIS 033b"), DocumentKind: stringPtr("hmis_form")})
-	if err != nil || document.DocumentKind != "hmis_form" {
-		t.Fatalf("custom outbreak kind = %#v err=%v", document, err)
-	}
-	for _, kind := range []string{"legacy", "not_a_kind"} {
-		if _, err := outbreaks.CreateDocument(actor, parent.ID, OutbreakDocumentInput{Title: stringPtr("Rejected"), DocumentKind: stringPtr(kind)}); !errors.Is(err, ErrOutbreakDocumentKind) || !errors.Is(err, ErrOutbreakInvalid) {
-			t.Fatalf("kind %q err = %v", kind, err)
-		}
-	}
-
-	// A document keeps a kind that is deactivated later, but cannot be moved to one.
-	if _, err := content.SaveDocumentKind(&hmis.ID, DocumentKindInput{Status: stringPtr("inactive")}); err != nil {
-		t.Fatal(err)
-	}
-	lock := document.LockVersion
-	kept, err := outbreaks.UpdateDocument(actor, parent.ID, document.ID, OutbreakDocumentInput{Title: stringPtr("HMIS 033b v2"), LockVersion: &lock})
-	if err != nil || kept.DocumentKind != "hmis_form" {
-		t.Fatalf("update keeping inactive kind = %#v err=%v", kept, err)
-	}
-	lock = kept.LockVersion
-	if _, err := outbreaks.UpdateDocument(actor, parent.ID, document.ID, OutbreakDocumentInput{DocumentKind: stringPtr(legacy.Slug), LockVersion: &lock}); !errors.Is(err, ErrOutbreakDocumentKind) {
-		t.Fatalf("move to inactive kind err = %v", err)
-	}
-
-	counted, err := content.GetDocumentKind(hmis.ID, true)
-	if err != nil || counted.OutbreakDocumentCount != 1 || counted.GuidelineDocumentCount != 0 {
-		t.Fatalf("hmis count = %#v err=%v", counted, err)
-	}
-	if err := content.DeleteDocumentKind(hmis.ID); !errors.Is(err, ErrDocumentKindInUse) {
-		t.Fatalf("delete kind used by outbreak document err = %v", err)
 	}
 }
 

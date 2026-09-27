@@ -214,6 +214,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Document kind slug",
+                        "name": "document_kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Country",
                         "name": "country",
                         "in": "query"
@@ -902,152 +908,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/public/outbreak-documents": {
-            "get": {
-                "tags": [
-                    "public-outbreaks"
-                ],
-                "summary": "Search published effective outbreak documents across all outbreaks",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Title, metadata, outbreak or extracted-content search",
-                        "name": "search",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Parent outbreak UUID",
-                        "name": "outbreak_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Document classification",
-                        "name": "document_kind",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Issuing authority",
-                        "name": "issuing_authority",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Language code",
-                        "name": "language",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Intended audience",
-                        "name": "audience",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Exact MIME type (charset parameters are ignored)",
-                        "name": "mime_type",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Effective at or after",
-                        "name": "effective_from",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Effective at or before",
-                        "name": "effective_to",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Allowlisted sort field",
-                        "name": "sort",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "asc or desc",
-                        "name": "order",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.PaginatedOutbreakDocumentsEnvelope"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/public/outbreak-documents/{documentId}": {
-            "get": {
-                "tags": [
-                    "public-outbreaks"
-                ],
-                "summary": "Get a published effective outbreak document without its parent route",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Document UUID",
-                        "name": "documentId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.OutbreakDocumentEnvelope"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/public/outbreak-documents/{documentId}/content": {
-            "get": {
-                "tags": [
-                    "public-outbreaks"
-                ],
-                "summary": "Read approved derived Markdown or plain-text outbreak document content",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Document UUID",
-                        "name": "documentId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.OutbreakDocumentContentEnvelope"
-                        }
-                    },
-                    "415": {
-                        "description": "Unsupported Media Type",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.OutbreakDocumentInlineUnsupportedEnvelope"
-                        }
-                    },
-                    "422": {
-                        "description": "Unprocessable Entity",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.OutbreakDocumentInlineUnsupportedEnvelope"
-                        }
-                    }
-                }
-            }
-        },
         "/api/public/outbreak-resources": {
             "get": {
                 "tags": [
@@ -1218,129 +1078,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handlers.OutbreakEnvelope"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/public/outbreaks/{id}/documents": {
-            "get": {
-                "tags": [
-                    "public-outbreaks"
-                ],
-                "summary": "List published effective outbreak documents",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Outbreak UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Document metadata search",
-                        "name": "search",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Document classification",
-                        "name": "document_kind",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Issuing authority",
-                        "name": "issuing_authority",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Language code",
-                        "name": "language",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Intended audience",
-                        "name": "audience",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Effective at or after",
-                        "name": "effective_from",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Effective at or before",
-                        "name": "effective_to",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Allowlisted sort field",
-                        "name": "sort",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "asc or desc",
-                        "name": "order",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.PaginatedOutbreakDocumentsEnvelope"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/public/outbreaks/{id}/documents/{documentId}": {
-            "get": {
-                "tags": [
-                    "public-outbreaks"
-                ],
-                "summary": "Get a published effective outbreak document",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.OutbreakDocumentEnvelope"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/public/outbreaks/{id}/documents/{documentId}/download": {
-            "get": {
-                "produces": [
-                    "application/octet-stream"
-                ],
-                "tags": [
-                    "public-outbreaks"
-                ],
-                "summary": "Download a published outbreak document",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "file"
-                        }
-                    },
-                    "307": {
-                        "description": "Temporary Redirect"
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     }
                 }
@@ -9299,6 +9036,83 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/guideline-versions/{id}/link": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Only versions whose document kind publishes as a link accept a URL. It must be a full https URL of at most 2048 characters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guidelines"
+                ],
+                "summary": "Set the external link of a guideline version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Guideline version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "External link",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SetVersionLinkInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GuidelineVersionEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/guideline-versions/{id}/markdown-draft": {
             "get": {
                 "security": [
@@ -14215,615 +14029,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/outbreaks/{id}/documents": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "List outbreak documents for administration",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Outbreak UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Document metadata search",
-                        "name": "search",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Typed document classification",
-                        "name": "document_kind",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Issuing authority",
-                        "name": "issuing_authority",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "BCP-47 language code",
-                        "name": "language",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Intended audience",
-                        "name": "audience",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Lifecycle status",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Effective at or after",
-                        "name": "effective_from",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Effective at or before",
-                        "name": "effective_to",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Allowlisted sort field",
-                        "name": "sort",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "asc or desc",
-                        "name": "order",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.PageResult-services_OutbreakDocumentAdminDTO"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Create an outbreak document draft",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Outbreak UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Document metadata",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Get an outbreak document administration record",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Delete an unpublished outbreak document",
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    }
-                }
-            },
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Update an unpublished outbreak document",
-                "parameters": [
-                    {
-                        "description": "Document changes",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/approve": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Submit, approve, publish, or withdraw an outbreak document",
-                "parameters": [
-                    {
-                        "description": "Transition",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.TransitionInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/audit": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "List immutable audit history for an outbreak document",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.PageResult-services_OutbreakAuditDTO"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/content": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Preview server-derived Markdown or plain text for an outbreak document",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Outbreak UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Document UUID",
-                        "name": "documentId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.OutbreakDocumentContentEnvelope"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/corrections": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Create a correction draft for a published outbreak document",
-                "parameters": [
-                    {
-                        "description": "Correction reason",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.TransitionInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/file": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Upload or replace the managed file for an outbreak document draft",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Outbreak UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Document UUID",
-                        "name": "documentId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Current optimistic lock version",
-                        "name": "lock_version",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "file",
-                        "description": "PDF, DOCX, XLSX, Markdown, or text document",
-                        "name": "file",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/publish": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Submit, approve, publish, or withdraw an outbreak document",
-                "parameters": [
-                    {
-                        "description": "Transition",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.TransitionInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/reprocess": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Rebuild safe search and preview content from the immutable managed file",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Outbreak UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Document UUID",
-                        "name": "documentId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Current optimistic lock version",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.TransitionInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/review-comments": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Add an auditable clinical-review comment to an outbreak document",
-                "parameters": [
-                    {
-                        "description": "Review comment",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakReviewCommentInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/search-preview": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Preview how a query matches server-derived outbreak document content",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Outbreak UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Document UUID",
-                        "name": "documentId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Search phrase (2-200 characters)",
-                        "name": "query",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentSearchPreview"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/submit": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Submit, approve, publish, or withdraw an outbreak document",
-                "parameters": [
-                    {
-                        "description": "Transition",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.TransitionInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/versions": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "List versions of an outbreak document",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/outbreaks/{id}/documents/{documentId}/withdraw": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "outbreak-document-administration"
-                ],
-                "summary": "Submit, approve, publish, or withdraw an outbreak document",
-                "parameters": [
-                    {
-                        "description": "Transition",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.TransitionInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/outbreaks/{id}/metrics": {
             "patch": {
                 "security": [
@@ -15091,10 +14296,11 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "With changes, the edited version is submitted for review and replaces the original once published. Without changes, an unedited correction draft is created.",
                 "tags": [
                     "outbreak-administration"
                 ],
-                "summary": "Create a correction draft for a published outbreak resource",
+                "summary": "Create a correction for a published outbreak resource",
                 "parameters": [
                     {
                         "description": "Correction",
@@ -15102,7 +14308,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/services.TransitionInput"
+                            "$ref": "#/definitions/services.ResourceCorrectionInput"
                         }
                     }
                 ],
@@ -15430,10 +14636,11 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "With changes, the edited version is submitted for review and replaces the original once published. Without changes, an unedited correction draft is created.",
                 "tags": [
                     "outbreak-administration"
                 ],
-                "summary": "Create a correction draft for a published outbreak update",
+                "summary": "Create a correction for a published outbreak update",
                 "parameters": [
                     {
                         "description": "Correction",
@@ -15441,7 +14648,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/services.TransitionInput"
+                            "$ref": "#/definitions/services.ResourceCorrectionInput"
                         }
                     }
                 ],
@@ -20045,53 +19252,6 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.OutbreakDocumentContentEnvelope": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/services.PublicOutbreakDocumentContent"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "handlers.OutbreakDocumentEnvelope": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/services.PublicOutbreakDocument"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "handlers.OutbreakDocumentInlineError": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.OutbreakDocumentInlineUnsupportedEnvelope": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/services.PublicOutbreakDocumentContent"
-                },
-                "error": {
-                    "$ref": "#/definitions/handlers.OutbreakDocumentInlineError"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
         "handlers.OutbreakEnvelope": {
             "type": "object",
             "properties": {
@@ -20963,17 +20123,6 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.PaginatedOutbreakDocumentsEnvelope": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/services.PageResult-services_PublicOutbreakDocument"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
         "handlers.PaginatedOutbreakResourcesEnvelope": {
             "type": "object",
             "properties": {
@@ -21747,6 +20896,18 @@ const docTemplate = `{
                 "success": {
                     "type": "boolean",
                     "example": true
+                }
+            }
+        },
+        "handlers.SetVersionLinkInput": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "example": "https://www.who.int/publications/i/item/9789240081888"
                 }
             }
         },
@@ -22630,8 +21791,12 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "outbreak_document_count": {
+                "outbreak_resource_count": {
                     "type": "integer"
+                },
+                "publish_as_link": {
+                    "description": "PublishAsLink kinds (for example Link) publish an external https URL\ninstead of an uploaded file or extracted content.",
+                    "type": "boolean"
                 },
                 "publish_as_uploaded": {
                     "description": "PublishAsUploaded kinds (for example Form) keep the uploaded file as the\npublished document: no extraction into editable Markdown or blocks.",
@@ -24034,6 +23199,9 @@ const docTemplate = `{
                 "document_id": {
                     "type": "string"
                 },
+                "external_url": {
+                    "type": "string"
+                },
                 "extraction_metadata": {
                     "type": "object"
                 },
@@ -24626,7 +23794,6 @@ const docTemplate = `{
                         "none",
                         "guideline",
                         "outbreak",
-                        "outbreak_document",
                         "situation_report",
                         "drug",
                         "calculator",
@@ -25591,6 +24758,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "description": {
+                    "type": "string"
+                },
+                "document_kind": {
                     "type": "string"
                 },
                 "issuing_organization": {
@@ -28705,7 +27875,6 @@ const docTemplate = `{
                         "none",
                         "guideline",
                         "outbreak",
-                        "outbreak_document",
                         "situation_report",
                         "drug",
                         "calculator",
@@ -29631,225 +28800,6 @@ const docTemplate = `{
                 }
             }
         },
-        "services.OutbreakDocumentAdminDTO": {
-            "type": "object",
-            "properties": {
-                "approved_at": {
-                    "type": "string"
-                },
-                "approved_by": {
-                    "type": "string"
-                },
-                "asset_url": {
-                    "type": "string"
-                },
-                "audience": {
-                    "type": "string"
-                },
-                "author_id": {
-                    "type": "string"
-                },
-                "checksum_sha256": {
-                    "type": "string"
-                },
-                "content_format": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "derived_content_checksum": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "document_kind": {
-                    "type": "string"
-                },
-                "document_number": {
-                    "type": "string"
-                },
-                "effective_date": {
-                    "type": "string"
-                },
-                "expires_at": {
-                    "type": "string"
-                },
-                "extracted_at": {
-                    "type": "string"
-                },
-                "extraction_error": {
-                    "type": "string"
-                },
-                "extraction_source_checksum": {
-                    "type": "string"
-                },
-                "extraction_status": {
-                    "type": "string"
-                },
-                "file_size": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "indexed_at": {
-                    "type": "string"
-                },
-                "issuing_authority": {
-                    "type": "string"
-                },
-                "language": {
-                    "type": "string"
-                },
-                "lock_version": {
-                    "type": "integer"
-                },
-                "mime_type": {
-                    "type": "string"
-                },
-                "original_filename": {
-                    "type": "string"
-                },
-                "outbreak_id": {
-                    "type": "string"
-                },
-                "page_count": {
-                    "type": "integer"
-                },
-                "published_at": {
-                    "type": "string"
-                },
-                "resource_type": {
-                    "type": "string"
-                },
-                "review_date": {
-                    "type": "string"
-                },
-                "reviewed_at": {
-                    "type": "string"
-                },
-                "reviewed_by": {
-                    "type": "string"
-                },
-                "search_index_status": {
-                    "type": "string"
-                },
-                "search_schema_version": {
-                    "type": "integer"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "supersedes_id": {
-                    "type": "string"
-                },
-                "supports_preview": {
-                    "type": "boolean"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                },
-                "withdrawal_reason": {
-                    "type": "string"
-                },
-                "withdrawn_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "services.OutbreakDocumentInput": {
-            "type": "object",
-            "properties": {
-                "asset_url": {
-                    "type": "string"
-                },
-                "audience": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "document_kind": {
-                    "type": "string"
-                },
-                "document_number": {
-                    "type": "string"
-                },
-                "effective_date": {
-                    "type": "string"
-                },
-                "expires_at": {
-                    "type": "string"
-                },
-                "issuing_authority": {
-                    "type": "string"
-                },
-                "language": {
-                    "type": "string"
-                },
-                "lock_version": {
-                    "type": "integer"
-                },
-                "resource_type": {
-                    "type": "string"
-                },
-                "review_date": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "services.OutbreakDocumentSearchPreview": {
-            "type": "object",
-            "properties": {
-                "document_id": {
-                    "type": "string"
-                },
-                "indexed_at": {
-                    "type": "string"
-                },
-                "matching_heading": {
-                    "type": "string"
-                },
-                "matching_pdf_page": {
-                    "type": "integer"
-                },
-                "matching_section_id": {
-                    "type": "string"
-                },
-                "query": {
-                    "type": "string"
-                },
-                "search_index_status": {
-                    "type": "string"
-                },
-                "searchable": {
-                    "type": "boolean"
-                },
-                "snippet": {
-                    "type": "string"
-                }
-            }
-        },
         "services.OutbreakInput": {
             "type": "object",
             "properties": {
@@ -30019,6 +28969,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "description": {
+                    "type": "string"
+                },
+                "document_kind": {
                     "type": "string"
                 },
                 "id": {
@@ -30714,29 +29667,6 @@ const docTemplate = `{
                 }
             }
         },
-        "services.PageResult-services_OutbreakDocumentAdminDTO": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.OutbreakDocumentAdminDTO"
-                    }
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "per_page": {
-                    "type": "integer"
-                },
-                "total_items": {
-                    "type": "integer"
-                },
-                "total_pages": {
-                    "type": "integer"
-                }
-            }
-        },
         "services.PageResult-services_OutbreakResourceAdminDTO": {
             "type": "object",
             "properties": {
@@ -30836,29 +29766,6 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/services.PublicOutbreak"
-                    }
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "per_page": {
-                    "type": "integer"
-                },
-                "total_items": {
-                    "type": "integer"
-                },
-                "total_pages": {
-                    "type": "integer"
-                }
-            }
-        },
-        "services.PageResult-services_PublicOutbreakDocument": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.PublicOutbreakDocument"
                     }
                 },
                 "page": {
@@ -31377,6 +30284,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "publish_as_link": {
+                    "type": "boolean"
+                },
                 "publish_as_uploaded": {
                     "type": "boolean"
                 },
@@ -31407,6 +30317,10 @@ const docTemplate = `{
                             "$ref": "#/definitions/services.PublicDocumentKind"
                         }
                     ]
+                },
+                "external_url": {
+                    "description": "ExternalURL is the https link readers open for kinds published as a link.",
+                    "type": "string"
                 },
                 "healthcare_level": {
                     "type": "string"
@@ -31903,183 +30817,6 @@ const docTemplate = `{
                 }
             }
         },
-        "services.PublicOutbreakDocument": {
-            "type": "object",
-            "properties": {
-                "audience": {
-                    "type": "string"
-                },
-                "checksum_sha256": {
-                    "type": "string"
-                },
-                "content_format": {
-                    "type": "string"
-                },
-                "content_url": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "document_kind": {
-                    "type": "string"
-                },
-                "document_number": {
-                    "type": "string"
-                },
-                "download_url": {
-                    "type": "string"
-                },
-                "effective_date": {
-                    "type": "string"
-                },
-                "expires_at": {
-                    "type": "string"
-                },
-                "file_size": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "issuing_authority": {
-                    "type": "string"
-                },
-                "language": {
-                    "type": "string"
-                },
-                "matching_heading": {
-                    "type": "string"
-                },
-                "matching_pdf_page": {
-                    "type": "integer"
-                },
-                "matching_section_id": {
-                    "type": "string"
-                },
-                "mime_type": {
-                    "type": "string"
-                },
-                "original_filename": {
-                    "type": "string"
-                },
-                "outbreak_area": {
-                    "type": "string"
-                },
-                "outbreak_disease": {
-                    "type": "string"
-                },
-                "outbreak_id": {
-                    "type": "string"
-                },
-                "outbreak_title": {
-                    "type": "string"
-                },
-                "page_count": {
-                    "type": "integer"
-                },
-                "published_at": {
-                    "type": "string"
-                },
-                "reader_url": {
-                    "type": "string"
-                },
-                "review_date": {
-                    "type": "string"
-                },
-                "search_relevance_score": {
-                    "type": "number"
-                },
-                "search_snippet": {
-                    "type": "string"
-                },
-                "supports_inline": {
-                    "type": "boolean"
-                },
-                "supports_offline_download": {
-                    "type": "boolean"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "services.PublicOutbreakDocumentContent": {
-            "type": "object",
-            "properties": {
-                "can_read_inline": {
-                    "type": "boolean"
-                },
-                "checksum_sha256": {
-                    "type": "string"
-                },
-                "content": {
-                    "type": "string"
-                },
-                "document_id": {
-                    "type": "string"
-                },
-                "download_url": {
-                    "type": "string"
-                },
-                "effective_date": {
-                    "type": "string"
-                },
-                "expires_at": {
-                    "type": "string"
-                },
-                "format": {
-                    "type": "string"
-                },
-                "mime_type": {
-                    "type": "string"
-                },
-                "original_available": {
-                    "type": "boolean"
-                },
-                "outbreak_id": {
-                    "type": "string"
-                },
-                "published_at": {
-                    "type": "string"
-                },
-                "review_date": {
-                    "type": "string"
-                },
-                "sections": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.PublicOutbreakDocumentSection"
-                    }
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "services.PublicOutbreakDocumentSection": {
-            "type": "object",
-            "properties": {
-                "heading": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "level": {
-                    "type": "integer"
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "text": {
-                    "type": "string"
-                }
-            }
-        },
         "services.PublicOutbreakResource": {
             "type": "object",
             "properties": {
@@ -32347,6 +31084,20 @@ const docTemplate = `{
             "properties": {
                 "resolved": {
                     "type": "boolean"
+                }
+            }
+        },
+        "services.ResourceCorrectionInput": {
+            "type": "object",
+            "properties": {
+                "changes": {
+                    "$ref": "#/definitions/services.ChildContentInput"
+                },
+                "lock_version": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string"
                 }
             }
         },

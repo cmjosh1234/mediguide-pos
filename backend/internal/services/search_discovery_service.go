@@ -13,9 +13,9 @@ import (
 
 var publicSearchContentTypes = map[string]bool{
 	"disease": true, "hub": true, "pillar": true,
-	"guideline": true, "outbreak": true, "outbreak_document": true,
+	"guideline": true, "outbreak": true,
 	"situation_report": true, "algorithm": true, "clinical_tool": true,
-	"form": true, "drug_reference": true,
+	"drug_reference": true,
 	"internal_route": true, "approved_external_url": true,
 }
 
@@ -271,11 +271,6 @@ func (s SearchService) taxonomyHubSearch(ctx context.Context, query string, filt
 func (s SearchService) approvedResourceEvidence(ctx context.Context, resource PublicContentResource) string {
 	var evidence string
 	switch resource.ContentType {
-	case models.ContentDiseaseOutbreakDocument, models.ContentDiseaseForm:
-		var row models.OutbreakResource
-		if err := s.DB.WithContext(ctx).Select("search_content", "search_headings").First(&row, "id = ?", resource.ID).Error; err == nil {
-			evidence = strings.TrimSpace(row.SearchHeadings + "\n" + row.SearchContent)
-		}
 	case models.ContentDiseaseSituationReport:
 		var row models.SituationReport
 		if err := s.DB.WithContext(ctx).Select("summary", "key_highlights").First(&row, "id = ?", resource.ID).Error; err == nil {

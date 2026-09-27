@@ -605,9 +605,6 @@ func seedDemoOutbreaks(ctx context.Context, database *gorm.DB, store storage.Obj
 			return err
 		}
 	}
-	if err := seedDemoOutbreakDocuments(ctx, database, store, ebolaID, authorID, clinicianID); err != nil {
-		return err
-	}
 	if err := upsertByID(database, "situation_reports", map[string]any{
 		"id": demoID("situation-report", "who-bvd-11-2026-07-26"), "outbreak_id": ebolaID, "title": "Bundibugyo virus disease weekly external situation report 11",
 		"geographic_area": "Democratic Republic of the Congo and Uganda", "summary": "WHO's weekly external situation report with data as of 26 July 2026. It documents continued transmission in the Democratic Republic of the Congo and continuing regional preparedness needs.",
