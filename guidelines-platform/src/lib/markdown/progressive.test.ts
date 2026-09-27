@@ -26,5 +26,11 @@ describe("progressive Markdown chunks", () => {
       "follow-up",
       "treatment-1",
     ]);
+    expect(chunks.flatMap((chunk) => chunk.headings).map((heading) => heading.text)).toEqual([
+      "Assessment",
+      "Treatment",
+      "Follow-up",
+      "Treatment",
+    ]);
   });
 });

@@ -136,6 +136,16 @@ export type PublicGuidelineSectionDetail = {
   blocks: PublicGuidelineBlock[];
 };
 
+export type PublicGuidelineChapter = {
+  guideline_id: string;
+  version_id: string;
+  package_version: number;
+  checksum: string;
+  root_section_id: string;
+  sections: PublicGuidelineSection[];
+  blocks: PublicGuidelineBlock[];
+};
+
 export type PublicGuidelineContent = {
   guideline_id: string;
   version_id: string;
@@ -598,6 +608,17 @@ export async function getPublicGuidelineSection(id: string, sectionId: string, m
   return value;
 }
 
+export async function getPublicGuidelineChapter(id: string, sectionId: string, manifest: PublicGuidelineManifest, signal?: AbortSignal) {
+  const url = publicUrl(`/guidelines/${encodeURIComponent(id)}/chapters/${encodeURIComponent(sectionId)}`);
+  const identity = publicationIdentity(manifest);
+  const load = () => requestConditionalJson(
+    url, isChapter, signal, `${url}#${identity}`, immutableProjectionTtlMs,
+  );
+  const value = signal ? await load() : await deduplicated(`chapter:${url}:${identity}`, load);
+  assertPublicationIdentity(value, manifest);
+  return value;
+}
+
 export function listPublicGuidelineTables(id: string, signal?: AbortSignal) {
   return listTypedContent(id, "tables", isTablePage, signal);
 }
@@ -897,6 +918,13 @@ function isSectionDetail(value: unknown): value is PublicGuidelineSectionDetail 
   if (!isRecord(value) || !isPublicationPayload(value)) return false;
   const record = value as Record<string, unknown>;
   return isSection(record.section) && Array.isArray(record.blocks) && record.blocks.every(isBlock);
+}
+function isChapter(value: unknown): value is PublicGuidelineChapter {
+  if (!isRecord(value) || !isPublicationPayload(value)) return false;
+  const record = value as Record<string, unknown>;
+  return isString(record.root_section_id)
+    && Array.isArray(record.sections) && record.sections.every(isSection)
+    && Array.isArray(record.blocks) && record.blocks.every(isBlock);
 }
 type PublicGuidelinePublicationIdentity = {
   guideline_id: string;

@@ -919,6 +919,10 @@ type PublicGuidelineSectionEnvelope struct {
 	Success bool                                  `json:"success"`
 	Data    services.PublicGuidelineSectionDetail `json:"data"`
 }
+type PublicGuidelineChapterEnvelope struct {
+	Success bool                            `json:"success"`
+	Data    services.PublicGuidelineChapter `json:"data"`
+}
 type PaginatedPublicGuidelineTables struct {
 	Items      []services.PublicGuidelineTable `json:"items"`
 	Page       int                             `json:"page"`

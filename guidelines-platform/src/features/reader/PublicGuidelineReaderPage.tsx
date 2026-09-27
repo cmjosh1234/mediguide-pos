@@ -43,6 +43,7 @@ import {
 } from "./components/GuidelineBlockRenderer";
 import { EmptyReviewedSection } from "./components/EmptyReviewedSection";
 import { UploadedDocumentReader } from "./components/UploadedDocumentReader";
+import { SectionBookGuidelineReader } from "./components/SectionBookGuidelineReader";
 import { reviewedDescendants } from "./components/empty-reviewed-section";
 import {
   isDocumentTitleWrapper,
@@ -218,6 +219,21 @@ export function PublicGuidelineReaderPage() {
     setSearchParams(next);
   };
 
+  if (view === "read" && data.manifest && data.sections.length > 0 && data.manifest.extraction_quality !== "markdown_fallback") {
+    return (
+      <SectionBookGuidelineReader
+        key={`${data.guideline.id}:${data.manifest.checksum}`}
+        guideline={data.guideline}
+        manifest={data.manifest}
+        sections={data.sections}
+        supplementalViews={tabs.filter((tab): tab is SupplementalReaderView => tab !== "read")}
+        partial={data.partial}
+        onSelectView={selectView}
+        onOpenOriginal={(page) => openOriginal(guidelineId, page)}
+        onCitation={(citation) => citation.page_start && openOriginal(guidelineId, citation.page_start)}
+      />
+    );
+  }
   if (view === "read" && data.markdown) {
     return (
       <BookGuidelineReader
@@ -231,11 +247,12 @@ export function PublicGuidelineReaderPage() {
         partial={data.partial}
         onSelectView={selectView}
         onOpenOriginal={(page) => openOriginal(guidelineId, page)}
-        onCitation={(citation) =>
-          openCitation(citation, data.sections, selectSection, () =>
-            openOriginal(guidelineId, citation.page_start),
-          )
-        }
+        onCitation={(citation) => void openBookCitation(
+          citation,
+          guidelineId,
+          data.manifest,
+          () => openOriginal(guidelineId, citation.page_start),
+        )}
       />
     );
   }
@@ -349,9 +366,13 @@ async function loadReaderData(
   // the projection required by the selected view so opening the reader never
   // downloads the complete structured bundle and Markdown at the same time.
   const manifestRequest = attempt(getPublicGuidelineManifest(id, signal));
-  const [guideline, manifestResult] = await Promise.all([
+  const sectionRequest = requestedView === "read" || requestedView === "chapters"
+    ? attempt(listPublicGuidelineSections(id, signal))
+    : Promise.resolve<Attempt<Awaited<ReturnType<typeof listPublicGuidelineSections>>> | undefined>(undefined);
+  const [guideline, manifestResult, sectionResult] = await Promise.all([
     getPublicGuideline(id, signal),
     manifestRequest,
+    sectionRequest,
   ]);
   let manifest: PublicGuidelineManifest | undefined;
   let partial: boolean;
@@ -376,8 +397,9 @@ async function loadReaderData(
   let algorithms: PublicGuidelineAlgorithm[] = [];
   if (structured && manifest) {
     try {
-      if (requestedView === "chapters") {
-        sections = (await listPublicGuidelineSections(id, signal)).items;
+      if (requestedView === "read" || requestedView === "chapters") {
+        if (sectionResult?.ok) sections = sectionResult.value.items;
+        else if (sectionResult) throw sectionResult.error;
       } else if (requestedView === "tables" && manifest.has_tables) {
         tables = (await listPublicGuidelineTables(id, signal)).items;
       } else if (requestedView === "figures" && manifest.has_figures) {
@@ -399,7 +421,7 @@ async function loadReaderData(
     }
   }
   let markdown: PublicMarkdown | undefined;
-  if (requestedView === "read") {
+  if (requestedView === "read" && (!structured || sections.length === 0)) {
     const markdownResult = await attempt(getPublicGuidelineMarkdown(id, signal));
     if (markdownResult.ok) {
       markdown = markdownResult.value;
@@ -883,10 +905,15 @@ function ReaderMessage({
 }
 
 function availableViews(data: ReaderData, requestedView: ReaderView): ReaderView[] {
-  const views: ReaderView[] =
-    requestedView !== "read" || data.markdown?.content.trim()
-      ? ["read", "overview"]
-      : ["overview"];
+  const hasStructuredRead = Boolean(
+    data.manifest?.has_chapters &&
+    data.manifest.extraction_quality !== "markdown_fallback" &&
+    data.sections.length > 0,
+  );
+  const hasRead = hasStructuredRead || Boolean(data.markdown?.content.trim());
+  const views: ReaderView[] = hasRead || requestedView !== "read"
+    ? ["read", "overview"]
+    : ["overview"];
   if (data.manifest?.has_chapters) views.push("chapters");
   if (data.manifest?.has_tables) views.push("tables");
   if (data.manifest?.has_figures) views.push("figures");
@@ -969,22 +996,33 @@ function updateMetaDescription(description: string) {
   element.content =
     description || "Published clinical guidance from MediGuide.";
 }
-function openCitation(
+async function openBookCitation(
   citation: PublicAICitation,
-  sections: PublicGuidelineSection[],
-  selectSection: (id: string) => void,
+  guidelineId: string,
+  manifest: PublicGuidelineManifest | undefined,
   openSource: () => void,
 ) {
-  if (
-    citation.section_id &&
-    sections.some((section) => section.id === citation.section_id)
-  ) {
-    selectSection(citation.section_id);
-    // The section may still need to be fetched. The reader's hash effect waits
-    // for that request and scrolls once the cited block exists in the DOM.
-    if (citation.block_id)
-      window.location.hash = `block-${encodeURIComponent(citation.block_id)}`;
-    return;
+  if (citation.section_id && manifest) {
+    try {
+      const detail = await getPublicGuidelineSection(
+        guidelineId,
+        citation.section_id,
+        manifest,
+      );
+      const target = detail.section.slug?.trim();
+      if (target) {
+        const nextHash = `#${encodeURIComponent(target)}`;
+        if (window.location.hash === nextHash) {
+          window.dispatchEvent(new HashChangeEvent("hashchange"));
+        } else {
+          window.location.hash = nextHash;
+        }
+        return;
+      }
+    } catch {
+      // Fall back to the original cited page below when structured navigation
+      // is unavailable or the publication changed while the answer was open.
+    }
   }
   if (citation.page_start) openSource();
 }

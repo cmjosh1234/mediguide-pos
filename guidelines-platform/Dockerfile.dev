@@ -22,4 +22,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \
   CMD wget -qO- "http://127.0.0.1:${VITE_PORT}/" >/dev/null || exit 1
 
-CMD ["sh", "-c", "npm run content:manifest && npm run dev -- --host \"${VITE_HOST}\" --port \"${VITE_PORT}\""]
+# The compose development profile bind-mounts the source tree and a persistent
+# node_modules volume. Its command reconciles that volume with package-lock.json
+# before starting Vite so newly-added dependencies are available immediately.
+CMD ["sh", "-c", "npm run content:manifest && exec npm run dev -- --host \"${VITE_HOST}\" --port \"${VITE_PORT}\""]
