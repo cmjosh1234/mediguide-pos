@@ -3,6 +3,7 @@ import GithubSlugger from "github-slugger";
 export type MarkdownRenderChunk = {
   content: string;
   headingIds: string[];
+  headings: Array<{ depth: number; text: string; id: string }>;
 };
 
 const chapterHeading = /^##\s+\S/;
@@ -41,13 +42,21 @@ export function splitMarkdownForProgressiveRendering(
 
   if (chunks.length === 0) return [];
   const slugger = new GithubSlugger();
-  return chunks.map((value) => ({
-    content: value,
-    headingIds: value.split("\n").flatMap((line) => {
+  return chunks.map((value) => {
+    const headings = value.split("\n").flatMap((line) => {
       const match = /^(#{1,6})\s+(.+?)\s*#*$/.exec(line);
-      return match ? [slugger.slug(stripHeadingMarkdown(match[2]))] : [];
-    }),
-  }));
+      if (!match) return [];
+      const depth = match[1].length;
+      const text = stripHeadingMarkdown(match[2]);
+      const id = slugger.slug(text);
+      return [{ depth, text, id }];
+    });
+    return {
+      content: value,
+      headingIds: headings.map((heading) => heading.id),
+      headings,
+    };
+  });
 }
 
 function stripHeadingMarkdown(value: string) {

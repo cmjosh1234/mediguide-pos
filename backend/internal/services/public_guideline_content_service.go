@@ -84,6 +84,20 @@ type PublicGuidelineSectionDetail struct {
 	Blocks         []PublicGuidelineBlock `json:"blocks"`
 }
 
+// PublicGuidelineChapter is a bounded structured projection for one top-level
+// chapter (the requested section plus all descendants). It lets public readers
+// progressively fetch a large publication without downloading the complete
+// Markdown or complete structured block bundle up front.
+type PublicGuidelineChapter struct {
+	GuidelineID    uuid.UUID                `json:"guideline_id"`
+	VersionID      uuid.UUID                `json:"version_id"`
+	PackageVersion int                      `json:"package_version"`
+	Checksum       string                   `json:"checksum"`
+	RootSectionID  uuid.UUID                `json:"root_section_id"`
+	Sections       []PublicGuidelineSection `json:"sections"`
+	Blocks         []PublicGuidelineBlock   `json:"blocks"`
+}
+
 // PublicGuidelineContent is the complete reviewed structured projection used by
 // readers. Keeping sections and blocks in one response avoids one request per
 // section for large publications while the section endpoints remain available
@@ -266,6 +280,74 @@ func (s PublicGuidelineService) Section(ctx context.Context, guidelineID, sectio
 		GuidelineID: guidelineID, VersionID: manifest.VersionID,
 		PackageVersion: manifest.PackageVersion, Checksum: manifest.Checksum,
 		Section: publicSection(section), Blocks: blocks,
+	}, nil
+}
+
+func (s PublicGuidelineService) Chapter(ctx context.Context, guidelineID, sectionID uuid.UUID) (*PublicGuidelineChapter, error) {
+	var manifest models.GuidelineVersionManifest
+	var sections []models.GuidelineSection
+	var blocks []models.GuidelineContentBlock
+	err := s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := visibleManifestQuery(tx, guidelineID).Take(&manifest).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrPublicGuidelineNotFound
+			}
+			return err
+		}
+		var all []models.GuidelineSection
+		if err := tx.Where("version_id = ? AND deleted_at IS NULL", manifest.VersionID).
+			Order("sort_order ASC, id ASC").Find(&all).Error; err != nil {
+			return err
+		}
+		children := map[uuid.UUID][]models.GuidelineSection{}
+		var root *models.GuidelineSection
+		for i := range all {
+			row := all[i]
+			if row.ID == sectionID {
+				copy := row
+				root = &copy
+			}
+			if row.ParentID != nil {
+				children[*row.ParentID] = append(children[*row.ParentID], row)
+			}
+		}
+		if root == nil {
+			return ErrPublicGuidelineNotFound
+		}
+		queue := []models.GuidelineSection{*root}
+		selected := map[uuid.UUID]bool{}
+		for len(queue) > 0 {
+			row := queue[0]
+			queue = queue[1:]
+			selected[row.ID] = true
+			queue = append(queue, children[row.ID]...)
+		}
+		ids := make([]uuid.UUID, 0, len(selected))
+		for _, row := range all {
+			if !selected[row.ID] {
+				continue
+			}
+			sections = append(sections, row)
+			ids = append(ids, row.ID)
+		}
+		return tx.Where("version_id = ? AND section_id IN ? AND deleted_at IS NULL AND review_status = ?", manifest.VersionID, ids, models.GuidelineBlockReviewed).
+			Order("sort_order ASC, id ASC").Find(&blocks).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	outSections := make([]PublicGuidelineSection, 0, len(sections))
+	for _, row := range sections {
+		outSections = append(outSections, publicSection(row))
+	}
+	outBlocks := make([]PublicGuidelineBlock, 0, len(blocks))
+	for _, row := range blocks {
+		outBlocks = append(outBlocks, publicBlock(row))
+	}
+	return &PublicGuidelineChapter{
+		GuidelineID: guidelineID, VersionID: manifest.VersionID,
+		PackageVersion: manifest.PackageVersion, Checksum: manifest.Checksum,
+		RootSectionID: sectionID, Sections: outSections, Blocks: outBlocks,
 	}, nil
 }
 

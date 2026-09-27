@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   askPublicGuideline,
   clearPublicMarkdownCache,
+  getPublicGuidelineChapter,
   getPublicGuidelineManifest,
   getPublicGuidelineContent,
   getPublicGuidelineMarkdown,
@@ -61,6 +62,37 @@ describe("public guideline API client", () => {
     expect(result.items.map((item) => item.id)).toEqual(["section-1", "section-501"]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[1][0])).toContain("page=2");
+  });
+
+  it("loads one immutable chapter subtree without requesting the full content bundle", async () => {
+    const manifest = {
+      guideline_id: "guide-1", version_id: "version-1", version: "1", schema_version: 1,
+      package_version: 4, extraction_quality: "reviewed" as const, has_chapters: true,
+      has_key_points: false, has_tables: false, has_figures: false, has_algorithms: false,
+      has_original_pdf: true, has_offline_package: false, section_count: 2, block_count: 1,
+      table_count: 0, figure_count: 0, algorithm_count: 0, checksum: "checksum-1",
+      etag: '"manifest"', generated_at: "2026-09-27T00:00:00Z",
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      success: true,
+      data: {
+        guideline_id: "guide-1", version_id: "version-1", package_version: 4,
+        checksum: "checksum-1", root_section_id: "chapter-1",
+        sections: [
+          { id: "chapter-1", title: "Chapter 1", slug: "chapter-1", level: 1, sort_order: 1 },
+          { id: "section-1", parent_id: "chapter-1", title: "Care", slug: "care", level: 2, sort_order: 2 },
+        ],
+        blocks: [{ id: "block-1", section_id: "section-1", type: "paragraph", sort_order: 1, content: { text: "Reviewed care" } }],
+      },
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const chapter = await getPublicGuidelineChapter("guide-1", "chapter-1", manifest);
+
+    expect(chapter.sections).toHaveLength(2);
+    expect(chapter.blocks[0].id).toBe("block-1");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/guidelines/guide-1/chapters/chapter-1");
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain("/content");
   });
 
   it("sends every disease and hub discovery filter to unified public search", async () => {

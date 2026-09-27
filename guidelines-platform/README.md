@@ -35,6 +35,17 @@ public API. Tables, figures and algorithms only appear when the per-document
 manifest declares them. Every source/version/page citation therefore refers to
 the same publication consumed by the Flutter app.
 
+Large reviewed publications use an incremental section reader instead of
+downloading the complete Markdown document on first open. The first request set
+loads publication metadata, the manifest and the lightweight section table of
+contents in parallel. The reader then fetches the first three top-level chapter
+subtrees from `GET /api/public/guidelines/:id/chapters/:sectionId`; additional
+chapters are fetched as the reader approaches them, selects a table-of-contents
+entry or opens an AI citation. Each chapter response contains only its descendant
+sections and reviewed blocks and carries the same immutable publication identity
+as the manifest. Markdown remains the compatibility fallback when structured
+content is unavailable.
+
 When reviewed structured content is unavailable, the reader falls back to the
 published Markdown compatibility endpoint and retains access to the original
 PDF. Raw embedded HTML is disabled. Unknown typed blocks display a safe notice

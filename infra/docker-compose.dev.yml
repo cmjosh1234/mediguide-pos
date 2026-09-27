@@ -61,6 +61,13 @@ services:
       VITE_MEDIGUIDE_API_URL: "${PUBLIC_API_BASE_URL:-http://localhost:8080}"
       VITE_HOST: 0.0.0.0
       VITE_PORT: 8080
+    command:
+      - sh
+      - -c
+      - >-
+        npm install --no-audit --no-fund --prefer-offline &&
+        npm run content:manifest &&
+        exec npm run dev -- --host "$${VITE_HOST}" --port "$${VITE_PORT}"
     volumes:
       - ../guidelines-platform:/app
       - guidelines_node_modules:/app/node_modules

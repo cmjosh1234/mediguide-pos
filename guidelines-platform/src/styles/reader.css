@@ -202,6 +202,17 @@
 .book-reader .book-markdown :not(pre) > code { color: var(--color-ink); background: var(--color-soft); }
 .book-reader .book-markdown th { background: var(--color-soft); }
 .book-reader .book-markdown th, .book-reader .book-markdown td { border-color: var(--color-line); }
+.section-book-content { font-size: calc(1rem * var(--reader-font-scale, 1)); }
+.section-book-chapter { padding: 0 0 2rem; border-bottom: 1px solid var(--color-line); }
+.section-book-chapter + .section-book-chapter { padding-top: 2.4rem; }
+.section-book-section { scroll-margin-top: calc(var(--reader-header) + 1.25rem); }
+.section-book-section > header { margin: 0 0 1.25rem; }
+.section-book-section > header h2, .section-book-section > header h3, .section-book-section > header h4 { margin: .25rem 0 0; color: var(--color-ink); font-family: inherit; font-weight: 750; letter-spacing: -.025em; line-height: 1.2; }
+.section-book-section > header h2 { padding-bottom: .55rem; border-bottom: 1px solid var(--color-line); font-size: 1.85rem; }
+.section-book-section > header h3 { margin-top: 2rem; font-size: 1.4rem; }
+.section-book-section > header h4 { margin-top: 1.5rem; font-size: 1.12rem; }
+.section-book-section .guideline-block { font-size: inherit; }
+.section-book-section .guideline-block h2, .section-book-section .guideline-block h3, .section-book-section .guideline-block h4 { font-family: inherit; }
 .progressive-markdown-more { display: flex; justify-content: center; padding: 2rem 0 1rem; }
 .progressive-markdown-more button { min-height: 2.75rem; padding: 0 1.1rem; color: var(--primary); background: var(--color-surface); border: 1px solid var(--primary); border-radius: 999px; font: inherit; font-weight: 750; cursor: pointer; }
 .progressive-markdown-more button:hover { background: var(--color-soft); }

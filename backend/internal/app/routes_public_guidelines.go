@@ -15,6 +15,7 @@ func registerPublicGuidelinesRoutes(public *gin.RouterGroup, rateLimiter *middle
 	public.GET("/guidelines/:id/content", publicGuidelineH.ContentBundle)
 	public.GET("/guidelines/:id/sections", publicGuidelineH.Sections)
 	public.GET("/guidelines/:id/sections/:sectionId", publicGuidelineH.Section)
+	public.GET("/guidelines/:id/chapters/:sectionId", publicGuidelineH.Chapter)
 	public.GET("/guidelines/:id/tables", publicGuidelineH.Tables)
 	public.GET("/guidelines/:id/figures", publicGuidelineH.Figures)
 	public.GET("/guidelines/:id/algorithms", publicGuidelineH.Algorithms)
