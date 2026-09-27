@@ -1,5 +1,19 @@
 # MediGuide platform release process
 
+## v2.1.8 corrective release — 27 September 2026
+
+- Synchronizes the API, AI worker, dashboard, public guidelines portal and
+  mobile application to 2.1.8; the checked-in mobile build is 2.1.8+60.
+- Fixes large-guideline regeneration timeouts by adding the complete PostgreSQL
+  foreign-key lookup index required while replacing structured content blocks.
+- Improves large public guideline reading with progressive reviewed-chapter
+  loading, a collapsible hierarchical contents sidebar, active-section tracking,
+  source-authored chapter labels and a responsive on-this-page navigator.
+- Preserves document-title wrapper suppression and duplicate-heading behavior,
+  with restored regression coverage for both presentation rules.
+- No guideline content is approved or published by this release. Editors must
+  still complete structured review and publication validation independently.
+
 ## v2.1.7 release cut — 27 September 2026
 
 - Synchronizes the API, AI worker, dashboard, public guidelines portal and

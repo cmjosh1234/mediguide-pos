@@ -25,7 +25,10 @@ server {
     gzip_vary on;
     gzip_proxied any;
     gzip_min_length 1024;
-    gzip_types text/plain text/css application/json application/javascript image/svg+xml;
+    # The book reader downloads the published Markdown directly. Include its
+    # MIME type explicitly; Nginx does not compress text/markdown by default and
+    # national guidelines can otherwise transfer several megabytes uncompressed.
+    gzip_types text/plain text/css text/markdown application/markdown application/json application/javascript image/svg+xml;
 
     # Next.js is built with basePath=/admin. Preserve the prefix: a trailing
     # slash on proxy_pass here would strip it and break routes and static assets.

@@ -5047,6 +5047,28 @@ final class HandlersPublicGuidelineAssetEnvelope {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class HandlersPublicGuidelineChapterEnvelope {
+  HandlersPublicGuidelineChapterEnvelope(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersPublicGuidelineChapterEnvelope.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersPublicGuidelineChapterEnvelope(json);
+
+  static const schemaName = 'handlers.PublicGuidelineChapterEnvelope';
+  final Map<String, dynamic> value;
+
+  ServicesPublicGuidelineChapter? get data {
+    final raw = value['data'];
+    if (raw is! Map) return null;
+    return ServicesPublicGuidelineChapter.fromJson(_jsonMap(raw));
+  }
+
+  bool? get success => value['success'] as bool?;
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class HandlersPublicGuidelineContentEnvelope {
   HandlersPublicGuidelineContentEnvelope(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -15691,6 +15713,47 @@ final class ServicesPublicGuidelineCategory {
   String? get slug => value['slug']?.toString();
 
   int? get sortOrder => (value['sort_order'] as num?)?.toInt();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesPublicGuidelineChapter {
+  ServicesPublicGuidelineChapter(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesPublicGuidelineChapter.fromJson(Map<String, dynamic> json) =>
+      ServicesPublicGuidelineChapter(json);
+
+  static const schemaName = 'services.PublicGuidelineChapter';
+  final Map<String, dynamic> value;
+
+  List<ServicesPublicGuidelineBlock> get blocks {
+    final raw = value['blocks'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => ServicesPublicGuidelineBlock.fromJson(_jsonMap(item)))
+        .toList(growable: false);
+  }
+
+  String? get checksum => value['checksum']?.toString();
+
+  String? get guidelineId => value['guideline_id']?.toString();
+
+  int? get packageVersion => (value['package_version'] as num?)?.toInt();
+
+  String? get rootSectionId => value['root_section_id']?.toString();
+
+  List<ServicesPublicGuidelineSection> get sections {
+    final raw = value['sections'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => ServicesPublicGuidelineSection.fromJson(_jsonMap(item)))
+        .toList(growable: false);
+  }
+
+  String? get versionId => value['version_id']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }

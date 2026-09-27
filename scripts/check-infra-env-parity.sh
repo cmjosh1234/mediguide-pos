@@ -70,9 +70,14 @@ for environment_name in staging production; do
   fi
 done
 
-grep -Eho '\$\{[A-Za-z_][A-Za-z0-9_]*' \
+# Compose escapes a dollar sign as `$$`. Remove those container-runtime
+# expansions before collecting host-side `${VAR}` references; otherwise
+# service-local values such as `$${VITE_HOST}` are falsely required in every
+# infrastructure env file.
+sed -E 's/\$\$\{[A-Za-z_][A-Za-z0-9_]*\}//g' \
   "${repo_root}/infra/docker-compose.yml" \
   "${repo_root}/infra/docker-compose.dev.yml" |
+  grep -Eho '\$\{[A-Za-z_][A-Za-z0-9_]*' |
   sed 's/^${//' |
   sort -u > "${tmp_dir}/compose.keys"
 

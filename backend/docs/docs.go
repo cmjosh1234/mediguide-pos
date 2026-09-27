@@ -439,6 +439,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/public/guidelines/{id}/chapters/{sectionId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Guidelines"
+                ],
+                "summary": "Get one guideline chapter subtree and its reviewed blocks",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Guideline UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Top-level chapter section UUID",
+                        "name": "sectionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PublicGuidelineChapterEnvelope"
+                        }
+                    }
+                }
+            }
+        },
         "/api/public/guidelines/{id}/content": {
             "get": {
                 "description": "Returns the complete section hierarchy and reviewed blocks in one response.",
@@ -20621,6 +20656,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.PublicGuidelineChapterEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/services.PublicGuidelineChapter"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.PublicGuidelineContentEnvelope": {
             "type": "object",
             "properties": {
@@ -30467,6 +30513,38 @@ const docTemplate = `{
                 }
             }
         },
+        "services.PublicGuidelineChapter": {
+            "type": "object",
+            "properties": {
+                "blocks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.PublicGuidelineBlock"
+                    }
+                },
+                "checksum": {
+                    "type": "string"
+                },
+                "guideline_id": {
+                    "type": "string"
+                },
+                "package_version": {
+                    "type": "integer"
+                },
+                "root_section_id": {
+                    "type": "string"
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.PublicGuidelineSection"
+                    }
+                },
+                "version_id": {
+                    "type": "string"
+                }
+            }
+        },
         "services.PublicGuidelineContent": {
             "type": "object",
             "properties": {
@@ -32049,7 +32127,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "2.1.7",
+	Version:          "2.1.8",
 	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},

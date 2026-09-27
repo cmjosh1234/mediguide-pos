@@ -2150,6 +2150,13 @@ definitions:
       success:
         type: boolean
     type: object
+  handlers.PublicGuidelineChapterEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/services.PublicGuidelineChapter'
+      success:
+        type: boolean
+    type: object
   handlers.PublicGuidelineContentEnvelope:
     properties:
       data:
@@ -8679,6 +8686,27 @@ definitions:
       sort_order:
         type: integer
     type: object
+  services.PublicGuidelineChapter:
+    properties:
+      blocks:
+        items:
+          $ref: '#/definitions/services.PublicGuidelineBlock'
+        type: array
+      checksum:
+        type: string
+      guideline_id:
+        type: string
+      package_version:
+        type: integer
+      root_section_id:
+        type: string
+      sections:
+        items:
+          $ref: '#/definitions/services.PublicGuidelineSection'
+        type: array
+      version_id:
+        type: string
+    type: object
   services.PublicGuidelineContent:
     properties:
       blocks:
@@ -9722,7 +9750,7 @@ info:
     name: Proprietary
   termsOfService: https://mediguide.local/terms
   title: MediGuide Backend API
-  version: 2.1.7
+  version: 2.1.8
 paths:
   /api/public/assistant/ask:
     post:
@@ -9996,6 +10024,29 @@ paths:
           schema:
             $ref: '#/definitions/httpx.Response'
       summary: Download a reviewed published guideline asset through the API
+      tags:
+      - Public Guidelines
+  /api/public/guidelines/{id}/chapters/{sectionId}:
+    get:
+      parameters:
+      - description: Guideline UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Top-level chapter section UUID
+        in: path
+        name: sectionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PublicGuidelineChapterEnvelope'
+      summary: Get one guideline chapter subtree and its reviewed blocks
       tags:
       - Public Guidelines
   /api/public/guidelines/{id}/content:

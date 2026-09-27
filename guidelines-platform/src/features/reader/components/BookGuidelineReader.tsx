@@ -9,7 +9,6 @@ import type {
 } from "../../../api/public-guidelines";
 import { Brand } from "../../../components/common/Brand";
 import { ThemeToggle } from "../../../components/common/ThemeToggle";
-import { getMarkdownHeadings } from "../../../lib/markdown/headings";
 import {
   buildMarkdownSearchIndex,
   searchMarkdown,
@@ -56,11 +55,23 @@ export function BookGuidelineReader({
   const searchInput = useRef<HTMLInputElement>(null);
   const loadMoreSentinel = useRef<HTMLDivElement>(null);
   const content = useMemo(() => removeLeadingDocumentTitle(markdown.content), [markdown.content]);
-  const headings = useMemo(() => getMarkdownHeadings(content), [content]);
-  const searchIndex = useMemo(() => buildMarkdownSearchIndex(content), [content]);
   const deferredQuery = useDeferredValue(query);
+  const searching = deferredQuery.trim().length > 0;
+  // Building the full-text section index scans the entire guideline and can be
+  // expensive for national publications. Defer that work until the user
+  // actually starts searching so it no longer blocks the initial reader paint.
+  const searchIndex = useMemo(
+    () => searching ? buildMarkdownSearchIndex(content) : [],
+    [content, searching],
+  );
   const results = useMemo(() => searchMarkdown(searchIndex, deferredQuery), [deferredQuery, searchIndex]);
   const renderChunks = useMemo(() => splitMarkdownForProgressiveRendering(content), [content]);
+  const headings = useMemo(
+    () => renderChunks
+      .flatMap((chunk) => chunk.headings)
+      .filter((heading) => heading.depth >= 2 && heading.depth <= 4),
+    [renderChunks],
+  );
   const [visibleChunkCount, setVisibleChunkCount] = useState(() => {
     const initial = Math.min(3, renderChunks.length);
     if (typeof window === "undefined" || !window.location.hash) return initial;
@@ -120,6 +131,35 @@ export function BookGuidelineReader({
     setSidebarOpen(false);
   };
 
+  useEffect(() => {
+    const visitHash = () => {
+      if (!window.location.hash) return;
+      let target = window.location.hash.slice(1);
+      try { target = decodeURIComponent(target); } catch { /* Keep the literal hash. */ }
+      if (!target) return;
+      const chunkIndex = renderChunks.findIndex((chunk) => chunk.headingIds.includes(target));
+      if (chunkIndex < 0) return;
+      setVisibleChunkCount((current) => Math.max(current, chunkIndex + 1));
+      requestAnimationFrame(() => requestAnimationFrame(() =>
+        document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      ));
+      setActiveHeading(target);
+    };
+    visitHash();
+    window.addEventListener("hashchange", visitHash);
+    return () => window.removeEventListener("hashchange", visitHash);
+  }, [renderChunks]);
+
+  const openCitation = (citation: PublicAICitation) => {
+    setAssistantOpen(false);
+    const heading = citationHeading(citation, headings);
+    if (heading) {
+      visitHeading(heading);
+      return;
+    }
+    onCitation(citation);
+  };
+
   const share = async () => {
     const shareData = { title: guideline.title, text: guideline.description, url: window.location.href };
     try {
@@ -153,10 +193,11 @@ export function BookGuidelineReader({
         <label className="reader-search"><SearchIcon /><span className="visually-hidden">Search this guideline</span><input ref={searchInput} type="search" value={query} placeholder="Search this guideline…" onChange={(event) => setQuery(event.target.value)} /></label>
         <nav className="contents-navigation" aria-label={deferredQuery.trim() ? "Search results" : "Table of contents"}>
           {deferredQuery.trim() ? <div className="search-results">
-            <div className="results-label">{results.length} matching section{results.length === 1 ? "" : "s"}</div>
+            <div className="toc-toolbar"><span>{results.length} result{results.length === 1 ? "" : "s"}</span></div>
             {results.map((result) => <button type="button" key={result.id} onClick={() => visitHeading(result.id)}><small>{result.title}</small><span>{result.snippet || "Open this section"}</span></button>)}
             {!results.length && <p className="empty-search">No section matches “{deferredQuery}”. Try a condition, treatment, medicine, or phrase from the guideline.</p>}
           </div> : <>
+            <div className="toc-toolbar"><span>Contents</span><small>{headings.length} sections</small></div>
             <button type="button" className={`front-matter-link ${activeHeading ? "" : "active"}`} onClick={() => visitHeading("guideline-document")}>Guideline overview</button>
             {headings.map((heading) => <button type="button" className={`toc-link toc-depth-${heading.depth} ${activeHeading === heading.id ? "active" : ""}`} key={heading.id} aria-current={activeHeading === heading.id ? "location" : undefined} onClick={() => visitHeading(heading.id)}>{heading.text}</button>)}
           </>}
@@ -203,7 +244,7 @@ export function BookGuidelineReader({
         </article>
       </main>
       {!assistantOpen && <button className="assistant-fab" type="button" aria-label="Ask AI about this guideline" onClick={() => setAssistantOpen(true)}><SparkleIcon /><span>Ask AI</span></button>}
-      <GuidelineAssistant key={guideline.id} guideline={guideline} open={assistantOpen} onClose={() => setAssistantOpen(false)} onCitation={(citation) => { setAssistantOpen(false); onCitation(citation); }} />
+      <GuidelineAssistant key={guideline.id} guideline={guideline} open={assistantOpen} onClose={() => setAssistantOpen(false)} onCitation={openCitation} />
     </div>
   );
 }
@@ -216,6 +257,29 @@ function formatDate(value?: string) {
   if (!value) return "";
   const parsed = new Date(value);
   return Number.isNaN(parsed.valueOf()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(parsed);
+}
+
+function citationHeading(
+  citation: PublicAICitation,
+  headings: Array<{ id: string; text: string }>,
+) {
+  const metadata = citation.metadata ?? {};
+  for (const value of [metadata.heading_id, metadata.section_slug]) {
+    if (typeof value === "string" && headings.some((heading) => heading.id === value)) return value;
+  }
+  const title = normalizeHeading(citation.title);
+  if (!title || title === "guideline section") return undefined;
+  const exact = headings.find((heading) => normalizeHeading(heading.text) === title);
+  if (exact) return exact.id;
+  const close = headings.find((heading) => {
+    const text = normalizeHeading(heading.text);
+    return text.length >= 5 && (text.includes(title) || title.includes(text));
+  });
+  return close?.id;
+}
+
+function normalizeHeading(value: string | undefined) {
+  return (value ?? "").toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
 function viewLabel(view: SupplementalReaderView) {

@@ -29,6 +29,7 @@ type PublicGuidelineContentReader interface {
 	Content(context.Context, uuid.UUID) (*services.PublicGuidelineContent, error)
 	Sections(context.Context, uuid.UUID, services.PublicGuidelineContentQuery) (*services.PageResult[services.PublicGuidelineSection], error)
 	Section(context.Context, uuid.UUID, uuid.UUID) (*services.PublicGuidelineSectionDetail, error)
+	Chapter(context.Context, uuid.UUID, uuid.UUID) (*services.PublicGuidelineChapter, error)
 	Tables(context.Context, uuid.UUID, services.PublicGuidelineContentQuery) (*services.PageResult[services.PublicGuidelineTable], error)
 	Figures(context.Context, uuid.UUID, services.PublicGuidelineContentQuery) (*services.PageResult[services.PublicGuidelineFigure], error)
 	Algorithms(context.Context, uuid.UUID, services.PublicGuidelineContentQuery) (*services.PageResult[services.PublicGuidelineAlgorithm], error)
@@ -250,6 +251,32 @@ func (h PublicGuidelineHandler) Section(c *gin.Context) {
 		return
 	}
 	result, err := h.Content.Section(c.Request.Context(), id, sectionID)
+	if err != nil {
+		publicGuidelineError(c, err)
+		return
+	}
+	respondPublicJSON(c, result, "", time.Time{})
+}
+
+// Chapter godoc
+// @Summary Get one guideline chapter subtree and its reviewed blocks
+// @Tags Public Guidelines
+// @Produce json
+// @Param id path string true "Guideline UUID"
+// @Param sectionId path string true "Top-level chapter section UUID"
+// @Success 200 {object} handlers.PublicGuidelineChapterEnvelope
+// @Router /api/public/guidelines/{id}/chapters/{sectionId} [get]
+func (h PublicGuidelineHandler) Chapter(c *gin.Context) {
+	id, ok := publicGuidelineID(c)
+	if !ok || !h.contentAvailable(c) {
+		return
+	}
+	sectionID, err := uuid.Parse(c.Param("sectionId"))
+	if err != nil {
+		httpx.Error(c, http.StatusNotFound, "chapter not found")
+		return
+	}
+	result, err := h.Content.Chapter(c.Request.Context(), id, sectionID)
 	if err != nil {
 		publicGuidelineError(c, err)
 		return

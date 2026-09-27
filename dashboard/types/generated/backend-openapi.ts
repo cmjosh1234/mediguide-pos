@@ -1377,6 +1377,11 @@ export interface HandlersPublicGuidelineAssetEnvelope {
   success?: boolean;
 }
 
+export interface HandlersPublicGuidelineChapterEnvelope {
+  data?: ServicesPublicGuidelineChapter;
+  success?: boolean;
+}
+
 export interface HandlersPublicGuidelineContentEnvelope {
   data?: ServicesPublicGuidelineContent;
   success?: boolean;
@@ -4962,6 +4967,16 @@ export interface ServicesPublicGuidelineCategory {
   parent_category_id?: string;
   slug?: string;
   sort_order?: number;
+}
+
+export interface ServicesPublicGuidelineChapter {
+  blocks?: ServicesPublicGuidelineBlock[];
+  checksum?: string;
+  guideline_id?: string;
+  package_version?: number;
+  root_section_id?: string;
+  sections?: ServicesPublicGuidelineSection[];
+  version_id?: string;
 }
 
 export interface ServicesPublicGuidelineContent {

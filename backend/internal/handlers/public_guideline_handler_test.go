@@ -31,13 +31,22 @@ type fakePublicGuidelineReader struct {
 
 type fakePublicGuidelineContent struct {
 	PublicGuidelineContentReader
-	download *services.PublicGuidelineAssetDownload
-	content  *services.PublicGuidelineContent
-	err      error
+	download      *services.PublicGuidelineAssetDownload
+	content       *services.PublicGuidelineContent
+	chapter       *services.PublicGuidelineChapter
+	receivedGuide uuid.UUID
+	receivedRoot  uuid.UUID
+	err           error
 }
 
 func (f fakePublicGuidelineContent) Content(context.Context, uuid.UUID) (*services.PublicGuidelineContent, error) {
 	return f.content, f.err
+}
+
+func (f *fakePublicGuidelineContent) Chapter(_ context.Context, guidelineID, rootID uuid.UUID) (*services.PublicGuidelineChapter, error) {
+	f.receivedGuide = guidelineID
+	f.receivedRoot = rootID
+	return f.chapter, f.err
 }
 
 func (f fakePublicGuidelineContent) AssetDownload(context.Context, uuid.UUID, uuid.UUID, string) (*services.PublicGuidelineAssetDownload, error) {
@@ -53,13 +62,40 @@ func TestPublicGuidelineContentReturnsBatchedProjection(t *testing.T) {
 		Blocks:   []services.PublicGuidelineBlock{{ID: uuid.New(), SectionID: &sectionID, Type: models.GuidelineBlockParagraph, Content: json.RawMessage(`{"text":"Reviewed content"}`)}},
 	}}
 	router := gin.New()
-	handler := PublicGuidelineHandler{Content: fake}
+	handler := PublicGuidelineHandler{Content: &fake}
 	router.GET("/api/public/guidelines/:id/content", handler.ContentBundle)
 
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/public/guidelines/"+id.String()+"/content", nil))
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Reviewed content") {
 		t.Fatalf("unexpected content response %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestPublicGuidelineChapterReturnsRequestedReviewedSubtree(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	guidelineID := uuid.New()
+	rootID := uuid.New()
+	fake := &fakePublicGuidelineContent{chapter: &services.PublicGuidelineChapter{
+		GuidelineID: guidelineID, RootSectionID: rootID,
+		Sections: []services.PublicGuidelineSection{{ID: rootID, Title: "Clinical care"}},
+	}}
+	router := gin.New()
+	handler := PublicGuidelineHandler{Content: fake}
+	router.GET("/api/public/guidelines/:id/chapters/:sectionId", handler.Chapter)
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(
+		http.MethodGet,
+		"/api/public/guidelines/"+guidelineID.String()+"/chapters/"+rootID.String(),
+		nil,
+	))
+
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Clinical care") {
+		t.Fatalf("unexpected chapter response %d: %s", response.Code, response.Body.String())
+	}
+	if fake.receivedGuide != guidelineID || fake.receivedRoot != rootID {
+		t.Fatalf("chapter identifiers were not forwarded: guideline=%s root=%s", fake.receivedGuide, fake.receivedRoot)
 	}
 }
 
@@ -215,7 +251,7 @@ func TestPublicGuidelineDetailSupportsConditionalRequests(t *testing.T) {
 func TestPublicGuidelineAssetDownloadStreamsWithoutInternalStorageRedirect(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	id := uuid.New()
-	handler := PublicGuidelineHandler{Content: fakePublicGuidelineContent{download: &services.PublicGuidelineAssetDownload{
+	handler := PublicGuidelineHandler{Content: &fakePublicGuidelineContent{download: &services.PublicGuidelineAssetDownload{
 		Body: io.NopCloser(strings.NewReader("verified-package")), Filename: "malaria-offline.zip",
 		MIMEType: "application/zip", SizeBytes: int64(len("verified-package")), Checksum: strings.Repeat("a", 64),
 	}}}

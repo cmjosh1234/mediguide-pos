@@ -13,6 +13,34 @@ export function readerTitleKey(value: string): string {
     .toLocaleLowerCase();
 }
 
+export type ReaderSectionTitle = {
+  label?: string;
+  title: string;
+  chapterNumber?: string;
+};
+
+/**
+ * Separates an explicit chapter prefix supplied by the publication from the
+ * visible title. We must never derive clinical chapter numbers from array/root
+ * position because front matter is commonly stored as top-level sections too.
+ *
+ * Examples:
+ *   "Chapter 1: Epidemiology of Diabetes" -> { label: "Chapter 1", title: "Epidemiology of Diabetes" }
+ *   "Chapter 2. Definition and Classification" -> { label: "Chapter 2", title: "Definition and Classification" }
+ *   "Executive Summary" -> { title: "Executive Summary" }
+ */
+export function readerSectionTitle(value: string): ReaderSectionTitle {
+  const title = value.trim();
+  const match = /^(?:chapter|chap\.?)[\s-]+([0-9]+|[ivxlcdm]+)\s*(?:[:.\-–—]\s*|\s+)(.+)$/iu.exec(title);
+  if (!match) return { title };
+  const chapterNumber = match[1].toLocaleUpperCase();
+  return {
+    label: `Chapter ${chapterNumber}`,
+    chapterNumber,
+    title: match[2].trim(),
+  };
+}
+
 export function isDocumentTitleWrapper(
   guideline: PublicGuideline,
   section: PublicGuidelineSection,

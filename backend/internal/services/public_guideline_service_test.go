@@ -135,6 +135,16 @@ func TestPublicStructuredGuidelineExposesOnlyReviewedPublishedContent(t *testing
 	if len(detail.Blocks) != 1 || string(detail.Blocks[0].Content) == "" {
 		t.Fatalf("draft content leaked or reviewed content missing: %#v", detail)
 	}
+	chapter, err := service.Chapter(context.Background(), document.ID, parent.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if chapter.RootSectionID != parent.ID || len(chapter.Sections) != 2 || len(chapter.Blocks) != 1 {
+		t.Fatalf("chapter projection should contain the root, descendants, and only reviewed blocks: %#v", chapter)
+	}
+	if chapter.GuidelineID != document.ID || chapter.VersionID != version.ID || chapter.PackageVersion != manifest.PackageVersion || chapter.Checksum != manifest.Checksum {
+		t.Fatalf("chapter identity does not match its published manifest: %#v", chapter)
+	}
 	encoded, err := json.Marshal(detail)
 	if err != nil {
 		t.Fatal(err)
@@ -482,8 +492,8 @@ func publicGuidelineTestDB(t *testing.T) *gorm.DB {
 		&models.GuidelineTable{},
 		&models.GuidelineAsset{},
 		&models.GuidelineVersionManifest{},
-			&models.IngestionJob{},
-			&models.IngestionTask{},
+		&models.IngestionJob{},
+		&models.IngestionTask{},
 		&models.GuidelineRegenerationReview{},
 		&models.GuidelineReviewComment{},
 		&models.GuidelineReviewAssignment{},

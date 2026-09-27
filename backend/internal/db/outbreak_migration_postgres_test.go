@@ -51,6 +51,10 @@ func TestOutbreakAdministrationMigrationUpDownUp(t *testing.T) {
 	if err := goose.Up(testDB, "../../migrations"); err != nil {
 		t.Fatal(err)
 	}
+	var chunkBlockIndexDefinition string
+	if err := testDB.QueryRowContext(ctx, `SELECT indexdef FROM pg_indexes WHERE schemaname = $1 AND indexname = 'idx_guideline_chunks_block_id_fk'`, schema).Scan(&chunkBlockIndexDefinition); err != nil || !strings.Contains(chunkBlockIndexDefinition, "(block_id)") || strings.Contains(strings.ToUpper(chunkBlockIndexDefinition), " WHERE ") {
+		t.Fatalf("guideline chunk FK index must cover every block reference: definition=%q err=%v", chunkBlockIndexDefinition, err)
+	}
 	if err := goose.DownTo(testDB, "../../migrations", 35); err != nil {
 		t.Fatal(err)
 	}
