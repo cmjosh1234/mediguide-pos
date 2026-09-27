@@ -116,9 +116,7 @@ IconData _configuredSectionIcon(String configured, String fallback) {
     'training' || 'graduation-cap' => LucideIcons.graduationCap,
     'contacts' || 'users' => LucideIcons.users,
     'faqs' || 'help-circle' => LucideIcons.messageCircleQuestion,
-    'guideline' ||
-    'forms' ||
-    'file-text' => LucideIcons.fileText,
+    'guideline' || 'forms' || 'file-text' => LucideIcons.fileText,
     'situation_report' ||
     'situation-reports' ||
     'file-chart' => LucideIcons.fileChartColumn,

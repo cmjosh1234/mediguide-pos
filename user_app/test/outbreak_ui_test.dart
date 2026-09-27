@@ -6,7 +6,6 @@ import 'package:user_app/app/providers/app_providers.dart';
 import 'package:user_app/features/outbreaks/data/models/outbreak_models.dart';
 import 'package:user_app/features/outbreaks/presentation/screens/outbreak_screens.dart';
 
-
 const _outbreak = PublicOutbreak(
   id: 'outbreak-1',
   title: 'Regional response update with a deliberately descriptive title',
@@ -168,6 +167,4 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-
 }
-
