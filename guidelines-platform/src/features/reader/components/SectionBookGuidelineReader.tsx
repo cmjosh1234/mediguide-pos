@@ -15,7 +15,7 @@ import { ThemeToggle } from "../../../components/common/ThemeToggle";
 import { GuidelineBlockRenderer } from "./GuidelineBlockRenderer";
 import { GuidelineAssistant } from "./GuidelineAssistant";
 import { bookReaderPublicationGuidance } from "./book-reader-publication-guidance";
-import { readerBlocks, readerTitleKey } from "./reader-presentation";
+import { readerBlocks, readerSectionTitle, readerTitleKey } from "./reader-presentation";
 import type { SupplementalReaderView } from "./BookGuidelineReader";
 
 type Props = {
@@ -39,6 +39,8 @@ export function SectionBookGuidelineReader({
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [fontScale, setFontScale] = useState(1);
+  const [activeSectionId, setActiveSectionId] = useState("");
+  const [expandedRoots, setExpandedRoots] = useState<Set<string>>(() => new Set());
   const [chapters, setChapters] = useState<Record<string, PublicGuidelineChapter>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -56,12 +58,41 @@ export function SectionBookGuidelineReader({
     () => sections.filter((section) => rootLookup.has(section.id)),
     [rootLookup, sections],
   );
+  const childrenByParent = useMemo(() => {
+    const result = new Map<string, PublicGuidelineSection[]>();
+    for (const section of navigableSections) {
+      if (!section.parent_id) continue;
+      const items = result.get(section.parent_id) ?? [];
+      items.push(section);
+      result.set(section.parent_id, items);
+    }
+    for (const items of result.values()) items.sort((a, b) => a.sort_order - b.sort_order);
+    return result;
+  }, [navigableSections]);
   const filteredSections = useMemo(() => {
     const term = query.trim().toLocaleLowerCase();
     if (!term) return navigableSections;
     return navigableSections.filter((section) => section.title.toLocaleLowerCase().includes(term));
   }, [navigableSections, query]);
   const publicationGuidance = bookReaderPublicationGuidance(partial, manifest.has_original_pdf);
+  const activeRoot = useMemo(
+    () => (activeSectionId ? rootLookup.get(activeSectionId) : undefined) ?? visibleRoots[0] ?? roots[0],
+    [activeSectionId, rootLookup, roots, visibleRoots],
+  );
+  const activeChapter = activeRoot ? chapters[activeRoot.id] : undefined;
+  const onThisPageSections = useMemo(
+    () => activeChapter ? visibleChapterSections(activeChapter) : [],
+    [activeChapter],
+  );
+  const activeRootIndex = activeRoot ? roots.findIndex((root) => root.id === activeRoot.id) : -1;
+  const activeRootTitle = activeRoot ? readerSectionTitle(activeRoot.title) : undefined;
+
+  useEffect(() => {
+    setExpandedRoots((current) => {
+      if (current.size || !roots.length) return current;
+      return new Set(roots.slice(0, Math.min(2, roots.length)).map((root) => root.id));
+    });
+  }, [roots]);
 
   const loadChapter = useCallback((rootId: string): Promise<PublicGuidelineChapter | undefined> => {
     if (chaptersRef.current[rootId]) return Promise.resolve(chaptersRef.current[rootId]);
@@ -109,6 +140,12 @@ export function SectionBookGuidelineReader({
   const visitSection = useCallback(async (sectionId: string, blockId?: string) => {
     const root = rootLookup.get(sectionId);
     if (!root) return false;
+    setExpandedRoots((current) => {
+      if (current.has(root.id)) return current;
+      const next = new Set(current);
+      next.add(root.id);
+      return next;
+    });
     const rootIndex = roots.findIndex((candidate) => candidate.id === root.id);
     setVisibleRootCount((count) => Math.max(count, rootIndex + 1));
     const chapter = await loadChapter(root.id);
@@ -119,8 +156,48 @@ export function SectionBookGuidelineReader({
     requestAnimationFrame(() => requestAnimationFrame(() =>
       document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" }),
     ));
+    setActiveSectionId(sectionId);
     return true;
   }, [loadChapter, rootLookup, roots]);
+
+  useEffect(() => {
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(".section-book-section[id^='section-']"));
+    if (!elements.length || !("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((left, right) => Math.abs(left.boundingClientRect.top) - Math.abs(right.boundingClientRect.top))[0];
+      if (!visible?.target.id) return;
+      const sectionId = visible.target.id.slice("section-".length);
+      setActiveSectionId(sectionId);
+      const root = rootLookup.get(sectionId);
+      if (root) {
+        setExpandedRoots((current) => {
+          if (current.has(root.id)) return current;
+          const next = new Set(current);
+          next.add(root.id);
+          return next;
+        });
+      }
+    }, { rootMargin: `-${Math.max(72, window.innerHeight * .16)}px 0px -62% 0px`, threshold: [0, .15, .5] });
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [chapters, rootLookup]);
+
+  useEffect(() => {
+    if (!activeSectionId) return;
+    const item = document.querySelector<HTMLElement>(`.section-book-reader .contents-navigation [data-section-id="${CSS.escape(activeSectionId)}"]`);
+    item?.scrollIntoView({ block: "nearest" });
+  }, [activeSectionId]);
+
+  const toggleRoot = (rootId: string) => {
+    setExpandedRoots((current) => {
+      const next = new Set(current);
+      if (next.has(rootId)) next.delete(rootId);
+      else next.add(rootId);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const visitHash = () => {
@@ -170,17 +247,74 @@ export function SectionBookGuidelineReader({
       <aside className={`reader-sidebar ${sidebarOpen ? "is-open" : ""}`} aria-label="Guideline contents">
         <div className="reader-sidebar-brand"><Brand /><button className="sidebar-close icon-button" type="button" aria-label="Close contents" onClick={() => setSidebarOpen(false)}>×</button></div>
         <div className="sidebar-publication"><span>Published guideline</span><strong>{guideline.title}</strong><small>{guideline.source_org}{guideline.version ? ` · Version ${guideline.version}` : ""}</small></div>
-        <label className="reader-search"><span className="visually-hidden">Search chapter titles</span><input type="search" value={query} placeholder="Search sections…" onChange={(event) => setQuery(event.target.value)} /></label>
-        <nav className="contents-navigation" aria-label="Table of contents">
-          {filteredSections.map((section) => (
-            <button className={`toc-link toc-depth-${Math.min(4, Math.max(2, section.level + 1))}`} type="button" key={section.id} onClick={() => void visitSection(section.id)}>{section.title}</button>
-          ))}
+        <label className="reader-search"><SearchIcon /><span className="visually-hidden">Search chapter titles</span><input type="search" value={query} placeholder="Search sections…" onChange={(event) => setQuery(event.target.value)} /></label>
+        <nav className="contents-navigation" aria-label={query.trim() ? "Section search results" : "Table of contents"}>
+          <div className="toc-toolbar">
+            <span>{query.trim() ? `${filteredSections.length} result${filteredSections.length === 1 ? "" : "s"}` : "Contents"}</span>
+            {!query.trim() && <small>{navigableSections.length} sections</small>}
+          </div>
+          {query.trim() ? (
+            <div className="section-toc-search-results">
+              {filteredSections.map((section) => {
+                const root = rootLookup.get(section.id);
+                return <button
+                  type="button"
+                  key={section.id}
+                  data-section-id={section.id}
+                  className={activeSectionId === section.id ? "active" : ""}
+                  aria-current={activeSectionId === section.id ? "location" : undefined}
+                  onClick={() => void visitSection(section.id)}
+                >
+                  <strong>{section.title}</strong>
+                  {root && root.id !== section.id && <small>{root.title}</small>}
+                </button>;
+              })}
+              {!filteredSections.length && <p className="empty-search">No section matches “{query}”. Try a condition, treatment, medicine, or chapter title.</p>}
+            </div>
+          ) : roots.map((root) => {
+            const expanded = expandedRoots.has(root.id);
+            const descendants = descendantSections(root.id, childrenByParent);
+            const activeInRoot = activeSectionId === root.id || descendants.some((section) => section.id === activeSectionId);
+            const display = readerSectionTitle(root.title);
+            return <section className={`section-toc-group ${activeInRoot ? "is-active" : ""}`} key={root.id}>
+              <div className="section-toc-root-row">
+                <button
+                  type="button"
+                  className={`section-toc-root ${activeSectionId === root.id ? "active" : ""}`}
+                  data-section-id={root.id}
+                  aria-current={activeSectionId === root.id ? "location" : undefined}
+                  onClick={() => void visitSection(root.id)}
+                >
+                  {display.label && <small>{display.label}</small>}
+                  <strong>{display.title}</strong>
+                </button>
+                {descendants.length > 0 && <button
+                  className="section-toc-toggle"
+                  type="button"
+                  aria-label={`${expanded ? "Collapse" : "Expand"} ${root.title}`}
+                  aria-expanded={expanded}
+                  onClick={() => toggleRoot(root.id)}
+                >{expanded ? "−" : "+"}</button>}
+              </div>
+              {expanded && descendants.length > 0 && <div className="section-toc-children">
+                {descendants.map((section) => <button
+                  type="button"
+                  key={section.id}
+                  data-section-id={section.id}
+                  className={`toc-link toc-depth-${Math.min(4, Math.max(2, section.level + 1))} ${activeSectionId === section.id ? "active" : ""}`}
+                  aria-current={activeSectionId === section.id ? "location" : undefined}
+                  onClick={() => void visitSection(section.id)}
+                >{section.title}</button>)}
+              </div>}
+            </section>;
+          })}
         </nav>
         <div className="reader-sidebar-footer">Ministry of Health · Published clinical guidance</div>
       </aside>
       {sidebarOpen && <button className="reader-scrim" type="button" aria-label="Close contents" onClick={() => setSidebarOpen(false)} />}
 
       <main className="reader-main" id="guideline-document">
+        <div className="section-reader-layout">
         <article className="reader-column">
           <header className="guideline-metadata">
             <span className="eyebrow">{guideline.program_area || "Clinical guideline"}</span>
@@ -204,6 +338,27 @@ export function SectionBookGuidelineReader({
             {visibleRootCount < roots.length && <div className="progressive-markdown-more" ref={loadMoreSentinel}><button type="button" onClick={() => setVisibleRootCount((count) => Math.min(count + 1, roots.length))}>Load next chapter</button></div>}
           </div>
         </article>
+        <aside className="reader-context-toc" aria-label="On this page">
+          <div className="reader-context-toc-inner">
+            <span className="reader-context-label">On this page</span>
+            {activeRoot && <>
+              <small>{activeRootTitle?.label ? `${activeRootTitle.label} · Part ${activeRootIndex + 1} of ${roots.length}` : `Part ${activeRootIndex + 1} of ${roots.length}`}</small>
+              <strong>{activeRootTitle?.title ?? activeRoot.title}</strong>
+            </>}
+            {activeChapter ? <nav>
+              {onThisPageSections.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  className={activeSectionId === section.id ? "active" : ""}
+                  aria-current={activeSectionId === section.id ? "location" : undefined}
+                  onClick={() => void visitSection(section.id)}
+                >{section.title}</button>
+              ))}
+            </nav> : activeRoot && <p>Loading chapter sections…</p>}
+          </div>
+        </aside>
+        </div>
       </main>
       {!assistantOpen && <button className="assistant-fab" type="button" aria-label="Ask AI about this guideline" onClick={() => setAssistantOpen(true)}>✦ <span>Ask AI</span></button>}
       <GuidelineAssistant key={guideline.id} guideline={guideline} open={assistantOpen} onClose={() => setAssistantOpen(false)} onCitation={(citation) => void openCitation(citation)} />
@@ -223,17 +378,9 @@ function Chapter({ guidelineId, root, chapter, loading, error, onRetry, onOpenSo
     const items = bySection.get(block.section_id) ?? [];
     items.push(block); bySection.set(block.section_id, items);
   });
-  const sectionByID = new Map(chapter.sections.map((section) => [section.id, section]));
-  const visible = new Set<string>([chapter.root_section_id]);
-  for (const sectionID of bySection.keys()) {
-    let section = sectionByID.get(sectionID);
-    while (section) {
-      visible.add(section.id);
-      section = section.parent_id ? sectionByID.get(section.parent_id) : undefined;
-    }
-  }
+  const visibleSections = visibleChapterSections(chapter);
   return <section className="section-book-chapter">
-    {chapter.sections.filter((section) => visible.has(section.id)).map((section) => {
+    {visibleSections.map((section) => {
       const blocks = readerBlocks(section, bySection.get(section.id) ?? []);
       const Heading = section.level <= 2 ? "h2" : section.level === 3 ? "h3" : "h4";
       return <section className="section-book-section" id={`section-${section.id}`} key={section.id}>
@@ -297,5 +444,37 @@ function buildRootLookup(roots: PublicGuidelineSection[], sections: PublicGuidel
   return result;
 }
 
+function descendantSections(rootId: string, childrenByParent: Map<string, PublicGuidelineSection[]>) {
+  const result: PublicGuidelineSection[] = [];
+  const queue = [...(childrenByParent.get(rootId) ?? [])];
+  while (queue.length) {
+    const section = queue.shift()!;
+    result.push(section);
+    queue.unshift(...(childrenByParent.get(section.id) ?? []));
+  }
+  return result;
+}
+
+function visibleChapterSections(chapter: PublicGuidelineChapter) {
+  const bySection = new Map<string, typeof chapter.blocks>();
+  chapter.blocks.forEach((block) => {
+    if (!block.section_id) return;
+    const items = bySection.get(block.section_id) ?? [];
+    items.push(block);
+    bySection.set(block.section_id, items);
+  });
+  const sectionByID = new Map(chapter.sections.map((section) => [section.id, section]));
+  const visible = new Set<string>([chapter.root_section_id]);
+  for (const sectionID of bySection.keys()) {
+    let section = sectionByID.get(sectionID);
+    while (section) {
+      visible.add(section.id);
+      section = section.parent_id ? sectionByID.get(section.parent_id) : undefined;
+    }
+  }
+  return chapter.sections.filter((section) => visible.has(section.id));
+}
+
 function Meta({ label, value }: { label: string; value?: string }) { return value ? <div><dt>{label}</dt><dd>{value}</dd></div> : null; }
 function formatDate(value?: string) { if (!value) return ""; const parsed = new Date(value); return Number.isNaN(parsed.valueOf()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(parsed); }
+function SearchIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.8"/><path d="m16 16 4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>; }

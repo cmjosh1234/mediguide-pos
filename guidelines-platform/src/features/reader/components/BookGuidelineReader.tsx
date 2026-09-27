@@ -193,10 +193,11 @@ export function BookGuidelineReader({
         <label className="reader-search"><SearchIcon /><span className="visually-hidden">Search this guideline</span><input ref={searchInput} type="search" value={query} placeholder="Search this guideline…" onChange={(event) => setQuery(event.target.value)} /></label>
         <nav className="contents-navigation" aria-label={deferredQuery.trim() ? "Search results" : "Table of contents"}>
           {deferredQuery.trim() ? <div className="search-results">
-            <div className="results-label">{results.length} matching section{results.length === 1 ? "" : "s"}</div>
+            <div className="toc-toolbar"><span>{results.length} result{results.length === 1 ? "" : "s"}</span></div>
             {results.map((result) => <button type="button" key={result.id} onClick={() => visitHeading(result.id)}><small>{result.title}</small><span>{result.snippet || "Open this section"}</span></button>)}
             {!results.length && <p className="empty-search">No section matches “{deferredQuery}”. Try a condition, treatment, medicine, or phrase from the guideline.</p>}
           </div> : <>
+            <div className="toc-toolbar"><span>Contents</span><small>{headings.length} sections</small></div>
             <button type="button" className={`front-matter-link ${activeHeading ? "" : "active"}`} onClick={() => visitHeading("guideline-document")}>Guideline overview</button>
             {headings.map((heading) => <button type="button" className={`toc-link toc-depth-${heading.depth} ${activeHeading === heading.id ? "active" : ""}`} key={heading.id} aria-current={activeHeading === heading.id ? "location" : undefined} onClick={() => visitHeading(heading.id)}>{heading.text}</button>)}
           </>}
