@@ -58,6 +58,10 @@ func TestOutbreakAdministrationMigrationUpDownUp(t *testing.T) {
 	if err := goose.Up(testDB, "../../migrations"); err != nil {
 		t.Fatal(err)
 	}
+	var chunkBlockIndexDefinition string
+	if err := testDB.QueryRowContext(ctx, `SELECT indexdef FROM pg_indexes WHERE schemaname = $1 AND indexname = 'idx_guideline_chunks_block_id_fk'`, schema).Scan(&chunkBlockIndexDefinition); err != nil || !strings.Contains(chunkBlockIndexDefinition, "(block_id)") || strings.Contains(strings.ToUpper(chunkBlockIndexDefinition), " WHERE ") {
+		t.Fatalf("guideline chunk FK index must cover every block reference: definition=%q err=%v", chunkBlockIndexDefinition, err)
+	}
 	if err := goose.DownTo(testDB, "../../migrations", 35); err != nil {
 		t.Fatal(err)
 	}
@@ -147,6 +151,12 @@ func TestOutbreakAdministrationMigrationUpDownUp(t *testing.T) {
 	}
 	if _, err := testDB.ExecContext(ctx, `UPDATE diseases SET parent_id = '92000000-0000-4000-8000-000000000002' WHERE id = '92000000-0000-4000-8000-000000000001'`); err == nil {
 		t.Fatal("PostgreSQL disease hierarchy trigger accepted a cycle")
+	}
+	// SearchDocuments follows the current outbreak model, whose disease_id
+	// column is introduced in migration 61. Preserve the focused migration-53
+	// assertions above, then advance the fixture before exercising that query.
+	if err := goose.UpTo(testDB, "../../migrations", 61); err != nil {
+		t.Fatal(err)
 	}
 
 	// Exercise the real PostgreSQL discovery query, not the SQLite fallback.
