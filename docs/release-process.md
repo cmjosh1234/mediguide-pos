@@ -1,5 +1,30 @@
 # MediGuide platform release process
 
+## v2.1.7 release cut — 27 September 2026
+
+- Synchronizes the API, AI worker, dashboard, public guidelines portal and
+  mobile application to 2.1.7; the checked-in mobile build is 2.1.7+59.
+- Adds durable, leased and priority-aware ingestion work with bounded worker,
+  PDF-page, OCR and embedding concurrency. Failed jobs resume from persisted
+  stage and artifact checkpoints instead of repeating completed work.
+- Adds resumable direct guideline uploads, detailed upload/processing progress,
+  reusable extraction/OCR/embedding artifacts and ingestion benchmarking.
+- Includes the document-kind, disease-aware content-hub and outbreak workflows,
+  progressive public/mobile readers, Markdown presentation cleanup, guideline
+  asset handling, and the latest extracted Ministry of Health document assets.
+- Processing concurrency and artifact reuse remain independently feature-gated.
+  Enable them progressively and monitor queue latency, memory, lease recovery,
+  extraction equivalence and RAG completeness before increasing limits.
+- Mobile alpha destination: signed Android staging build through Firebase group
+  `mediguide-alpha-testers`, using the production API. Signed iOS distribution
+  remains excluded until all protected Apple signing assets are configured.
+- Tester charter: verify authentication, public discovery, content hubs and
+  outbreaks; upload pause/resume; processing progress and retry; large UCG
+  reading; images/tables; RAG citations; downloads and offline access.
+- Known limitation: production activation of new ingestion flags remains an
+  operator rollout decision; this release does not approve or publish clinical
+  content automatically.
+
 ## v2.1.6 corrective release — 23 September 2026
 
 - Replaces the undeployed v2.1.5 production release without moving its immutable
