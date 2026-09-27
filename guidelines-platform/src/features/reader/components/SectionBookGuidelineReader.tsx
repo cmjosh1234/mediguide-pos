@@ -40,7 +40,7 @@ export function SectionBookGuidelineReader({
   const [query, setQuery] = useState("");
   const [fontScale, setFontScale] = useState(1);
   const [activeSectionId, setActiveSectionId] = useState("");
-  const [expandedRoots, setExpandedRoots] = useState<Set<string>>(() => new Set());
+  const [expandedRoots, setExpandedRoots] = useState<Set<string> | null>(null);
   const [chapters, setChapters] = useState<Record<string, PublicGuidelineChapter>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -49,6 +49,11 @@ export function SectionBookGuidelineReader({
   const inFlight = useRef(new Map<string, Promise<PublicGuidelineChapter | undefined>>());
   const chaptersRef = useRef<Record<string, PublicGuidelineChapter>>({});
   const roots = useMemo(() => chapterRoots(guideline, sections), [guideline, sections]);
+  const defaultExpandedRoots = useMemo(
+    () => new Set(roots.slice(0, Math.min(2, roots.length)).map((root) => root.id)),
+    [roots],
+  );
+  const visibleExpandedRoots = expandedRoots ?? defaultExpandedRoots;
   const visibleRoots = useMemo(
     () => roots.slice(0, Math.min(visibleRootCount, roots.length)),
     [roots, visibleRootCount],
@@ -86,13 +91,6 @@ export function SectionBookGuidelineReader({
   );
   const activeRootIndex = activeRoot ? roots.findIndex((root) => root.id === activeRoot.id) : -1;
   const activeRootTitle = activeRoot ? readerSectionTitle(activeRoot.title) : undefined;
-
-  useEffect(() => {
-    setExpandedRoots((current) => {
-      if (current.size || !roots.length) return current;
-      return new Set(roots.slice(0, Math.min(2, roots.length)).map((root) => root.id));
-    });
-  }, [roots]);
 
   const loadChapter = useCallback((rootId: string): Promise<PublicGuidelineChapter | undefined> => {
     if (chaptersRef.current[rootId]) return Promise.resolve(chaptersRef.current[rootId]);
@@ -141,8 +139,8 @@ export function SectionBookGuidelineReader({
     const root = rootLookup.get(sectionId);
     if (!root) return false;
     setExpandedRoots((current) => {
-      if (current.has(root.id)) return current;
-      const next = new Set(current);
+      if ((current ?? defaultExpandedRoots).has(root.id)) return current;
+      const next = new Set(current ?? defaultExpandedRoots);
       next.add(root.id);
       return next;
     });
@@ -158,7 +156,7 @@ export function SectionBookGuidelineReader({
     ));
     setActiveSectionId(sectionId);
     return true;
-  }, [loadChapter, rootLookup, roots]);
+  }, [defaultExpandedRoots, loadChapter, rootLookup, roots]);
 
   useEffect(() => {
     const elements = Array.from(document.querySelectorAll<HTMLElement>(".section-book-section[id^='section-']"));
@@ -173,8 +171,8 @@ export function SectionBookGuidelineReader({
       const root = rootLookup.get(sectionId);
       if (root) {
         setExpandedRoots((current) => {
-          if (current.has(root.id)) return current;
-          const next = new Set(current);
+          if ((current ?? defaultExpandedRoots).has(root.id)) return current;
+          const next = new Set(current ?? defaultExpandedRoots);
           next.add(root.id);
           return next;
         });
@@ -182,17 +180,19 @@ export function SectionBookGuidelineReader({
     }, { rootMargin: `-${Math.max(72, window.innerHeight * .16)}px 0px -62% 0px`, threshold: [0, .15, .5] });
     elements.forEach((element) => observer.observe(element));
     return () => observer.disconnect();
-  }, [chapters, rootLookup]);
+  }, [chapters, defaultExpandedRoots, rootLookup]);
 
   useEffect(() => {
     if (!activeSectionId) return;
-    const item = document.querySelector<HTMLElement>(`.section-book-reader .contents-navigation [data-section-id="${CSS.escape(activeSectionId)}"]`);
+    const item = Array.from(
+      document.querySelectorAll<HTMLElement>(".section-book-reader .contents-navigation [data-section-id]"),
+    ).find((candidate) => candidate.dataset.sectionId === activeSectionId);
     item?.scrollIntoView({ block: "nearest" });
   }, [activeSectionId]);
 
   const toggleRoot = (rootId: string) => {
     setExpandedRoots((current) => {
-      const next = new Set(current);
+      const next = new Set(current ?? defaultExpandedRoots);
       if (next.has(rootId)) next.delete(rootId);
       else next.add(rootId);
       return next;
@@ -272,7 +272,7 @@ export function SectionBookGuidelineReader({
               {!filteredSections.length && <p className="empty-search">No section matches “{query}”. Try a condition, treatment, medicine, or chapter title.</p>}
             </div>
           ) : roots.map((root) => {
-            const expanded = expandedRoots.has(root.id);
+            const expanded = visibleExpandedRoots.has(root.id);
             const descendants = descendantSections(root.id, childrenByParent);
             const activeInRoot = activeSectionId === root.id || descendants.some((section) => section.id === activeSectionId);
             const display = readerSectionTitle(root.title);
@@ -342,7 +342,7 @@ export function SectionBookGuidelineReader({
           <div className="reader-context-toc-inner">
             <span className="reader-context-label">On this page</span>
             {activeRoot && <>
-              <small>{activeRootTitle?.label ? `${activeRootTitle.label} · Part ${activeRootIndex + 1} of ${roots.length}` : `Part ${activeRootIndex + 1} of ${roots.length}`}</small>
+              {activeRootIndex >= 0 && <small>{activeRootTitle?.label ? `${activeRootTitle.label} · Part ${activeRootIndex + 1} of ${roots.length}` : `Part ${activeRootIndex + 1} of ${roots.length}`}</small>}
               <strong>{activeRootTitle?.title ?? activeRoot.title}</strong>
             </>}
             {activeChapter ? <nav>
