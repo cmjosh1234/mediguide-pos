@@ -8,6 +8,7 @@ import {
   getPublicGuidelineContent,
   getPublicGuidelineMarkdown,
   getPublicGuidelineOriginalFile,
+  listPublicGuidelineDocumentKinds,
   listPublicGuidelineSections,
   listPublicGuidelines,
   resolvePublicAssetUrl,
@@ -32,12 +33,34 @@ describe("public guideline API client", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await listPublicGuidelines({ search: "maternal & child", programArea: "Care" });
+    await listPublicGuidelines({
+      search: "maternal & child",
+      programArea: "Care",
+      documentKind: "guideline",
+    });
 
     const url = String(fetchMock.mock.calls[0][0]);
     expect(url).toContain("search=maternal+%26+child");
     expect(url).toContain("program_area=Care");
+    expect(url).toContain("document_kind=guideline");
     expect(url).not.toContain("/markdown");
+  });
+
+  it("loads the document-kind sections represented in the public library", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        success: true,
+        data: [{ slug: "form", name: "Forms", count: 4 }],
+      }), { status: 200, headers: { "Content-Type": "application/json" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const kinds = await listPublicGuidelineDocumentKinds();
+
+    expect(kinds).toEqual([{ slug: "form", name: "Forms", count: 4 }]);
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      "/api/public/guidelines/document-kinds",
+    );
   });
 
   it("loads every section page for publications larger than the API page cap", async () => {

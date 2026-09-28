@@ -896,6 +896,10 @@ type PaginatedPublicGuidelinesEnvelope struct {
 	Success bool                      `json:"success"`
 	Data    PaginatedPublicGuidelines `json:"data"`
 }
+type PublicGuidelineDocumentKindsEnvelope struct {
+	Success bool                                   `json:"success"`
+	Data    []services.PublicGuidelineDocumentKind `json:"data"`
+}
 type PublicGuidelineManifestEnvelope struct {
 	Success bool                             `json:"success"`
 	Data    services.PublicGuidelineManifest `json:"data"`

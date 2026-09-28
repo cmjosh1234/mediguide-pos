@@ -24,6 +24,10 @@ type PublicGuidelineReader interface {
 	Markdown(context.Context, uuid.UUID) (*services.PublicGuidelineMarkdown, error)
 }
 
+type PublicGuidelineDocumentKindReader interface {
+	DocumentKinds(context.Context) ([]services.PublicGuidelineDocumentKind, error)
+}
+
 type PublicGuidelineContentReader interface {
 	Manifest(context.Context, uuid.UUID) (*services.PublicGuidelineManifest, error)
 	Content(context.Context, uuid.UUID) (*services.PublicGuidelineContent, error)
@@ -62,6 +66,26 @@ func (h PublicGuidelineHandler) ContentBundle(c *gin.Context) {
 type PublicGuidelineHandler struct {
 	Service PublicGuidelineReader
 	Content PublicGuidelineContentReader
+}
+
+// DocumentKinds godoc
+// @Summary List document kinds represented in the published guideline library
+// @Tags Public Guidelines
+// @Produce json
+// @Success 200 {object} handlers.PublicGuidelineDocumentKindsEnvelope
+// @Router /api/public/guidelines/document-kinds [get]
+func (h PublicGuidelineHandler) DocumentKinds(c *gin.Context) {
+	reader, ok := h.Service.(PublicGuidelineDocumentKindReader)
+	if !ok {
+		httpx.Error(c, http.StatusServiceUnavailable, "document kinds unavailable")
+		return
+	}
+	items, err := reader.DocumentKinds(c.Request.Context())
+	if err != nil {
+		httpx.Error(c, http.StatusInternalServerError, "unable to load document kinds")
+		return
+	}
+	respondPublicJSON(c, items, "", time.Time{})
 }
 
 // List godoc

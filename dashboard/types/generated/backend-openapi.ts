@@ -1387,6 +1387,11 @@ export interface HandlersPublicGuidelineContentEnvelope {
   success?: boolean;
 }
 
+export interface HandlersPublicGuidelineDocumentKindsEnvelope {
+  data?: ServicesPublicGuidelineDocumentKind[];
+  success?: boolean;
+}
+
 export interface HandlersPublicGuidelineEnvelope {
   data?: ServicesPublicGuideline;
   success?: boolean;
@@ -4914,6 +4919,7 @@ export interface ServicesPublicGuideline {
   document_kind?: ServicesPublicDocumentKind;
   /** ExternalURL is the https link readers open for kinds published as a link. */
   external_url?: string;
+  has_original_document?: boolean;
   healthcare_level?: string;
   id?: string;
   intended_population?: string;
@@ -4986,6 +4992,12 @@ export interface ServicesPublicGuidelineContent {
   package_version?: number;
   sections?: ServicesPublicGuidelineSection[];
   version_id?: string;
+}
+
+export interface ServicesPublicGuidelineDocumentKind {
+  count?: number;
+  name?: string;
+  slug?: string;
 }
 
 export interface ServicesPublicGuidelineFigure {

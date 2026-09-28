@@ -13,6 +13,7 @@ export type PublicGuideline = {
   review_date: string;
   version: string;
   last_updated: string;
+  has_original_document?: boolean;
   /** Kinds published as uploaded (for example forms) are shown as their original file. */
   document_kind?: PublicDocumentKind | null;
 };
@@ -21,6 +22,13 @@ export type PublicDocumentKind = {
   slug: string;
   name: string;
   publish_as_uploaded: boolean;
+  publish_as_link?: boolean;
+};
+
+export type PublicGuidelineDocumentKind = {
+  slug: string;
+  name: string;
+  count: number;
 };
 
 export type PublicGuidelinePage = {
@@ -40,6 +48,7 @@ type ApiEnvelope<T> = {
 export type PublicGuidelineFilters = {
   search?: string;
   programArea?: string;
+  documentKind?: string;
   country?: string;
   language?: string;
   page?: number;
@@ -517,6 +526,7 @@ export function listPublicGuidelines(
   const query = new URLSearchParams();
   if (filters.search?.trim()) query.set("search", filters.search.trim());
   if (filters.programArea) query.set("program_area", filters.programArea);
+  if (filters.documentKind) query.set("document_kind", filters.documentKind);
   if (filters.country) query.set("country", filters.country);
   if (filters.language) query.set("language", filters.language);
   if (filters.page) query.set("page", String(filters.page));
@@ -530,6 +540,11 @@ export function listPublicGuidelines(
     return value;
   };
   return signal ? load() : deduplicated(`list:${url}`, load);
+}
+
+export function listPublicGuidelineDocumentKinds(signal?: AbortSignal) {
+  const url = publicUrl("/guidelines/document-kinds");
+  return requestJson<PublicGuidelineDocumentKind[]>(url, signal);
 }
 
 export function getPublicGuideline(id: string, signal?: AbortSignal) {

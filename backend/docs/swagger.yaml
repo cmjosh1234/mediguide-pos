@@ -2164,6 +2164,15 @@ definitions:
       success:
         type: boolean
     type: object
+  handlers.PublicGuidelineDocumentKindsEnvelope:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/services.PublicGuidelineDocumentKind'
+        type: array
+      success:
+        type: boolean
+    type: object
   handlers.PublicGuidelineEnvelope:
     properties:
       data:
@@ -8591,6 +8600,8 @@ definitions:
         description: ExternalURL is the https link readers open for kinds published
           as a link.
         type: string
+      has_original_document:
+        type: boolean
       healthcare_level:
         type: string
       id:
@@ -8724,6 +8735,15 @@ definitions:
           $ref: '#/definitions/services.PublicGuidelineSection'
         type: array
       version_id:
+        type: string
+    type: object
+  services.PublicGuidelineDocumentKind:
+    properties:
+      count:
+        type: integer
+      name:
+        type: string
+      slug:
         type: string
     type: object
   services.PublicGuidelineFigure:
@@ -10284,6 +10304,18 @@ paths:
           schema:
             $ref: '#/definitions/handlers.PaginatedPublicGuidelineTablesEnvelope'
       summary: List reviewed tables in a published guideline
+      tags:
+      - Public Guidelines
+  /api/public/guidelines/document-kinds:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PublicGuidelineDocumentKindsEnvelope'
+      summary: List document kinds represented in the published guideline library
       tags:
       - Public Guidelines
   /api/public/hubs:

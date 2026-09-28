@@ -5091,6 +5091,34 @@ final class HandlersPublicGuidelineContentEnvelope {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class HandlersPublicGuidelineDocumentKindsEnvelope {
+  HandlersPublicGuidelineDocumentKindsEnvelope(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersPublicGuidelineDocumentKindsEnvelope.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersPublicGuidelineDocumentKindsEnvelope(json);
+
+  static const schemaName = 'handlers.PublicGuidelineDocumentKindsEnvelope';
+  final Map<String, dynamic> value;
+
+  List<ServicesPublicGuidelineDocumentKind> get data {
+    final raw = value['data'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map(
+          (item) =>
+              ServicesPublicGuidelineDocumentKind.fromJson(_jsonMap(item)),
+        )
+        .toList(growable: false);
+  }
+
+  bool? get success => value['success'] as bool?;
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class HandlersPublicGuidelineEnvelope {
   HandlersPublicGuidelineEnvelope(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -15574,6 +15602,8 @@ final class ServicesPublicGuideline {
 
   String? get externalUrl => value['external_url']?.toString();
 
+  bool? get hasOriginalDocument => value['has_original_document'] as bool?;
+
   String? get healthcareLevel => value['healthcare_level']?.toString();
 
   String? get id => value['id']?.toString();
@@ -15793,6 +15823,26 @@ final class ServicesPublicGuidelineContent {
   }
 
   String? get versionId => value['version_id']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesPublicGuidelineDocumentKind {
+  ServicesPublicGuidelineDocumentKind(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesPublicGuidelineDocumentKind.fromJson(
+    Map<String, dynamic> json,
+  ) => ServicesPublicGuidelineDocumentKind(json);
+
+  static const schemaName = 'services.PublicGuidelineDocumentKind';
+  final Map<String, dynamic> value;
+
+  int? get count => (value['count'] as num?)?.toInt();
+
+  String? get name => value['name']?.toString();
+
+  String? get slug => value['slug']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }

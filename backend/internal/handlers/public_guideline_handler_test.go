@@ -20,13 +20,15 @@ import (
 )
 
 type fakePublicGuidelineReader struct {
-	listResult     *services.PageResult[services.PublicGuideline]
-	listErr        error
-	detail         *services.PublicGuideline
-	detailErr      error
-	markdown       *services.PublicGuidelineMarkdown
-	markdownErr    error
-	receivedFilter services.PublicGuidelineFilter
+	listResult      *services.PageResult[services.PublicGuideline]
+	listErr         error
+	detail          *services.PublicGuideline
+	detailErr       error
+	markdown        *services.PublicGuidelineMarkdown
+	markdownErr     error
+	receivedFilter  services.PublicGuidelineFilter
+	documentKinds   []services.PublicGuidelineDocumentKind
+	documentKindErr error
 }
 
 type fakePublicGuidelineContent struct {
@@ -112,12 +114,34 @@ func (f *fakePublicGuidelineReader) Markdown(_ context.Context, _ uuid.UUID) (*s
 	return f.markdown, f.markdownErr
 }
 
+func (f *fakePublicGuidelineReader) DocumentKinds(_ context.Context) ([]services.PublicGuidelineDocumentKind, error) {
+	return f.documentKinds, f.documentKindErr
+}
+
+func TestPublicGuidelineDocumentKindsReturnsPublishedLibrarySections(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	fake := &fakePublicGuidelineReader{documentKinds: []services.PublicGuidelineDocumentKind{
+		{Slug: "guideline", Name: "Clinical guidelines", Count: 12},
+		{Slug: "form", Name: "Forms", Count: 4},
+	}}
+	router := gin.New()
+	handler := PublicGuidelineHandler{Service: fake}
+	router.GET("/api/public/guidelines/document-kinds", handler.DocumentKinds)
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/public/guidelines/document-kinds", nil))
+
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"slug":"form"`) || !strings.Contains(response.Body.String(), `"count":12`) {
+		t.Fatalf("unexpected document-kind response %d: %s", response.Code, response.Body.String())
+	}
+}
+
 func TestPublicGuidelineListReturnsOnlyPublicProjectionAndFilters(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	id := uuid.New()
 	fake := &fakePublicGuidelineReader{
 		listResult: services.NewPageResult([]services.PublicGuideline{{
-			ID: id, Slug: "malaria-care", Title: "Malaria care", Version: "2026",
+			ID: id, Slug: "malaria-care", Title: "Malaria care", Version: "2026", HasOriginalDocument: true,
 		}}, services.PageInput{Page: 2, PerPage: 10}, 11),
 	}
 	router := gin.New()
@@ -139,6 +163,9 @@ func TestPublicGuidelineListReturnsOnlyPublicProjectionAndFilters(t *testing.T) 
 		t.Fatal(err)
 	}
 	body := response.Body.String()
+	if !strings.Contains(body, `"has_original_document":true`) {
+		t.Fatalf("public response omitted original-document availability: %s", body)
+	}
 	for _, privateField := range []string{"markdown_file_key", "approved_by", "current_version_id", "version_id"} {
 		if strings.Contains(body, privateField) {
 			t.Fatalf("public response exposed %q: %s", privateField, body)
