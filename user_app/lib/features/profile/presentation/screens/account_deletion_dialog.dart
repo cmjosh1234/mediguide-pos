@@ -10,8 +10,7 @@ class AccountDeletionDialog extends ConsumerStatefulWidget {
       _AccountDeletionDialogState();
 }
 
-class _AccountDeletionDialogState
-    extends ConsumerState<AccountDeletionDialog> {
+class _AccountDeletionDialogState extends ConsumerState<AccountDeletionDialog> {
   final _formKey = GlobalKey<FormState>();
   String _password = '';
   bool _confirmed = false;
@@ -26,11 +25,13 @@ class _AccountDeletionDialogState
       _error = null;
     });
     try {
-      final response = await ref.read(backendApiServiceProvider).requestJson(
-        '/api/v2/me/deletion-request',
-        method: 'POST',
-        body: {'current_password': _password, 'confirm': true},
-      );
+      final response = await ref
+          .read(backendApiServiceProvider)
+          .requestJson(
+            '/api/v2/me/deletion-request',
+            method: 'POST',
+            body: {'current_password': _password, 'confirm': true},
+          );
       final data = response['data'];
       if (data is! Map || data['request_id'] is! String) {
         throw const FormatException('Missing deletion request reference');
@@ -43,7 +44,8 @@ class _AccountDeletionDialogState
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Unable to submit. Check your current password and connection. '
+        _error =
+            'Unable to submit. Check your current password and connection. '
             'If you have tried several times, wait before retrying.';
       });
     } finally {
@@ -99,9 +101,8 @@ class _AccountDeletionDialogState
                         value: _confirmed,
                         onChanged: _busy
                             ? null
-                            : (value) => setState(
-                                () => _confirmed = value ?? false,
-                              ),
+                            : (value) =>
+                                  setState(() => _confirmed = value ?? false),
                       ),
                       if (_error != null)
                         Text(

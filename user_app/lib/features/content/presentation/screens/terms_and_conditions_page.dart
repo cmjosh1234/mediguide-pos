@@ -93,13 +93,17 @@ class TermsAndConditionsPage extends StatelessWidget {
                       );
                       if (!opened && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Unable to open the privacy page.')),
+                          const SnackBar(
+                            content: Text('Unable to open the privacy page.'),
+                          ),
                         );
                       }
                     } catch (_) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Unable to open the privacy page.')),
+                          const SnackBar(
+                            content: Text('Unable to open the privacy page.'),
+                          ),
                         );
                       }
                     }

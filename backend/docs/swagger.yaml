@@ -359,6 +359,17 @@ definitions:
       success:
         type: boolean
     type: object
+  handlers.AccountDeletionRequest:
+    properties:
+      confirm:
+        type: boolean
+      current_password:
+        maxLength: 1024
+        type: string
+    required:
+    - confirm
+    - current_password
+    type: object
   handlers.AskEnvelope:
     properties:
       data:
@@ -2112,6 +2123,21 @@ definitions:
       success:
         example: true
         type: boolean
+    type: object
+  handlers.PublicAccountDeletionRequest:
+    properties:
+      confirm:
+        type: boolean
+      current_password:
+        maxLength: 1024
+        type: string
+      email:
+        maxLength: 254
+        type: string
+    required:
+    - confirm
+    - current_password
+    - email
     type: object
   handlers.PublicContentHubEnvelope:
     properties:
@@ -10920,6 +10946,35 @@ paths:
       summary: Get aggregate usage counts
       tags:
       - progress-usage
+  /api/v2/auth/deletion-request:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Account credentials and confirmation
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.PublicAccountDeletionRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Request account deletion without installing or signing into the app
+      tags:
+      - auth
   /api/v2/auth/email-verification/confirm:
     post:
       consumes:
@@ -17652,6 +17707,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Get current user
+      tags:
+      - auth
+  /api/v2/me/deletion-request:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Explicit confirmation and current password
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.AccountDeletionRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Request deletion of the current account and associated data
       tags:
       - auth
   /api/v2/me/password:

@@ -455,9 +455,7 @@ class ProfilePage extends ConsumerWidget {
   // ========================================================================
 
   Future<void> _deleteAccount(WidgetRef ref) async {
-    await AppNavigator.dialog<void>(
-      child: const AccountDeletionDialog(),
-    );
+    await AppNavigator.dialog<void>(child: const AccountDeletionDialog());
   }
 
   // ========================================================================

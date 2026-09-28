@@ -1783,6 +1783,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/auth/deletion-request": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Request account deletion without installing or signing into the app",
+                "parameters": [
+                    {
+                        "description": "Account credentials and confirmation",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PublicAccountDeletionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/auth/email-verification/confirm": {
             "post": {
                 "consumes": [
@@ -12456,6 +12501,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/me/deletion-request": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Request deletion of the current account and associated data",
+                "parameters": [
+                    {
+                        "description": "Explicit confirmation and current password",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AccountDeletionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/me/password": {
             "post": {
                 "security": [
@@ -17952,6 +18047,22 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.AccountDeletionRequest": {
+            "type": "object",
+            "required": [
+                "confirm",
+                "current_password"
+            ],
+            "properties": {
+                "confirm": {
+                    "type": "boolean"
+                },
+                "current_password": {
+                    "type": "string",
+                    "maxLength": 1024
+                }
+            }
+        },
         "handlers.AskEnvelope": {
             "type": "object",
             "properties": {
@@ -20614,6 +20725,27 @@ const docTemplate = `{
                 "success": {
                     "type": "boolean",
                     "example": true
+                }
+            }
+        },
+        "handlers.PublicAccountDeletionRequest": {
+            "type": "object",
+            "required": [
+                "confirm",
+                "current_password",
+                "email"
+            ],
+            "properties": {
+                "confirm": {
+                    "type": "boolean"
+                },
+                "current_password": {
+                    "type": "string",
+                    "maxLength": 1024
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 254
                 }
             }
         },
