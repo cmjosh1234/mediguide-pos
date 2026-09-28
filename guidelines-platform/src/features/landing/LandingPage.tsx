@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import {
+  listPublicGuidelineDocumentKinds,
   listPublicGuidelines,
   resolvePublicAssetUrl,
   type PublicGuideline,
+  type PublicGuidelineDocumentKind,
 } from "../../api/public-guidelines";
 import {
   ArrowIcon,
@@ -16,12 +18,25 @@ import { dashboardLoginUrl } from "../../config";
 
 type LibraryState =
   | { status: "loading" }
-  | { status: "ready"; items: PublicGuideline[]; total: number }
+  | {
+      status: "ready";
+      items: PublicGuideline[];
+      total: number;
+      page: number;
+      totalPages: number;
+    }
   | { status: "error" };
+
+const publicationsPerPage = 6;
 
 export function LandingPage() {
   const [search, setSearch] = useState("");
   const [programArea, setProgramArea] = useState("");
+  const [documentKind, setDocumentKind] = useState("");
+  const [documentKinds, setDocumentKinds] = useState<
+    PublicGuidelineDocumentKind[]
+  >([]);
+  const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
   const [library, setLibrary] = useState<LibraryState>({ status: "loading" });
 
@@ -31,11 +46,29 @@ export function LandingPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    listPublicGuidelineDocumentKinds(controller.signal)
+      .then(setDocumentKinds)
+      .catch(() => {
+        if (!controller.signal.aborted && import.meta.env.DEV) {
+          console.warn("Public document kinds request failed");
+        }
+      });
+    return () => controller.abort();
+  }, [reloadKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setLibrary({ status: "loading" });
       const startedAt = performance.now();
       listPublicGuidelines(
-        { search, programArea, page: 1, perPage: 40 },
+        {
+          search,
+          programArea,
+          documentKind,
+          page,
+          perPage: publicationsPerPage,
+        },
         controller.signal,
       )
         .then((result) => {
@@ -43,6 +76,8 @@ export function LandingPage() {
             status: "ready",
             items: result.items,
             total: result.total_items,
+            page: result.page,
+            totalPages: result.total_pages,
           });
           if (import.meta.env.DEV) {
             console.info("Public guideline list loaded", {
@@ -65,7 +100,7 @@ export function LandingPage() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [search, programArea, reloadKey]);
+  }, [search, programArea, documentKind, page, reloadKey]);
 
   const programAreas = useMemo(() => {
     const areas =
@@ -75,6 +110,16 @@ export function LandingPage() {
     if (programArea) areas.push(programArea);
     return [...new Set(areas)].sort();
   }, [library, programArea]);
+
+  const selectedKindName = documentKind
+    ? documentKinds.find((kind) => kind.slug === documentKind)?.name ||
+      "Documents"
+    : "All publications";
+
+  const selectDocumentKind = (slug: string) => {
+    setDocumentKind(slug);
+    setPage(1);
+  };
 
   return (
     <>
@@ -130,13 +175,24 @@ export function LandingPage() {
           <p>Select a publication to read its current published version.</p>
         </div>
 
+        {documentKinds.length > 0 && (
+          <DocumentKindSections
+            items={documentKinds}
+            value={documentKind}
+            onChange={selectDocumentKind}
+          />
+        )}
+
         <div className="library-filters" role="search">
           <label>
-            <span>Search guidelines</span>
+            <span>Search publications</span>
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
               placeholder="Search by title, source, or topic"
             />
           </label>
@@ -144,7 +200,10 @@ export function LandingPage() {
             <span>Program area</span>
             <select
               value={programArea}
-              onChange={(event) => setProgramArea(event.target.value)}
+              onChange={(event) => {
+                setProgramArea(event.target.value);
+                setPage(1);
+              }}
             >
               <option value="">All program areas</option>
               {programAreas.map((area) => (
@@ -154,11 +213,25 @@ export function LandingPage() {
               ))}
             </select>
           </label>
+          <label>
+            <span>Document kind</span>
+            <select
+              value={documentKind}
+              onChange={(event) => selectDocumentKind(event.target.value)}
+            >
+              <option value="">All document kinds</option>
+              {documentKinds.map((kind) => (
+                <option value={kind.slug} key={kind.slug}>
+                  {kind.name} ({kind.count})
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div className="visually-hidden" role="status" aria-live="polite">
           {library.status === "ready"
-            ? `${library.total} guideline${library.total === 1 ? "" : "s"} found`
+            ? `${library.total} publication${library.total === 1 ? "" : "s"} found`
             : library.status === "loading"
               ? "Loading guidelines"
               : "Guidelines could not be loaded"}
@@ -187,6 +260,8 @@ export function LandingPage() {
               onClick={() => {
                 setSearch("");
                 setProgramArea("");
+                setDocumentKind("");
+                setPage(1);
               }}
             >
               Clear filters
@@ -194,12 +269,48 @@ export function LandingPage() {
           </div>
         )}
 
-        {library.status === "ready" && (
-          <div className="publication-grid">
-            {library.items.map((guideline) => (
-              <BackendGuidelineCard guideline={guideline} key={guideline.id} />
-            ))}
-          </div>
+        {library.status === "ready" && library.items.length > 0 && (
+          <section className="document-kind-panel" aria-labelledby="kind-title">
+            <header className="document-kind-panel-header">
+              <div>
+                <span className="eyebrow">Document section</span>
+                <h3 id="kind-title">{selectedKindName}</h3>
+              </div>
+              <span>
+                {library.total} document{library.total === 1 ? "" : "s"}
+              </span>
+            </header>
+            <div className="publication-grid">
+              {library.items.map((guideline) => (
+                <BackendGuidelineCard guideline={guideline} key={guideline.id} />
+              ))}
+            </div>
+            {library.totalPages > 1 && (
+              <nav className="library-pagination" aria-label="Publication pages">
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  disabled={library.page <= 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                >
+                  Previous
+                </button>
+                <span>
+                  Page {library.page} of {library.totalPages}
+                </span>
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  disabled={library.page >= library.totalPages}
+                  onClick={() =>
+                    setPage((current) => Math.min(library.totalPages, current + 1))
+                  }
+                >
+                  Next
+                </button>
+              </nav>
+            )}
+          </section>
         )}
       </section>
 
@@ -234,6 +345,43 @@ export function LandingPage() {
         </div>
       </section>
     </>
+  );
+}
+
+export function DocumentKindSections({
+  items,
+  value,
+  onChange,
+}: {
+  items: PublicGuidelineDocumentKind[];
+  value: string;
+  onChange: (slug: string) => void;
+}) {
+  const total = items.reduce((sum, item) => sum + item.count, 0);
+  return (
+    <nav className="document-kind-sections" aria-label="Publication sections">
+      <button
+        type="button"
+        className={value === "" ? "active" : undefined}
+        aria-pressed={value === ""}
+        onClick={() => onChange("")}
+      >
+        <span>All publications</span>
+        <strong>{total}</strong>
+      </button>
+      {items.map((item) => (
+        <button
+          type="button"
+          className={value === item.slug ? "active" : undefined}
+          aria-pressed={value === item.slug}
+          onClick={() => onChange(item.slug)}
+          key={item.slug}
+        >
+          <span>{item.name}</span>
+          <strong>{item.count}</strong>
+        </button>
+      ))}
+    </nav>
   );
 }
 

@@ -20,13 +20,15 @@ import (
 )
 
 type fakePublicGuidelineReader struct {
-	listResult     *services.PageResult[services.PublicGuideline]
-	listErr        error
-	detail         *services.PublicGuideline
-	detailErr      error
-	markdown       *services.PublicGuidelineMarkdown
-	markdownErr    error
-	receivedFilter services.PublicGuidelineFilter
+	listResult      *services.PageResult[services.PublicGuideline]
+	listErr         error
+	detail          *services.PublicGuideline
+	detailErr       error
+	markdown        *services.PublicGuidelineMarkdown
+	markdownErr     error
+	receivedFilter  services.PublicGuidelineFilter
+	documentKinds   []services.PublicGuidelineDocumentKind
+	documentKindErr error
 }
 
 type fakePublicGuidelineContent struct {
@@ -110,6 +112,28 @@ func (f *fakePublicGuidelineReader) Get(_ context.Context, _ uuid.UUID) (*servic
 
 func (f *fakePublicGuidelineReader) Markdown(_ context.Context, _ uuid.UUID) (*services.PublicGuidelineMarkdown, error) {
 	return f.markdown, f.markdownErr
+}
+
+func (f *fakePublicGuidelineReader) DocumentKinds(_ context.Context) ([]services.PublicGuidelineDocumentKind, error) {
+	return f.documentKinds, f.documentKindErr
+}
+
+func TestPublicGuidelineDocumentKindsReturnsPublishedLibrarySections(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	fake := &fakePublicGuidelineReader{documentKinds: []services.PublicGuidelineDocumentKind{
+		{Slug: "guideline", Name: "Clinical guidelines", Count: 12},
+		{Slug: "form", Name: "Forms", Count: 4},
+	}}
+	router := gin.New()
+	handler := PublicGuidelineHandler{Service: fake}
+	router.GET("/api/public/guidelines/document-kinds", handler.DocumentKinds)
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/public/guidelines/document-kinds", nil))
+
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"slug":"form"`) || !strings.Contains(response.Body.String(), `"count":12`) {
+		t.Fatalf("unexpected document-kind response %d: %s", response.Code, response.Body.String())
+	}
 }
 
 func TestPublicGuidelineListReturnsOnlyPublicProjectionAndFilters(t *testing.T) {

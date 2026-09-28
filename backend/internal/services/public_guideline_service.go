@@ -78,6 +78,14 @@ type PublicDocumentKind struct {
 	PublishAsLink     bool   `json:"publish_as_link"`
 }
 
+// PublicGuidelineDocumentKind is a public-library section and the number of
+// currently published documents assigned to it.
+type PublicGuidelineDocumentKind struct {
+	Slug  string `json:"slug"`
+	Name  string `json:"name"`
+	Count int64  `json:"count"`
+}
+
 type PublicGuidelineCategory struct {
 	ID               uuid.UUID  `json:"id"`
 	ParentCategoryID *uuid.UUID `json:"parent_category_id,omitempty"`
@@ -124,6 +132,20 @@ func (s PublicGuidelineService) List(ctx context.Context, filter PublicGuideline
 	key, _ := json.Marshal(filter)
 	return cachepkg.GetOrLoad(ctx, s.Cache, "public-guidelines", "list:"+string(key), 2*time.Minute, func() (*PageResult[PublicGuideline], error) {
 		return s.listUncached(ctx, filter)
+	})
+}
+
+func (s PublicGuidelineService) DocumentKinds(ctx context.Context) ([]PublicGuidelineDocumentKind, error) {
+	return cachepkg.GetOrLoad(ctx, s.Cache, "public-guidelines", "document-kinds", 2*time.Minute, func() ([]PublicGuidelineDocumentKind, error) {
+		var items []PublicGuidelineDocumentKind
+		err := s.visibleQuery(ctx).
+			Select(`COALESCE(NULLIF(dk.slug, ''), 'uncategorized') AS slug,
+				COALESCE(NULLIF(dk.name, ''), 'Other documents') AS name,
+				COUNT(DISTINCT gd.id) AS count`).
+			Group("dk.slug, dk.name, dk.sort_order").
+			Order("CASE WHEN dk.sort_order IS NULL THEN 1 ELSE 0 END, dk.sort_order ASC, dk.name ASC").
+			Scan(&items).Error
+		return items, err
 	})
 }
 
@@ -264,7 +286,11 @@ func applyPublicGuidelineFilters(query *gorm.DB, filter PublicGuidelineFilter) *
 		query = query.Where("LOWER(gd.program_area) = ?", strings.ToLower(value))
 	}
 	if value := strings.TrimSpace(filter.DocumentKind); value != "" {
-		query = query.Where("dk.slug = ?", strings.ToLower(value))
+		if strings.EqualFold(value, "uncategorized") {
+			query = query.Where("gd.document_kind_id IS NULL")
+		} else {
+			query = query.Where("dk.slug = ?", strings.ToLower(value))
+		}
 	}
 	if value := strings.TrimSpace(filter.CategoryID); value != "" {
 		id, err := uuid.Parse(value)

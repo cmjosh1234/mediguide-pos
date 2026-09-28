@@ -9,6 +9,7 @@ import (
 
 func registerPublicGuidelinesRoutes(public *gin.RouterGroup, rateLimiter *middleware.RateLimiter, publicGuidelineH handlers.PublicGuidelineHandler, searchH handlers.SearchHandler) {
 	public.GET("/guidelines", publicGuidelineH.List)
+	public.GET("/guidelines/document-kinds", publicGuidelineH.DocumentKinds)
 	public.GET("/search", rateLimiter.Limit(middleware.Policy("public-search", 60, time.Minute, 10), middleware.IPIdentity), searchH.PublicSearch)
 	public.GET("/guidelines/:id", publicGuidelineH.Get)
 	public.GET("/guidelines/:id/manifest", publicGuidelineH.Manifest)

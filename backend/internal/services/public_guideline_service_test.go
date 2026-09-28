@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/url"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -70,6 +71,61 @@ func TestPublicGuidelineProjectionExcludesInternalFields(t *testing.T) {
 	}
 	if !got.HasOriginalDocument {
 		t.Fatal("published original should be exposed as availability metadata")
+	}
+}
+
+func TestPublicGuidelineDocumentKindsOnlyCountPublishedLibraryDocuments(t *testing.T) {
+	db := publicGuidelineTestDB(t)
+	guidelineKind := models.DocumentKind{Name: "Clinical guideline", Slug: "guideline", Status: "active", SortOrder: 10}
+	formKind := models.DocumentKind{Name: "Forms", Slug: "form", Status: "active", SortOrder: 20}
+	if err := db.Create(&guidelineKind).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&formKind).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	createDocument := func(title string, kindID *uuid.UUID, status string) uuid.UUID {
+		document := models.GuidelineDocument{Title: title, DocumentKindID: kindID}
+		if err := db.Create(&document).Error; err != nil {
+			t.Fatal(err)
+		}
+		version := models.GuidelineVersion{DocumentID: document.ID, Version: "1", Status: status}
+		if err := db.Create(&version).Error; err != nil {
+			t.Fatal(err)
+		}
+		if err := db.Model(&document).Update("current_version_id", version.ID).Error; err != nil {
+			t.Fatal(err)
+		}
+		return document.ID
+	}
+
+	createDocument("Guideline one", &guidelineKind.ID, "published")
+	createDocument("Guideline two", &guidelineKind.ID, "published")
+	createDocument("Reporting form", &formKind.ID, "published")
+	uncategorizedID := createDocument("Historical publication", nil, "published")
+	createDocument("Draft form", &formKind.ID, "draft")
+
+	service := PublicGuidelineService{DB: db}
+	kinds, err := service.DocumentKinds(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []PublicGuidelineDocumentKind{
+		{Slug: "guideline", Name: "Clinical guideline", Count: 2},
+		{Slug: "form", Name: "Forms", Count: 1},
+		{Slug: "uncategorized", Name: "Other documents", Count: 1},
+	}
+	if !reflect.DeepEqual(kinds, want) {
+		t.Fatalf("document kinds = %#v, want %#v", kinds, want)
+	}
+
+	page, err := service.List(context.Background(), PublicGuidelineFilter{
+		DocumentKind: "uncategorized",
+		Page:         PageInput{Page: 1, PerPage: 10},
+	})
+	if err != nil || len(page.Items) != 1 || page.Items[0].ID != uncategorizedID {
+		t.Fatalf("uncategorized filter = %#v, err %v", page, err)
 	}
 }
 
@@ -487,6 +543,7 @@ func publicGuidelineTestDB(t *testing.T) *gorm.DB {
 		t.Fatal(err)
 	}
 	if err := db.AutoMigrate(
+		&models.DocumentKind{},
 		&models.GuidelineDocument{},
 		&models.GuidelineVersion{},
 		&models.GuidelineMarkdownRevision{},

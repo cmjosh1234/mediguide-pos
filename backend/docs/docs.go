@@ -271,6 +271,25 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/public/guidelines/document-kinds": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Guidelines"
+                ],
+                "summary": "List document kinds represented in the published guideline library",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PublicGuidelineDocumentKindsEnvelope"
+                        }
+                    }
+                }
+            }
+        },
         "/api/public/guidelines/{id}": {
             "get": {
                 "produces": [
@@ -20678,6 +20697,20 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.PublicGuidelineDocumentKindsEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.PublicGuidelineDocumentKind"
+                    }
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.PublicGuidelineEnvelope": {
             "type": "object",
             "properties": {
@@ -30573,6 +30606,20 @@ const docTemplate = `{
                     }
                 },
                 "version_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.PublicGuidelineDocumentKind": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "slug": {
                     "type": "string"
                 }
             }

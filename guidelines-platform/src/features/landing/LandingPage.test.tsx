@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PublicGuideline } from "../../api/public-guidelines";
 import { publicApiBaseUrl } from "../../config";
-import { BackendGuidelineCard } from "./LandingPage";
+import { BackendGuidelineCard, DocumentKindSections } from "./LandingPage";
 
 const guideline: PublicGuideline = {
   id: "guideline-id",
@@ -48,5 +48,26 @@ describe("BackendGuidelineCard", () => {
     expect(html).toContain("Read guideline");
     expect(html).not.toContain("Download");
     expect(html).not.toContain("original/download");
+  });
+});
+
+describe("DocumentKindSections", () => {
+  it("renders library sections with publication counts", () => {
+    const html = renderToStaticMarkup(
+      <DocumentKindSections
+        items={[
+          { slug: "guideline", name: "Clinical guidelines", count: 12 },
+          { slug: "form", name: "Forms", count: 4 },
+        ]}
+        value="form"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("All publications");
+    expect(html).toContain("Clinical guidelines");
+    expect(html).toContain("Forms");
+    expect(html).toContain("16");
+    expect(html).toContain('aria-pressed="true"');
   });
 });

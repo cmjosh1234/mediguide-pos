@@ -1387,6 +1387,11 @@ export interface HandlersPublicGuidelineContentEnvelope {
   success?: boolean;
 }
 
+export interface HandlersPublicGuidelineDocumentKindsEnvelope {
+  data?: ServicesPublicGuidelineDocumentKind[];
+  success?: boolean;
+}
+
 export interface HandlersPublicGuidelineEnvelope {
   data?: ServicesPublicGuideline;
   success?: boolean;
@@ -4987,6 +4992,12 @@ export interface ServicesPublicGuidelineContent {
   package_version?: number;
   sections?: ServicesPublicGuidelineSection[];
   version_id?: string;
+}
+
+export interface ServicesPublicGuidelineDocumentKind {
+  count?: number;
+  name?: string;
+  slug?: string;
 }
 
 export interface ServicesPublicGuidelineFigure {
