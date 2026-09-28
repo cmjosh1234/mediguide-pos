@@ -1,12 +1,20 @@
 # Graphics and reviewer handoff
 The exporter reuses android/app/src/production/ic_launcher-playstore.png after verifying
-its PNG dimensions are 512x512. Confirm the final publisher owns the artwork.
+its PNG dimensions are 512x512. A prepared 1024x500 feature graphic is stored at
+fastlane/metadata/android/en-US/images/featureGraphic.png. Confirm the final publisher
+owns and approves both assets before upload.
+
+Prepared screenshots:
+- Six genuine 1080x1920 captures from the production flavor running in profile mode on
+  an Android 16 emulator: guest home, empty search, populated search results, guideline
+  overview, chapter browser and clinical tools.
+- The captures contain no patient-identifiable information and are stored in
+  `fastlane/metadata/android/en-US/images/phoneScreenshots`.
 
 Still required:
-- featureGraphic.png: approved 1024x500 PNG/JPEG, readable at small size.
-- At least two actual phone screenshots; prepare six 1080x1920 images covering:
-  guest home, guideline search, guideline reader, offline library, clinical tools and AI citations.
-  Capture only features present in the release; use demo accounts and no patient identifiers.
+- Publisher visual approval. Re-capture from the signed production candidate if that build
+  renders differently, and add offline-library or AI-citation screens only after those flows
+  pass release acceptance with suitable non-sensitive demonstration content.
 - Check current Play asset specifications for file size, aspect ratio and transparency.
 - Review listing claims against the accepted production build. Text files are drafts.
 

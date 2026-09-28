@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:user_app/core/constants/app_spacing.dart';
 import 'package:user_app/core/utils/app_extensions.dart';
+import 'package:user_app/core/utils/app_message.dart';
 import 'package:user_app/core/utils/responsive.dart';
 import 'package:user_app/l10n/app_translations.dart';
 
@@ -92,18 +93,16 @@ class TermsAndConditionsPage extends StatelessWidget {
                         mode: LaunchMode.externalApplication,
                       );
                       if (!opened && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Unable to open the privacy page.'),
-                          ),
+                        AppMessage.error(
+                          context,
+                          'Unable to open the privacy page.',
                         );
                       }
                     } catch (_) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Unable to open the privacy page.'),
-                          ),
+                        AppMessage.error(
+                          context,
+                          'Unable to open the privacy page.',
                         );
                       }
                     }
