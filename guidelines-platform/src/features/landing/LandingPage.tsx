@@ -3,9 +3,15 @@ import { Link } from "react-router-dom";
 
 import {
   listPublicGuidelines,
+  resolvePublicAssetUrl,
   type PublicGuideline,
 } from "../../api/public-guidelines";
-import { ArrowIcon, BookIcon, ShieldIcon } from "../../components/common/Icons";
+import {
+  ArrowIcon,
+  BookIcon,
+  DownloadIcon,
+  ShieldIcon,
+} from "../../components/common/Icons";
 import { dashboardLoginUrl } from "../../config";
 
 type LibraryState =
@@ -62,9 +68,10 @@ export function LandingPage() {
   }, [search, programArea, reloadKey]);
 
   const programAreas = useMemo(() => {
-    const areas = library.status === "ready"
-      ? library.items.map((item) => item.program_area).filter(Boolean)
-      : [];
+    const areas =
+      library.status === "ready"
+        ? library.items.map((item) => item.program_area).filter(Boolean)
+        : [];
     if (programArea) areas.push(programArea);
     return [...new Set(areas)].sort();
   }, [library, programArea]);
@@ -74,14 +81,16 @@ export function LandingPage() {
       <section className="landing-hero">
         <div className="page-shell hero-grid">
           <div className="hero-copy">
-            <span className="eyebrow">Republic of Uganda · Ministry of Health</span>
+            <span className="eyebrow">
+              Republic of Uganda · Ministry of Health
+            </span>
             <h1>
               Clinical guidance,
               <span> ready when care decisions matter.</span>
             </h1>
             <p>
-              Browse published clinical guidelines in a clear, searchable
-              format designed for health workers at every level of care.
+              Browse published clinical guidelines in a clear, searchable format
+              designed for health workers at every level of care.
             </p>
             <div className="hero-actions">
               <a className="button button-primary" href="#guidelines">
@@ -139,7 +148,9 @@ export function LandingPage() {
             >
               <option value="">All program areas</option>
               {programAreas.map((area) => (
-                <option value={area} key={area}>{area}</option>
+                <option value={area} key={area}>
+                  {area}
+                </option>
               ))}
             </select>
           </label>
@@ -159,7 +170,10 @@ export function LandingPage() {
           <div className="library-state">
             <h3>We could not load the guideline library.</h3>
             <p>Check your connection and try again.</p>
-            <button className="button button-primary" onClick={() => setReloadKey((key) => key + 1)}>
+            <button
+              className="button button-primary"
+              onClick={() => setReloadKey((key) => key + 1)}
+            >
               Try again
             </button>
           </div>
@@ -168,10 +182,13 @@ export function LandingPage() {
         {library.status === "ready" && library.items.length === 0 && (
           <div className="library-state">
             <h3>No published guidelines match these filters.</h3>
-            <button className="button button-quiet" onClick={() => {
-              setSearch("");
-              setProgramArea("");
-            }}>
+            <button
+              className="button button-quiet"
+              onClick={() => {
+                setSearch("");
+                setProgramArea("");
+              }}
+            >
               Clear filters
             </button>
           </div>
@@ -184,7 +201,6 @@ export function LandingPage() {
             ))}
           </div>
         )}
-
       </section>
 
       <section className="about-section" id="about">
@@ -198,14 +214,20 @@ export function LandingPage() {
               <BookIcon />
               <div>
                 <h3>Current published content</h3>
-                <p>New versions appear here after review and publication, without rebuilding this website.</p>
+                <p>
+                  New versions appear here after review and publication, without
+                  rebuilding this website.
+                </p>
               </div>
             </article>
             <article>
               <SearchIcon />
               <div>
                 <h3>Find guidance quickly</h3>
-                <p>Search by publication title, source organization, or clinical topic.</p>
+                <p>
+                  Search by publication title, source organization, or clinical
+                  topic.
+                </p>
               </div>
             </article>
           </div>
@@ -215,25 +237,58 @@ export function LandingPage() {
   );
 }
 
-function BackendGuidelineCard({ guideline }: { guideline: PublicGuideline }) {
+export function BackendGuidelineCard({
+  guideline,
+}: {
+  guideline: PublicGuideline;
+}) {
+  const readerUrl = `/guidelines/${guideline.id}`;
+  const downloadUrl = resolvePublicAssetUrl(
+    `/api/public/guidelines/${encodeURIComponent(guideline.id)}/original/download`,
+  );
   return (
-    <Link className="publication-card" to={`/guidelines/${guideline.id}`}>
+    <article className="publication-card">
       <div className="publication-cover">
         <span>{guideline.country || "Clinical guideline"}</span>
         <strong>{guideline.title.slice(0, 2).toUpperCase()}</strong>
         <small>{guideline.version}</small>
       </div>
       <div className="publication-card-content">
-        <span className="publication-publisher">{guideline.source_org || guideline.program_area}</span>
+        <span className="publication-publisher">
+          {guideline.source_org || guideline.program_area}
+        </span>
         <h3>{guideline.title}</h3>
-        <p>{guideline.description || "Open this publication to read the current clinical guidance."}</p>
+        <p>
+          {guideline.description ||
+            "Open this publication to read the current clinical guidance."}
+        </p>
         <dl className="publication-meta">
-          <div><dt>Version</dt><dd>{guideline.version}</dd></div>
-          <div><dt>Language</dt><dd>{guideline.language || "en"}</dd></div>
+          <div>
+            <dt>Version</dt>
+            <dd>{guideline.version}</dd>
+          </div>
+          <div>
+            <dt>Language</dt>
+            <dd>{guideline.language || "en"}</dd>
+          </div>
         </dl>
-        <span className="card-action">Read guideline <ArrowIcon /></span>
+        <div className="card-actions">
+          <Link className="card-action card-action-read" to={readerUrl}>
+            Read guideline <ArrowIcon />
+          </Link>
+          {guideline.has_original_document && (
+            <a
+              className="card-action card-action-download"
+              href={downloadUrl}
+              download
+              aria-label={`Download ${guideline.title}`}
+            >
+              <DownloadIcon /> Download
+            </a>
+          )}
+        </div>
       </div>
-    </Link>
+    </article>
   );
 }
 
@@ -244,7 +299,10 @@ function GuidelineSkeleton() {
         <div className="publication-card guideline-skeleton" key={item}>
           <div className="publication-cover" />
           <div className="publication-card-content">
-            <i /><i /><i /><i />
+            <i />
+            <i />
+            <i />
+            <i />
           </div>
         </div>
       ))}
@@ -254,7 +312,13 @@ function GuidelineSkeleton() {
 
 function SearchIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
       <circle cx="11" cy="11" r="6" />
       <path d="m16 16 4 4" />
     </svg>

@@ -117,7 +117,7 @@ func TestPublicGuidelineListReturnsOnlyPublicProjectionAndFilters(t *testing.T) 
 	id := uuid.New()
 	fake := &fakePublicGuidelineReader{
 		listResult: services.NewPageResult([]services.PublicGuideline{{
-			ID: id, Slug: "malaria-care", Title: "Malaria care", Version: "2026",
+			ID: id, Slug: "malaria-care", Title: "Malaria care", Version: "2026", HasOriginalDocument: true,
 		}}, services.PageInput{Page: 2, PerPage: 10}, 11),
 	}
 	router := gin.New()
@@ -139,6 +139,9 @@ func TestPublicGuidelineListReturnsOnlyPublicProjectionAndFilters(t *testing.T) 
 		t.Fatal(err)
 	}
 	body := response.Body.String()
+	if !strings.Contains(body, `"has_original_document":true`) {
+		t.Fatalf("public response omitted original-document availability: %s", body)
+	}
 	for _, privateField := range []string{"markdown_file_key", "approved_by", "current_version_id", "version_id"} {
 		if strings.Contains(body, privateField) {
 			t.Fatalf("public response exposed %q: %s", privateField, body)

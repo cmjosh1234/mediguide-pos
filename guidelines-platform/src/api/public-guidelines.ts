@@ -13,6 +13,7 @@ export type PublicGuideline = {
   review_date: string;
   version: string;
   last_updated: string;
+  has_original_document?: boolean;
   /** Kinds published as uploaded (for example forms) are shown as their original file. */
   document_kind?: PublicDocumentKind | null;
 };

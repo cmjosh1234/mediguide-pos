@@ -48,21 +48,22 @@ type PublicGuidelineFilter struct {
 }
 
 type PublicGuideline struct {
-	ID                 uuid.UUID                 `json:"id"`
-	Slug               string                    `json:"slug"`
-	Title              string                    `json:"title"`
-	Description        string                    `json:"description"`
-	Country            string                    `json:"country"`
-	SourceOrg          string                    `json:"source_org"`
-	ProgramArea        string                    `json:"program_area"`
-	Language           string                    `json:"language"`
-	PublicationDate    string                    `json:"publication_date"`
-	ReviewDate         string                    `json:"review_date"`
-	Version            string                    `json:"version"`
-	LastUpdated        time.Time                 `json:"last_updated"`
-	IntendedPopulation string                    `json:"intended_population"`
-	HealthcareLevel    string                    `json:"healthcare_level"`
-	Categories         []PublicGuidelineCategory `json:"categories"`
+	ID                  uuid.UUID                 `json:"id"`
+	Slug                string                    `json:"slug"`
+	Title               string                    `json:"title"`
+	Description         string                    `json:"description"`
+	Country             string                    `json:"country"`
+	SourceOrg           string                    `json:"source_org"`
+	ProgramArea         string                    `json:"program_area"`
+	Language            string                    `json:"language"`
+	PublicationDate     string                    `json:"publication_date"`
+	ReviewDate          string                    `json:"review_date"`
+	Version             string                    `json:"version"`
+	LastUpdated         time.Time                 `json:"last_updated"`
+	IntendedPopulation  string                    `json:"intended_population"`
+	HealthcareLevel     string                    `json:"healthcare_level"`
+	Categories          []PublicGuidelineCategory `json:"categories"`
+	HasOriginalDocument bool                      `json:"has_original_document"`
 	// DocumentKind tells readers how to present the guideline. Kinds published
 	// as uploaded (for example forms) are shown as their original file.
 	DocumentKind *PublicDocumentKind `json:"document_kind,omitempty"`
@@ -358,22 +359,23 @@ func publicStringValue(value *string) string {
 
 func (row publicGuidelineRow) public() PublicGuideline {
 	return PublicGuideline{
-		ID:                 row.ID,
-		Slug:               slugify(row.Title),
-		Title:              row.Title,
-		Description:        row.Description,
-		Country:            row.Country,
-		SourceOrg:          row.SourceOrg,
-		ProgramArea:        row.ProgramArea,
-		Language:           row.Language,
-		PublicationDate:    row.PublicationDate,
-		ReviewDate:         row.ReviewDate,
-		Version:            row.Version,
-		LastUpdated:        row.VersionUpdated.UTC(),
-		IntendedPopulation: row.IntendedPopulation,
-		HealthcareLevel:    row.HealthcareLevel,
-		DocumentKind:       row.documentKind(),
-		ExternalURL:        row.externalURL(),
+		ID:                  row.ID,
+		Slug:                slugify(row.Title),
+		Title:               row.Title,
+		Description:         row.Description,
+		Country:             row.Country,
+		SourceOrg:           row.SourceOrg,
+		ProgramArea:         row.ProgramArea,
+		Language:            row.Language,
+		PublicationDate:     row.PublicationDate,
+		ReviewDate:          row.ReviewDate,
+		Version:             row.Version,
+		LastUpdated:         row.VersionUpdated.UTC(),
+		IntendedPopulation:  row.IntendedPopulation,
+		HealthcareLevel:     row.HealthcareLevel,
+		DocumentKind:        row.documentKind(),
+		ExternalURL:         row.externalURL(),
+		HasOriginalDocument: strings.TrimSpace(row.OriginalFileKey) != "",
 	}
 }
 

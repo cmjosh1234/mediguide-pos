@@ -43,7 +43,7 @@
 .section-intro p { max-width: 410px; margin: 0; color: var(--color-muted); font-size: .88rem; line-height: 1.6; }
 .publication-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1.4rem; }
 .publication-card { min-height: 360px; display: grid; grid-template-columns: 190px 1fr; overflow: hidden; color: var(--color-text); background: var(--card); border: 1px solid var(--color-line); border-radius: var(--radius-md); box-shadow: var(--shadow-card); text-decoration: none; transition: transform 180ms, box-shadow 180ms; }
-.publication-card:hover { color: var(--color-text); box-shadow: 0 24px 56px rgba(22,49,38,.14); transform: translateY(-3px); }
+.publication-card:hover, .publication-card:focus-within { color: var(--color-text); box-shadow: 0 24px 56px rgba(22,49,38,.14); transform: translateY(-3px); }
 .publication-cover { position: relative; overflow: hidden; display: flex; flex-direction: column; padding: 1.8rem 1.5rem; color: #fff; background: linear-gradient(150deg,#1a735a,#0d4436); }
 .publication-cover::after { position: absolute; right: -5rem; bottom: -4rem; width: 13rem; height: 13rem; content: ""; border: 1px solid rgba(255,255,255,.14); border-radius: 50%; box-shadow: 0 0 0 2rem rgba(255,255,255,.035),0 0 0 4rem rgba(255,255,255,.02); }
 .publication-cover span, .publication-cover small { position: relative; z-index: 1; font-size: .63rem; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; opacity: .78; }
@@ -56,7 +56,13 @@
 .publication-meta div { display: flex; flex-direction: column; }
 .publication-meta dt { color: #8c9791; font-size: .6rem; letter-spacing: .08em; text-transform: uppercase; }
 .publication-meta dd { margin: .2rem 0 0; color: var(--color-text); font-size: .75rem; font-weight: 650; }
-.card-action { display: flex; gap: .5rem; align-items: center; margin-top: auto; color: var(--color-green-700); font-size: .8rem; font-weight: 800; }
+.card-actions { display: flex; flex-wrap: wrap; gap: .7rem; align-items: center; justify-content: flex-end; margin-top: auto; }
+.card-action { min-height: 38px; display: inline-flex; gap: .45rem; align-items: center; justify-content: center; padding: .55rem .75rem; color: var(--color-green-700); border: 1px solid transparent; border-radius: .35rem; font-size: .78rem; font-weight: 800; text-decoration: none; }
+.card-action:hover { color: var(--color-green-800); background: var(--color-soft); }
+.card-action:focus-visible { outline: 3px solid rgba(23,107,84,.18); outline-offset: 2px; }
+.card-action-read { margin-left: auto; }
+.card-action-download { border-color: var(--color-line); }
+.card-action svg { width: 1rem; height: 1rem; }
 .about-section { padding-block: 6rem; background: var(--color-soft); border-block: 1px solid var(--color-line); }
 .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(3rem,9vw,8rem); }
 .about-grid h2 { max-width: 550px; }
@@ -71,4 +77,4 @@
 .footer-grid > div > strong { color: var(--color-ink); font-size: .75rem; }
 .footer-grid a:hover { color: var(--color-green-700); }
 @media (max-width:850px) { .hero-grid { grid-template-columns: 1fr; } .hero-publication { display: none; } .publication-grid { grid-template-columns: 1fr; } .about-grid { grid-template-columns: 1fr; } }
-@media (max-width:620px) { .public-nav > a:not(.button) { display: none; } .hero-grid { min-height: auto; padding-block: 4.5rem; } .section-intro { align-items: flex-start; flex-direction: column; } .library-filters { grid-template-columns: 1fr; } .publication-card { grid-template-columns: 115px 1fr; } .publication-cover { padding: 1.5rem 1rem; } .publication-cover strong { font-size: 2.4rem; } .publication-card-content { padding: 1.4rem; } .publication-meta { flex-direction: column; gap: .6rem; } .footer-grid { grid-template-columns: 1fr; } }
+@media (max-width:620px) { .public-nav > a:not(.button) { display: none; } .hero-grid { min-height: auto; padding-block: 4.5rem; } .section-intro { align-items: flex-start; flex-direction: column; } .library-filters { grid-template-columns: 1fr; } .publication-card { grid-template-columns: 115px 1fr; } .publication-cover { padding: 1.5rem 1rem; } .publication-cover strong { font-size: 2.4rem; } .publication-card-content { padding: 1.4rem; } .publication-meta { flex-direction: column; gap: .6rem; } .card-actions { align-items: stretch; flex-direction: column; } .card-action { width: 100%; } .footer-grid { grid-template-columns: 1fr; } }

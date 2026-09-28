@@ -4914,6 +4914,7 @@ export interface ServicesPublicGuideline {
   document_kind?: ServicesPublicDocumentKind;
   /** ExternalURL is the https link readers open for kinds published as a link. */
   external_url?: string;
+  has_original_document?: boolean;
   healthcare_level?: string;
   id?: string;
   intended_population?: string;

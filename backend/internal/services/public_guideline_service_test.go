@@ -61,11 +61,15 @@ func TestPublicGuidelineProjectionExcludesInternalFields(t *testing.T) {
 	row := publicGuidelineRow{
 		ID: id, Title: "Maternal & Newborn Care", Description: "Public description",
 		Version: "2.0", VersionID: uuid.New(), MarkdownFileKey: "private/object/key.md",
-		VersionUpdated: time.Date(2026, 7, 30, 0, 0, 0, 0, time.UTC),
+		OriginalFileKey: "private/original.pdf",
+		VersionUpdated:  time.Date(2026, 7, 30, 0, 0, 0, 0, time.UTC),
 	}
 	got := row.public()
 	if got.ID != id || got.Slug != "maternal-newborn-care" || got.Version != "2.0" {
 		t.Fatalf("unexpected projection: %#v", got)
+	}
+	if !got.HasOriginalDocument {
+		t.Fatal("published original should be exposed as availability metadata")
 	}
 }
 

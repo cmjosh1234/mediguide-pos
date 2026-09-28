@@ -15574,6 +15574,8 @@ final class ServicesPublicGuideline {
 
   String? get externalUrl => value['external_url']?.toString();
 
+  bool? get hasOriginalDocument => value['has_original_document'] as bool?;
+
   String? get healthcareLevel => value['healthcare_level']?.toString();
 
   String? get id => value['id']?.toString();

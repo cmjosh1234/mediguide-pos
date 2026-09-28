@@ -30368,6 +30368,9 @@ const docTemplate = `{
                     "description": "ExternalURL is the https link readers open for kinds published as a link.",
                     "type": "string"
                 },
+                "has_original_document": {
+                    "type": "boolean"
+                },
                 "healthcare_level": {
                     "type": "string"
                 },

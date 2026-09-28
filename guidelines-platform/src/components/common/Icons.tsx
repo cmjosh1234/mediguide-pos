@@ -44,6 +44,15 @@ export function ChevronIcon(props: IconProps) {
   );
 }
 
+export function DownloadIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+      <path d="M5 19h14" />
+    </IconBase>
+  );
+}
+
 export function CloseIcon(props: IconProps) {
   return (
     <IconBase {...props}>
