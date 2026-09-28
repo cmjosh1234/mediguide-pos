@@ -34,7 +34,13 @@ function escapeRawHtml(value: string) {
 }
 
 function normalizeMarkdown(value: string) {
-  return escapeRawHtml(value).replace(/;\s*[•·]\s*/g, "  \n• ");
+  const withLineBreaks = value
+    .replace(/(?:<br\s*\/?>|&lt;br\s*\/?&gt;)\s*[-–—]\s*/gi, "  \n• ")
+    .replace(/(?:<br\s*\/?>|&lt;br\s*\/?&gt;)/gi, "  \n");
+  return escapeRawHtml(withLineBreaks).replace(
+    /;\s*[•·]\s*/g,
+    "  \n• ",
+  );
 }
 
 // Memoized so unrelated parent re-renders (e.g. typing in the reader search box)

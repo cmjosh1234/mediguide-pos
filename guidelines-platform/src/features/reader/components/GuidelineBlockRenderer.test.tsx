@@ -58,7 +58,7 @@ describe("GuidelineBlockRenderer", () => {
         columns: ["**Question**", "Guidance"],
         rows: [[
           "**Adherence**",
-          "Consider the following:; · Use the *shortest* effective regimen; · Verify understanding",
+          "Consider the following:<br>- Use the *shortest* effective regimen<br/>- Verify understanding; · Record the result",
         ]],
         footnotes: ["**Note:** verify the prescription."],
       },
@@ -72,6 +72,7 @@ describe("GuidelineBlockRenderer", () => {
     expect(table).toContain("<strong>Adherence</strong>");
     expect(table).toContain("<em>shortest</em>");
     expect(table).toContain("<br/>");
+    expect(table).not.toContain("&lt;br");
     expect(table).not.toContain("; ·");
     expect(`${paragraph}${list}${table}`).not.toContain("**");
   });

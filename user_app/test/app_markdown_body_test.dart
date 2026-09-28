@@ -11,7 +11,8 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: AppMarkdownBody(
-            data: '**Important** dose is `5 mg`\n\n- Take with water',
+            data:
+                '**Important** dose is `5 mg`<br>- Take with water<br/>- Verify the dose',
           ),
         ),
       ),
@@ -30,8 +31,14 @@ void main() {
     expect(rendered, contains('Important'));
     expect(rendered, contains('5 mg'));
     expect(rendered, contains('Take with water'));
+    expect(rendered, contains('Verify the dose'));
     expect(rendered, isNot(contains('**')));
     expect(rendered, isNot(contains('`')));
+    expect(rendered, isNot(contains('<br>')));
+
+    final markdown = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+    expect(markdown.data, contains('  \n• Take with water'));
+    expect(markdown.data, isNot(contains('<br')));
   });
 
   testWidgets('markdown tables scroll sideways instead of overflowing', (
