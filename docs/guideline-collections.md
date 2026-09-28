@@ -247,7 +247,6 @@ cd backend
 go test ./...
 go vet ./...
 go build ./cmd/api
-go build ./cmd/worker
 
 cd ../user_app
 dart format --set-exit-if-changed .

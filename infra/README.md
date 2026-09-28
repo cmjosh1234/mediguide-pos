@@ -467,6 +467,13 @@ Verify `MAX_UPLOAD_MB`, reverse-proxy body limits, object-store credentials,
 Redis no-eviction policy, `AI_WORKER_SECRET`, embedding provider/model/dimension
 and CORS URLs agree across services. Use immutable image SHA/version tags.
 
+The Go API talks to the AI service over the internal gRPC address
+`ai-worker:50051`; client applications do not connect to that port. Tune
+`AI_WORKER_TIMEOUT_SECONDS`, `AI_WORKER_GRPC_RETRIES` and the health timeout
+through the environment files. `AI_WORKER_SECRET` is mapped to
+`WORKER_API_SECRET` inside the AI worker and must be non-empty in staging and
+production.
+
 After starting a non-production stack, verify PostgreSQL `pg_isready`, Redis
 `PING`, MinIO `/minio/health/live`, API health, dashboard health and both worker
 processes. Exercise one PDF and one Markdown job through `review_required`; a

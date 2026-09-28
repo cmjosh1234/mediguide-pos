@@ -40,7 +40,6 @@ help:
 	@echo backend-test     Run backend Go tests
 	@echo backend-build    Build backend binaries
 	@echo backend-run      Run backend API locally
-	@echo backend-worker   Run backend Go worker locally
 	@echo swagger          Generate backend Swagger JSON/YAML docs
 	@echo contracts        Regenerate Go, TypeScript, and Dart API contracts
 	@echo contracts-check  Verify committed API contracts have no drift
@@ -179,10 +178,6 @@ backend-build:
 .PHONY: backend-run
 backend-run:
 	$(MAKE) -C $(BACKEND_DIR) run
-
-.PHONY: backend-worker
-backend-worker:
-	$(MAKE) -C $(BACKEND_DIR) worker
 
 .PHONY: swagger
 swagger:

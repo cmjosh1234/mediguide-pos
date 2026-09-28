@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from functools import lru_cache
+import hmac
 from pathlib import Path
 import tempfile
 
@@ -14,29 +14,9 @@ from app.models.schemas import (
     ExtractionPreviewResponse,
     HealthResponse,
     ReadinessResponse,
-    RagAskRequest,
-    RagAskResponse,
-    RunJobResponse,
 )
-from app.services.ingestion_service import IngestionService
-from app.services.rag_service import RagService
 
 router = APIRouter()
-
-
-# ---------------------------------------------------------------------------
-# Singleton service factories
-# ---------------------------------------------------------------------------
-
-
-@lru_cache(maxsize=1)
-def _get_ingestion_service() -> IngestionService:
-    return IngestionService()
-
-
-@lru_cache(maxsize=1)
-def _get_rag_service() -> RagService:
-    return RagService()
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +32,7 @@ def _require_worker_secret(
     If WORKER_API_SECRET is not configured the check is skipped (dev mode).
     """
     secret = (settings.worker_api_secret or "").strip()
-    if secret and x_worker_secret != secret:
+    if secret and not hmac.compare_digest(x_worker_secret or "", secret):
         raise HTTPException(status_code=401, detail="invalid or missing X-Worker-Secret header")
 
 
@@ -135,41 +115,3 @@ async def preview_pdf(
             warnings=extracted.warnings,
             markdown_sample=extracted.markdown[:3000],
         )
-
-
-@router.post(
-    "/api/v1/ingestion/jobs/{job_id}/run",
-    response_model=RunJobResponse,
-    dependencies=[Depends(_require_worker_secret)],
-)
-def run_job(
-    job_id: str,
-    service: IngestionService = Depends(_get_ingestion_service),
-):
-    try:
-        service.run_job(job_id)
-        return RunJobResponse(job_id=job_id, status="completed", message="Ingestion job completed")
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="Ingestion job failed") from exc
-
-
-@router.post(
-    "/api/v1/rag/ask",
-    response_model=RagAskResponse,
-    dependencies=[Depends(_require_worker_secret)],
-)
-def ask(
-    request: RagAskRequest,
-    service: RagService = Depends(_get_rag_service),
-):
-    return service.ask(
-        question=request.question,
-        language=request.language,
-        program_area=request.program_area,
-        country=request.country,
-        top_k=request.top_k,
-        history_summary=request.history_summary,
-        recent_messages=[message.model_dump() for message in request.recent_messages],
-    )

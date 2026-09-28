@@ -13,6 +13,7 @@ import (
 	"mediguide/internal/aiworkerpb"
 	"mediguide/internal/config"
 	"mediguide/internal/models"
+	"mediguide/internal/requestctx"
 	"mediguide/internal/security"
 
 	"github.com/google/uuid"
@@ -24,6 +25,9 @@ type RAGService struct {
 	DB     *gorm.DB
 	Search SearchService
 	Cfg    config.Config
+	Worker interface {
+		AskRAG(context.Context, *aiworkerpb.AskRAGRequest) (*aiworkerpb.AskRAGResponse, error)
+	}
 }
 
 type AskRequest struct {
@@ -132,25 +136,33 @@ func (s RAGService) AskPublishedGuideline(ctx context.Context, guidelineID uuid.
 }
 
 func (s RAGService) Ask(userID *uuid.UUID, req AskRequest) (*AskResponse, error) {
+	return s.AskContext(context.Background(), userID, req)
+}
+
+func (s RAGService) AskContext(ctx context.Context, userID *uuid.UUID, req AskRequest) (*AskResponse, error) {
 	req.Question = strings.TrimSpace(req.Question)
 	if utf8.RuneCountInString(req.Question) < 2 || utf8.RuneCountInString(req.Question) > 12000 {
 		return nil, ErrInvalidRAGQuestion
 	}
-	return s.ask(userID, req)
+	return s.ask(ctx, userID, req)
 }
 
 // AskPublic provides the general approved-guideline assistant without requiring
 // an account. Public questions have a smaller input limit and anonymous sessions
 // can only be resumed when the supplied session also belongs to an anonymous user.
 func (s RAGService) AskPublic(req AskRequest) (*AskResponse, error) {
+	return s.AskPublicContext(context.Background(), req)
+}
+
+func (s RAGService) AskPublicContext(ctx context.Context, req AskRequest) (*AskResponse, error) {
 	req.Question = strings.TrimSpace(req.Question)
 	if utf8.RuneCountInString(req.Question) < 2 || utf8.RuneCountInString(req.Question) > 1200 {
 		return nil, ErrInvalidPublicRAGQuestion
 	}
-	return s.ask(nil, req)
+	return s.ask(ctx, nil, req)
 }
 
-func (s RAGService) ask(userID *uuid.UUID, req AskRequest) (*AskResponse, error) {
+func (s RAGService) ask(ctx context.Context, userID *uuid.UUID, req AskRequest) (*AskResponse, error) {
 	session, err := s.getOrCreateSession(userID, req)
 	if err != nil {
 		return nil, err
@@ -161,7 +173,7 @@ func (s RAGService) ask(userID *uuid.UUID, req AskRequest) (*AskResponse, error)
 		return nil, err
 	}
 
-	res, err := s.askWithConfiguredProvider(workerReq)
+	res, err := s.askWithConfiguredProvider(ctx, workerReq)
 	if err != nil {
 		return nil, err
 	}
@@ -294,8 +306,8 @@ func (s RAGService) enrichCitations(citations []Citation) []Citation {
 	return verified
 }
 
-func (s RAGService) askWithConfiguredProvider(req workerAskRequest) (*AskResponse, error) {
-	local, localErr := s.askLocal(req)
+func (s RAGService) askWithConfiguredProvider(ctx context.Context, req workerAskRequest) (*AskResponse, error) {
+	local, localErr := s.askLocal(ctx, req)
 	if localErr != nil {
 		return nil, localErr
 	}
@@ -314,37 +326,35 @@ func (s RAGService) askWithConfiguredProvider(req workerAskRequest) (*AskRespons
 		if citation.ContentType != "" && citation.ContentType != "guideline" {
 			return local, nil
 		}
-	}
-	provider := strings.ToLower(strings.TrimSpace(s.Cfg.AIRAGProvider))
-	if provider == "worker" || provider == "ai-worker" {
-		if res, err := s.askWorker(req); err == nil {
-			if res != nil && strings.TrimSpace(res.Answer) != "" && len(res.Citations) > 0 {
-				return res, nil
-			}
-			log.Warn().Msg("ai-worker RAG returned no grounded citations, falling back to approved local search")
-		} else {
-			log.Warn().Err(err).Msg("ai-worker RAG failed, falling back to local search")
 		}
+		provider := strings.ToLower(strings.TrimSpace(s.Cfg.AIRAGProvider))
+		if provider == "worker" || provider == "ai-worker" {
+			if res, err := s.askWorker(ctx, req); err == nil {
+				if res != nil && strings.TrimSpace(res.Answer) != "" && len(res.Citations) > 0 {
+					return res, nil
+				}
+				log.Warn().Str("correlation_id", requestctx.CorrelationID(ctx)).Msg("ai-worker RAG returned no grounded citations, falling back to approved local search")
+			} else {
+				event := log.Warn().Str("correlation_id", requestctx.CorrelationID(ctx))
+				var rpcErr *aiworkergrpc.RPCError
+				if errors.As(err, &rpcErr) {
+					event = event.Str("grpc_code", rpcErr.Code.String()).Bool("grpc_retryable", rpcErr.Retryable)
+				}
+				event.Err(err).Msg("ai-worker RAG failed, falling back to local search")
+			}
+		}
+		return local, nil
 	}
-	return local, nil
-}
 
-func (s RAGService) askWorker(req workerAskRequest) (*AskResponse, error) {
+func (s RAGService) askWorker(ctx context.Context, req workerAskRequest) (*AskResponse, error) {
+	if s.Worker == nil {
+		return nil, fmt.Errorf("AI worker gRPC client is not configured")
+	}
 	timeout := time.Duration(s.workerTimeoutSeconds()) * time.Second
-
-	dialCtx, dialCancel := context.WithTimeout(context.Background(), timeout)
-	defer dialCancel()
-
-	client, err := aiworkergrpc.NewClient(dialCtx, s.Cfg.AIWorkerGRPCAddr, s.Cfg.AIWorkerSecret)
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
-
-	callCtx, callCancel := context.WithTimeout(context.Background(), timeout)
+	callCtx, callCancel := context.WithTimeout(ctx, timeout)
 	defer callCancel()
 
-	workerResp, err := client.AskRAG(
+	workerResp, err := s.Worker.AskRAG(
 		callCtx,
 		&aiworkerpb.AskRAGRequest{
 			Question:       req.Question,
@@ -402,8 +412,8 @@ func toGRPCChatMessages(messages []workerChatMessage) []*aiworkerpb.ChatMessage 
 	return out
 }
 
-func (s RAGService) askLocal(req workerAskRequest) (*AskResponse, error) {
-	results, err := s.Search.SearchApprovedContentContextFiltered(context.Background(), s.buildLocalSearchQuestion(req), req.Filter, 5)
+func (s RAGService) askLocal(ctx context.Context, req workerAskRequest) (*AskResponse, error) {
+	results, err := s.Search.SearchApprovedContentContextFiltered(ctx, s.buildLocalSearchQuestion(req), req.Filter, 5)
 	if err != nil {
 		return nil, err
 	}

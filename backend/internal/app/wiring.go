@@ -1,6 +1,12 @@
 package app
 
 import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"mediguide/internal/aiworkergrpc"
 	cachepkg "mediguide/internal/cache"
 	"mediguide/internal/config"
 	"mediguide/internal/handlers"
@@ -12,9 +18,10 @@ import (
 )
 
 type routeWiring struct {
-	guidelineSvc services.GuidelineService
-	authH handlers.AuthHandler
-	guidelineH handlers.GuidelineHandler
+	guidelineSvc   services.GuidelineService
+	aiWorkerClient *aiworkergrpc.Client
+	authH           handlers.AuthHandler
+	guidelineH      handlers.GuidelineHandler
 	publicGuidelineH handlers.PublicGuidelineHandler
 	outbreakH handlers.OutbreakHandler
 	outbreakAdminH handlers.OutbreakAdminHandler
@@ -49,7 +56,28 @@ func wireRoutes(cfg config.Config, database *gorm.DB, store *storage.MinioStore,
 	guidelineSvc, guidelineH, publicGuidelineH, guidelineContentH, guidelineLibraryH := wireGuidelines(cfg, database, store, cacheStore)
 	outbreakH, outbreakAdminH := wireOutbreaks(cfg, database, store)
 	searchSvc := services.SearchService{DB: database, Cache: cacheStore}
-	ragSvc := services.RAGService{DB: database, Search: searchSvc, Cfg: cfg}
+	var aiWorkerClient *aiworkergrpc.Client
+	provider := strings.ToLower(strings.TrimSpace(cfg.AIRAGProvider))
+	usesWorker := provider == "worker" || provider == "ai-worker"
+	if usesWorker && strings.TrimSpace(cfg.AIWorkerGRPCAddr) == "" {
+		return routeWiring{}, fmt.Errorf("AI_WORKER_GRPC_ADDR is required when AI_RAG_PROVIDER uses the worker")
+	}
+	if usesWorker && requiresInternalSecret(cfg.AppEnv) && strings.TrimSpace(cfg.AIWorkerSecret) == "" {
+		return routeWiring{}, fmt.Errorf("AI_WORKER_SECRET is required when AI_RAG_PROVIDER uses the worker outside development")
+	}
+	if strings.TrimSpace(cfg.AIWorkerGRPCAddr) != "" {
+		client, err := aiworkergrpc.NewClientWithConfig(context.Background(), aiworkergrpc.Config{
+				Address:     cfg.AIWorkerGRPCAddr,
+				Secret:      cfg.AIWorkerSecret,
+				CallTimeout: time.Duration(cfg.AIWorkerTimeoutSecs) * time.Second,
+				Retries:     cfg.AIWorkerGRPCRetries,
+			})
+			if err != nil {
+				return routeWiring{}, err
+			}
+		aiWorkerClient = client
+	}
+	ragSvc := services.RAGService{DB: database, Search: searchSvc, Cfg: cfg, Worker: aiWorkerClient}
 	protocolSvc := services.ProtocolService{DB: database}
 	syncSvc := services.SyncService{DB: database, Store: store, Cfg: cfg}
 	referenceSvc := services.ReferenceService{DB: database}
@@ -60,6 +88,9 @@ func wireRoutes(cfg config.Config, database *gorm.DB, store *storage.MinioStore,
 	userSvc := services.UserService{DB: database}
 	notificationH, firebaseH, err := wireNotifications(cfg, database)
 	if err != nil {
+		if aiWorkerClient != nil {
+			_ = aiWorkerClient.Close()
+		}
 		return routeWiring{}, err
 	}
 	supportSvc := services.SupportService{DB: database}
@@ -93,7 +124,8 @@ func wireRoutes(cfg config.Config, database *gorm.DB, store *storage.MinioStore,
 	conversationH := handlers.ConversationHandler{Service: services.ConversationService{DB: database}}
 	legacyAPIH := handlers.LegacyAPIHandler{Service: legacyAPISvc, Cfg: cfg}
 	return routeWiring{
-		guidelineSvc: guidelineSvc,
+		guidelineSvc:   guidelineSvc,
+		aiWorkerClient: aiWorkerClient,
 		authH: authH,
 		guidelineH: guidelineH,
 		publicGuidelineH: publicGuidelineH,
@@ -124,4 +156,13 @@ func wireRoutes(cfg config.Config, database *gorm.DB, store *storage.MinioStore,
 		facilityH: facilityH,
 		firebaseH: firebaseH,
 	}, nil
+}
+
+func requiresInternalSecret(appEnv string) bool {
+	switch strings.ToLower(strings.TrimSpace(appEnv)) {
+	case "", "development", "dev", "local", "test", "testing":
+		return false
+	default:
+		return true
+	}
 }

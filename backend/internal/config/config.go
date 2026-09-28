@@ -29,11 +29,12 @@ type Config struct {
 	S3UseSSL               bool
 	S3PresignMinutes       int
 	MaxUploadMB            int64
-	AIRAGProvider          string
-	AIWorkerWebhook        string
-	AIWorkerGRPCAddr       string
-	AIWorkerTimeoutSecs    int
-	// Shared secret sent as X-Worker-Secret to the ai-worker API.
+	AIRAGProvider             string
+	AIWorkerGRPCAddr          string
+	AIWorkerTimeoutSecs       int
+	AIWorkerGRPCRetries       int
+	AIWorkerHealthTimeoutSecs int
+	// Shared secret sent as x-worker-secret metadata to the internal AI worker gRPC service.
 	AIWorkerSecret string
 	// Comma-separated list of allowed CORS origins (use "*" for local dev only).
 	AllowedOrigins                  string
@@ -88,11 +89,12 @@ func Load() Config {
 		S3Bucket:                        get("S3_BUCKET", "mediguide"),
 		S3UseSSL:                        getBool("S3_USE_SSL", false),
 		S3PresignMinutes:                getInt("S3_PRESIGN_MINUTES", 60),
-		MaxUploadMB:                     int64(getInt("MAX_UPLOAD_MB", 100)),
-		AIRAGProvider:                   get("AI_RAG_PROVIDER", "local"),
-		AIWorkerWebhook:                 getAny([]string{"AI_WORKER_WEBHOOK_URL", "AI_WORKER_URL"}, ""),
-		AIWorkerGRPCAddr:                get("AI_WORKER_GRPC_ADDR", ""),
-		AIWorkerTimeoutSecs:             getInt("AI_WORKER_TIMEOUT_SECONDS", 120),
+			MaxUploadMB:                     int64(getInt("MAX_UPLOAD_MB", 100)),
+			AIRAGProvider:                    get("AI_RAG_PROVIDER", "local"),
+			AIWorkerGRPCAddr:                 get("AI_WORKER_GRPC_ADDR", ""),
+			AIWorkerTimeoutSecs:              getInt("AI_WORKER_TIMEOUT_SECONDS", 120),
+			AIWorkerGRPCRetries:              getInt("AI_WORKER_GRPC_RETRIES", 1),
+			AIWorkerHealthTimeoutSecs:        getInt("AI_WORKER_GRPC_HEALTH_TIMEOUT_SECONDS", 2),
 		AIWorkerSecret:                  get("AI_WORKER_SECRET", ""),
 		AllowedOrigins:                  get("ALLOWED_ORIGINS", "http://localhost:3000,*"), // Adjust for production domains
 		PublicAppURL:                    get("PUBLIC_APP_URL", "http://localhost:3000"),
