@@ -42,7 +42,11 @@ services:
       - "${REDIS_MAXMEMORY_POLICY:-noeviction}"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        - CMD-SHELL
+        - >-
+          redis-cli ping | grep -q '^PONG' &&
+          redis-cli INFO persistence | grep -q '^rdb_last_bgsave_status:ok'
       interval: 5s
       timeout: 5s
       retries: 10
