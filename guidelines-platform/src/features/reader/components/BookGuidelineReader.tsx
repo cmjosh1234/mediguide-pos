@@ -41,10 +41,7 @@ export function BookGuidelineReader({
   guideline,
   manifest,
   markdown,
-  supplementalViews,
   partial,
-  onSelectView,
-  onOpenOriginal,
   onCitation,
 }: BookGuidelineReaderProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -54,42 +51,71 @@ export function BookGuidelineReader({
   const [assistantOpen, setAssistantOpen] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const loadMoreSentinel = useRef<HTMLDivElement>(null);
-  const content = useMemo(() => removeLeadingDocumentTitle(markdown.content), [markdown.content]);
+  const content = useMemo(
+    () => removeLeadingDocumentTitle(markdown.content),
+    [markdown.content],
+  );
   const deferredQuery = useDeferredValue(query);
   const searching = deferredQuery.trim().length > 0;
   // Building the full-text section index scans the entire guideline and can be
   // expensive for national publications. Defer that work until the user
   // actually starts searching so it no longer blocks the initial reader paint.
   const searchIndex = useMemo(
-    () => searching ? buildMarkdownSearchIndex(content) : [],
+    () => (searching ? buildMarkdownSearchIndex(content) : []),
     [content, searching],
   );
-  const results = useMemo(() => searchMarkdown(searchIndex, deferredQuery), [deferredQuery, searchIndex]);
-  const renderChunks = useMemo(() => splitMarkdownForProgressiveRendering(content), [content]);
+  const results = useMemo(
+    () => searchMarkdown(searchIndex, deferredQuery),
+    [deferredQuery, searchIndex],
+  );
+  const renderChunks = useMemo(
+    () => splitMarkdownForProgressiveRendering(content),
+    [content],
+  );
   const headings = useMemo(
-    () => renderChunks
-      .flatMap((chunk) => chunk.headings)
-      .filter((heading) => heading.depth >= 2 && heading.depth <= 4),
+    () =>
+      renderChunks
+        .flatMap((chunk) => chunk.headings)
+        .filter((heading) => heading.depth >= 2 && heading.depth <= 4),
     [renderChunks],
   );
   const [visibleChunkCount, setVisibleChunkCount] = useState(() => {
     const initial = Math.min(3, renderChunks.length);
     if (typeof window === "undefined" || !window.location.hash) return initial;
     let target = window.location.hash.slice(1);
-    try { target = decodeURIComponent(target); } catch { /* Keep the literal hash. */ }
-    const targetChunk = renderChunks.findIndex((chunk) => chunk.headingIds.includes(target));
+    try {
+      target = decodeURIComponent(target);
+    } catch {
+      /* Keep the literal hash. */
+    }
+    const targetChunk = renderChunks.findIndex((chunk) =>
+      chunk.headingIds.includes(target),
+    );
     return targetChunk < 0 ? initial : Math.max(initial, targetChunk + 1);
   });
-  const publicationGuidance = bookReaderPublicationGuidance(partial, manifest?.has_original_pdf === true);
+  const publicationGuidance = bookReaderPublicationGuidance(
+    partial,
+    manifest?.has_original_pdf === true,
+  );
 
   useEffect(() => {
     const sentinel = loadMoreSentinel.current;
-    if (!sentinel || visibleChunkCount >= renderChunks.length || !("IntersectionObserver" in window)) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        setVisibleChunkCount((value) => Math.min(value + 3, renderChunks.length));
-      }
-    }, { rootMargin: "800px 0px" });
+    if (
+      !sentinel ||
+      visibleChunkCount >= renderChunks.length ||
+      !("IntersectionObserver" in window)
+    )
+      return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisibleChunkCount((value) =>
+            Math.min(value + 3, renderChunks.length),
+          );
+        }
+      },
+      { rootMargin: "800px 0px" },
+    );
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [renderChunks.length, visibleChunkCount]);
@@ -105,12 +131,17 @@ export function BookGuidelineReader({
       .map((heading) => document.getElementById(heading.id))
       .filter((element): element is HTMLElement => Boolean(element));
     if (!elements.length || !("IntersectionObserver" in window)) return;
-    const observer = new IntersectionObserver((entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-      if (visible?.target.id) setActiveHeading(visible.target.id);
-    }, { rootMargin: "-15% 0px -72%", threshold: [0, 1] });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort(
+            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top,
+          )[0];
+        if (visible?.target.id) setActiveHeading(visible.target.id);
+      },
+      { rootMargin: "-15% 0px -72%", threshold: [0, 1] },
+    );
     elements.forEach((element) => observer.observe(element));
     return () => observer.disconnect();
   }, [headings, visibleChunkCount]);
@@ -121,12 +152,22 @@ export function BookGuidelineReader({
   };
 
   const visitHeading = (id: string) => {
-    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${encodeURIComponent(id)}`);
-    const chunkIndex = renderChunks.findIndex((chunk) => chunk.headingIds.includes(id));
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${window.location.search}#${encodeURIComponent(id)}`,
+    );
+    const chunkIndex = renderChunks.findIndex((chunk) =>
+      chunk.headingIds.includes(id),
+    );
     if (chunkIndex >= visibleChunkCount) setVisibleChunkCount(chunkIndex + 1);
-    requestAnimationFrame(() => requestAnimationFrame(() =>
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }),
-    ));
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        document
+          .getElementById(id)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      ),
+    );
     setActiveHeading(id);
     setSidebarOpen(false);
   };
@@ -135,14 +176,24 @@ export function BookGuidelineReader({
     const visitHash = () => {
       if (!window.location.hash) return;
       let target = window.location.hash.slice(1);
-      try { target = decodeURIComponent(target); } catch { /* Keep the literal hash. */ }
+      try {
+        target = decodeURIComponent(target);
+      } catch {
+        /* Keep the literal hash. */
+      }
       if (!target) return;
-      const chunkIndex = renderChunks.findIndex((chunk) => chunk.headingIds.includes(target));
+      const chunkIndex = renderChunks.findIndex((chunk) =>
+        chunk.headingIds.includes(target),
+      );
       if (chunkIndex < 0) return;
       setVisibleChunkCount((current) => Math.max(current, chunkIndex + 1));
-      requestAnimationFrame(() => requestAnimationFrame(() =>
-        document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" }),
-      ));
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() =>
+          document
+            .getElementById(target)
+            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        ),
+      );
       setActiveHeading(target);
     };
     visitHash();
@@ -161,7 +212,11 @@ export function BookGuidelineReader({
   };
 
   const share = async () => {
-    const shareData = { title: guideline.title, text: guideline.description, url: window.location.href };
+    const shareData = {
+      title: guideline.title,
+      text: guideline.description,
+      url: window.location.href,
+    };
     try {
       if (navigator.share) await navigator.share(shareData);
       else await navigator.clipboard.writeText(window.location.href);
@@ -171,60 +226,225 @@ export function BookGuidelineReader({
   };
 
   return (
-    <div className="reader-site book-reader" style={{ "--reader-font-scale": fontScale } as React.CSSProperties}>
-      <a className="skip-link" href="#guideline-document">Skip to clinical content</a>
+    <div
+      className="reader-site book-reader"
+      style={{ "--reader-font-scale": fontScale } as React.CSSProperties}
+    >
+      <a className="skip-link" href="#guideline-document">
+        Skip to clinical content
+      </a>
       <header className="reader-header">
-        <button className="reader-menu-button icon-button" type="button" aria-label="Open contents" onClick={() => setSidebarOpen(true)}><MenuIcon /></button>
-        <Link className="reader-title" to="/"><span>MG</span><strong>{guideline.title}</strong></Link>
+        <button
+          className="reader-menu-button icon-button"
+          type="button"
+          aria-label="Open contents"
+          onClick={() => setSidebarOpen(true)}
+        >
+          <MenuIcon />
+        </button>
+        <Link className="reader-title" to="/">
+          <span>MG</span>
+          <strong>{guideline.title}</strong>
+        </Link>
         <div className="reader-actions">
           <Link to="/">Guideline library</Link>
-          <button className="icon-button" type="button" aria-label="Search this guideline" onClick={openSearch}><SearchIcon /></button>
-          <button className="reader-font-button icon-button" type="button" aria-label="Change text size" title="Change text size" onClick={() => setFontScale((value) => value >= 1.2 ? 1 : Number((value + .1).toFixed(1)))}>A</button>
-          <button className="reader-ai-button" type="button" onClick={() => setAssistantOpen(true)}><SparkleIcon /> Ask AI</button>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Search this guideline"
+            onClick={openSearch}
+          >
+            <SearchIcon />
+          </button>
+          <button
+            className="reader-font-button icon-button"
+            type="button"
+            aria-label="Change text size"
+            title="Change text size"
+            onClick={() =>
+              setFontScale((value) =>
+                value >= 1.2 ? 1 : Number((value + 0.1).toFixed(1)),
+              )
+            }
+          >
+            A
+          </button>
+          <button
+            className="reader-ai-button"
+            type="button"
+            onClick={() => setAssistantOpen(true)}
+          >
+            <SparkleIcon /> Ask AI
+          </button>
           <ThemeToggle />
-          <button className="icon-button" type="button" aria-label="Share guideline" onClick={share}><ShareIcon /></button>
-          <button className="icon-button" type="button" aria-label="Print guideline" onClick={() => window.print()}><PrintIcon /></button>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Share guideline"
+            onClick={share}
+          >
+            <ShareIcon />
+          </button>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Print guideline"
+            onClick={() => window.print()}
+          >
+            <PrintIcon />
+          </button>
         </div>
       </header>
 
-      <aside className={`reader-sidebar ${sidebarOpen ? "is-open" : ""}`} aria-label="Guideline contents">
-        <div className="reader-sidebar-brand"><Brand /><button className="sidebar-close icon-button" type="button" aria-label="Close contents" onClick={() => setSidebarOpen(false)}>×</button></div>
-        <div className="sidebar-publication"><span>Published guideline</span><strong>{guideline.title}</strong><small>{guideline.source_org}{guideline.version ? ` · Version ${guideline.version}` : ""}</small></div>
-        <label className="reader-search"><SearchIcon /><span className="visually-hidden">Search this guideline</span><input ref={searchInput} type="search" value={query} placeholder="Search this guideline…" onChange={(event) => setQuery(event.target.value)} /></label>
-        <nav className="contents-navigation" aria-label={deferredQuery.trim() ? "Search results" : "Table of contents"}>
-          {deferredQuery.trim() ? <div className="search-results">
-            <div className="toc-toolbar"><span>{results.length} result{results.length === 1 ? "" : "s"}</span></div>
-            {results.map((result) => <button type="button" key={result.id} onClick={() => visitHeading(result.id)}><small>{result.title}</small><span>{result.snippet || "Open this section"}</span></button>)}
-            {!results.length && <p className="empty-search">No section matches “{deferredQuery}”. Try a condition, treatment, medicine, or phrase from the guideline.</p>}
-          </div> : <>
-            <div className="toc-toolbar"><span>Contents</span><small>{headings.length} sections</small></div>
-            <button type="button" className={`front-matter-link ${activeHeading ? "" : "active"}`} onClick={() => visitHeading("guideline-document")}>Guideline overview</button>
-            {headings.map((heading) => <button type="button" className={`toc-link toc-depth-${heading.depth} ${activeHeading === heading.id ? "active" : ""}`} key={heading.id} aria-current={activeHeading === heading.id ? "location" : undefined} onClick={() => visitHeading(heading.id)}>{heading.text}</button>)}
-          </>}
+      <aside
+        className={`reader-sidebar ${sidebarOpen ? "is-open" : ""}`}
+        aria-label="Guideline contents"
+      >
+        <div className="reader-sidebar-brand">
+          <Brand />
+          <button
+            className="sidebar-close icon-button"
+            type="button"
+            aria-label="Close contents"
+            onClick={() => setSidebarOpen(false)}
+          >
+            ×
+          </button>
+        </div>
+        <div className="sidebar-publication">
+          <span>Published guideline</span>
+          <strong>{guideline.title}</strong>
+          <small>
+            {guideline.source_org}
+            {guideline.version ? ` · Version ${guideline.version}` : ""}
+          </small>
+        </div>
+        <label className="reader-search">
+          <SearchIcon />
+          <span className="visually-hidden">Search this guideline</span>
+          <input
+            ref={searchInput}
+            type="search"
+            value={query}
+            placeholder="Search this guideline…"
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
+        <nav
+          className="contents-navigation"
+          aria-label={
+            deferredQuery.trim() ? "Search results" : "Table of contents"
+          }
+        >
+          {deferredQuery.trim() ? (
+            <div className="search-results">
+              <div className="toc-toolbar">
+                <span>
+                  {results.length} result{results.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              {results.map((result) => (
+                <button
+                  type="button"
+                  key={result.id}
+                  onClick={() => visitHeading(result.id)}
+                >
+                  <small>{result.title}</small>
+                  <span>{result.snippet || "Open this section"}</span>
+                </button>
+              ))}
+              {!results.length && (
+                <p className="empty-search">
+                  No section matches “{deferredQuery}”. Try a condition,
+                  treatment, medicine, or phrase from the guideline.
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="toc-toolbar">
+                <span>Contents</span>
+                <small>{headings.length} sections</small>
+              </div>
+              <button
+                type="button"
+                className={`front-matter-link ${activeHeading ? "" : "active"}`}
+                onClick={() => visitHeading("guideline-document")}
+              >
+                Guideline overview
+              </button>
+              {headings.map((heading) => (
+                <button
+                  type="button"
+                  className={`toc-link toc-depth-${heading.depth} ${activeHeading === heading.id ? "active" : ""}`}
+                  key={heading.id}
+                  aria-current={
+                    activeHeading === heading.id ? "location" : undefined
+                  }
+                  onClick={() => visitHeading(heading.id)}
+                >
+                  {heading.text}
+                </button>
+              ))}
+            </>
+          )}
         </nav>
-        <div className="reader-sidebar-footer">Ministry of Health · Published clinical guidance</div>
+        <div className="reader-sidebar-footer">
+          Ministry of Health · Published clinical guidance
+        </div>
       </aside>
-      {sidebarOpen && <button className="reader-scrim" type="button" aria-label="Close contents" onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && (
+        <button
+          className="reader-scrim"
+          type="button"
+          aria-label="Close contents"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       <main className="reader-main" id="guideline-document">
         <article className="reader-column">
           <header className="guideline-metadata">
-            <span className="eyebrow">{guideline.program_area || "Clinical guideline"}</span>
+            <span className="eyebrow">
+              {guideline.program_area || "Clinical guideline"}
+            </span>
             <h1>{guideline.title}</h1>
             {guideline.description && <p>{guideline.description}</p>}
-            <dl>
+            {/* <dl>
               <Meta label="Source" value={guideline.source_org} />
               <Meta label="Version" value={guideline.version} />
-              <Meta label="Published" value={formatDate(guideline.publication_date)} />
-              <Meta label="Review date" value={formatDate(guideline.review_date)} />
+              <Meta
+                label="Published"
+                value={formatDate(guideline.publication_date)}
+              />
+              <Meta
+                label="Review date"
+                value={formatDate(guideline.review_date)}
+              />
               <Meta label="Language" value={guideline.language} />
-            </dl>
-            <div className="book-reader-links">
-              {supplementalViews.map((view) => <button type="button" key={view} onClick={() => onSelectView(view)}>{viewLabel(view)}</button>)}
-              {publicationGuidance.showOriginal && <button type="button" onClick={() => onOpenOriginal()}>Original PDF</button>}
-            </div>
+            </dl> */}
+            {/* <div className="book-reader-links">
+              {supplementalViews.map((view) => (
+                <button
+                  type="button"
+                  key={view}
+                  onClick={() => onSelectView(view)}
+                >
+                  {viewLabel(view)}
+                </button>
+              ))}
+              {publicationGuidance.showOriginal && (
+                <button type="button" onClick={() => onOpenOriginal()}>
+                  Original PDF
+                </button>
+              )}
+            </div> */}
           </header>
-          {publicationGuidance.partialNotice && <div className="partial-extraction-notice" role="status">{publicationGuidance.partialNotice}</div>}
+          {publicationGuidance.partialNotice && (
+            <div className="partial-extraction-notice" role="status">
+              {publicationGuidance.partialNotice}
+            </div>
+          )}
           <div className="markdown-content book-markdown">
             {renderChunks.slice(0, visibleChunkCount).map((chunk, index) => (
               <SecureMarkdown
@@ -235,7 +455,14 @@ export function BookGuidelineReader({
             ))}
             {visibleChunkCount < renderChunks.length && (
               <div className="progressive-markdown-more" ref={loadMoreSentinel}>
-                <button type="button" onClick={() => setVisibleChunkCount((value) => Math.min(value + 3, renderChunks.length))}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVisibleChunkCount((value) =>
+                      Math.min(value + 3, renderChunks.length),
+                    )
+                  }
+                >
                   Load more chapters
                 </button>
               </div>
@@ -243,21 +470,46 @@ export function BookGuidelineReader({
           </div>
         </article>
       </main>
-      {!assistantOpen && <button className="assistant-fab" type="button" aria-label="Ask AI about this guideline" onClick={() => setAssistantOpen(true)}><SparkleIcon /><span>Ask AI</span></button>}
-      <GuidelineAssistant key={guideline.id} guideline={guideline} open={assistantOpen} onClose={() => setAssistantOpen(false)} onCitation={openCitation} />
+      {!assistantOpen && (
+        <button
+          className="assistant-fab"
+          type="button"
+          aria-label="Ask AI about this guideline"
+          onClick={() => setAssistantOpen(true)}
+        >
+          <SparkleIcon />
+          <span>Ask AI</span>
+        </button>
+      )}
+      <GuidelineAssistant
+        key={guideline.id}
+        guideline={guideline}
+        open={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        onCitation={openCitation}
+      />
     </div>
   );
 }
 
-function Meta({ label, value }: { label: string; value?: string }) {
-  return value ? <div><dt>{label}</dt><dd>{value}</dd></div> : null;
-}
+// function Meta({ label, value }: { label: string; value?: string }) {
+//   return value ? (
+//     <div>
+//       <dt>{label}</dt>
+//       <dd>{value}</dd>
+//     </div>
+//   ) : null;
+// }
 
-function formatDate(value?: string) {
-  if (!value) return "";
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.valueOf()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(parsed);
-}
+// function formatDate(value?: string) {
+//   if (!value) return "";
+//   const parsed = new Date(value);
+//   return Number.isNaN(parsed.valueOf())
+//     ? value
+//     : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+//         parsed,
+//       );
+// }
 
 function citationHeading(
   citation: PublicAICitation,
@@ -265,11 +517,17 @@ function citationHeading(
 ) {
   const metadata = citation.metadata ?? {};
   for (const value of [metadata.heading_id, metadata.section_slug]) {
-    if (typeof value === "string" && headings.some((heading) => heading.id === value)) return value;
+    if (
+      typeof value === "string" &&
+      headings.some((heading) => heading.id === value)
+    )
+      return value;
   }
   const title = normalizeHeading(citation.title);
   if (!title || title === "guideline section") return undefined;
-  const exact = headings.find((heading) => normalizeHeading(heading.text) === title);
+  const exact = headings.find(
+    (heading) => normalizeHeading(heading.text) === title,
+  );
   if (exact) return exact.id;
   const close = headings.find((heading) => {
     const text = normalizeHeading(heading.text);
@@ -279,15 +537,83 @@ function citationHeading(
 }
 
 function normalizeHeading(value: string | undefined) {
-  return (value ?? "").toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  return (value ?? "")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }
 
-function viewLabel(view: SupplementalReaderView) {
-  return view === "chapters" ? "Reviewed chapters" : `Reviewed ${view}`;
-}
+// function viewLabel(view: SupplementalReaderView) {
+//   return view === "chapters" ? "Reviewed chapters" : `Reviewed ${view}`;
+// }
 
-function MenuIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M4 12h16M4 17h16" /></svg>; }
-function SearchIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>; }
-function ShareIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="18" cy="5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="19" r="2.5" /><path d="m8.2 10.8 7.6-4.5M8.2 13.2l7.6 4.5" /></svg>; }
-function PrintIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" /><path d="M7 14h10v7H7z" /></svg>; }
-function SparkleIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m12 3 1.3 3.7L17 8l-3.7 1.3L12 13l-1.3-3.7L7 8l3.7-1.3L12 3ZM18.5 13l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2ZM5 13l.7 1.8 1.8.7-1.8.7L5 18l-.7-1.8-1.8-.7 1.8-.7L5 13Z" /></svg>; }
+function MenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+function SearchIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </svg>
+  );
+}
+function ShareIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <circle cx="18" cy="5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="19" r="2.5" />
+      <path d="m8.2 10.8 7.6-4.5M8.2 13.2l7.6 4.5" />
+    </svg>
+  );
+}
+function PrintIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
+      <path d="M7 14h10v7H7z" />
+    </svg>
+  );
+}
+function SparkleIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="m12 3 1.3 3.7L17 8l-3.7 1.3L12 13l-1.3-3.7L7 8l3.7-1.3L12 3ZM18.5 13l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2ZM5 13l.7 1.8 1.8.7-1.8.7L5 18l-.7-1.8-1.8-.7 1.8-.7L5 13Z" />
+    </svg>
+  );
+}

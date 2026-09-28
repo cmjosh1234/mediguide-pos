@@ -42,6 +42,41 @@ describe("GuidelineBlockRenderer", () => {
     expect(html).not.toContain("<script>");
   });
 
+  it("renders Markdown emphasis in paragraphs, lists, and table cells without leaking delimiters", () => {
+    const paragraph = renderToStaticMarkup(<GuidelineBlockRenderer block={block({
+      type: "paragraph",
+      content: { text: "Use medicines during the **first trimester** only when indicated." },
+    })} />);
+    const list = renderToStaticMarkup(<GuidelineBlockRenderer block={block({
+      type: "unordered_list",
+      content: { items: ["Check **renal function**", "Record *allergies*"] },
+    })} />);
+    const table = renderToStaticMarkup(<GuidelineBlockRenderer block={block({
+      type: "table",
+      content: {
+        title: "**Prescription writing**",
+        columns: ["**Question**", "Guidance"],
+        rows: [[
+          "**Adherence**",
+          "Consider the following:<br>- Use the *shortest* effective regimen<br/>- Verify understanding; · Record the result",
+        ]],
+        footnotes: ["**Note:** verify the prescription."],
+      },
+    })} />);
+
+    expect(paragraph).toContain("<strong>first trimester</strong>");
+    expect(list).toContain("<strong>renal function</strong>");
+    expect(list).toContain("<em>allergies</em>");
+    expect(table).toContain("<strong>Prescription writing</strong>");
+    expect(table).toContain('data-label="Question"');
+    expect(table).toContain("<strong>Adherence</strong>");
+    expect(table).toContain("<em>shortest</em>");
+    expect(table).toContain("<br/>");
+    expect(table).not.toContain("&lt;br");
+    expect(table).not.toContain("; ·");
+    expect(`${paragraph}${list}${table}`).not.toContain("**");
+  });
+
   it("uses a safe fallback for unknown block types", () => {
     const html = renderToStaticMarkup(<GuidelineBlockRenderer block={block({
       type: "future_interactive_widget",

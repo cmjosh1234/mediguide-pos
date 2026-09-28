@@ -55,7 +55,7 @@ class AppMarkdownBody extends StatelessWidget {
       tablePadding: const EdgeInsets.only(bottom: AppSpacing.sm),
     );
 
-    final source = _escapeRawHtml(data.trim());
+    final source = _normalizeMarkdown(data.trim());
 
     return MarkdownBody(
       // flutter_markdown deliberately drops raw HTML nodes. Preserve them as
@@ -81,6 +81,24 @@ final RegExp _tableDelimiterRow = RegExp(
 );
 
 bool _containsTable(String value) => _tableDelimiterRow.hasMatch(value);
+
+String _normalizeMarkdown(String value) {
+  final withLineBreaks = value
+      .replaceAllMapped(
+        RegExp(
+          r'(?:<br\s*/?>|&lt;br\s*/?&gt;)\s*[-–—]\s*',
+          caseSensitive: false,
+        ),
+        (_) => '  \n• ',
+      )
+      .replaceAllMapped(
+        RegExp(r'(?:<br\s*/?>|&lt;br\s*/?&gt;)', caseSensitive: false),
+        (_) => '  \n',
+      );
+  return _escapeRawHtml(
+    withLineBreaks,
+  ).replaceAll(RegExp(r';\s*[•·]\s*'), '  \n• ');
+}
 
 String _escapeRawHtml(String value) {
   return value.replaceAllMapped(
