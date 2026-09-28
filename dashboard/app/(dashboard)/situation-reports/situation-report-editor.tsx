@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { apiUrl } from "@/lib/backend-client"
 import { showToast } from "@/lib/toast"
 import { withDashboardBasePath } from "@/lib/dashboard-path"
 import { healthFacilitiesService } from "@/services/health-facilities.service"
@@ -88,7 +89,7 @@ export function SituationReportEditor({ id }: { id?: string }) {
   if (loading) return <div className="py-20 text-center"><Loader2 className="mr-2 inline h-5 w-5 animate-spin" />Loading…</div>
   if (error) return <div role="alert" className="rounded-md border border-destructive/40 p-5 text-destructive">{error}<Button className="ml-3" variant="outline" onClick={() => void hydrate()}>Retry</Button></div>
   return <div className="space-y-6">
-    <div className="flex flex-wrap justify-between gap-3"><div className="flex items-center gap-2"><h1 className="text-2xl font-semibold">{item?.title || "New situation report"}</h1>{item ? <Badge variant="outline">{item.status}</Badge> : null}</div><div className="flex flex-wrap gap-2"><Button variant="outline" asChild><Link href="/situation-reports">Back</Link></Button>{item ? <Button variant="outline" asChild><Link href={`/api/public/situation-reports/${item.id}`} target="_blank"><ExternalLink className="mr-2 h-4 w-4" />Preview</Link></Button> : null}<Button disabled={saving || immutable} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />Save draft</Button></div></div>
+    <div className="flex flex-wrap justify-between gap-3"><div className="flex items-center gap-2"><h1 className="text-2xl font-semibold">{item?.title || "New situation report"}</h1>{item ? <Badge variant="outline">{item.status}</Badge> : null}</div><div className="flex flex-wrap gap-2"><Button variant="outline" asChild><Link href="/situation-reports">Back</Link></Button>{item ? <Button variant="outline" asChild><a href={apiUrl(`/api/public/situation-reports/${item.id}`)} target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-4 w-4" />Preview</a></Button> : null}<Button disabled={saving || immutable} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />Save draft</Button></div></div>
     <Card><CardHeader><CardTitle>Report metadata</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-2">
       <SelectField label="Related outbreak" value={form.outbreak_id} onChange={value => field("outbreak_id", value)} options={outbreaks.map(value => ({ id: value.id!, name: value.title || value.id! }))} empty="Standalone report" />
       <label className="flex items-center gap-2 pt-8 text-sm"><input type="checkbox" checked={form.standalone_allowed} onChange={event => field("standalone_allowed", event.target.checked)} />Explicitly allow standalone report</label>

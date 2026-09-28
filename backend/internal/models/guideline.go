@@ -30,6 +30,7 @@ type GuidelineVersion struct {
 	ReviewDate                   string                    `json:"review_date"`
 	Status                       string                    `gorm:"default:'draft';index" json:"status"`
 	OriginalFileKey              string                    `json:"original_file_key"`
+	ExternalURL                  string                    `gorm:"not null;default:''" json:"external_url"`
 	HTMLFileKey                  string                    `json:"html_file_key"`
 	MarkdownFileKey              string                    `json:"markdown_file_key"`
 	Checksum                     string                    `json:"checksum"`

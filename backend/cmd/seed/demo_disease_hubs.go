@@ -109,15 +109,6 @@ func seedDemoDiseaseHubs(database *gorm.DB, adminID uuid.UUID) error {
 		demoDiseaseAssignment("outbreak-measles", demoMeaslesDiseaseID, models.ContentDiseaseOutbreak, demoID("outbreak", "development-measles-gulu-2026"), true, adminID),
 		demoDiseaseAssignment("sitrep-measles", demoMeaslesDiseaseID, models.ContentDiseaseSituationReport, demoID("situation-report", "demo-measles-gulu-2026-07-08"), true, adminID),
 	}
-	for _, document := range demoOutbreakDocuments() {
-		assignments = append(assignments, demoDiseaseAssignment("outbreak-document-"+document.Key, demoEbolaDiseaseID, models.ContentDiseaseOutbreakDocument, demoID("outbreak-document", document.Key), true, adminID))
-	}
-	for _, document := range demoCholeraOutbreakDocuments() {
-		assignments = append(assignments, demoDiseaseAssignment("outbreak-document-"+document.Key, demoCholeraDiseaseID, models.ContentDiseaseOutbreakDocument, demoID("outbreak-document", document.Key), true, adminID))
-	}
-	for _, document := range demoMeaslesOutbreakDocuments() {
-		assignments = append(assignments, demoDiseaseAssignment("outbreak-document-"+document.Key, demoMeaslesDiseaseID, models.ContentDiseaseOutbreakDocument, demoID("outbreak-document", document.Key), true, adminID))
-	}
 	for _, row := range assignments {
 		if err := upsertByID(database, "content_disease_assignments", row); err != nil {
 			return err
@@ -133,10 +124,10 @@ func seedDemoDiseaseHubs(database *gorm.DB, adminID uuid.UUID) error {
 	outbreakID := demoID("outbreak", "bundibugyo-uganda-2026")
 	hubs := []hubFixture{
 		{"ebola-response", "Ebola Response Hub", "demo-ebola-response", "Reviewed demonstration guidance and response resources for Ebola virus disease.", "shield-alert", "critical", "all", demoEbolaDiseaseID, &outbreakID, []demoHubPillar{
-			{"case-definition", "Case Definition", "file-search", "Who is a suspected case?", "outbreak_document", demoID("outbreak-document", "ebola-case-definition")},
-			{"screening-triage", "Screening & Triage", "list-checks", "Identify and prioritize suspected cases.", "outbreak_document", demoID("outbreak-document", "ebola-health-worker-checklist")},
+			{"case-definition", "Case Definition", "file-search", "Who is a suspected case?", "guideline", demoID("guideline", "ebola-marburg")},
+			{"screening-triage", "Screening & Triage", "list-checks", "Identify and prioritize suspected cases.", "guideline", demoID("guideline", "ebola-marburg")},
 			{"clinical-management", "Clinical Management", "stethoscope", "Safe initial assessment, care and referral.", "guideline", demoID("guideline", "ebola-marburg")},
-			{"ipc-ppe", "IPC & PPE", "shield-check", "Infection prevention and PPE guidance.", "outbreak_document", demoID("outbreak-document", "ebola-ipc-sop")},
+			{"ipc-ppe", "IPC & PPE", "shield-check", "Infection prevention and PPE guidance.", "guideline", demoID("guideline", "ebola-marburg")},
 			{"situation-reports", "Situation Reports", "chart-no-axes-column", "Reviewed response updates.", "situation_report", demoID("situation-report", "who-bvd-11-2026-07-26")},
 		}},
 		{"malaria-care", "Malaria Care Hub", "demo-malaria-care", "A compact development hub for testing disease discovery and clinical navigation.", "mosquito", "clinical", "all", demoMalariaDiseaseID, nil, []demoHubPillar{

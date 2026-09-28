@@ -29,10 +29,9 @@ type OutbreakActor struct {
 }
 
 type OutbreakAdminService struct {
-	DB                    *gorm.DB
-	Store                 storage.ObjectStore
-	AllowedExternalHosts  []string
-	DocumentNotifications *OutbreakDocumentNotificationService
+	DB                   *gorm.DB
+	Store                storage.ObjectStore
+	AllowedExternalHosts []string
 }
 
 type OutbreakAdminQuery struct {
@@ -69,6 +68,7 @@ type ChildContentInput struct {
 	Description         *string `json:"description"`
 	IssuingOrganization *string `json:"issuing_organization"`
 	ResourceType        *string `json:"resource_type"`
+	DocumentKind        *string `json:"document_kind"`
 	URL                 *string `json:"url"`
 	AssetURL            *string `json:"asset_url"`
 	SortOrder           *int    `json:"sort_order"`
@@ -93,6 +93,15 @@ type SituationReportInput struct {
 	Metrics            *[]OutbreakMetric `json:"metrics"`
 	LockVersion        *int              `json:"lock_version"`
 }
+
+// ResourceCorrectionInput replaces a published resource with an edited version
+// that goes through review before it supersedes the original.
+type ResourceCorrectionInput struct {
+	LockVersion int                `json:"lock_version"`
+	Reason      string             `json:"reason"`
+	Changes     *ChildContentInput `json:"changes"`
+}
+
 type TransitionInput struct {
 	LockVersion       int    `json:"lock_version"`
 	Reason            string `json:"reason,omitempty"`
@@ -162,6 +171,7 @@ type OutbreakResourceAdminDTO struct {
 	Description         string     `json:"description"`
 	IssuingOrganization string     `json:"issuing_organization"`
 	ResourceType        string     `json:"resource_type"`
+	DocumentKind        string     `json:"document_kind"`
 	URL                 string     `json:"url"`
 	AssetURL            string     `json:"asset_url"`
 	SortOrder           int        `json:"sort_order"`
@@ -234,7 +244,7 @@ type OutbreakAuditDTO struct {
 }
 
 func (s OutbreakAdminService) ListAudit(entityType string, id uuid.UUID, page PageInput) (*PageResult[OutbreakAuditDTO], error) {
-	if !validOutbreakValue(entityType, "outbreak", "situation_report", "outbreak_document") {
+	if !validOutbreakValue(entityType, "outbreak", "situation_report") {
 		return nil, ErrOutbreakInvalid
 	}
 	page = page.Normalize(20, 100)
@@ -258,14 +268,12 @@ func (s OutbreakAdminService) ListAudit(entityType string, id uuid.UUID, page Pa
 
 func (s OutbreakAdminService) AddReviewComment(actor OutbreakActor, entityType string, id uuid.UUID, comment string) error {
 	comment = strings.TrimSpace(comment)
-	if !validOutbreakValue(entityType, "outbreak", "situation_report", "outbreak_document") || comment == "" || len(comment) > 4000 {
+	if !validOutbreakValue(entityType, "outbreak", "situation_report") || comment == "" || len(comment) > 4000 {
 		return ErrOutbreakInvalid
 	}
 	model := any(&models.Outbreak{})
 	if entityType == "situation_report" {
 		model = &models.SituationReport{}
-	} else if entityType == "outbreak_document" {
-		model = &models.OutbreakResource{}
 	}
 	var count int64
 	if err := s.DB.Model(model).Where("id = ?", id).Count(&count).Error; err != nil {
@@ -426,6 +434,10 @@ func (s OutbreakAdminService) UpdateMetrics(actor OutbreakActor, id uuid.UUID, i
 		return nil, err
 	}
 	err = s.DB.Transaction(func(tx *gorm.DB) error {
+		var row models.Outbreak
+		if err := tx.Select("id", "title", "status", "published_at", "metrics").First(&row, "id = ?", id).Error; err != nil {
+			return err
+		}
 		r := tx.Model(&models.Outbreak{}).Where("id = ? AND lock_version = ?", id, *in.LockVersion).Updates(map[string]any{"metrics": datatypes.JSON(encoded), "lock_version": gorm.Expr("lock_version + 1")})
 		if r.Error != nil {
 			return r.Error
@@ -433,7 +445,16 @@ func (s OutbreakAdminService) UpdateMetrics(actor OutbreakActor, id uuid.UUID, i
 		if r.RowsAffected == 0 {
 			return ErrOutbreakConflict
 		}
-		return auditOutbreak(tx, actor, "outbreak.metrics_updated", "outbreak", id, nil)
+		if err := auditOutbreak(tx, actor, "outbreak.metrics_updated", "outbreak", id, nil); err != nil {
+			return err
+		}
+		// New figures on a live outbreak are announced; removals and draft
+		// outbreaks are not.
+		added := addedMetrics(decodeMetrics(row.Metrics), in.Metrics)
+		if len(added) == 0 || row.PublishedAt == nil || !publicOutbreakStatus(row.Status) {
+			return nil
+		}
+		return enqueueOutbreakTopicAlertTx(tx, outbreakTopicAlert{SourceType: "outbreak_metric", SourceID: uuid.New(), OutbreakID: id, Title: row.Title, Body: metricAlertBody(added)}, time.Now())
 	})
 	if err != nil {
 		return nil, err
@@ -682,8 +703,17 @@ func (s OutbreakAdminService) UpdateUpdate(actor OutbreakActor, id, child uuid.U
 	if err := validateUpdateFields(row); err != nil {
 		return nil, err
 	}
+	updates := map[string]any{"title": row.Title, "summary": row.Summary, "lock_version": gorm.Expr("lock_version + 1")}
+	if row.Status == "pending_review" {
+		// Changed content needs a fresh approval. Edits to a published update
+		// stay in review; any other update goes back to draft.
+		updates["reviewed_by"], updates["reviewed_at"], updates["approved_by"], updates["approved_at"] = nil, nil, nil, nil
+		if row.SupersedesID == nil {
+			updates["status"] = "draft"
+		}
+	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
-		r := tx.Model(&models.OutbreakUpdate{}).Where("id = ? AND outbreak_id = ? AND lock_version = ?", child, id, *in.LockVersion).Updates(map[string]any{"title": row.Title, "summary": row.Summary, "lock_version": gorm.Expr("lock_version + 1")})
+		r := tx.Model(&models.OutbreakUpdate{}).Where("id = ? AND outbreak_id = ? AND lock_version = ?", child, id, *in.LockVersion).Updates(updates)
 		if r.Error != nil {
 			return r.Error
 		}
@@ -707,28 +737,56 @@ func (s OutbreakAdminService) TransitionUpdate(actor OutbreakActor, id, child uu
 	if err := validateUpdateFields(row); err != nil {
 		return nil, err
 	}
-	var announce func(*gorm.DB) error
-	// A correction republishes an update that was already announced.
-	if action == "publish" && row.SupersedesID == nil {
-		announce = func(tx *gorm.DB) error {
-			var outbreak models.Outbreak
-			if err := tx.Select("id", "title").First(&outbreak, "id = ?", id).Error; err != nil {
-				return err
+	var hook func(*gorm.DB) error
+	if action == "publish" {
+		// A published edit replaces the original and is announced as a change.
+		body := row.Title
+		if row.SupersedesID != nil {
+			body = "Updated: " + row.Title
+		}
+		hook = func(tx *gorm.DB) error {
+			if row.SupersedesID != nil {
+				if err := retireSuperseded(tx, actor, "outbreak_update", &models.OutbreakUpdate{}, id, child, *row.SupersedesID); err != nil {
+					return err
+				}
 			}
-			return enqueueOutbreakTopicAlertTx(tx, outbreakTopicAlert{SourceType: "outbreak_update", SourceID: row.ID, OutbreakID: id, Title: outbreak.Title, Body: row.Title}, time.Now())
+			return enqueueOutbreakChildAlertTx(tx, "outbreak_update", row.ID, id, body)
 		}
 	}
-	if err := s.transitionChildWithHook(actor, id, child, action, in, "outbreak_update", &models.OutbreakUpdate{}, announce); err != nil {
+	if err := s.transitionChildWithHook(actor, id, child, action, in, "outbreak_update", &models.OutbreakUpdate{}, hook); err != nil {
 		return nil, err
 	}
 	return s.GetUpdate(id, child)
 }
 func (s OutbreakAdminService) CorrectUpdate(actor OutbreakActor, id, child uuid.UUID, in TransitionInput) (*OutbreakUpdateAdminDTO, error) {
+	return s.correctUpdate(actor, id, child, in, nil, false)
+}
+
+// EditPublishedUpdate stores the edits as a correction that is submitted for
+// review straight away; the published original stays live until it is published.
+func (s OutbreakAdminService) EditPublishedUpdate(actor OutbreakActor, id, child uuid.UUID, in ResourceCorrectionInput) (*OutbreakUpdateAdminDTO, error) {
+	if in.Changes == nil {
+		return nil, invalid("Include the changes to make to this update.")
+	}
+	changes := *in.Changes
+	return s.correctUpdate(actor, id, child, TransitionInput{LockVersion: in.LockVersion, Reason: in.Reason}, func(copy *models.OutbreakUpdate) error {
+		applyUpdate(copy, changes)
+		return validateUpdateFields(*copy)
+	}, true)
+}
+
+// correctUpdate copies a published update into a correction. When prepare is
+// given it applies the editor's changes (only one such edit may be open at a
+// time); submit sends the correction straight to review.
+func (s OutbreakAdminService) correctUpdate(actor OutbreakActor, id, child uuid.UUID, in TransitionInput, prepare func(*models.OutbreakUpdate) error, submit bool) (*OutbreakUpdateAdminDTO, error) {
 	var old models.OutbreakUpdate
 	if err := s.DB.First(&old, "id = ? AND outbreak_id = ? AND lock_version = ?", child, id, in.LockVersion).Error; err != nil {
 		return nil, err
 	}
 	if old.Status != "published" || strings.TrimSpace(in.Reason) == "" {
+		if prepare != nil && old.Status == "published" {
+			return nil, invalid("Give a reason for this change.")
+		}
 		return nil, ErrOutbreakInvalid
 	}
 	copy := old
@@ -740,11 +798,32 @@ func (s OutbreakAdminService) CorrectUpdate(actor OutbreakActor, id, child uuid.
 	copy.WithdrawalReason = ""
 	copy.SupersedesID = &old.ID
 	copy.LockVersion = 1
+	if prepare != nil {
+		var open int64
+		if err := s.DB.Model(&models.OutbreakUpdate{}).Where("outbreak_id = ? AND supersedes_id = ? AND status IN ?", id, old.ID, []string{"draft", "pending_review"}).Count(&open).Error; err != nil {
+			return nil, err
+		}
+		if open > 0 {
+			return nil, invalid("An edit of this is already in progress. Open that edit to make further changes.")
+		}
+		if err := prepare(&copy); err != nil {
+			return nil, err
+		}
+	}
+	if submit {
+		copy.Status = "pending_review"
+	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&copy).Error; err != nil {
 			return err
 		}
-		return auditOutbreak(tx, actor, "outbreak_update.correction_created", "outbreak_update", copy.ID, map[string]any{"supersedes_id": old.ID, "reason": in.Reason})
+		if err := auditOutbreak(tx, actor, "outbreak_update.correction_created", "outbreak_update", copy.ID, map[string]any{"supersedes_id": old.ID, "reason": in.Reason}); err != nil {
+			return err
+		}
+		if submit {
+			return auditOutbreak(tx, actor, "outbreak_update.submit", "outbreak_update", copy.ID, map[string]any{"reason": in.Reason})
+		}
+		return nil
 	}); err != nil {
 		return nil, err
 	}
@@ -769,10 +848,14 @@ func (s OutbreakAdminService) ListResources(id uuid.UUID, p PageInput) (*PageRes
 	return NewPageResult(items, p, total), nil
 }
 func (s OutbreakAdminService) CreateResource(actor OutbreakActor, id uuid.UUID, in ChildContentInput) (*OutbreakResourceAdminDTO, error) {
-	if err := s.ensureOutbreak(id); err != nil {
+	var parent models.Outbreak
+	if err := s.DB.Select("id", "status").First(&parent, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
-	row := models.OutbreakResource{OutbreakID: id, Status: "draft", AuthorID: &actor.ID, LockVersion: 1, ContentSections: datatypes.JSON("[]"), SourcePageMap: datatypes.JSON("[]")}
+	if parent.Status == "closed" || parent.Status == "withdrawn" {
+		return nil, invalidf("Resources can't be added to an outbreak that is %s.", outbreakStatusLabel(parent.Status))
+	}
+	row := models.OutbreakResource{OutbreakID: id, Status: "draft", DocumentKind: "other", AuthorID: &actor.ID, LockVersion: 1}
 	applyResource(&row, in)
 	if err := s.validateResource(row); err != nil {
 		return nil, err
@@ -811,8 +894,17 @@ func (s OutbreakAdminService) UpdateResource(actor OutbreakActor, id, child uuid
 	if err := s.validateResource(row); err != nil {
 		return nil, err
 	}
+	updates := map[string]any{"title": row.Title, "description": row.Description, "issuing_authority": row.IssuingAuthority, "resource_type": row.ResourceType, "document_kind": row.DocumentKind, "url": row.URL, "asset_url": row.AssetURL, "sort_order": row.SortOrder, "lock_version": gorm.Expr("lock_version + 1")}
+	if row.Status == "pending_review" {
+		// Changed content needs a fresh approval. Edits to a published resource
+		// stay in review; any other resource goes back to draft.
+		updates["reviewed_by"], updates["reviewed_at"], updates["approved_by"], updates["approved_at"] = nil, nil, nil, nil
+		if row.SupersedesID == nil {
+			updates["status"] = "draft"
+		}
+	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
-		r := tx.Model(&models.OutbreakResource{}).Where("id = ? AND outbreak_id = ? AND lock_version = ?", child, id, *in.LockVersion).Updates(map[string]any{"title": row.Title, "description": row.Description, "issuing_authority": row.IssuingAuthority, "resource_type": row.ResourceType, "url": row.URL, "asset_url": row.AssetURL, "sort_order": row.SortOrder, "lock_version": gorm.Expr("lock_version + 1")})
+		r := tx.Model(&models.OutbreakResource{}).Where("id = ? AND outbreak_id = ? AND lock_version = ?", child, id, *in.LockVersion).Updates(updates)
 		if r.Error != nil {
 			return r.Error
 		}
@@ -836,17 +928,55 @@ func (s OutbreakAdminService) TransitionResource(actor OutbreakActor, id, child 
 	if err := s.validateResource(row); err != nil {
 		return nil, err
 	}
-	if err := s.transitionChild(actor, id, child, action, in, "outbreak_resource", &models.OutbreakResource{}); err != nil {
+	var hook func(*gorm.DB) error
+	if action == "publish" {
+		body := "New resource: " + row.Title
+		if row.SupersedesID != nil {
+			body = "Updated resource: " + row.Title
+		}
+		hook = func(tx *gorm.DB) error {
+			if row.SupersedesID != nil {
+				if err := retireSuperseded(tx, actor, "outbreak_resource", &models.OutbreakResource{}, id, child, *row.SupersedesID); err != nil {
+					return err
+				}
+			}
+			return enqueueOutbreakChildAlertTx(tx, "outbreak_resource", row.ID, id, body)
+		}
+	}
+	if err := s.transitionChildWithHook(actor, id, child, action, in, "outbreak_resource", &models.OutbreakResource{}, hook); err != nil {
 		return nil, err
 	}
 	return s.GetResource(id, child)
 }
 func (s OutbreakAdminService) CorrectResource(actor OutbreakActor, id, child uuid.UUID, in TransitionInput) (*OutbreakResourceAdminDTO, error) {
+	return s.correctResource(actor, id, child, in, nil, false)
+}
+
+// EditPublishedResource stores the edits as a correction that is submitted for
+// review straight away; the published original stays live until it is published.
+func (s OutbreakAdminService) EditPublishedResource(actor OutbreakActor, id, child uuid.UUID, in ResourceCorrectionInput) (*OutbreakResourceAdminDTO, error) {
+	if in.Changes == nil {
+		return nil, invalid("Include the changes to make to this resource.")
+	}
+	changes := *in.Changes
+	return s.correctResource(actor, id, child, TransitionInput{LockVersion: in.LockVersion, Reason: in.Reason}, func(copy *models.OutbreakResource) error {
+		applyResource(copy, changes)
+		return s.validateResource(*copy)
+	}, true)
+}
+
+// correctResource copies a published resource into a correction. When prepare is
+// given it applies the editor's changes (only one such edit may be open at a
+// time); submit sends the correction straight to review.
+func (s OutbreakAdminService) correctResource(actor OutbreakActor, id, child uuid.UUID, in TransitionInput, prepare func(*models.OutbreakResource) error, submit bool) (*OutbreakResourceAdminDTO, error) {
 	var old models.OutbreakResource
 	if err := s.DB.First(&old, "id = ? AND outbreak_id = ? AND lock_version = ?", child, id, in.LockVersion).Error; err != nil {
 		return nil, err
 	}
 	if old.Status != "published" || strings.TrimSpace(in.Reason) == "" {
+		if prepare != nil && old.Status == "published" {
+			return nil, invalid("Give a reason for this change.")
+		}
 		return nil, ErrOutbreakInvalid
 	}
 	copy := old
@@ -858,15 +988,32 @@ func (s OutbreakAdminService) CorrectResource(actor OutbreakActor, id, child uui
 	copy.WithdrawalReason = ""
 	copy.SupersedesID = &old.ID
 	copy.LockVersion = 1
-	if copy.ResourceType == "managed_document" || copy.ResourceType == "downloadable_asset" {
-		copy.SearchIndexStatus = "pending_approval"
-		copy.IndexedAt = nil
+	if prepare != nil {
+		var open int64
+		if err := s.DB.Model(&models.OutbreakResource{}).Where("outbreak_id = ? AND supersedes_id = ? AND status IN ?", id, old.ID, []string{"draft", "pending_review"}).Count(&open).Error; err != nil {
+			return nil, err
+		}
+		if open > 0 {
+			return nil, invalid("An edit of this is already in progress. Open that edit to make further changes.")
+		}
+		if err := prepare(&copy); err != nil {
+			return nil, err
+		}
+	}
+	if submit {
+		copy.Status = "pending_review"
 	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&copy).Error; err != nil {
 			return err
 		}
-		return auditOutbreak(tx, actor, "outbreak_resource.correction_created", "outbreak_resource", copy.ID, map[string]any{"supersedes_id": old.ID, "reason": in.Reason})
+		if err := auditOutbreak(tx, actor, "outbreak_resource.correction_created", "outbreak_resource", copy.ID, map[string]any{"supersedes_id": old.ID, "reason": in.Reason}); err != nil {
+			return err
+		}
+		if submit {
+			return auditOutbreak(tx, actor, "outbreak_resource.submit", "outbreak_resource", copy.ID, map[string]any{"reason": in.Reason})
+		}
+		return nil
 	}); err != nil {
 		return nil, err
 	}
@@ -1235,7 +1382,7 @@ func updateAdminDTO(r models.OutbreakUpdate) OutbreakUpdateAdminDTO {
 	return OutbreakUpdateAdminDTO{r.ID, r.OutbreakID, r.Title, r.Summary, r.Status, r.PublishedAt, r.AuthorID, r.ReviewedBy, r.ReviewedAt, r.ApprovedBy, r.ApprovedAt, r.WithdrawnAt, r.WithdrawalReason, r.SupersedesID, r.LockVersion, r.CreatedAt, r.UpdatedAt}
 }
 func resourceAdminDTO(r models.OutbreakResource) OutbreakResourceAdminDTO {
-	return OutbreakResourceAdminDTO{ID: r.ID, OutbreakID: r.OutbreakID, Title: r.Title, Description: r.Description, IssuingOrganization: r.IssuingAuthority, ResourceType: r.ResourceType, URL: r.URL, AssetURL: r.AssetURL, SortOrder: r.SortOrder, Status: r.Status, PublishedAt: r.PublishedAt, AuthorID: r.AuthorID, ReviewedBy: r.ReviewedBy, ReviewedAt: r.ReviewedAt, ApprovedBy: r.ApprovedBy, ApprovedAt: r.ApprovedAt, WithdrawnAt: r.WithdrawnAt, WithdrawalReason: r.WithdrawalReason, SupersedesID: r.SupersedesID, LockVersion: r.LockVersion, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return OutbreakResourceAdminDTO{ID: r.ID, OutbreakID: r.OutbreakID, Title: r.Title, Description: r.Description, IssuingOrganization: r.IssuingAuthority, ResourceType: r.ResourceType, DocumentKind: r.DocumentKind, URL: r.URL, AssetURL: r.AssetURL, SortOrder: r.SortOrder, Status: r.Status, PublishedAt: r.PublishedAt, AuthorID: r.AuthorID, ReviewedBy: r.ReviewedBy, ReviewedAt: r.ReviewedAt, ApprovedBy: r.ApprovedBy, ApprovedAt: r.ApprovedAt, WithdrawnAt: r.WithdrawnAt, WithdrawalReason: r.WithdrawalReason, SupersedesID: r.SupersedesID, LockVersion: r.LockVersion, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 func reportAdminDTO(r models.SituationReport) SituationReportAdminDTO {
 	return SituationReportAdminDTO{r.ID, r.OutbreakID, r.RegionID, r.DistrictID, r.Title, r.GeographicArea, r.Summary, r.SourceOrganization, r.PublicationDate, r.Status, r.ReportAssetURL, r.ReportAssetID, r.StandaloneAllowed, r.AuthorID, r.PublishedAt, r.ReviewedBy, r.ReviewedAt, r.ApprovedBy, r.ApprovedAt, r.WithdrawnAt, r.WithdrawalReason, r.CorrectionReason, r.SupersedesID, r.SourceURL, r.SourceReference, r.EffectiveAt, r.DataAsOf, r.LastVerifiedAt, r.LockVersion, decodeHighlights(r.KeyHighlights), decodeMetrics(r.Metrics), r.CreatedAt, r.UpdatedAt}
@@ -1274,6 +1421,9 @@ func applyResource(r *models.OutbreakResource, in ChildContentInput) {
 	}
 	if in.ResourceType != nil {
 		r.ResourceType = strings.TrimSpace(*in.ResourceType)
+	}
+	if in.DocumentKind != nil {
+		r.DocumentKind = strings.ToLower(strings.TrimSpace(*in.DocumentKind))
 	}
 	if in.Description != nil {
 		r.Description = strings.TrimSpace(*in.Description)
@@ -1449,7 +1599,11 @@ func (s OutbreakAdminService) transitionChildWithHook(a OutbreakActor, parent, i
 			return invalidf("This %s has to be approved before it can be published.", label)
 		}
 		if _, err := (OutbreakService{DB: s.DB}).Get(parent); err != nil {
-			return invalidf("The outbreak this %s belongs to could not be found.", label)
+			var outbreak models.Outbreak
+			if lookupErr := s.DB.Select("status").First(&outbreak, "id = ?", parent).Error; lookupErr != nil {
+				return invalidf("The outbreak this %s belongs to could not be found.", label)
+			}
+			return invalidf("This %s can't be published yet because its outbreak isn't published (the outbreak is %s). Publish the outbreak first, then publish this %s.", label, outbreakStatusLabel(outbreak.Status), label)
 		}
 		updates["status"] = "published"
 		updates["published_at"] = now
@@ -1482,4 +1636,28 @@ func (s OutbreakAdminService) transitionChildWithHook(a OutbreakActor, parent, i
 		}
 		return nil
 	})
+}
+
+// retireSuperseded withdraws the published original of an outbreak child
+// (kind "outbreak_resource" or "outbreak_update") once its correction is
+// published, so only the corrected version stays public.
+func retireSuperseded(tx *gorm.DB, actor OutbreakActor, kind string, model any, outbreakID, correctionID, originalID uuid.UUID) error {
+	reason := "superseded by approved correction"
+	var audit models.AuditLog
+	if err := tx.Where("entity_type = ? AND entity_id = ? AND action = ?", kind, correctionID.String(), kind+".correction_created").Order("created_at DESC").First(&audit).Error; err == nil {
+		var meta struct {
+			Reason string `json:"reason"`
+		}
+		if json.Unmarshal([]byte(audit.MetadataJSON), &meta) == nil && strings.TrimSpace(meta.Reason) != "" {
+			reason += ": " + strings.TrimSpace(meta.Reason)
+		}
+	}
+	r := tx.Model(model).Where("id = ? AND outbreak_id = ? AND status = ?", originalID, outbreakID, "published").Updates(map[string]any{"status": "withdrawn", "withdrawn_at": time.Now(), "withdrawal_reason": reason, "lock_version": gorm.Expr("lock_version + 1")})
+	if r.Error != nil {
+		return r.Error
+	}
+	if r.RowsAffected == 0 {
+		return nil
+	}
+	return auditOutbreak(tx, actor, kind+".superseded", kind, originalID, map[string]any{"superseded_by": correctionID})
 }

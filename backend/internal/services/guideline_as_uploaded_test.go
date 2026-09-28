@@ -34,8 +34,12 @@ func testDocx(t *testing.T, text string) []byte {
 	return buffer.Bytes()
 }
 
+type asUploadedFile struct{ *bytes.Reader }
+
+func (asUploadedFile) Close() error { return nil }
+
 func asUploadedTestFile(content []byte) multipart.File {
-	return outbreakDocumentTestFile{bytes.NewReader(content)}
+	return asUploadedFile{bytes.NewReader(content)}
 }
 
 func TestAsUploadedFormPublishesOriginalFileAndIndexedText(t *testing.T) {

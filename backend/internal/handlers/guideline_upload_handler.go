@@ -64,7 +64,12 @@ func (h GuidelineHandler) UploadCapabilities(c *gin.Context) {
 			httpx.Error(c, 500, "failed to load guideline version")
 			return
 		}
-		direct = !asUploaded
+		asLink, err := h.Service.VersionPublishesAsLink(version)
+		if err != nil {
+			httpx.Error(c, 500, "failed to load guideline version")
+			return
+		}
+		direct = !asUploaded && !asLink
 	}
 	httpx.OK(c, gin.H{"direct_uploads": direct, "max_size_bytes": h.MaxUploadMB << 20, "part_size": 8 << 20})
 }

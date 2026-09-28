@@ -1,5 +1,11 @@
 # Disease-aware content: API, permissions, flags and rollout
 
+> **Note:** Outbreak documents and SOPs (managed uploads owned by an outbreak,
+> content types `outbreak_document` and `form`) were later removed by migration
+> `00074_remove_outbreak_documents.sql`. SOPs, forms and links are now published
+> in the guideline library and linked to outbreaks as typed resources. References
+> to outbreak documents below describe the historical design.
+
 This runbook completes Phases 11 and 12 of the disease-aware content workflow. It covers canonical diseases, disease-to-content assignments, generic and disease hubs, outbreak hubs, pillars, templates, public discovery and staged rollout. Operational surveillance remains out of scope.
 
 For the dashboard steps used by authors, reviewers and publishers, use the

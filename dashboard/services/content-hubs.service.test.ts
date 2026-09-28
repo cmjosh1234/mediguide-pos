@@ -86,7 +86,7 @@ describe("disease and content-hub administration services", () => {
   it("keeps resource type and outbreak filtering explicit", async () => {
     send.mockResolvedValue({ items: [] });
     await contentHubService.searchResources(
-      "outbreak_document",
+      "situation_report",
       "triage",
       "outbreak-1",
     );
@@ -94,7 +94,7 @@ describe("disease and content-hub administration services", () => {
       query: {
         page: 1,
         per_page: 50,
-        content_type: "outbreak_document",
+        content_type: "situation_report",
         search: "triage",
         outbreak_id: "outbreak-1",
       },

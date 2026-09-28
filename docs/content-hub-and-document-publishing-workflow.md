@@ -2,7 +2,7 @@
 
 This is the operator runbook for publishing disease-aware content in
 MediGuide. It covers disease taxonomy, general disease hubs, generic hubs,
-outbreak response hubs, guidelines, managed outbreak documents, situation
+outbreak response hubs, guidelines, outbreak typed resources, situation
 reports, mobile discovery, rollout, correction and troubleshooting.
 
 Operational case surveillance, line lists and automatic ingestion from external
@@ -33,7 +33,7 @@ public and never changes its clinical approval state.
 | Pillar | Ordered group inside a hub, such as Clinical Care, IPC or Laboratory |
 | Pillar item | Reference to an eligible published resource or an approved route/URL |
 | Outbreak | Governed event record that can optionally own a response hub |
-| Source resource | Guideline, outbreak document, situation report, algorithm, tool, form or drug reference |
+| Source resource | Guideline, situation report, algorithm, tool or drug reference |
 
 A hub may be linked to one or more diseases without being linked to an
 outbreak. This is how non-outbreak disease hubs are represented. A generic hub
@@ -121,9 +121,9 @@ allow-listed `approved_external_url`.
 10. Publish the hub with `content_hub.publish`.
 11. Verify the public APIs and both mobile user modes.
 
-Supported pillar item types are `guideline`, `outbreak_document`,
-`situation_report`, `algorithm`, `clinical_tool`, `form`, `drug_reference`,
-`internal_route` and `approved_external_url`. The chooser lists candidates for
+Supported pillar item types are `guideline`, `situation_report`,
+`algorithm`, `clinical_tool`, `drug_reference`, `internal_route` and
+`approved_external_url`. The chooser lists candidates for
 the selected type. A draft may be curated in advance, but the public API will
 omit it until the source becomes eligible.
 
@@ -153,27 +153,22 @@ items, preview and publication.
 Creating an outbreak does not automatically publish its hub. The public
 outbreak and the hub have separate lifecycle and validation checks.
 
-### Upload an outbreak SOP, form or supporting document
+### Link an SOP, form or supporting document to an outbreak
 
-1. Open the outbreak editor and find **Outbreak documents and SOPs**.
-2. Select **Document draft**.
-3. Enter title, document kind, issuing authority, document number, version,
-   language, audience, effective date, review date and optional expiry date.
-4. Save the draft and select **Upload original**.
-5. Upload PDF, DOCX, XLSX, Markdown or UTF-8 text. The configured limit is
-   `MAX_UPLOAD_MB` and defaults to 25 MB.
-6. Check extraction/index status and use the derived preview where supported.
-7. Submit for review. A different user records comments and approves with a
-   clinical rationale.
-8. A separately authorized publisher publishes it.
-9. In the hub editor, add it as `outbreak_document`; use `form` when its
-   document kind is a form.
-10. Activate the assignment, preview and publish the hub.
+Outbreaks no longer own uploaded files. SOPs, forms, checklists, protocols and
+links are published once in the guideline library and linked to outbreaks as
+typed resources.
 
-File extensions and browser MIME labels are not trusted. The API validates the
-actual file structure, stores a checksum and uses immutable object keys in the
-configured MinIO/S3 bucket. Scanned PDFs may remain original-only because the
-current extractor does not provide OCR.
+1. Open **Clinical Guidelines → Create**, choose the document kind (for
+   example SOP, Form or Links) and complete its metadata and file or link.
+2. Take it through guideline review and publish it.
+3. Open the outbreak editor and find **Typed resources**.
+4. Choose the document type, pick the published document, add a title and
+   select **Add resource draft**.
+5. Submit the resource for review; a different user approves it and it is
+   published once the outbreak is published.
+6. To feature it in the outbreak hub, add the guideline to a pillar as
+   `guideline`, then activate the assignment, preview and publish the hub.
 
 ### Publish a situation report
 
@@ -187,10 +182,11 @@ current extractor does not provide OCR.
 5. Add the published report to the Situation Reports pillar as
    `situation_report`.
 
-Published outbreak documents and reports are immutable. Use the correction
-action for a replacement, complete review again and withdraw obsolete content
-when necessary. See [Outbreak operations runbook](outbreak-operations.md) for
-storage, extraction, notifications, offline behavior and incident response.
+Published typed resources and reports are immutable. Edit a published
+resource or use the correction action for a report, complete review again and
+withdraw obsolete content when necessary. See
+[Outbreak operations runbook](outbreak-operations.md) for notifications,
+offline behavior and incident response.
 
 ## Links and routes
 
@@ -221,8 +217,7 @@ rules.
 Public search and the AI assistant use the approved source projection, not the
 hub card as a substitute for content. The general assistant can retrieve
 reviewed current guideline chunks plus eligible outbreak summaries, situation
-reports, extracted outbreak documents and forms, published algorithms,
-clinical tools and approved drug references. Hub, pillar and disease records
+reports, published algorithms, clinical tools and approved drug references. Hub, pillar and disease records
 are navigation/filter metadata and are not clinical evidence by themselves.
 Approved external URLs are searchable links but never ground an AI answer.
 
@@ -236,8 +231,7 @@ pillar assignment can narrow retrieval but cannot make content eligible.
 2. Confirm extraction or structured regeneration completed without blocking
    errors.
 3. For guidelines, confirm published blocks have approved search chunks and
-   required embeddings. For managed outbreak documents and forms, confirm the
-   governed extraction/index status contains searchable text.
+   required embeddings.
 4. Query public search with a distinctive source term and open the returned
    resource.
 5. Ask the assistant a question answerable by that source and verify its cited
@@ -344,7 +338,7 @@ eligible, not that authentication is required.
   mobile redeployment.
 - Archive an incorrect hub; do not delete its audit trail after publication.
 - Deactivate or schedule an incorrect pillar item while its source is assessed.
-- Withdraw an unsafe outbreak document/report using the authorized transition.
+- Withdraw an unsafe typed resource or report using the authorized transition.
 - Publish a new guideline version or governed correction instead of changing a
   published record in place.
 - Do not roll back additive database migrations merely to disable discovery.

@@ -32,6 +32,8 @@ export interface GuidelineVersionRecord {
   review_date?: string;
   status: string;
   original_file_key?: string;
+  /** The https link a version publishes when its document kind publishes as a link. */
+  external_url?: string;
   html_file_key?: string;
   markdown_file_key?: string;
   checksum?: string;
@@ -72,6 +74,8 @@ export interface GuidelineDocumentKindRecord {
   status: string;
   /** Kinds such as forms publish the uploaded file itself, with no editor. */
   publish_as_uploaded?: boolean;
+  /** Kinds such as Link publish an external https URL instead of a file. */
+  publish_as_link?: boolean;
 }
 
 /** File types accepted for guidelines that are extracted into editable content. */
@@ -87,6 +91,38 @@ export function isPublishedAsUploaded(
   document?: Pick<GuidelineDocumentRecord, "document_kind"> | null,
 ): boolean {
   return Boolean(document?.document_kind?.publish_as_uploaded);
+}
+
+/** Whether the document is published as an external link rather than a file. */
+export function isPublishedAsLink(
+  document?: Pick<GuidelineDocumentRecord, "document_kind"> | null,
+): boolean {
+  return Boolean(document?.document_kind?.publish_as_link);
+}
+
+/** Longest link the backend stores. */
+export const MAX_GUIDELINE_LINK_LENGTH = 2048;
+
+/**
+ * Explains why a link would be rejected, or returns null when it is a full
+ * https URL the backend accepts.
+ */
+export function guidelineLinkError(value: string): string | null {
+  const link = value.trim();
+  if (!link) return "Enter the link.";
+  if (link.length > MAX_GUIDELINE_LINK_LENGTH)
+    return `The link must be ${MAX_GUIDELINE_LINK_LENGTH.toLocaleString()} characters or fewer.`;
+  let parsed: URL;
+  try {
+    parsed = new URL(link);
+  } catch {
+    return "Enter a full link starting with https://, for example https://www.who.int/publications.";
+  }
+  if (parsed.protocol !== "https:")
+    return "The link must start with https://.";
+  if (!parsed.hostname || parsed.username || parsed.password || link.startsWith("//"))
+    return "Enter a full link starting with https://, for example https://www.who.int/publications.";
+  return null;
 }
 
 /** The name a user uploaded, without the storage key's folders and timestamp prefix. */
@@ -594,6 +630,16 @@ export class GuidelineDocumentsService {
     file: File,
   ): Promise<IngestionJobRecord> {
     return this.uploadVersionSource(versionId, file);
+  }
+
+  static async setVersionLink(
+    versionId: string,
+    url: string,
+  ): Promise<GuidelineVersionRecord> {
+    return getBackendClient().request<GuidelineVersionRecord>(
+      `/api/v2/guideline-versions/${versionId}/link`,
+      { method: "PUT", body: JSON.stringify({ url: url.trim() }) },
+    );
   }
 
   static async publishVersion(

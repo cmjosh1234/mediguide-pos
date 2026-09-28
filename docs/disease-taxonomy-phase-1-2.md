@@ -1,5 +1,11 @@
 # Disease-aware content workflow: phases 1 and 2
 
+> **Note:** Outbreak documents and SOPs (managed uploads owned by an outbreak,
+> content types `outbreak_document` and `form`) were later removed by migration
+> `00074_remove_outbreak_documents.sql`. SOPs, forms and links are now published
+> in the guideline library and linked to outbreaks as typed resources. References
+> to outbreak documents below describe the historical design.
+
 ## Scope
 
 This note records the repository audit and the canonical disease taxonomy introduced in phases 1 and 2. It deliberately does not implement category links for modern guideline documents, disease-to-content assignments, hubs, pillars, public/mobile disease browsing, or RAG disease metadata. Those belong to later phases.

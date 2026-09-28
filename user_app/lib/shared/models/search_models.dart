@@ -13,10 +13,6 @@ enum SearchCategory {
   abbreviations(value: 'abbreviations', displayName: 'Abbreviations'),
   faq(value: 'faq', displayName: 'FAQ'),
   outbreaks(value: 'outbreaks', displayName: 'Outbreaks'),
-  outbreakDocuments(
-    value: 'outbreak_documents',
-    displayName: 'Outbreak Documents',
-  ),
   outbreakResources(
     value: 'outbreak_resources',
     displayName: 'Official Resources',

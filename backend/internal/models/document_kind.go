@@ -13,9 +13,12 @@ type DocumentKind struct {
 	Status      string  `json:"status"`
 	// PublishAsUploaded kinds (for example Form) keep the uploaded file as the
 	// published document: no extraction into editable Markdown or blocks.
-	PublishAsUploaded      bool  `gorm:"not null;default:false" json:"publish_as_uploaded"`
+	PublishAsUploaded bool `gorm:"not null;default:false" json:"publish_as_uploaded"`
+	// PublishAsLink kinds (for example Link) publish an external https URL
+	// instead of an uploaded file or extracted content.
+	PublishAsLink          bool  `gorm:"not null;default:false" json:"publish_as_link"`
 	GuidelineDocumentCount int64 `gorm:"->;-:migration" json:"guideline_document_count"`
-	OutbreakDocumentCount  int64 `gorm:"->;-:migration" json:"outbreak_document_count"`
+	OutbreakResourceCount  int64 `gorm:"->;-:migration" json:"outbreak_resource_count"`
 }
 
 func (DocumentKind) TableName() string { return "document_kinds" }

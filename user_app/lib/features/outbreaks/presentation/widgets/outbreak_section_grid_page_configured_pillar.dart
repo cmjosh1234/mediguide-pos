@@ -93,7 +93,6 @@ class _ConfiguredPillarCard extends StatelessWidget {
 String _configuredItemTitle(PublicOutbreakPillarItem item) {
   if (item.label.trim().isNotEmpty) return item.label.trim();
   return switch (item.contentType) {
-    'outbreak_document' || 'form' => 'Open guidance document',
     'situation_report' => 'Open situation report',
     'guideline' => 'Open clinical guideline',
     'algorithm' => 'Open algorithm',
@@ -117,11 +116,7 @@ IconData _configuredSectionIcon(String configured, String fallback) {
     'training' || 'graduation-cap' => LucideIcons.graduationCap,
     'contacts' || 'users' => LucideIcons.users,
     'faqs' || 'help-circle' => LucideIcons.messageCircleQuestion,
-    'outbreak_document' ||
-    'guideline' ||
-    'form' ||
-    'forms' ||
-    'file-text' => LucideIcons.fileText,
+    'guideline' || 'forms' || 'file-text' => LucideIcons.fileText,
     'situation_report' ||
     'situation-reports' ||
     'file-chart' => LucideIcons.fileChartColumn,
@@ -137,25 +132,6 @@ Future<void> _openConfiguredItem(
   PublicOutbreakPillarItem item,
   PublicOutbreakDetail detail,
 ) async {
-  if (item.contentType == 'outbreak_document' || item.contentType == 'form') {
-    final matches = detail.documents.where(
-      (value) => value.id == item.contentId,
-    );
-    if (matches.isNotEmpty) {
-      final document = matches.first;
-      context.push(
-        AppRoutes.outbreakDocument(document.outbreakId, document.id),
-        extra: document,
-      );
-      return;
-    }
-    if (item.contentId.isNotEmpty) {
-      context.push(
-        AppRoutes.outbreakDocument(detail.outbreak.id, item.contentId),
-      );
-      return;
-    }
-  }
   if (item.contentType == 'situation_report') {
     context.push(AppRoutes.situationReport(item.contentId));
     return;

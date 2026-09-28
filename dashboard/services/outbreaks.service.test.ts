@@ -57,38 +57,4 @@ describe("typed outbreak administration services", () => {
       body: JSON.stringify({ lock_version: 3, reason: "Replace the superseded clinical link" }),
     })
   })
-
-  it("uses typed managed-document upload and clinical workflow endpoints", async () => {
-    send
-      .mockResolvedValueOnce({ id: "document-1", status: "draft", lock_version: 2 })
-      .mockResolvedValueOnce({ id: "document-1", status: "pending_review", lock_version: 3 })
-      .mockResolvedValueOnce({ items: [], page: 1, per_page: 100, total_items: 0, total_pages: 0 })
-
-    const file = new File(["%PDF-1.7\n%%EOF"], "protocol.pdf", { type: "application/pdf" })
-    await outbreaksService.uploadDocument("outbreak-1", "document-1", 1, file)
-    await outbreaksService.transitionDocument("outbreak-1", "document-1", "approve", { lock_version: 2, reason: "Clinically reviewed" })
-    await outbreaksService.documentAudit("outbreak-1", "document-1")
-
-    expect(send).toHaveBeenNthCalledWith(1, "/api/v2/outbreaks/outbreak-1/documents/document-1/file", expect.objectContaining({ method: "PUT", query: { lock_version: 1 }, body: expect.any(FormData) }))
-    expect(send).toHaveBeenNthCalledWith(2, "/api/v2/outbreaks/outbreak-1/documents/document-1/approve", { method: "POST", body: JSON.stringify({ lock_version: 2, reason: "Clinically reviewed" }) })
-    expect(send).toHaveBeenNthCalledWith(3, "/api/v2/outbreaks/outbreak-1/documents/document-1/audit", { query: { page: 1, per_page: 100 } })
-  })
-
-  it("uses dedicated derived-content preview and reprocess endpoints", async () => {
-    send
-      .mockResolvedValueOnce({ id: "document-1", content: "# SOP", content_format: "markdown" })
-      .mockResolvedValueOnce({ document_id: "document-1", query: "isolate", searchable: true })
-      .mockResolvedValueOnce({ id: "document-1", extraction_status: "ready", lock_version: 5 })
-
-    await outbreaksService.documentContent("outbreak-1", "document-1")
-    await outbreaksService.documentSearchPreview("outbreak-1", "document-1", "isolate")
-    await outbreaksService.reprocessDocument("outbreak-1", "document-1", 4)
-
-    expect(send).toHaveBeenNthCalledWith(1, "/api/v2/outbreaks/outbreak-1/documents/document-1/content")
-    expect(send).toHaveBeenNthCalledWith(2, "/api/v2/outbreaks/outbreak-1/documents/document-1/search-preview", { query: { query: "isolate" } })
-    expect(send).toHaveBeenNthCalledWith(3, "/api/v2/outbreaks/outbreak-1/documents/document-1/reprocess", {
-      method: "POST",
-      body: JSON.stringify({ lock_version: 4 }),
-    })
-  })
 })

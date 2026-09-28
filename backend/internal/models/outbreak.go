@@ -65,19 +65,6 @@ type OutbreakResource struct {
 	ResourceType     string     `json:"resource_type"`
 	DocumentKind     string     `json:"document_kind"`
 	IssuingAuthority string     `json:"issuing_authority"`
-	DocumentNumber   string     `json:"document_number"`
-	Version          string     `json:"version"`
-	Language         string     `json:"language"`
-	Audience         string     `json:"audience"`
-	EffectiveDate    *time.Time `json:"effective_date,omitempty"`
-	ReviewDate       *time.Time `json:"review_date,omitempty"`
-	ExpiresAt        *time.Time `json:"expires_at,omitempty"`
-	StorageKey       string     `json:"-"`
-	OriginalFilename string     `json:"original_filename,omitempty"`
-	MIMEType         string     `json:"mime_type,omitempty"`
-	FileSize         int64      `json:"file_size"`
-	ChecksumSHA256   string     `json:"checksum_sha256,omitempty"`
-	PageCount        *int       `json:"page_count,omitempty"`
 	URL              string     `json:"url"`
 	AssetURL         string     `json:"asset_url"`
 	SortOrder        int        `json:"sort_order"`
@@ -92,22 +79,6 @@ type OutbreakResource struct {
 	WithdrawalReason string     `json:"withdrawal_reason,omitempty"`
 	SupersedesID     *uuid.UUID `gorm:"type:uuid;index" json:"supersedes_id,omitempty"`
 	LockVersion      int        `gorm:"not null;default:1" json:"lock_version"`
-	// Derived, server-owned discovery content. It is populated from validated
-	// uploads and is never accepted from public or administrative API payloads.
-	SearchContent            string         `json:"-"`
-	SearchHeadings           string         `json:"-"`
-	RenderedContent          string         `json:"-"`
-	ContentFormat            string         `json:"-"`
-	ExtractionStatus         string         `json:"-"`
-	ExtractionError          string         `json:"-"`
-	ExtractionSourceChecksum string         `json:"-"`
-	DerivedContentChecksum   string         `json:"-"`
-	SearchIndexStatus        string         `json:"-"`
-	SearchSchemaVersion      int            `gorm:"not null;default:1" json:"-"`
-	ContentSections          datatypes.JSON `gorm:"type:jsonb" json:"-"`
-	SourcePageMap            datatypes.JSON `gorm:"type:jsonb" json:"-"`
-	ExtractedAt              *time.Time     `json:"-"`
-	IndexedAt                *time.Time     `json:"-"`
 }
 
 type SituationReport struct {

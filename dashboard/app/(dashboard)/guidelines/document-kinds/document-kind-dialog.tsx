@@ -82,9 +82,9 @@ export function DocumentKindDialog({
           <DialogHeader>
             <DialogTitle>{kind ? "Edit document kind" : "Add document kind"}</DialogTitle>
             <DialogDescription>
-              Document kinds classify guideline and outbreak documents, for
-              example guidelines, forms and SOPs. Each kind appears as a tab on
-              the guidelines list.
+              Document kinds classify guideline documents, for example
+              guidelines, forms and SOPs. Each kind appears as a tab on the
+              guidelines list and as a document type for outbreak resources.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -158,7 +158,9 @@ export function DocumentKindDialog({
             <div className="space-y-1">
               <Label htmlFor="document-kind-as-uploaded">Publish as uploaded file</Label>
               <p className="text-xs text-muted-foreground">
-                {kind && kind.guideline_document_count > 0
+                {kind?.publish_as_link
+                  ? "Link kinds publish an https link, not an uploaded file."
+                  : kind && kind.guideline_document_count > 0
                   ? `Locked while ${kind.guideline_document_count} guideline document(s) use this kind.`
                   : "For forms: the PDF or Word file is published exactly as uploaded. Its text is indexed for search, and it never goes through the Markdown editor."}
               </p>
@@ -166,7 +168,7 @@ export function DocumentKindDialog({
             <Switch
               id="document-kind-as-uploaded"
               checked={Boolean(value.publish_as_uploaded)}
-              disabled={Boolean(kind && kind.guideline_document_count > 0)}
+              disabled={Boolean(kind?.publish_as_link || (kind && kind.guideline_document_count > 0))}
               onCheckedChange={(checked) =>
                 setValue((current) => ({ ...current, publish_as_uploaded: checked }))
               }

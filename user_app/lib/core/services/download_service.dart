@@ -220,6 +220,11 @@ final class GuidelineDownloadService {
     for (final row in rows) {
       try {
         var item = OfflineDownload.fromJson(row);
+        // Outbreak documents are no longer published; drop any saved copies.
+        if (item.assetType == 'outbreak_document') {
+          await remove(item);
+          continue;
+        }
         if (item.status == OfflineDownloadStatus.ready &&
             (item.localPath.isEmpty || !await File(item.localPath).exists())) {
           item = item.copyWith(
@@ -301,30 +306,6 @@ final class GuidelineDownloadService {
         updatedAt: DateTime.now().toUtc(),
       ),
     );
-  }
-
-  /// Reconciles public outbreak downloads only after a complete unfiltered
-  /// sync. Revoked files are removed and newer versions are flagged without
-  /// replacing the last checksum-verified copy.
-  Future<void> reconcileOutbreakDocuments(
-    Map<String, String> publishedVersions,
-  ) async {
-    final downloads = await list('public');
-    for (final item in downloads.where(
-      (value) => value.assetType == 'outbreak_document',
-    )) {
-      final currentVersion = publishedVersions[item.guidelineId];
-      if (currentVersion == null) {
-        await remove(item);
-      } else if (currentVersion != item.version) {
-        await markUpdateAvailable(
-          scope: 'public',
-          guidelineId: item.guidelineId,
-          assetType: item.assetType,
-          latestVersion: currentVersion,
-        );
-      }
-    }
   }
 
   Future<void> _save(OfflineDownload item) async {

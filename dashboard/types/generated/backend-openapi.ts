@@ -789,27 +789,6 @@ export interface HandlersNotificationTemplateVersionsEnvelope {
   success?: boolean;
 }
 
-export interface HandlersOutbreakDocumentContentEnvelope {
-  data?: ServicesPublicOutbreakDocumentContent;
-  success?: boolean;
-}
-
-export interface HandlersOutbreakDocumentEnvelope {
-  data?: ServicesPublicOutbreakDocument;
-  success?: boolean;
-}
-
-export interface HandlersOutbreakDocumentInlineError {
-  code?: string;
-  message?: string;
-}
-
-export interface HandlersOutbreakDocumentInlineUnsupportedEnvelope {
-  data?: ServicesPublicOutbreakDocumentContent;
-  error?: HandlersOutbreakDocumentInlineError;
-  success?: boolean;
-}
-
 export interface HandlersOutbreakEnvelope {
   data?: ServicesPublicOutbreak;
   success?: boolean;
@@ -1186,11 +1165,6 @@ export interface HandlersPaginatedNotificationsEnvelope {
   success?: boolean;
 }
 
-export interface HandlersPaginatedOutbreakDocumentsEnvelope {
-  data?: ServicesPageResultServicesPublicOutbreakDocument;
-  success?: boolean;
-}
-
 export interface HandlersPaginatedOutbreakResourcesEnvelope {
   data?: ServicesPageResultServicesPublicOutbreakResource;
   success?: boolean;
@@ -1536,6 +1510,11 @@ export interface HandlersSearchResultsEnvelope {
   data?: ServicesSearchResult[];
   /** @example true */
   success?: boolean;
+}
+
+export interface HandlersSetVersionLinkInput {
+  /** @example "https://www.who.int/publications/i/item/9789240081888" */
+  url: string;
 }
 
 export interface HandlersSettingEnvelope {
@@ -1884,7 +1863,12 @@ export interface ModelsDocumentKind {
   guideline_document_count?: number;
   id?: string;
   name?: string;
-  outbreak_document_count?: number;
+  outbreak_resource_count?: number;
+  /**
+   * PublishAsLink kinds (for example Link) publish an external https URL
+   * instead of an uploaded file or extracted content.
+   */
+  publish_as_link?: boolean;
   /**
    * PublishAsUploaded kinds (for example Form) keep the uploaded file as the
    * published document: no extraction into editable Markdown or blocks.
@@ -2394,6 +2378,7 @@ export interface ModelsGuidelineVersion {
   created_at?: string;
   current_markdown_revision_id?: string;
   document_id?: string;
+  external_url?: string;
   extraction_metadata?: object;
   extraction_schema_version?: number;
   extraction_warnings?: string[];
@@ -2599,7 +2584,6 @@ export type ModelsNotificationActionTypeEnum =
   | "none"
   | "guideline"
   | "outbreak"
-  | "outbreak_document"
   | "situation_report"
   | "drug"
   | "calculator"
@@ -2953,6 +2937,7 @@ export interface ServicesCalculatorVersionValidationDTO {
 export interface ServicesChildContentInput {
   asset_url?: string;
   description?: string;
+  document_kind?: string;
   issuing_organization?: string;
   lock_version?: number;
   resource_type?: string;
@@ -4073,7 +4058,6 @@ export type ServicesNotificationActionTypeEnum =
   | "none"
   | "guideline"
   | "outbreak"
-  | "outbreak_document"
   | "situation_report"
   | "drug"
   | "calculator"
@@ -4394,83 +4378,6 @@ export interface ServicesOutbreakAuditDTO {
   metadata?: Record<string, any>;
 }
 
-export interface ServicesOutbreakDocumentAdminDTO {
-  checksum_sha256?: string;
-  approved_at?: string;
-  approved_by?: string;
-  asset_url?: string;
-  audience?: string;
-  author_id?: string;
-  content_format?: string;
-  created_at?: string;
-  derived_content_checksum?: string;
-  description?: string;
-  document_kind?: string;
-  document_number?: string;
-  effective_date?: string;
-  expires_at?: string;
-  extracted_at?: string;
-  extraction_error?: string;
-  extraction_source_checksum?: string;
-  extraction_status?: string;
-  file_size?: number;
-  id?: string;
-  indexed_at?: string;
-  issuing_authority?: string;
-  language?: string;
-  lock_version?: number;
-  mime_type?: string;
-  original_filename?: string;
-  outbreak_id?: string;
-  page_count?: number;
-  published_at?: string;
-  resource_type?: string;
-  review_date?: string;
-  reviewed_at?: string;
-  reviewed_by?: string;
-  search_index_status?: string;
-  search_schema_version?: number;
-  sort_order?: number;
-  status?: string;
-  supersedes_id?: string;
-  supports_preview?: boolean;
-  title?: string;
-  updated_at?: string;
-  version?: string;
-  withdrawal_reason?: string;
-  withdrawn_at?: string;
-}
-
-export interface ServicesOutbreakDocumentInput {
-  asset_url?: string;
-  audience?: string;
-  description?: string;
-  document_kind?: string;
-  document_number?: string;
-  effective_date?: string;
-  expires_at?: string;
-  issuing_authority?: string;
-  language?: string;
-  lock_version?: number;
-  resource_type?: string;
-  review_date?: string;
-  sort_order?: number;
-  title?: string;
-  version?: string;
-}
-
-export interface ServicesOutbreakDocumentSearchPreview {
-  document_id?: string;
-  indexed_at?: string;
-  matching_heading?: string;
-  matching_pdf_page?: number;
-  matching_section_id?: string;
-  query?: string;
-  search_index_status?: string;
-  searchable?: boolean;
-  snippet?: string;
-}
-
 export interface ServicesOutbreakInput {
   data_as_of?: string;
   disease_id?: string;
@@ -4538,6 +4445,7 @@ export interface ServicesOutbreakResourceAdminDTO {
   author_id?: string;
   created_at?: string;
   description?: string;
+  document_kind?: string;
   id?: string;
   issuing_organization?: string;
   lock_version?: number;
@@ -4781,14 +4689,6 @@ export interface ServicesPageResultServicesOutbreakAuditDTO {
   total_pages?: number;
 }
 
-export interface ServicesPageResultServicesOutbreakDocumentAdminDTO {
-  items?: ServicesOutbreakDocumentAdminDTO[];
-  page?: number;
-  per_page?: number;
-  total_items?: number;
-  total_pages?: number;
-}
-
 export interface ServicesPageResultServicesOutbreakResourceAdminDTO {
   items?: ServicesOutbreakResourceAdminDTO[];
   page?: number;
@@ -4823,14 +4723,6 @@ export interface ServicesPageResultServicesPublicDiseaseSummary {
 
 export interface ServicesPageResultServicesPublicOutbreak {
   items?: ServicesPublicOutbreak[];
-  page?: number;
-  per_page?: number;
-  total_items?: number;
-  total_pages?: number;
-}
-
-export interface ServicesPageResultServicesPublicOutbreakDocument {
-  items?: ServicesPublicOutbreakDocument[];
   page?: number;
   per_page?: number;
   total_items?: number;
@@ -5006,6 +4898,7 @@ export interface ServicesPublicDiseaseTreeNode {
 
 export interface ServicesPublicDocumentKind {
   name?: string;
+  publish_as_link?: boolean;
   publish_as_uploaded?: boolean;
   slug?: string;
 }
@@ -5019,6 +4912,8 @@ export interface ServicesPublicGuideline {
    * as uploaded (for example forms) are shown as their original file.
    */
   document_kind?: ServicesPublicDocumentKind;
+  /** ExternalURL is the https link readers open for kinds published as a link. */
+  external_url?: string;
   healthcare_level?: string;
   id?: string;
   intended_population?: string;
@@ -5211,68 +5106,6 @@ export interface ServicesPublicOutbreak {
   visual_tone?: string;
 }
 
-export interface ServicesPublicOutbreakDocument {
-  checksum_sha256?: string;
-  audience?: string;
-  content_format?: string;
-  content_url?: string;
-  description?: string;
-  document_kind?: string;
-  document_number?: string;
-  download_url?: string;
-  effective_date?: string;
-  expires_at?: string;
-  file_size?: number;
-  id?: string;
-  issuing_authority?: string;
-  language?: string;
-  matching_heading?: string;
-  matching_pdf_page?: number;
-  matching_section_id?: string;
-  mime_type?: string;
-  original_filename?: string;
-  outbreak_area?: string;
-  outbreak_disease?: string;
-  outbreak_id?: string;
-  outbreak_title?: string;
-  page_count?: number;
-  published_at?: string;
-  reader_url?: string;
-  review_date?: string;
-  search_relevance_score?: number;
-  search_snippet?: string;
-  supports_inline?: boolean;
-  supports_offline_download?: boolean;
-  title?: string;
-  version?: string;
-}
-
-export interface ServicesPublicOutbreakDocumentContent {
-  checksum_sha256?: string;
-  can_read_inline?: boolean;
-  content?: string;
-  document_id?: string;
-  download_url?: string;
-  effective_date?: string;
-  expires_at?: string;
-  format?: string;
-  mime_type?: string;
-  original_available?: boolean;
-  outbreak_id?: string;
-  published_at?: string;
-  review_date?: string;
-  sections?: ServicesPublicOutbreakDocumentSection[];
-  title?: string;
-}
-
-export interface ServicesPublicOutbreakDocumentSection {
-  heading?: string;
-  id?: string;
-  level?: number;
-  page?: number;
-  text?: string;
-}
-
 export interface ServicesPublicOutbreakResource {
   asset_url?: string;
   description?: string;
@@ -5365,6 +5198,12 @@ export interface ServicesReplaceContentHubDiseasesInput {
 
 export interface ServicesResolveGuidelineEditorCommentInput {
   resolved?: boolean;
+}
+
+export interface ServicesResourceCorrectionInput {
+  changes?: ServicesChildContentInput;
+  lock_version?: number;
+  reason?: string;
 }
 
 export interface ServicesReviewGuidelineAssetInput {

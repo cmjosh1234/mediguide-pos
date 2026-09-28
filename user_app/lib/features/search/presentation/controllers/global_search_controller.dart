@@ -16,7 +16,6 @@ import 'package:user_app/features/guidelines/data/repositories/guideline_content
 import 'package:user_app/features/guidelines/data/models/guideline_publication.dart';
 import 'package:user_app/features/guidelines/data/repositories/guideline_publication_repository.dart';
 import 'package:user_app/features/support/data/repositories/help_content_repository.dart';
-import 'package:user_app/features/outbreaks/data/models/outbreak_models.dart';
 import 'package:user_app/features/outbreaks/data/repositories/outbreak_repository.dart';
 import 'package:user_app/features/notifications/domain/notification_action_resolver.dart';
 
@@ -223,15 +222,6 @@ class GlobalSearchController extends _$GlobalSearchController {
           'category': result.category.value,
           'offline': result.isOffline,
           'stale': result.isStale,
-          if (result.category == SearchCategory.outbreakDocuments)
-            'has_match_target':
-                result
-                        .getItem<PublicOutbreakDocument>()
-                        ?.matchingSectionId
-                        .isNotEmpty ==
-                    true ||
-                result.getItem<PublicOutbreakDocument>()?.matchingPdfPage !=
-                    null,
         },
       );
     } catch (_) {
@@ -305,11 +295,6 @@ final class RepositoryGlobalSearchDataSource implements GlobalSearchDataSource {
       await _recordMetric?.call('global_search_completed', <String, Object>{
         'query_length': query.runes.length,
         'result_count': results.length,
-        'outbreak_document_count': results
-            .where(
-              (result) => result.category == SearchCategory.outbreakDocuments,
-            )
-            .length,
       });
     } catch (_) {
       // Operational analytics must not affect search results.
@@ -454,43 +439,6 @@ final class RepositoryGlobalSearchDataSource implements GlobalSearchDataSource {
             )
             .toList(growable: false);
 
-      case SearchCategory.outbreakDocuments:
-        final response = await _outbreaks.searchDocuments(
-          page: 1,
-          perPage: 10,
-          query: OutbreakDocumentQuery(search: query),
-        );
-        return response.items
-            .map(
-              (item) => _withRelevance(
-                SearchResult(
-                  id: item.id,
-                  title: item.title,
-                  subtitle: [
-                    item.outbreakTitle,
-                    item.documentKind.replaceAll('_', ' '),
-                    item.issuingAuthority,
-                    if (item.version.isNotEmpty) 'Version ${item.version}',
-                    if (item.effectiveDate != null)
-                      'Effective ${_dateLabel(item.effectiveDate!)}'
-                    else if (item.publishedAt != null)
-                      'Published ${_dateLabel(item.publishedAt!)}',
-                  ].where((value) => value.isNotEmpty).join(' · '),
-                  description: item.searchSnippet.isNotEmpty
-                      ? item.searchSnippet
-                      : item.description,
-                  category: category,
-                  route: AppRoutes.outbreakDocument(item.outbreakId, item.id),
-                  isOffline: response.cache.isOffline,
-                  isStale: response.cache.isStale,
-                  relevanceScore: item.searchRelevanceScore,
-                  item: item,
-                ),
-                query,
-              ),
-            )
-            .toList(growable: false);
-
       case SearchCategory.outbreakResources:
         final response = await _outbreaks.quickResources(
           page: 1,
@@ -584,7 +532,6 @@ final class RepositoryGlobalSearchDataSource implements GlobalSearchDataSource {
             'pillar' => SearchCategory.pillars,
             'guideline' => SearchCategory.guidelines,
             'outbreak' => SearchCategory.outbreaks,
-            'outbreak_document' || 'form' => SearchCategory.outbreakDocuments,
             'situation_report' => SearchCategory.situationReports,
             'drug_reference' => SearchCategory.drugs,
             _ => SearchCategory.tools,
@@ -671,15 +618,6 @@ final class RepositoryGlobalSearchDataSource implements GlobalSearchDataSource {
       return (route: AppRoutes.situationReport(id), externalUrl: null);
     }
     final segments = Uri.tryParse(backendRoute)?.pathSegments ?? const [];
-    if ((type == 'outbreak_document' || type == 'form') &&
-        segments.length >= 4 &&
-        segments[0] == 'outbreaks' &&
-        segments[2] == 'documents') {
-      return (
-        route: AppRoutes.outbreakDocument(segments[1], segments[3]),
-        externalUrl: null,
-      );
-    }
     if (type == 'algorithm' && segments.length >= 2) {
       return (
         route: AppRoutes.publicGuidelineAlgorithmView(segments[1], id),
@@ -804,7 +742,6 @@ final class RepositoryGlobalSearchDataSource implements GlobalSearchDataSource {
       case SearchCategory.all:
       case SearchCategory.faq:
       case SearchCategory.outbreaks:
-      case SearchCategory.outbreakDocuments:
       case SearchCategory.situationReports:
       case SearchCategory.outbreakResources:
       case SearchCategory.diseases:
@@ -858,11 +795,6 @@ final class RepositoryGlobalSearchDataSource implements GlobalSearchDataSource {
     final plainText = _stripHtml(value);
 
     return plainText.isEmpty ? null : plainText;
-  }
-
-  String _dateLabel(DateTime value) {
-    final date = value.toLocal();
-    return '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
   // ======================================================

@@ -5,6 +5,7 @@ import { Loader2, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
@@ -18,6 +19,12 @@ import {
 } from "@/services/document-kinds.service";
 import { useQuery } from "@tanstack/react-query";
 import { diseaseService } from "@/services/content-hubs.service";
+import { COUNTRIES } from "@/lib/constants/countries";
+
+const countryOptions = COUNTRIES.map((country) => ({
+  value: country.name,
+  label: country.name,
+}));
 
 const emptyDocument: GuidelineDocumentInput = {
   title: "",
@@ -134,11 +141,15 @@ export function GuidelineDocumentForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="country">Country</Label>
-            <Input
+            <Combobox
               id="country"
+              options={countryOptions}
               value={value.country || ""}
-              onChange={(event) => setField("country", event.target.value)}
-              placeholder="Uganda"
+              onValueChange={(country) => setField("country", country)}
+              placeholder="Select country"
+              searchPlaceholder="Search country..."
+              emptyText="No country found."
+              clearable
             />
           </div>
           <div className="space-y-2">

@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { BellPlus, Eye, FilePlus2, Pencil, Trash2, Upload } from "lucide-react"
+import { BellPlus, Eye, FilePlus2, Link2, Pencil, Trash2, Upload } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import {
   getDocumentCurrentVersion,
   getDocumentLatestVersion,
   GuidelineDocumentRecord,
+  isPublishedAsLink,
 } from "@/services/guideline-documents.service"
 
 interface GuidelineColumnActions {
@@ -142,11 +143,11 @@ export function createGuidelinesColumns({
               <Button
                 variant="ghost"
                 size="icon"
-                title="Upload PDF"
+                title={isPublishedAsLink(row.original) ? "Set link" : "Upload PDF"}
                 disabled={!getDocumentLatestVersion(row.original)}
                 onClick={() => onUpload(row.original)}
               >
-                <Upload className="h-4 w-4" />
+                {isPublishedAsLink(row.original) ? <Link2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
               </Button>
             </>
           )}

@@ -34,16 +34,17 @@ type PublicGuidelineService struct {
 }
 
 type PublicGuidelineFilter struct {
-	Search      string
-	ProgramArea string
-	CategoryID  string
-	DiseaseID   string
-	Country     string
-	Language    string
-	UpdatedFrom *time.Time
-	Sort        string
-	Order       string
-	Page        PageInput
+	Search       string
+	ProgramArea  string
+	CategoryID   string
+	DiseaseID    string
+	DocumentKind string
+	Country      string
+	Language     string
+	UpdatedFrom  *time.Time
+	Sort         string
+	Order        string
+	Page         PageInput
 }
 
 type PublicGuideline struct {
@@ -65,12 +66,15 @@ type PublicGuideline struct {
 	// DocumentKind tells readers how to present the guideline. Kinds published
 	// as uploaded (for example forms) are shown as their original file.
 	DocumentKind *PublicDocumentKind `json:"document_kind,omitempty"`
+	// ExternalURL is the https link readers open for kinds published as a link.
+	ExternalURL string `json:"external_url,omitempty"`
 }
 
 type PublicDocumentKind struct {
 	Slug              string `json:"slug"`
 	Name              string `json:"name"`
 	PublishAsUploaded bool   `json:"publish_as_uploaded"`
+	PublishAsLink     bool   `json:"publish_as_link"`
 }
 
 type PublicGuidelineCategory struct {
@@ -111,6 +115,8 @@ type publicGuidelineRow struct {
 	DocumentKindSlug   string
 	DocumentKindName   string
 	PublishAsUploaded  bool
+	PublishAsLink      bool
+	ExternalURL        string
 }
 
 func (s PublicGuidelineService) List(ctx context.Context, filter PublicGuidelineFilter) (*PageResult[PublicGuideline], error) {
@@ -170,8 +176,10 @@ func (s PublicGuidelineService) getUncached(ctx context.Context, id uuid.UUID) (
 		return nil, err
 	}
 	// As-uploaded documents have no Markdown; their original file is the content.
+	// Link documents have only their external URL.
 	hasContent := strings.TrimSpace(row.MarkdownFileKey) != "" ||
-		row.PublishAsUploaded && strings.TrimSpace(row.OriginalFileKey) != ""
+		row.PublishAsUploaded && strings.TrimSpace(row.OriginalFileKey) != "" ||
+		row.PublishAsLink && strings.TrimSpace(row.ExternalURL) != ""
 	if !hasContent {
 		return nil, ErrPublicGuidelineNotFound
 	}
@@ -253,6 +261,9 @@ func applyPublicGuidelineFilters(query *gorm.DB, filter PublicGuidelineFilter) *
 	}
 	if value := strings.TrimSpace(filter.ProgramArea); value != "" {
 		query = query.Where("LOWER(gd.program_area) = ?", strings.ToLower(value))
+	}
+	if value := strings.TrimSpace(filter.DocumentKind); value != "" {
+		query = query.Where("dk.slug = ?", strings.ToLower(value))
 	}
 	if value := strings.TrimSpace(filter.CategoryID); value != "" {
 		id, err := uuid.Parse(value)
@@ -362,6 +373,7 @@ func (row publicGuidelineRow) public() PublicGuideline {
 		IntendedPopulation: row.IntendedPopulation,
 		HealthcareLevel:    row.HealthcareLevel,
 		DocumentKind:       row.documentKind(),
+		ExternalURL:        row.externalURL(),
 	}
 }
 
@@ -369,7 +381,14 @@ func (row publicGuidelineRow) documentKind() *PublicDocumentKind {
 	if row.DocumentKindSlug == "" {
 		return nil
 	}
-	return &PublicDocumentKind{Slug: row.DocumentKindSlug, Name: row.DocumentKindName, PublishAsUploaded: row.PublishAsUploaded}
+	return &PublicDocumentKind{Slug: row.DocumentKindSlug, Name: row.DocumentKindName, PublishAsUploaded: row.PublishAsUploaded, PublishAsLink: row.PublishAsLink}
+}
+
+func (row publicGuidelineRow) externalURL() string {
+	if !row.PublishAsLink {
+		return ""
+	}
+	return strings.TrimSpace(row.ExternalURL)
 }
 
 func slugify(value string) string {
@@ -398,7 +417,9 @@ const publicGuidelineSelect = `
 	gv.updated_at AS version_updated,
 	gv.markdown_file_key,
 	gv.original_file_key,
+	gv.external_url,
 	dk.slug AS document_kind_slug,
 	dk.name AS document_kind_name,
-	COALESCE(dk.publish_as_uploaded, false) AS publish_as_uploaded
+	COALESCE(dk.publish_as_uploaded, false) AS publish_as_uploaded,
+	COALESCE(dk.publish_as_link, false) AS publish_as_link
 `

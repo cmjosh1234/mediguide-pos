@@ -50,14 +50,12 @@ type ReplaceContentDiseaseAssignmentsInput struct {
 }
 
 var supportedDiseaseContentTypes = map[string]string{
-	models.ContentDiseaseGuideline:        "guideline_documents",
-	models.ContentDiseaseOutbreak:         "outbreaks",
-	models.ContentDiseaseOutbreakDocument: "outbreak_resources",
-	models.ContentDiseaseSituationReport:  "situation_reports",
-	models.ContentDiseaseAlgorithm:        "guideline_content_blocks",
-	models.ContentDiseaseClinicalTool:     "calculators",
-	models.ContentDiseaseForm:             "outbreak_resources",
-	models.ContentDiseaseDrugReference:    "drugs",
+	models.ContentDiseaseGuideline:       "guideline_documents",
+	models.ContentDiseaseOutbreak:        "outbreaks",
+	models.ContentDiseaseSituationReport: "situation_reports",
+	models.ContentDiseaseAlgorithm:       "guideline_content_blocks",
+	models.ContentDiseaseClinicalTool:    "calculators",
+	models.ContentDiseaseDrugReference:   "drugs",
 }
 
 func (s ContentDiseaseService) List(in ContentDiseaseQuery) (*PageResult[models.ContentDiseaseAssignment], error) {
@@ -242,10 +240,6 @@ func validateDiseaseContentResource(tx *gorm.DB, kind string, id uuid.UUID) erro
 	switch kind {
 	case models.ContentDiseaseAlgorithm:
 		query = query.Where("type IN ?", []string{string(models.GuidelineBlockAlgorithm), string(models.GuidelineBlockAlgorithmReference)})
-	case models.ContentDiseaseOutbreakDocument:
-		query = query.Where("resource_type IN ?", []string{"managed_document", "downloadable_asset"})
-	case models.ContentDiseaseForm:
-		query = query.Where("resource_type IN ? AND lower(document_kind) = ?", []string{"managed_document", "downloadable_asset"}, "form")
 	}
 	var count int64
 	if err := query.Count(&count).Error; err != nil {
@@ -268,13 +262,6 @@ func (s ContentDiseaseService) PubliclyEligible(assignment models.ContentDisease
 			Where("gd.id = ? AND gd.deleted_at IS NULL AND lower(gv.status) = ?", assignment.ContentID, "published")
 	case models.ContentDiseaseOutbreak:
 		q = q.Table("outbreaks").Where("id = ? AND deleted_at IS NULL AND published_at IS NOT NULL AND published_at <= ? AND (effective_at IS NULL OR effective_at <= ?) AND withdrawn_at IS NULL AND status IN ?", assignment.ContentID, now, now, []string{"published", "active", "monitoring", "contained", "closed"})
-	case models.ContentDiseaseOutbreakDocument, models.ContentDiseaseForm:
-		q = q.Table("outbreak_resources r").Joins("JOIN outbreaks o ON o.id = r.outbreak_id AND o.deleted_at IS NULL").
-			Where("r.id = ? AND r.deleted_at IS NULL AND r.resource_type IN ? AND r.status = ? AND r.published_at IS NOT NULL AND r.published_at <= ? AND r.approved_at IS NOT NULL AND r.withdrawn_at IS NULL AND (r.effective_date IS NULL OR r.effective_date <= ?) AND (r.expires_at IS NULL OR r.expires_at > ?)", assignment.ContentID, []string{"managed_document", "downloadable_asset"}, "published", now, now, now).
-			Where("o.published_at IS NOT NULL AND o.published_at <= ? AND (o.effective_at IS NULL OR o.effective_at <= ?) AND o.withdrawn_at IS NULL AND o.status IN ?", now, now, []string{"published", "active", "monitoring", "contained", "closed"})
-		if assignment.ContentType == models.ContentDiseaseForm {
-			q = q.Where("lower(r.document_kind) = ?", "form")
-		}
 	case models.ContentDiseaseSituationReport:
 		q = q.Table("situation_reports sr").Where("sr.id = ? AND sr.deleted_at IS NULL AND sr.status = ? AND sr.published_at IS NOT NULL AND sr.published_at <= ? AND sr.approved_at IS NOT NULL AND (sr.effective_at IS NULL OR sr.effective_at <= ?) AND sr.withdrawn_at IS NULL", assignment.ContentID, "published", now, now).
 			Where("sr.outbreak_id IS NULL OR EXISTS (SELECT 1 FROM outbreaks o WHERE o.id = sr.outbreak_id AND o.deleted_at IS NULL AND o.published_at IS NOT NULL AND o.published_at <= ? AND (o.effective_at IS NULL OR o.effective_at <= ?) AND o.withdrawn_at IS NULL AND o.status IN ?)", now, now, []string{"published", "active", "monitoring", "contained", "closed"})

@@ -32,10 +32,10 @@ void main() {
     'a failed category does not suppress successful search categories',
     () async {
       final batches = await searchCategoriesIndependently(
-        const [SearchCategory.outbreakDocuments, SearchCategory.drugs],
+        const [SearchCategory.situationReports, SearchCategory.drugs],
         (category) async {
-          if (category == SearchCategory.outbreakDocuments) {
-            throw StateError('document endpoint unavailable');
+          if (category == SearchCategory.situationReports) {
+            throw StateError('situation report endpoint unavailable');
           }
           return const [
             SearchResult(
@@ -53,7 +53,7 @@ void main() {
   );
 
   testWidgets(
-    'outbreak document results show source metadata, snippet and cache status',
+    'situation report results show source metadata, snippet and cache status',
     (tester) async {
       final dataSource = ControlledSearchDataSource();
       await tester.pumpWidget(
@@ -69,20 +69,19 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       dataSource.requests['ebola']!.complete(const [
         SearchResult(
-          id: 'document-1',
-          title: 'Ebola IPC SOP',
-          subtitle:
-              'Ebola response · ipc protocol · Ministry of Health · Version 2.0',
+          id: 'report-1',
+          title: 'Ebola situation report 12',
+          subtitle: 'Kampala · Ministry of Health',
           description: 'Use PPE before entering the isolation area.',
-          category: SearchCategory.outbreakDocuments,
-          route: '/outbreak-hub/outbreak-1/documents/document-1',
+          category: SearchCategory.situationReports,
+          route: '/situation-reports/report-1',
           isOffline: true,
           isStale: true,
         ),
       ]);
       await tester.pumpAndSettle();
 
-      expect(find.text('Ebola IPC SOP'), findsOneWidget);
+      expect(find.text('Ebola situation report 12'), findsOneWidget);
       expect(find.textContaining('Ministry of Health'), findsOneWidget);
       expect(find.textContaining('Use PPE'), findsOneWidget);
       expect(find.text('Offline cached result · may be stale'), findsOneWidget);
@@ -153,69 +152,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Opened outbreak-1'), findsOneWidget);
   });
-
-  testWidgets(
-    'outbreak document search result opens the exact route with match metadata',
-    (tester) async {
-      final dataSource = ControlledSearchDataSource();
-      const document = PublicOutbreakDocument(
-        id: 'document-1',
-        outbreakId: 'outbreak-1',
-        title: 'Ebola IPC SOP',
-        matchingHeading: 'Isolation procedure',
-        matchingSectionId: 'isolation-procedure',
-      );
-      Object? routedExtra;
-      final router = GoRouter(
-        initialLocation: '/search',
-        routes: [
-          GoRoute(path: '/search', builder: (_, _) => const GlobalSearchPage()),
-          GoRoute(
-            path: '/outbreak-hub/:outbreakId/documents/:documentId',
-            builder: (_, state) {
-              routedExtra = state.extra;
-              return Text(
-                '${state.pathParameters['outbreakId']}/'
-                '${state.pathParameters['documentId']}',
-              );
-            },
-          ),
-        ],
-      );
-      addTearDown(router.dispose);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            globalSearchDataSourceProvider.overrideWithValue(dataSource),
-          ],
-          child: MaterialApp.router(routerConfig: router),
-        ),
-      );
-      await tester.enterText(find.byType(TextField), 'ebola');
-      await tester.pump(const Duration(milliseconds: 400));
-      dataSource.requests['ebola']!.complete(const [
-        SearchResult(
-          id: 'document-1',
-          title: 'Ebola IPC SOP',
-          category: SearchCategory.outbreakDocuments,
-          route: '/outbreak-hub/outbreak-1/documents/document-1',
-          item: document,
-        ),
-      ]);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Ebola IPC SOP'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('outbreak-1/document-1'), findsOneWidget);
-      expect(routedExtra, same(document));
-      expect(
-        (routedExtra! as PublicOutbreakDocument).matchingSectionId,
-        'isolation-procedure',
-      );
-    },
-  );
 
   test(
     'validates empty and short queries without calling the data source',

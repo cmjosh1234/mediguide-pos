@@ -7,6 +7,7 @@ import {
   BookOpen,
   Check,
   CheckCircle2,
+  ExternalLink,
   FileText,
   LayoutTemplate,
   Loader2,
@@ -14,6 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 
 import { GuidelineDocumentForm } from "../components/guideline-document-form";
+import { GuidelineLinkForm } from "../components/guideline-link-form";
 import { OriginalFilePreview } from "@/components/guidelines/original-file-preview";
 import { GuidelineUploadProgress } from "../components/guideline-upload-progress";
 import type { UploadOptions } from "@/services/guideline-upload.service";
@@ -39,6 +41,7 @@ import {
   GuidelineDocumentRecord,
   GuidelineDocumentsService,
   GuidelineVersionRecord,
+  isPublishedAsLink,
   isPublishedAsUploaded,
 } from "@/services/guideline-documents.service";
 import { contentDiseaseService } from "@/services/content-hubs.service";
@@ -55,6 +58,13 @@ const asUploadedStages = [
   "Create version",
   "Upload file",
   "Review form",
+] as const;
+// Link kinds publish an external https URL: no file, extraction or editor.
+const linkStages = [
+  "Create guideline",
+  "Create version",
+  "Add link",
+  "Review link",
 ] as const;
 const finishedJobStatuses = ["completed", "failed", "canceled"];
 
@@ -73,7 +83,8 @@ export default function CreateGuidelinePage() {
   const [file, setFile] = React.useState<File | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const asUploaded = isPublishedAsUploaded(document);
-  const stageLabels = asUploaded ? asUploadedStages : stages;
+  const asLink = isPublishedAsLink(document);
+  const stageLabels = asLink ? linkStages : asUploaded ? asUploadedStages : stages;
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -96,7 +107,7 @@ export default function CreateGuidelinePage() {
   const reviewDocumentQuery = useQuery({
     queryKey: [...guidelineDocumentsQueryKey, document?.id, "create-review"],
     queryFn: () => GuidelineDocumentsService.getDocument(document!.id),
-    enabled: stage === 3 && Boolean(document) && !asUploaded,
+    enabled: stage === 3 && Boolean(document) && !asUploaded && !asLink,
     refetchInterval: (query) => {
       const refreshed = query.state.data;
       const refreshedVersion = refreshed?.versions.find(
@@ -190,7 +201,7 @@ export default function CreateGuidelinePage() {
       router.replace(`/guidelines/create?document=${document.id}&version=${created.id}`);
       showToast.success(
         "Version created",
-        "Upload its PDF or Markdown source.",
+        asLink ? "Add the link readers will open." : "Upload its PDF or Markdown source.",
       );
     } catch (error) {
       showToast.error(
@@ -336,15 +347,26 @@ export default function CreateGuidelinePage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              {asUploaded ? "Upload form file" : "Upload guideline source"}
+              {asLink ? "Add link" : asUploaded ? "Upload form file" : "Upload guideline source"}
             </CardTitle>
             <CardDescription>
-              {asUploaded
+              {asLink
+                ? `Enter the https link for version ${version?.version}. Readers open it directly; nothing is uploaded or extracted.`
+                : asUploaded
                 ? `Upload the PDF or Word (.docx) file for version ${version?.version}. It is published exactly as uploaded, keeping its layout; its text is only indexed for search.`
                 : `Upload PDF or UTF-8 Markdown for version ${version?.version} to begin extraction and indexing.`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+            {asLink && version && (
+              <GuidelineLinkForm
+                version={version}
+                onSaved={(saved) => {
+                  setVersion(saved);
+                  setStage(3);
+                }}
+              />
+            )}
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
@@ -352,7 +374,7 @@ export default function CreateGuidelinePage() {
               >
                 Finish Later
               </Button>
-              {!asUploaded && (
+              {!asUploaded && !asLink && (
                 <>
                   <Button
                     variant="outline"
@@ -381,7 +403,7 @@ export default function CreateGuidelinePage() {
         </Card>
       )}
 
-      {(stage === 2 || stage === 3) && version && <Card>
+      {(stage === 2 || stage === 3) && version && !asLink && <Card>
         <CardHeader><CardTitle>Source transfer and processing</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <FileUpload
@@ -446,7 +468,47 @@ export default function CreateGuidelinePage() {
         </Card>
       )}
 
-      {stage === 3 && !asUploaded && (
+      {stage === 3 && asLink && version && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Review link</CardTitle>
+            <CardDescription>
+              Readers open this link directly. Publish it from the document
+              page when it is ready.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="flex items-start gap-2 rounded-lg border p-3 text-sm">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <a
+                href={version.external_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-w-0 items-center gap-1 break-all font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {version.external_url}
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              </a>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="outline" onClick={() => setStage(2)}>
+                Change Link
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/guidelines/${document?.id}/edit`)}
+              >
+                Edit Metadata
+              </Button>
+              <Button onClick={() => router.push(`/guidelines/${document?.id}`)}>
+                View Document
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {stage === 3 && !asUploaded && !asLink && (
         <Card>
           <CardHeader>
             <CardTitle>Review and edit guideline</CardTitle>

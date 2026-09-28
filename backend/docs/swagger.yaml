@@ -1248,36 +1248,6 @@ definitions:
       success:
         type: boolean
     type: object
-  handlers.OutbreakDocumentContentEnvelope:
-    properties:
-      data:
-        $ref: '#/definitions/services.PublicOutbreakDocumentContent'
-      success:
-        type: boolean
-    type: object
-  handlers.OutbreakDocumentEnvelope:
-    properties:
-      data:
-        $ref: '#/definitions/services.PublicOutbreakDocument'
-      success:
-        type: boolean
-    type: object
-  handlers.OutbreakDocumentInlineError:
-    properties:
-      code:
-        type: string
-      message:
-        type: string
-    type: object
-  handlers.OutbreakDocumentInlineUnsupportedEnvelope:
-    properties:
-      data:
-        $ref: '#/definitions/services.PublicOutbreakDocumentContent'
-      error:
-        $ref: '#/definitions/handlers.OutbreakDocumentInlineError'
-      success:
-        type: boolean
-    type: object
   handlers.OutbreakEnvelope:
     properties:
       data:
@@ -1856,13 +1826,6 @@ definitions:
         example: true
         type: boolean
     type: object
-  handlers.PaginatedOutbreakDocumentsEnvelope:
-    properties:
-      data:
-        $ref: '#/definitions/services.PageResult-services_PublicOutbreakDocument'
-      success:
-        type: boolean
-    type: object
   handlers.PaginatedOutbreakResourcesEnvelope:
     properties:
       data:
@@ -2381,6 +2344,14 @@ definitions:
       success:
         example: true
         type: boolean
+    type: object
+  handlers.SetVersionLinkInput:
+    properties:
+      url:
+        example: https://www.who.int/publications/i/item/9789240081888
+        type: string
+    required:
+    - url
     type: object
   handlers.SettingEnvelope:
     properties:
@@ -2960,8 +2931,13 @@ definitions:
         type: string
       name:
         type: string
-      outbreak_document_count:
+      outbreak_resource_count:
         type: integer
+      publish_as_link:
+        description: |-
+          PublishAsLink kinds (for example Link) publish an external https URL
+          instead of an uploaded file or extracted content.
+        type: boolean
       publish_as_uploaded:
         description: |-
           PublishAsUploaded kinds (for example Form) keep the uploaded file as the
@@ -3912,6 +3888,8 @@ definitions:
         type: string
       document_id:
         type: string
+      external_url:
+        type: string
       extraction_metadata:
         type: object
       extraction_schema_version:
@@ -4305,7 +4283,6 @@ definitions:
         - none
         - guideline
         - outbreak
-        - outbreak_document
         - situation_report
         - drug
         - calculator
@@ -4950,6 +4927,8 @@ definitions:
       asset_url:
         type: string
       description:
+        type: string
+      document_kind:
         type: string
       issuing_organization:
         type: string
@@ -6997,7 +6976,6 @@ definitions:
         - none
         - guideline
         - outbreak
-        - outbreak_document
         - situation_report
         - drug
         - calculator
@@ -7611,151 +7589,6 @@ definitions:
         additionalProperties: {}
         type: object
     type: object
-  services.OutbreakDocumentAdminDTO:
-    properties:
-      approved_at:
-        type: string
-      approved_by:
-        type: string
-      asset_url:
-        type: string
-      audience:
-        type: string
-      author_id:
-        type: string
-      checksum_sha256:
-        type: string
-      content_format:
-        type: string
-      created_at:
-        type: string
-      derived_content_checksum:
-        type: string
-      description:
-        type: string
-      document_kind:
-        type: string
-      document_number:
-        type: string
-      effective_date:
-        type: string
-      expires_at:
-        type: string
-      extracted_at:
-        type: string
-      extraction_error:
-        type: string
-      extraction_source_checksum:
-        type: string
-      extraction_status:
-        type: string
-      file_size:
-        type: integer
-      id:
-        type: string
-      indexed_at:
-        type: string
-      issuing_authority:
-        type: string
-      language:
-        type: string
-      lock_version:
-        type: integer
-      mime_type:
-        type: string
-      original_filename:
-        type: string
-      outbreak_id:
-        type: string
-      page_count:
-        type: integer
-      published_at:
-        type: string
-      resource_type:
-        type: string
-      review_date:
-        type: string
-      reviewed_at:
-        type: string
-      reviewed_by:
-        type: string
-      search_index_status:
-        type: string
-      search_schema_version:
-        type: integer
-      sort_order:
-        type: integer
-      status:
-        type: string
-      supersedes_id:
-        type: string
-      supports_preview:
-        type: boolean
-      title:
-        type: string
-      updated_at:
-        type: string
-      version:
-        type: string
-      withdrawal_reason:
-        type: string
-      withdrawn_at:
-        type: string
-    type: object
-  services.OutbreakDocumentInput:
-    properties:
-      asset_url:
-        type: string
-      audience:
-        type: string
-      description:
-        type: string
-      document_kind:
-        type: string
-      document_number:
-        type: string
-      effective_date:
-        type: string
-      expires_at:
-        type: string
-      issuing_authority:
-        type: string
-      language:
-        type: string
-      lock_version:
-        type: integer
-      resource_type:
-        type: string
-      review_date:
-        type: string
-      sort_order:
-        type: integer
-      title:
-        type: string
-      version:
-        type: string
-    type: object
-  services.OutbreakDocumentSearchPreview:
-    properties:
-      document_id:
-        type: string
-      indexed_at:
-        type: string
-      matching_heading:
-        type: string
-      matching_pdf_page:
-        type: integer
-      matching_section_id:
-        type: string
-      query:
-        type: string
-      search_index_status:
-        type: string
-      searchable:
-        type: boolean
-      snippet:
-        type: string
-    type: object
   services.OutbreakInput:
     properties:
       data_as_of:
@@ -7870,6 +7703,8 @@ definitions:
       created_at:
         type: string
       description:
+        type: string
+      document_kind:
         type: string
       id:
         type: string
@@ -8324,21 +8159,6 @@ definitions:
       total_pages:
         type: integer
     type: object
-  services.PageResult-services_OutbreakDocumentAdminDTO:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-        type: array
-      page:
-        type: integer
-      per_page:
-        type: integer
-      total_items:
-        type: integer
-      total_pages:
-        type: integer
-    type: object
   services.PageResult-services_OutbreakResourceAdminDTO:
     properties:
       items:
@@ -8404,21 +8224,6 @@ definitions:
       items:
         items:
           $ref: '#/definitions/services.PublicOutbreak'
-        type: array
-      page:
-        type: integer
-      per_page:
-        type: integer
-      total_items:
-        type: integer
-      total_pages:
-        type: integer
-    type: object
-  services.PageResult-services_PublicOutbreakDocument:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/services.PublicOutbreakDocument'
         type: array
       page:
         type: integer
@@ -8759,6 +8564,8 @@ definitions:
     properties:
       name:
         type: string
+      publish_as_link:
+        type: boolean
       publish_as_uploaded:
         type: boolean
       slug:
@@ -8780,6 +8587,10 @@ definitions:
         description: |-
           DocumentKind tells readers how to present the guideline. Kinds published
           as uploaded (for example forms) are shown as their original file.
+      external_url:
+        description: ExternalURL is the https link readers open for kinds published
+          as a link.
+        type: string
       healthcare_level:
         type: string
       id:
@@ -9127,123 +8938,6 @@ definitions:
       visual_tone:
         type: string
     type: object
-  services.PublicOutbreakDocument:
-    properties:
-      audience:
-        type: string
-      checksum_sha256:
-        type: string
-      content_format:
-        type: string
-      content_url:
-        type: string
-      description:
-        type: string
-      document_kind:
-        type: string
-      document_number:
-        type: string
-      download_url:
-        type: string
-      effective_date:
-        type: string
-      expires_at:
-        type: string
-      file_size:
-        type: integer
-      id:
-        type: string
-      issuing_authority:
-        type: string
-      language:
-        type: string
-      matching_heading:
-        type: string
-      matching_pdf_page:
-        type: integer
-      matching_section_id:
-        type: string
-      mime_type:
-        type: string
-      original_filename:
-        type: string
-      outbreak_area:
-        type: string
-      outbreak_disease:
-        type: string
-      outbreak_id:
-        type: string
-      outbreak_title:
-        type: string
-      page_count:
-        type: integer
-      published_at:
-        type: string
-      reader_url:
-        type: string
-      review_date:
-        type: string
-      search_relevance_score:
-        type: number
-      search_snippet:
-        type: string
-      supports_inline:
-        type: boolean
-      supports_offline_download:
-        type: boolean
-      title:
-        type: string
-      version:
-        type: string
-    type: object
-  services.PublicOutbreakDocumentContent:
-    properties:
-      can_read_inline:
-        type: boolean
-      checksum_sha256:
-        type: string
-      content:
-        type: string
-      document_id:
-        type: string
-      download_url:
-        type: string
-      effective_date:
-        type: string
-      expires_at:
-        type: string
-      format:
-        type: string
-      mime_type:
-        type: string
-      original_available:
-        type: boolean
-      outbreak_id:
-        type: string
-      published_at:
-        type: string
-      review_date:
-        type: string
-      sections:
-        items:
-          $ref: '#/definitions/services.PublicOutbreakDocumentSection'
-        type: array
-      title:
-        type: string
-    type: object
-  services.PublicOutbreakDocumentSection:
-    properties:
-      heading:
-        type: string
-      id:
-        type: string
-      level:
-        type: integer
-      page:
-        type: integer
-      text:
-        type: string
-    type: object
   services.PublicOutbreakResource:
     properties:
       asset_url:
@@ -9420,6 +9114,15 @@ definitions:
     properties:
       resolved:
         type: boolean
+    type: object
+  services.ResourceCorrectionInput:
+    properties:
+      changes:
+        $ref: '#/definitions/services.ChildContentInput'
+      lock_version:
+        type: integer
+      reason:
+        type: string
     type: object
   services.ReviewGuidelineAssetInput:
     properties:
@@ -10170,6 +9873,10 @@ paths:
         in: query
         name: disease_id
         type: string
+      - description: Document kind slug
+        in: query
+        name: document_kind
+        type: string
       - description: Country
         in: query
         name: country
@@ -10647,101 +10354,6 @@ paths:
       summary: Get an active pillar from a published content hub
       tags:
       - public-content-hubs
-  /api/public/outbreak-documents:
-    get:
-      parameters:
-      - description: Title, metadata, outbreak or extracted-content search
-        in: query
-        name: search
-        type: string
-      - description: Parent outbreak UUID
-        in: query
-        name: outbreak_id
-        type: string
-      - description: Document classification
-        in: query
-        name: document_kind
-        type: string
-      - description: Issuing authority
-        in: query
-        name: issuing_authority
-        type: string
-      - description: Language code
-        in: query
-        name: language
-        type: string
-      - description: Intended audience
-        in: query
-        name: audience
-        type: string
-      - description: Exact MIME type (charset parameters are ignored)
-        in: query
-        name: mime_type
-        type: string
-      - description: Effective at or after
-        in: query
-        name: effective_from
-        type: string
-      - description: Effective at or before
-        in: query
-        name: effective_to
-        type: string
-      - description: Allowlisted sort field
-        in: query
-        name: sort
-        type: string
-      - description: asc or desc
-        in: query
-        name: order
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.PaginatedOutbreakDocumentsEnvelope'
-      summary: Search published effective outbreak documents across all outbreaks
-      tags:
-      - public-outbreaks
-  /api/public/outbreak-documents/{documentId}:
-    get:
-      parameters:
-      - description: Document UUID
-        in: path
-        name: documentId
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.OutbreakDocumentEnvelope'
-      summary: Get a published effective outbreak document without its parent route
-      tags:
-      - public-outbreaks
-  /api/public/outbreak-documents/{documentId}/content:
-    get:
-      parameters:
-      - description: Document UUID
-        in: path
-        name: documentId
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.OutbreakDocumentContentEnvelope'
-        "415":
-          description: Unsupported Media Type
-          schema:
-            $ref: '#/definitions/handlers.OutbreakDocumentInlineUnsupportedEnvelope'
-        "422":
-          description: Unprocessable Entity
-          schema:
-            $ref: '#/definitions/handlers.OutbreakDocumentInlineUnsupportedEnvelope'
-      summary: Read approved derived Markdown or plain-text outbreak document content
-      tags:
-      - public-outbreaks
   /api/public/outbreak-resources:
     get:
       parameters:
@@ -10854,86 +10466,6 @@ paths:
           schema:
             $ref: '#/definitions/handlers.OutbreakEnvelope'
       summary: Get a published public outbreak
-      tags:
-      - public-outbreaks
-  /api/public/outbreaks/{id}/documents:
-    get:
-      parameters:
-      - description: Outbreak UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Document metadata search
-        in: query
-        name: search
-        type: string
-      - description: Document classification
-        in: query
-        name: document_kind
-        type: string
-      - description: Issuing authority
-        in: query
-        name: issuing_authority
-        type: string
-      - description: Language code
-        in: query
-        name: language
-        type: string
-      - description: Intended audience
-        in: query
-        name: audience
-        type: string
-      - description: Effective at or after
-        in: query
-        name: effective_from
-        type: string
-      - description: Effective at or before
-        in: query
-        name: effective_to
-        type: string
-      - description: Allowlisted sort field
-        in: query
-        name: sort
-        type: string
-      - description: asc or desc
-        in: query
-        name: order
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.PaginatedOutbreakDocumentsEnvelope'
-      summary: List published effective outbreak documents
-      tags:
-      - public-outbreaks
-  /api/public/outbreaks/{id}/documents/{documentId}:
-    get:
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.OutbreakDocumentEnvelope'
-      summary: Get a published effective outbreak document
-      tags:
-      - public-outbreaks
-  /api/public/outbreaks/{id}/documents/{documentId}/download:
-    get:
-      produces:
-      - application/octet-stream
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: file
-        "307":
-          description: Temporary Redirect
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Download a published outbreak document
       tags:
       - public-outbreaks
   /api/public/outbreaks/{id}/hub:
@@ -15938,6 +15470,57 @@ paths:
       summary: Get guideline version extraction status and typed content counts
       tags:
       - guideline-review
+  /api/v2/guideline-versions/{id}/link:
+    put:
+      consumes:
+      - application/json
+      description: Only versions whose document kind publishes as a link accept a
+        URL. It must be a full https URL of at most 2048 characters.
+      parameters:
+      - description: Guideline version ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: External link
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.SetVersionLinkInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GuidelineVersionEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Set the external link of a guideline version
+      tags:
+      - guidelines
   /api/v2/guideline-versions/{id}/markdown-draft:
     get:
       parameters:
@@ -19024,380 +18607,6 @@ paths:
       summary: Create a correction draft that supersedes a published outbreak
       tags:
       - outbreak-administration
-  /api/v2/outbreaks/{id}/documents:
-    get:
-      parameters:
-      - description: Outbreak UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Document metadata search
-        in: query
-        name: search
-        type: string
-      - description: Typed document classification
-        in: query
-        name: document_kind
-        type: string
-      - description: Issuing authority
-        in: query
-        name: issuing_authority
-        type: string
-      - description: BCP-47 language code
-        in: query
-        name: language
-        type: string
-      - description: Intended audience
-        in: query
-        name: audience
-        type: string
-      - description: Lifecycle status
-        in: query
-        name: status
-        type: string
-      - description: Effective at or after
-        in: query
-        name: effective_from
-        type: string
-      - description: Effective at or before
-        in: query
-        name: effective_to
-        type: string
-      - description: Allowlisted sort field
-        in: query
-        name: sort
-        type: string
-      - description: asc or desc
-        in: query
-        name: order
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.PageResult-services_OutbreakDocumentAdminDTO'
-      security:
-      - BearerAuth: []
-      summary: List outbreak documents for administration
-      tags:
-      - outbreak-document-administration
-    post:
-      parameters:
-      - description: Outbreak UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Document metadata
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/services.OutbreakDocumentInput'
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-      security:
-      - BearerAuth: []
-      summary: Create an outbreak document draft
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}:
-    delete:
-      responses:
-        "204":
-          description: No Content
-      security:
-      - BearerAuth: []
-      summary: Delete an unpublished outbreak document
-      tags:
-      - outbreak-document-administration
-    get:
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-      security:
-      - BearerAuth: []
-      summary: Get an outbreak document administration record
-      tags:
-      - outbreak-document-administration
-    patch:
-      parameters:
-      - description: Document changes
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/services.OutbreakDocumentInput'
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-      security:
-      - BearerAuth: []
-      summary: Update an unpublished outbreak document
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/approve:
-    post:
-      parameters:
-      - description: Transition
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/services.TransitionInput'
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-      security:
-      - BearerAuth: []
-      summary: Submit, approve, publish, or withdraw an outbreak document
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/audit:
-    get:
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.PageResult-services_OutbreakAuditDTO'
-      security:
-      - BearerAuth: []
-      summary: List immutable audit history for an outbreak document
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/content:
-    get:
-      parameters:
-      - description: Outbreak UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Document UUID
-        in: path
-        name: documentId
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.OutbreakDocumentContentEnvelope'
-      security:
-      - BearerAuth: []
-      summary: Preview server-derived Markdown or plain text for an outbreak document
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/corrections:
-    post:
-      parameters:
-      - description: Correction reason
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/services.TransitionInput'
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-      security:
-      - BearerAuth: []
-      summary: Create a correction draft for a published outbreak document
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/file:
-    put:
-      consumes:
-      - multipart/form-data
-      parameters:
-      - description: Outbreak UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Document UUID
-        in: path
-        name: documentId
-        required: true
-        type: string
-      - description: Current optimistic lock version
-        in: query
-        name: lock_version
-        required: true
-        type: integer
-      - description: PDF, DOCX, XLSX, Markdown, or text document
-        in: formData
-        name: file
-        required: true
-        type: file
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-      security:
-      - BearerAuth: []
-      summary: Upload or replace the managed file for an outbreak document draft
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/publish:
-    post:
-      parameters:
-      - description: Transition
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/services.TransitionInput'
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-      security:
-      - BearerAuth: []
-      summary: Submit, approve, publish, or withdraw an outbreak document
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/reprocess:
-    post:
-      parameters:
-      - description: Outbreak UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Document UUID
-        in: path
-        name: documentId
-        required: true
-        type: string
-      - description: Current optimistic lock version
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/services.TransitionInput'
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-      security:
-      - BearerAuth: []
-      summary: Rebuild safe search and preview content from the immutable managed
-        file
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/review-comments:
-    post:
-      parameters:
-      - description: Review comment
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/services.OutbreakReviewCommentInput'
-      responses:
-        "204":
-          description: No Content
-      security:
-      - BearerAuth: []
-      summary: Add an auditable clinical-review comment to an outbreak document
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/search-preview:
-    get:
-      parameters:
-      - description: Outbreak UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Document UUID
-        in: path
-        name: documentId
-        required: true
-        type: string
-      - description: Search phrase (2-200 characters)
-        in: query
-        name: query
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.OutbreakDocumentSearchPreview'
-      security:
-      - BearerAuth: []
-      summary: Preview how a query matches server-derived outbreak document content
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/submit:
-    post:
-      parameters:
-      - description: Transition
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/services.TransitionInput'
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-      security:
-      - BearerAuth: []
-      summary: Submit, approve, publish, or withdraw an outbreak document
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/versions:
-    get:
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-            type: array
-      security:
-      - BearerAuth: []
-      summary: List versions of an outbreak document
-      tags:
-      - outbreak-document-administration
-  /api/v2/outbreaks/{id}/documents/{documentId}/withdraw:
-    post:
-      parameters:
-      - description: Transition
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/services.TransitionInput'
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.OutbreakDocumentAdminDTO'
-      security:
-      - BearerAuth: []
-      summary: Submit, approve, publish, or withdraw an outbreak document
-      tags:
-      - outbreak-document-administration
   /api/v2/outbreaks/{id}/metrics:
     patch:
       parameters:
@@ -19556,13 +18765,16 @@ paths:
       - outbreak-administration
   /api/v2/outbreaks/{id}/resources/{resourceId}/correct:
     post:
+      description: With changes, the edited version is submitted for review and replaces
+        the original once published. Without changes, an unedited correction draft
+        is created.
       parameters:
       - description: Correction
         in: body
         name: payload
         required: true
         schema:
-          $ref: '#/definitions/services.TransitionInput'
+          $ref: '#/definitions/services.ResourceCorrectionInput'
       responses:
         "201":
           description: Created
@@ -19570,7 +18782,7 @@ paths:
             $ref: '#/definitions/services.OutbreakResourceAdminDTO'
       security:
       - BearerAuth: []
-      summary: Create a correction draft for a published outbreak resource
+      summary: Create a correction for a published outbreak resource
       tags:
       - outbreak-administration
   /api/v2/outbreaks/{id}/resources/{resourceId}/publish:
@@ -19756,13 +18968,16 @@ paths:
       - outbreak-administration
   /api/v2/outbreaks/{id}/updates/{updateId}/correct:
     post:
+      description: With changes, the edited version is submitted for review and replaces
+        the original once published. Without changes, an unedited correction draft
+        is created.
       parameters:
       - description: Correction
         in: body
         name: payload
         required: true
         schema:
-          $ref: '#/definitions/services.TransitionInput'
+          $ref: '#/definitions/services.ResourceCorrectionInput'
       responses:
         "201":
           description: Created
@@ -19770,7 +18985,7 @@ paths:
             $ref: '#/definitions/services.OutbreakUpdateAdminDTO'
       security:
       - BearerAuth: []
-      summary: Create a correction draft for a published outbreak update
+      summary: Create a correction for a published outbreak update
       tags:
       - outbreak-administration
   /api/v2/outbreaks/{id}/updates/{updateId}/publish:

@@ -17,12 +17,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { getCurrentUser } from "@/lib/backend-client";
+import { apiUrl, getCurrentUser } from "@/lib/backend-client";
 import { showToast } from "@/lib/toast";
 import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { healthFacilitiesService } from "@/services/health-facilities.service";
@@ -39,11 +47,19 @@ import {
   type SituationReportRecord,
 } from "@/services/situation-reports.service";
 import { contentHubService, diseaseService } from "@/services/content-hubs.service";
+import { documentKindService, type DocumentKind } from "@/services/document-kinds.service";
 import type { DistrictsResponse, RegionsResponse } from "@/types/backend-types";
 import { RequiredMark } from "./required-field";
 import { CampaignDraftBuilder } from "./campaign-draft-builder";
 import { ChildContentWorkflow } from "./child-content-workflow";
-import { OutbreakDocumentsWorkspace } from "./outbreak-documents-workspace";
+import {
+  emptyResourceDraft,
+  findResourceProblems,
+  ResourceFields,
+  resourcePayload,
+  type ResourceDraft,
+} from "./resource-fields";
+import { DEFAULT_PAGE_SIZE, PaginationControls, usePagination } from "./list-pagination";
 
 type MetricDraft = {
   key: string;
@@ -54,7 +70,14 @@ type MetricDraft = {
   as_of: string;
   source_reference: string;
   sort_order: number;
+  _localId: string;
 };
+
+function newMetricId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+}
 
 const emptyMetric = (): MetricDraft => ({
   key: "",
@@ -64,17 +87,50 @@ const emptyMetric = (): MetricDraft => ({
   as_of: new Date().toISOString(),
   source_reference: "",
   sort_order: 1,
+  _localId: newMetricId(),
 });
+
+// Metrics loaded from or just saved to the backend get a fresh _localId to key
+// their rows by.
+function withLocalIds(metrics: MetricDraft[]): MetricDraft[] {
+  return metrics.map((metric) => ({ ...metric, _localId: newMetricId() }));
+}
+
+function stripLocalIds(metrics: MetricDraft[]) {
+  return metrics.map(({ key, label, value, numeric_value, unit, as_of, source_reference, sort_order }) => ({
+    key,
+    label,
+    value,
+    numeric_value,
+    unit,
+    as_of,
+    source_reference,
+    sort_order,
+  }));
+}
 
 type Problem = { id: string; label: string; message: string };
 
 // Mirrors the backend rules that reject a draft save (outbreak_validation.go).
 const METRIC_KEY_PATTERN = /^[a-z][a-z0-9_]{1,63}$/;
 
-function findProblems(
-  form: { title: string; disease_id: string },
-  metrics: MetricDraft[],
-): Problem[] {
+// Derives a metric key from its label ("Confirmed cases (demo)" becomes
+// confirmed_cases_demo), adding a numeric suffix if another metric uses it.
+function metricKeyFromLabel(label: string, existing: MetricDraft[]) {
+  const base = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^[^a-z]+|_+$/g, "")
+    .slice(0, 60)
+    .replace(/_+$/, "");
+  if (!base) return "";
+  const taken = new Set(existing.map((metric) => metric.key));
+  let key = base;
+  for (let suffix = 2; taken.has(key); suffix++) key = `${base}_${suffix}`;
+  return key;
+}
+
+function findProblems(form: { title: string; disease_id: string }): Problem[] {
   const problems: Problem[] = [];
   const title = form.title.trim();
   if (!title) {
@@ -85,68 +141,42 @@ function findProblems(
   if (!form.disease_id) {
     problems.push({ id: "outbreak-disease", label: "Disease", message: "Disease is required." });
   }
-  metrics.forEach((metric, index) => {
-    const name = `Metric ${index + 1}`;
-    const key = metric.key.trim().toLowerCase();
-    if (!key) {
-      problems.push({ id: `metric-${index}-key`, label: name, message: `${name}: key is required.` });
-    } else if (!METRIC_KEY_PATTERN.test(key)) {
-      problems.push({
-        id: `metric-${index}-key`,
-        label: name,
-        message: `${name}: key must be lowercase letters, numbers or underscores, starting with a letter.`,
-      });
-    }
-    if (!metric.label.trim()) {
-      problems.push({ id: `metric-${index}-label`, label: name, message: `${name}: label is required.` });
-    }
-    if (!metric.value.trim()) {
-      problems.push({ id: `metric-${index}-value`, label: name, message: `${name}: value is required.` });
-    }
-    if (!metric.source_reference.trim()) {
-      problems.push({
-        id: `metric-${index}-source_reference`,
-        label: name,
-        message: `${name}: source is required.`,
-      });
-    }
-  });
   return problems;
 }
 
-type ResourceDraft = {
-  title: string;
-  resource_type: string;
-  url: string;
-  asset_url: string;
-};
+function findMetricProblems(metric: MetricDraft, existing: MetricDraft[]): Problem[] {
+  const problems: Problem[] = [];
+  const key = metric.key.trim().toLowerCase();
+  if (!key) {
+    problems.push({ id: "metric-key", label: "Key", message: "Key is required." });
+  } else if (!METRIC_KEY_PATTERN.test(key)) {
+    problems.push({
+      id: "metric-key",
+      label: "Key",
+      message: "Key must be lowercase letters, numbers or underscores, starting with a letter.",
+    });
+  } else if (existing.some((other) => other.key === key)) {
+    problems.push({ id: "metric-key", label: "Key", message: "Another metric already uses this key." });
+  }
+  if (!metric.label.trim()) {
+    problems.push({ id: "metric-label", label: "Label", message: "Label is required." });
+  }
+  if (!metric.value.trim()) {
+    problems.push({ id: "metric-value", label: "Value", message: "Value is required." });
+  }
+  if (!metric.source_reference.trim()) {
+    problems.push({ id: "metric-source_reference", label: "Source", message: "Source is required." });
+  }
+  if (!metric.as_of) {
+    problems.push({ id: "metric-as_of", label: "As of", message: "The 'as of' date is required." });
+  }
+  return problems;
+}
 
 function findUpdateProblems(draft: { title: string }): Problem[] {
   return draft.title.trim()
     ? []
     : [{ id: "update-title", label: "Title", message: "Title is required." }];
-}
-
-function findResourceProblems(draft: ResourceDraft): Problem[] {
-  const problems: Problem[] = [];
-  if (!draft.title.trim()) {
-    problems.push({ id: "resource-title", label: "Title", message: "Title is required." });
-  }
-  const type = draft.resource_type;
-  if (type === "managed_document" || type === "downloadable_asset") {
-    if (!draft.asset_url.trim()) {
-      problems.push({ id: "resource-asset", label: "Asset path", message: "Asset path or URL is required." });
-    }
-  } else if (!draft.url.trim()) {
-    const [label, message] =
-      type === "guideline"
-        ? ["Published guideline", "Select a published guideline."]
-        : type === "situation_report"
-          ? ["Published situation report", "Select a published situation report."]
-          : ["URL", "A route or HTTPS URL is required."];
-    problems.push({ id: "resource-url", label, message });
-  }
-  return problems;
 }
 
 const WORKFLOW_STEPS = ["Draft", "In review", "Approved", "Published"];
@@ -216,13 +246,7 @@ function WorkflowSteps({ stage }: { stage: number }) {
   );
 }
 
-export function OutbreakEditor({
-  id,
-  initialDocumentId,
-}: {
-  id?: string;
-  initialDocumentId?: string;
-}) {
+export function OutbreakEditor({ id }: { id?: string }) {
   const router = useRouter();
   const [item, setItem] = React.useState<OutbreakRecord | null>(null);
   const [updates, setUpdates] = React.useState<OutbreakUpdateRecord[]>([]);
@@ -241,18 +265,22 @@ export function OutbreakEditor({
   >([]);
   const [reviewComment, setReviewComment] = React.useState("");
   const [metrics, setMetrics] = React.useState<MetricDraft[]>([]);
+  const metricEntries = React.useMemo(
+    () => metrics.map((metric, index) => ({ metric, index })),
+    [metrics],
+  );
+  const metricPages = usePagination(metricEntries, DEFAULT_PAGE_SIZE);
+  // The metric being added in the "+ Metric" dialog; null while it's closed.
+  const [metricDraft, setMetricDraft] = React.useState<MetricDraft | null>(null);
+  const [metricAttempted, setMetricAttempted] = React.useState(false);
+  // The key follows the label until it's edited by hand.
+  const [metricKeyEdited, setMetricKeyEdited] = React.useState(false);
   const [updateDraft, setUpdateDraft] = React.useState({
     title: "",
     summary: "",
   });
-  const [resourceDraft, setResourceDraft] = React.useState({
-    title: "",
-    description: "",
-    issuing_organization: "",
-    resource_type: "guideline",
-    url: "",
-    asset_url: "",
-  });
+  const [resourceDraft, setResourceDraft] = React.useState<ResourceDraft>(emptyResourceDraft);
+  const [documentKinds, setDocumentKinds] = React.useState<DocumentKind[]>([]);
   const [form, setForm] = React.useState({
     title: "",
     disease_id: "",
@@ -306,7 +334,8 @@ export function OutbreakEditor({
       setAudit(auditPage.items || []);
       setReports(reportPage.items || []);
       setGuidelines(guidelinePage.items || []);
-      setMetrics((record.metrics || []) as MetricDraft[]);
+      const loadedMetrics = withLocalIds((record.metrics || []) as MetricDraft[]);
+      setMetrics(loadedMetrics);
       setForm({
         title: record.title || "",
         disease_id: record.disease_id || "",
@@ -378,18 +407,29 @@ export function OutbreakEditor({
   // so the form isn't covered in errors before the user has typed anything.
   const [attempted, setAttempted] = React.useState(false);
   const problems = React.useMemo(
-    () => findProblems(form, metrics),
-    [form, metrics],
+    () => findProblems(form),
+    [form],
   );
   const visibleProblems = attempted ? problems : [];
   const errorFor = (id: string) =>
     visibleProblems.find((problem) => problem.id === id)?.message;
+  const metricProblems = React.useMemo(
+    () => (metricDraft ? findMetricProblems(metricDraft, metrics) : []),
+    [metricDraft, metrics],
+  );
+  const metricError = (id: string) =>
+    metricAttempted
+      ? metricProblems.find((problem) => problem.id === id)?.message
+      : undefined;
 
   function focusField(id: string) {
-    const element = document.getElementById(id);
-    if (!element) return;
-    element.scrollIntoView({ block: "center", behavior: "smooth" });
-    element.focus({ preventScroll: true });
+    // Wait for the field to render before focusing it.
+    window.setTimeout(() => {
+      const element = document.getElementById(id);
+      if (!element) return;
+      element.scrollIntoView({ block: "center", behavior: "smooth" });
+      element.focus({ preventScroll: true });
+    }, 0);
   }
 
   const [updateAttempted, setUpdateAttempted] = React.useState(false);
@@ -403,6 +443,12 @@ export function OutbreakEditor({
     () => findResourceProblems(resourceDraft),
     [resourceDraft],
   );
+  React.useEffect(() => {
+    void documentKindService
+      .list()
+      .then(setDocumentKinds)
+      .catch(() => setDocumentKinds([]));
+  }, []);
   const updateError = (id: string) =>
     updateAttempted
       ? updateProblems.find((problem) => problem.id === id)?.message
@@ -455,7 +501,7 @@ export function OutbreakEditor({
         effective_at: iso(form.effective_at),
         data_as_of: iso(form.data_as_of),
         last_verified_at: iso(form.last_verified_at),
-        metrics,
+        metrics: stripLocalIds(metrics),
         ...(item ? { lock_version: item.lock_version } : {}),
       };
       const saved = item
@@ -470,6 +516,7 @@ export function OutbreakEditor({
         return;
       }
       setItem(saved);
+      setMetrics(withLocalIds((saved.metrics || []) as MetricDraft[]));
     } catch (value) {
       showToast.error("Unable to save", conflictMessage(value), {
         richColors: true,
@@ -479,32 +526,72 @@ export function OutbreakEditor({
     }
   }
 
-  async function saveMetrics() {
-    if (!item) return;
-    const metricProblems = problems.filter((problem) =>
-      problem.id.startsWith("metric-"),
-    );
-    if (metricProblems.length > 0) {
-      setAttempted(true);
-      rejectIncomplete(metricProblems);
-      return;
+  function openMetricDialog() {
+    setMetricAttempted(false);
+    setMetricKeyEdited(false);
+    setMetricDraft(emptyMetric());
+  }
+
+  // The backend only replaces the whole metric set, so adding or removing one
+  // metric sends the current set with that single change. Once an outbreak
+  // exists each change is saved immediately; on the create form the metrics
+  // are kept locally and sent with the first save.
+  async function persistMetrics(
+    next: MetricDraft[],
+    success: { title: string; message: string },
+    failureTitle: string,
+  ) {
+    if (!item) {
+      setMetrics(next);
+      return true;
     }
     setSavingMetrics(true);
     try {
       const saved = await outbreaksService.updateMetrics(item.id!, {
-        metrics,
+        metrics: stripLocalIds(next),
         lock_version: item.lock_version,
       });
-      showToast.success("Metrics saved", "The outbreak's metrics were updated.");
+      showToast.success(success.title, success.message);
       setItem(saved);
-      setMetrics((saved.metrics || []) as MetricDraft[]);
+      setMetrics(withLocalIds((saved.metrics || []) as MetricDraft[]));
+      return true;
     } catch (value) {
-      showToast.error("Unable to save metrics", conflictMessage(value), {
+      showToast.error(failureTitle, conflictMessage(value), {
         richColors: true,
       });
+      return false;
     } finally {
       setSavingMetrics(false);
     }
+  }
+
+  async function addMetric() {
+    if (!metricDraft) return;
+    if (metricProblems.length > 0) {
+      setMetricAttempted(true);
+      rejectIncomplete(metricProblems);
+      return;
+    }
+    const sortOrder = Math.max(0, ...metrics.map((metric) => metric.sort_order)) + 1;
+    const added = await persistMetrics(
+      [
+        ...metrics,
+        { ...metricDraft, key: metricDraft.key.trim().toLowerCase(), sort_order: sortOrder },
+      ],
+      { title: "Metric saved", message: `${metricDraft.label.trim()} was added.` },
+      "Unable to save metric",
+    );
+    if (added) setMetricDraft(null);
+  }
+
+  async function removeMetric(index: number) {
+    if (item && !window.confirm("Remove this metric? It will be deleted immediately."))
+      return;
+    await persistMetrics(
+      metrics.filter((_, position) => position !== index),
+      { title: "Metric removed", message: "The metric was deleted." },
+      "Unable to remove metric",
+    );
   }
 
   async function workflow(
@@ -623,22 +710,15 @@ export function OutbreakEditor({
     }
     try {
       const created = await outbreaksService.createResource(item.id!, {
-        ...resourceDraft,
+        ...resourcePayload(resourceDraft),
         sort_order: resources.length + 1,
       });
       setResources((current) => [...current, created]);
-      setResourceDraft({
-        title: "",
-        description: "",
-        issuing_organization: "",
-        resource_type: "guideline",
-        url: "",
-        asset_url: "",
-      });
+      setResourceDraft(emptyResourceDraft());
       setResourceAttempted(false);
       showToast.success(
         "Resource draft created",
-        "The link passed the backend trust boundary.",
+        "Submit it for review when it is ready.",
       );
     } catch (value) {
       showToast.error("Resource not created", conflictMessage(value));
@@ -693,6 +773,9 @@ export function OutbreakEditor({
     item?.author_id && item.author_id === currentUserId,
   );
   const isPublished = immutable && item?.status !== "withdrawn";
+  // Resources can keep being added while an outbreak is live; only closed and
+  // withdrawn outbreaks are finished.
+  const resourcesLocked = item?.status === "closed" || item?.status === "withdrawn";
   // active/monitoring/contained/published can move to any of the others, or to
   // closed. closed and withdrawn are both terminal (backend: update_status).
   const canChangeStatus = isPublished && item?.status !== "closed";
@@ -772,10 +855,10 @@ export function OutbreakEditor({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle>Publication workflow</CardTitle>
               <Button variant="ghost" size="sm" asChild>
-                <Link href={`/api/public/outbreaks/${item.id}`} target="_blank">
+                <a href={apiUrl(`/api/public/outbreaks/${item.id}`)} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Preview public API
-                </Link>
+                </a>
               </Button>
             </div>
             <WorkflowSteps
@@ -1070,133 +1153,173 @@ export function OutbreakEditor({
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Metrics</CardTitle>
-            <div className="flex items-center gap-2">
-              {item ? (
-                <Button
-                  variant="default"
-                  size="sm"
-                  disabled={savingMetrics}
-                  onClick={() => void saveMetrics()}
-                >
-                  {savingMetrics ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 h-4 w-4" />
-                  )}
-                  Save metrics
-                </Button>
-              ) : null}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setMetrics((current) => [
-                    ...current,
-                    { ...emptyMetric(), sort_order: current.length + 1 },
-                  ])
-                }
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Metric
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={savingMetrics}
+              onClick={openMetricDialog}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Metric
+            </Button>
           </div>
           <p className="text-sm text-muted-foreground">
             Metrics can be kept up to date at any time, even once the outbreak
-            is published.
+            is published. To change a metric, remove it and add it again.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
-          {metrics.length > 0 ? (
-            <p className="text-sm text-muted-foreground">
-              <RequiredMark /> Key, label, value and source are required for
-              each metric.
-            </p>
-          ) : null}
           {metrics.length === 0 ? (
             <p className="text-sm text-muted-foreground">No metrics added.</p>
           ) : (
-            metrics.map((metric, index) => (
+            metricPages.visible.map(({ metric, index }) => (
               <div
-                key={index}
-                className="grid gap-2 rounded-md border p-3 md:grid-cols-4"
+                key={metric._localId}
+                className="flex items-start justify-between gap-4 rounded-md border p-3"
               >
-                <Input
-                  id={`metric-${index}-key`}
-                  aria-label="Metric key"
-                  aria-required
-                  aria-invalid={Boolean(errorFor(`metric-${index}-key`))}
-                  placeholder="confirmed_cases"
-                  value={metric.key}
-                  onChange={(event) =>
-                    updateMetric(index, "key", event.target.value)
-                  }
-                />
-                <Input
-                  id={`metric-${index}-label`}
-                  aria-label="Metric label"
-                  aria-required
-                  aria-invalid={Boolean(errorFor(`metric-${index}-label`))}
-                  placeholder="Confirmed cases"
-                  value={metric.label}
-                  onChange={(event) =>
-                    updateMetric(index, "label", event.target.value)
-                  }
-                />
-                <Input
-                  id={`metric-${index}-value`}
-                  aria-label="Metric value"
-                  aria-required
-                  aria-invalid={Boolean(errorFor(`metric-${index}-value`))}
-                  placeholder="20"
-                  value={metric.value}
-                  onChange={(event) =>
-                    updateMetric(index, "value", event.target.value)
-                  }
-                />
-                <Input
-                  aria-label="Metric unit"
-                  placeholder="cases"
-                  value={metric.unit}
-                  onChange={(event) =>
-                    updateMetric(index, "unit", event.target.value)
-                  }
-                />
-                <Input
-                  className="md:col-span-2"
-                  id={`metric-${index}-source_reference`}
-                  aria-label="Metric source"
-                  aria-required
-                  aria-invalid={Boolean(errorFor(`metric-${index}-source_reference`))}
-                  placeholder="WHO situation report 11"
-                  value={metric.source_reference}
-                  onChange={(event) =>
-                    updateMetric(index, "source_reference", event.target.value)
-                  }
-                />
-                <Input
-                  type="datetime-local"
-                  aria-label="Metric as of"
-                  value={toLocal(metric.as_of)}
-                  onChange={(event) =>
-                    updateMetric(index, "as_of", iso(event.target.value) || "")
-                  }
-                />
+                <div className="min-w-0 space-y-1">
+                  <p className="font-medium">
+                    {metric.label}{" "}
+                    <span className="font-mono text-xs font-normal text-muted-foreground">
+                      {metric.key}
+                    </span>
+                  </p>
+                  <p className="text-sm">
+                    {metric.value}
+                    {metric.unit ? ` ${metric.unit}` : ""}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {metric.source_reference}
+                    {metric.as_of
+                      ? ` · as of ${new Date(metric.as_of).toLocaleString()}`
+                      : ""}
+                  </p>
+                </div>
                 <Button
                   variant="destructive"
-                  onClick={() =>
-                    setMetrics((current) =>
-                      current.filter((_, position) => position !== index),
-                    )
-                  }
+                  size="sm"
+                  disabled={savingMetrics}
+                  onClick={() => void removeMetric(index)}
                 >
                   Remove
                 </Button>
               </div>
             ))
           )}
+          <PaginationControls pagination={metricPages} label="Metrics" />
         </CardContent>
       </Card>
+      <Dialog
+        open={Boolean(metricDraft)}
+        onOpenChange={(open) => {
+          if (!open && !savingMetrics) setMetricDraft(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add metric</DialogTitle>
+            <DialogDescription>
+              {item
+                ? "The metric is saved as soon as you add it. Once the outbreak is published, adding a metric notifies everyone subscribed to outbreak alerts."
+                : "The metric is saved with the outbreak."}
+            </DialogDescription>
+          </DialogHeader>
+          {metricDraft ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <ChildField id="metric-label" label="Label" required error={metricError("metric-label")}>
+                <Input
+                  id="metric-label"
+                  aria-required
+                  aria-invalid={Boolean(metricError("metric-label"))}
+                  placeholder="Confirmed cases"
+                  value={metricDraft.label}
+                  onChange={(event) => updateMetricDraft("label", event.target.value)}
+                  autoFocus
+                />
+              </ChildField>
+              <ChildField id="metric-key" label="Key" required error={metricError("metric-key")}>
+                <Input
+                  id="metric-key"
+                  className="font-mono"
+                  aria-required
+                  aria-invalid={Boolean(metricError("metric-key"))}
+                  placeholder="Generated from the label"
+                  value={metricDraft.key}
+                  onChange={(event) => {
+                    // Clearing the key hands it back to the label.
+                    setMetricKeyEdited(event.target.value !== "");
+                    updateMetricDraft("key", event.target.value);
+                  }}
+                />
+              </ChildField>
+              <ChildField id="metric-value" label="Value" required error={metricError("metric-value")}>
+                <Input
+                  id="metric-value"
+                  aria-required
+                  aria-invalid={Boolean(metricError("metric-value"))}
+                  placeholder="20"
+                  value={metricDraft.value}
+                  onChange={(event) => updateMetricDraft("value", event.target.value)}
+                />
+              </ChildField>
+              <ChildField id="metric-unit" label="Unit">
+                <Input
+                  id="metric-unit"
+                  placeholder="cases"
+                  value={metricDraft.unit}
+                  onChange={(event) => updateMetricDraft("unit", event.target.value)}
+                />
+              </ChildField>
+              <ChildField
+                id="metric-source_reference"
+                label="Source"
+                required
+                error={metricError("metric-source_reference")}
+              >
+                <Input
+                  id="metric-source_reference"
+                  aria-required
+                  aria-invalid={Boolean(metricError("metric-source_reference"))}
+                  placeholder="WHO situation report 11"
+                  value={metricDraft.source_reference}
+                  onChange={(event) =>
+                    updateMetricDraft("source_reference", event.target.value)
+                  }
+                />
+              </ChildField>
+              <ChildField id="metric-as_of" label="As of" required error={metricError("metric-as_of")}>
+                <Input
+                  id="metric-as_of"
+                  type="datetime-local"
+                  aria-required
+                  aria-invalid={Boolean(metricError("metric-as_of"))}
+                  value={toLocal(metricDraft.as_of)}
+                  onChange={(event) =>
+                    updateMetricDraft("as_of", iso(event.target.value) || "")
+                  }
+                />
+              </ChildField>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={savingMetrics}
+              onClick={() => setMetricDraft(null)}
+            >
+              Cancel
+            </Button>
+            <Button disabled={savingMetrics} onClick={() => void addMetric()}>
+              {savingMetrics ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {item ? "Save metric" : "Add metric"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {item ? (
         <>
           <Card>
@@ -1238,16 +1361,19 @@ export function OutbreakEditor({
                     }
                   />
                 </ChildField>
-                <Button disabled={immutable} onClick={() => void addUpdate()}>
+                <Button onClick={() => void addUpdate()}>
                   Add draft
                 </Button>
               </div>
               <ChildContentWorkflow
                 outbreakId={item.id!}
                 kind="update"
+                pageSize={DEFAULT_PAGE_SIZE}
                 items={updates}
                 empty="No updates yet."
                 onChanged={hydrate}
+                currentUserId={currentUserId}
+                parentPublished={isPublished}
               />
             </CardContent>
           </Card>
@@ -1257,192 +1383,26 @@ export function OutbreakEditor({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid items-end gap-2 md:grid-cols-2">
-                <ChildField
-                  id="resource-title"
-                  label="Title"
-                  required
-                  error={resourceError("resource-title")}
-                >
-                  <Input
-                    id="resource-title"
-                    placeholder="Resource title"
-                    aria-required
-                    aria-invalid={Boolean(resourceError("resource-title"))}
-                    value={resourceDraft.title}
-                    onChange={(event) =>
-                      setResourceDraft((current) => ({
-                        ...current,
-                        title: event.target.value,
-                      }))
-                    }
-                  />
-                </ChildField>
-                <ChildField id="resource-type" label="Type">
-                  <select
-                    id="resource-type"
-                    className="h-10 w-full rounded-md border bg-background px-3"
-                    value={resourceDraft.resource_type}
-                    onChange={(event) =>
-                      setResourceDraft((current) => ({
-                        ...current,
-                        resource_type: event.target.value,
-                        url: "",
-                        asset_url: "",
-                      }))
-                    }
-                  >
-                    {[
-                      "guideline",
-                      "situation_report",
-                      "internal_route",
-                      "approved_external_url",
-                      "managed_document",
-                      "downloadable_asset",
-                    ].map((value) => (
-                      <option key={value}>{value}</option>
-                    ))}
-                  </select>
-                </ChildField>
-                <ChildField id="resource-issuer" label="Issuing organization">
-                  <Input
-                    id="resource-issuer"
-                    placeholder="Issuing organization"
-                    value={resourceDraft.issuing_organization}
-                    onChange={(event) =>
-                      setResourceDraft((current) => ({
-                        ...current,
-                        issuing_organization: event.target.value,
-                      }))
-                    }
-                  />
-                </ChildField>
-                <ChildField id="resource-description" label="Description">
-                  <Input
-                    id="resource-description"
-                    placeholder="Short public description"
-                    value={resourceDraft.description}
-                    onChange={(event) =>
-                      setResourceDraft((current) => ({
-                        ...current,
-                        description: event.target.value,
-                      }))
-                    }
-                  />
-                </ChildField>
-                {["managed_document", "downloadable_asset"].includes(
-                  resourceDraft.resource_type,
-                ) ? (
-                  <>
-                    <ChildField id="resource-managed" label="Resource URL">
-                      <Input
-                        id="resource-managed"
-                        disabled
-                        value="Backend-managed asset only"
-                      />
-                    </ChildField>
-                    <ChildField
-                      id="resource-asset"
-                      label="Asset path"
-                      required
-                      error={resourceError("resource-asset")}
-                    >
-                      <Input
-                        id="resource-asset"
-                        placeholder="Backend-managed report asset path or approved HTTPS URL"
-                        aria-required
-                        aria-invalid={Boolean(resourceError("resource-asset"))}
-                        value={resourceDraft.asset_url}
-                        onChange={(event) =>
-                          setResourceDraft((current) => ({
-                            ...current,
-                            asset_url: event.target.value,
-                          }))
-                        }
-                      />
-                    </ChildField>
-                  </>
-                ) : (
-                  <ChildField
-                    id="resource-url"
-                    label={
-                      resourceDraft.resource_type === "guideline"
-                        ? "Published guideline"
-                        : resourceDraft.resource_type === "situation_report"
-                          ? "Published situation report"
-                          : "Route or URL"
-                    }
-                    required
-                    error={resourceError("resource-url")}
-                  >
-                    {resourceDraft.resource_type === "guideline" ||
-                    resourceDraft.resource_type === "situation_report" ? (
-                      <select
-                        id="resource-url"
-                        aria-required
-                        aria-invalid={Boolean(resourceError("resource-url"))}
-                        className="h-10 w-full rounded-md border bg-background px-3 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20"
-                        value={resourceDraft.url}
-                        onChange={(event) =>
-                          setResourceDraft((current) => ({
-                            ...current,
-                            url: event.target.value,
-                          }))
-                        }
-                      >
-                        {resourceDraft.resource_type === "guideline" ? (
-                          <>
-                            <option value="">Select a published guideline</option>
-                            {guidelines.map((value) => (
-                              <option
-                                key={value.id}
-                                value={`/public/guidelines/${value.id}`}
-                              >
-                                {value.title}
-                              </option>
-                            ))}
-                          </>
-                        ) : (
-                          <>
-                            <option value="">
-                              Select a published situation report
-                            </option>
-                            {reports
-                              .filter((value) => value.status === "published")
-                              .map((value) => (
-                                <option
-                                  key={value.id}
-                                  value={`/situation-reports/${value.id}`}
-                                >
-                                  {value.title}
-                                </option>
-                              ))}
-                          </>
-                        )}
-                      </select>
-                    ) : (
-                      <Input
-                        id="resource-url"
-                        placeholder="Allowlisted internal route or approved HTTPS URL"
-                        aria-required
-                        aria-invalid={Boolean(resourceError("resource-url"))}
-                        value={resourceDraft.url}
-                        onChange={(event) =>
-                          setResourceDraft((current) => ({
-                            ...current,
-                            url: event.target.value,
-                          }))
-                        }
-                      />
-                    )}
-                  </ChildField>
-                )}
+                <ResourceFields
+                  className="contents"
+                  draft={resourceDraft}
+                  onChange={setResourceDraft}
+                  documentKinds={documentKinds}
+                  reports={reports}
+                  errorFor={resourceError}
+                />
                 <Button
                   className="md:col-span-2"
-                  disabled={immutable}
+                  disabled={resourcesLocked}
                   onClick={() => void addResource()}
                 >
                   Add resource draft
                 </Button>
+                {resourcesLocked ? (
+                  <p className="text-xs text-muted-foreground md:col-span-2">
+                    Resources can&apos;t be added to an outbreak that is {item.status}.
+                  </p>
+                ) : null}
               </div>
               <ChildContentWorkflow
                 outbreakId={item.id!}
@@ -1450,13 +1410,18 @@ export function OutbreakEditor({
                 items={resources}
                 empty="No resources yet."
                 onChanged={hydrate}
+                currentUserId={currentUserId}
+                parentPublished={isPublished}
+                documentKinds={documentKinds}
+                reports={reports}
+                pageSize={DEFAULT_PAGE_SIZE}
+                linkTitles={Object.fromEntries([
+                  ...guidelines.map((value) => [`/public/guidelines/${value.id}`, value.title || ""]),
+                  ...reports.map((value) => [`/situation-reports/${value.id}`, value.title || ""]),
+                ])}
               />
             </CardContent>
           </Card>
-            <OutbreakDocumentsWorkspace
-              outbreakId={item.id!}
-              initialDocumentId={initialDocumentId}
-            />
           <Card>
             <CardHeader>
               <CardTitle>Related situation reports</CardTitle>
@@ -1472,6 +1437,7 @@ export function OutbreakEditor({
                     : "",
                 }))}
                 empty="No situation reports are linked."
+                label="Situation reports"
               />
             </CardContent>
           </Card>
@@ -1506,6 +1472,7 @@ export function OutbreakEditor({
                       : `Actor ${value.actor_id}`,
                 }))}
                 empty="No audit events recorded."
+                label="Audit history"
               />
             </CardContent>
           </Card>
@@ -1529,12 +1496,15 @@ export function OutbreakEditor({
     </div>
   );
 
-  function updateMetric(index: number, key: keyof MetricDraft, value: string) {
-    setMetrics((current) =>
-      current.map((metric, position) =>
-        position === index ? { ...metric, [key]: value } : metric,
-      ),
-    );
+  function updateMetricDraft(key: keyof MetricDraft, value: string) {
+    setMetricDraft((current) => {
+      if (!current) return current;
+      const next = { ...current, [key]: value };
+      if (key === "label" && !metricKeyEdited) {
+        next.key = metricKeyFromLabel(value, metrics);
+      }
+      return next;
+    });
   }
 }
 
@@ -1668,13 +1638,16 @@ function SelectField({
 function ChildRows({
   items,
   empty,
+  label,
 }: {
   items: Array<{ id: string; title: string; status: string; detail?: string }>;
   empty: string;
+  label: string;
 }) {
+  const pagination = usePagination(items, DEFAULT_PAGE_SIZE);
   return items.length ? (
     <div className="space-y-2">
-      {items.map((item) => (
+      {pagination.visible.map((item) => (
         <div
           key={item.id}
           className="flex items-center justify-between rounded-md border p-3"
@@ -1686,6 +1659,7 @@ function ChildRows({
           <Badge variant="outline">{item.status}</Badge>
         </div>
       ))}
+      <PaginationControls pagination={pagination} label={label} />
     </div>
   ) : (
     <div className="flex items-center gap-2 text-sm text-muted-foreground">

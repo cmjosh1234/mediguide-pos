@@ -22,6 +22,7 @@ import {
   GuidelineDocumentsService,
   GuidelineVersionRecord,
   guidelineDocumentsQueryKey,
+  isPublishedAsLink,
   isPublishedAsUploaded,
 } from "@/services/guideline-documents.service"
 import { documentKindService, documentKindsQueryKey } from "@/services/document-kinds.service"
@@ -29,6 +30,7 @@ import { createGuidelinesColumns } from "./columns"
 import {
   CreateVersionDialog,
   UploadVersionDialog,
+  VersionLinkDialog,
 } from "./components/guideline-version-dialogs"
 import { GuidelineNotificationDialog } from "./components/guideline-notification-dialog"
 
@@ -45,6 +47,7 @@ export default function GuidelinesPage() {
   const canDelete = hasBackendPermission("guideline.write") && hasBackendPermission("guideline.publish")
   const [versionDocument, setVersionDocument] = React.useState<GuidelineDocumentRecord | null>(null)
   const [uploadVersion, setUploadVersion] = React.useState<GuidelineVersionRecord | null>(null)
+  const [linkVersion, setLinkVersion] = React.useState<GuidelineVersionRecord | null>(null)
   const [notificationDocument, setNotificationDocument] = React.useState<GuidelineDocumentRecord | null>(null)
   const [deletingDocument, setDeletingDocument] = React.useState<GuidelineDocumentRecord | null>(null)
   const [submitting, setSubmitting] = React.useState(false)
@@ -102,7 +105,10 @@ export default function GuidelinesPage() {
         onNewVersion: setVersionDocument,
         onUpload: (document) => {
           const version = getDocumentLatestVersion(document)
-          if (version) setUploadVersion(version)
+          if (!version) return
+          // Link kinds take an https URL instead of a file.
+          if (isPublishedAsLink(document)) setLinkVersion(version)
+          else setUploadVersion(version)
         },
         onNotify: setNotificationDocument,
         onDelete: setDeletingDocument,
@@ -234,6 +240,15 @@ export default function GuidelinesPage() {
         submitting={submitting}
         onOpenChange={(open) => !open && setUploadVersion(null)}
         onSubmit={uploadSource}
+      />
+      <VersionLinkDialog
+        version={linkVersion}
+        open={Boolean(linkVersion)}
+        onOpenChange={(open) => !open && setLinkVersion(null)}
+        onSaved={async () => {
+          setLinkVersion(null)
+          await refresh()
+        }}
       />
       <GuidelineNotificationDialog
         document={notificationDocument}

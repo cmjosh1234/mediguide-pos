@@ -46,12 +46,6 @@ func seedAdditionalDemoOutbreaks(ctx context.Context, database *gorm.DB, store s
 			return err
 		}
 	}
-	if err := seedDemoManagedOutbreakDocuments(ctx, database, store, choleraID, authorID, clinicianID, demoCholeraOutbreakDocuments(), "cholera case-definition"); err != nil {
-		return err
-	}
-	if err := seedDemoManagedOutbreakDocuments(ctx, database, store, measlesID, authorID, clinicianID, demoMeaslesOutbreakDocuments(), "measles case-definition"); err != nil {
-		return err
-	}
 
 	updates := []map[string]any{
 		{"id": demoID("outbreak-update", "demo-cholera-response-activated"), "outbreak_id": choleraID, "title": "[Demo] Response coordination activated", "summary": "Synthetic update used to test the active-response timeline.", "status": "published", "published_at": time.Date(2026, time.August, 11, 9, 0, 0, 0, time.UTC), "author_id": authorID, "reviewed_by": clinicianID, "approved_by": clinicianID, "approved_at": publishedAt, "lock_version": 1},

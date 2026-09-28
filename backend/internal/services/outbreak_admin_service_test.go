@@ -283,100 +283,225 @@ func TestSituationReportPublicationValidatesStandaloneAndSource(t *testing.T) {
 	}
 }
 
-func TestOutbreakDocumentLifecycleRequiresReviewAndPublishedParent(t *testing.T) {
+func TestOutbreakResourceLinksPublishedDocumentOfChosenKind(t *testing.T) {
 	service := outbreakAdminTestService(t)
-	now := time.Now().UTC().Truncate(time.Second)
-	parent := models.Outbreak{Title: "Ebola response", Status: "active", PublishedAt: &now, LastUpdate: now, LockVersion: 1}
+	for _, statement := range []string{
+		`CREATE TABLE guideline_documents (id text PRIMARY KEY, current_version_id text, document_kind_id text, deleted_at datetime)`,
+		`CREATE TABLE guideline_versions (id text PRIMARY KEY, document_id text, status text, deleted_at datetime)`,
+	} {
+		if err := service.DB.Exec(statement).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	var sop models.DocumentKind
+	if err := service.DB.First(&sop, "slug = ?", "sop").Error; err != nil {
+		t.Fatal(err)
+	}
+	addDocument := func(status string) string {
+		documentID, versionID := uuid.NewString(), uuid.NewString()
+		service.DB.Exec(`INSERT INTO guideline_documents (id, current_version_id, document_kind_id) VALUES (?, ?, ?)`, documentID, versionID, sop.ID.String())
+		service.DB.Exec(`INSERT INTO guideline_versions (id, document_id, status) VALUES (?, ?, ?)`, versionID, documentID, status)
+		return "/public/guidelines/" + documentID
+	}
+	parent := models.Outbreak{Title: "Parent", Status: "draft", LockVersion: 1}
 	if err := service.DB.Create(&parent).Error; err != nil {
 		t.Fatal(err)
 	}
-	author := OutbreakActor{ID: uuid.New()}
-	reviewer := OutbreakActor{ID: uuid.New()}
-	publisher := OutbreakActor{ID: uuid.New()}
-	title, kind := "Ebola case-management SOP", "sop"
-	number, version := "MOH-EVD-SOP-001", "2.0"
-	authority, language := "Ministry of Health Uganda", "en-UG"
-	effective, review := now.Add(-time.Hour), now.AddDate(1, 0, 0)
-	assetURL := "https://health.go.ug/documents/ebola-sop-v2.pdf"
-	document, err := service.CreateDocument(author, parent.ID, OutbreakDocumentInput{
-		Title: &title, DocumentKind: &kind, DocumentNumber: &number, Version: &version,
-		IssuingAuthority: &authority, Language: &language, EffectiveDate: &effective,
-		ReviewDate: &review, AssetURL: &assetURL,
-	})
-	if err != nil || document.Status != "draft" || document.LockVersion != 1 {
-		t.Fatalf("create document: %#v err=%v", document, err)
-	}
-	if _, err := service.TransitionDocument(author, parent.ID, document.ID, "submit", TransitionInput{LockVersion: 1}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := service.TransitionDocument(author, parent.ID, document.ID, "approve", TransitionInput{LockVersion: 2}); !errors.Is(err, ErrOutbreakInvalid) {
-		t.Fatalf("author self-approved document: %v", err)
-	}
-	approved, err := service.TransitionDocument(reviewer, parent.ID, document.ID, "approve", TransitionInput{LockVersion: 2, Reason: "Clinical content verified against the current response protocol"})
-	if err != nil || approved.ApprovedBy == nil || *approved.ApprovedBy != reviewer.ID {
-		t.Fatalf("approve document: %#v err=%v", approved, err)
-	}
-	if _, err := service.TransitionDocument(reviewer, parent.ID, document.ID, "publish", TransitionInput{LockVersion: 3}); !errors.Is(err, ErrOutbreakInvalid) {
-		t.Fatalf("clinical approver also published document: %v", err)
-	}
-	published, err := service.TransitionDocument(publisher, parent.ID, document.ID, "publish", TransitionInput{LockVersion: 3})
-	if err != nil || published.Status != "published" || published.PublishedAt == nil {
-		t.Fatalf("publish document: %#v err=%v", published, err)
-	}
-	if _, err := service.UpdateDocument(author, parent.ID, document.ID, OutbreakDocumentInput{Title: ptr("silent edit"), LockVersion: &published.LockVersion}); !errors.Is(err, ErrOutbreakImmutable) {
-		t.Fatalf("published document edited: %v", err)
+	create := func(url, kind string) (*OutbreakResourceAdminDTO, error) {
+		title, resourceType := "IPC SOP", "guideline"
+		return service.CreateResource(OutbreakActor{ID: uuid.New()}, parent.ID, ChildContentInput{Title: &title, ResourceType: &resourceType, DocumentKind: &kind, URL: &url})
 	}
 
-	correction, err := service.CorrectDocument(author, parent.ID, document.ID, TransitionInput{LockVersion: published.LockVersion, Reason: "Correct dosage table"})
-	if err != nil || correction.Status != "draft" || correction.SupersedesID == nil || *correction.SupersedesID != document.ID {
-		t.Fatalf("correct document: %#v err=%v", correction, err)
+	published := addDocument("published")
+	created, err := create(published, "sop")
+	if err != nil || created.DocumentKind != "sop" {
+		t.Fatalf("expected a published SOP to be linked as an SOP: %#v %v", created, err)
 	}
-	versions, err := service.DocumentVersions(parent.ID, document.ID)
-	if err != nil || len(versions) != 2 {
-		t.Fatalf("document versions: %#v err=%v", versions, err)
+	if _, err := create(published, "form"); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("expected a kind mismatch to be rejected, got %v", err)
 	}
-	if _, err := service.TransitionDocument(author, parent.ID, correction.ID, "submit", TransitionInput{LockVersion: 1}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := service.TransitionDocument(reviewer, parent.ID, correction.ID, "approve", TransitionInput{LockVersion: 2, Reason: "Correction reviewed"}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := service.TransitionDocument(publisher, parent.ID, correction.ID, "publish", TransitionInput{LockVersion: 3}); !errors.Is(err, ErrOutbreakInvalid) {
-		t.Fatalf("duplicate published document number/version accepted: %v", err)
+	if _, err := create(addDocument("draft"), "sop"); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("expected an unpublished document to be rejected, got %v", err)
 	}
 }
 
-func TestOutbreakDocumentValidationAndTypedFilters(t *testing.T) {
+func TestOutbreakChildPublishExplainsUnpublishedParent(t *testing.T) {
 	service := outbreakAdminTestService(t)
-	now := time.Now().UTC()
-	parent := models.Outbreak{Title: "Response", Status: "draft", LastUpdate: now, LockVersion: 1}
+	now := time.Now()
+	author, reviewer := uuid.New(), uuid.New()
+	parent := models.Outbreak{Title: "Draft parent", Status: "draft", LastUpdate: now, LockVersion: 1}
 	if err := service.DB.Create(&parent).Error; err != nil {
 		t.Fatal(err)
 	}
-	title, invalidKind := "Invalid", "word_document"
-	if _, err := service.CreateDocument(OutbreakActor{ID: uuid.New()}, parent.ID, OutbreakDocumentInput{Title: &title, DocumentKind: &invalidKind}); !errors.Is(err, ErrOutbreakInvalid) {
-		t.Fatalf("invalid document kind accepted: %v", err)
+	child := models.OutbreakUpdate{OutbreakID: parent.ID, Title: "Update", Status: "pending_review", AuthorID: &author, ApprovedBy: &reviewer, ApprovedAt: &now, LockVersion: 1}
+	if err := service.DB.Create(&child).Error; err != nil {
+		t.Fatal(err)
 	}
-	effective, review := now, now.Add(-time.Hour)
-	if _, err := service.CreateDocument(OutbreakActor{ID: uuid.New()}, parent.ID, OutbreakDocumentInput{Title: &title, EffectiveDate: &effective, ReviewDate: &review}); !errors.Is(err, ErrOutbreakInvalid) {
-		t.Fatalf("invalid document dates accepted: %v", err)
+	_, err := service.TransitionUpdate(OutbreakActor{ID: reviewer}, parent.ID, child.ID, "publish", TransitionInput{LockVersion: 1})
+	want := "This update can't be published yet because its outbreak isn't published (the outbreak is draft). Publish the outbreak first, then publish this update."
+	if err == nil || err.Error() != want {
+		t.Fatalf("expected %q, got %v", want, err)
+	}
+}
+
+func TestEditingPublishedResourceReplacesItAfterReview(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	published := time.Now().Add(-time.Hour)
+	author, reviewer, editor := uuid.New(), uuid.New(), uuid.New()
+	parent := models.Outbreak{Title: "Live outbreak", Status: "active", PublishedAt: &published, LastUpdate: published, LockVersion: 1}
+	if err := service.DB.Create(&parent).Error; err != nil {
+		t.Fatal(err)
+	}
+	original := models.OutbreakResource{OutbreakID: parent.ID, Title: "Hub", ResourceType: "internal_route", DocumentKind: "other", URL: "/outbreak-hub", Status: "published", PublishedAt: &published, AuthorID: &author, LockVersion: 1}
+	if err := service.DB.Create(&original).Error; err != nil {
+		t.Fatal(err)
+	}
+	newTitle := "Outbreak hub"
+	edit := ResourceCorrectionInput{LockVersion: 1, Reason: "Clearer title", Changes: &ChildContentInput{Title: &newTitle}}
+
+	if _, err := service.EditPublishedResource(OutbreakActor{ID: editor}, parent.ID, original.ID, ResourceCorrectionInput{LockVersion: 1, Changes: edit.Changes}); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("expected a missing reason to be rejected, got %v", err)
+	}
+	pending, err := service.EditPublishedResource(OutbreakActor{ID: editor}, parent.ID, original.ID, edit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pending.Status != "pending_review" || pending.Title != newTitle || pending.SupersedesID == nil || *pending.SupersedesID != original.ID {
+		t.Fatalf("expected an edited correction in review: %#v", pending)
+	}
+	if _, err := service.EditPublishedResource(OutbreakActor{ID: editor}, parent.ID, original.ID, edit); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("expected a second pending edit to be rejected, got %v", err)
 	}
 
-	sop, checklist := "sop", "checklist"
-	authority, language := "Ministry of Health", "en"
-	for index, input := range []OutbreakDocumentInput{
-		{Title: ptr("Ebola triage SOP"), DocumentKind: &sop, IssuingAuthority: &authority, Language: &language},
-		{Title: ptr("Contact tracing checklist"), DocumentKind: &checklist, IssuingAuthority: &authority, Language: &language},
-	} {
-		if _, err := service.CreateDocument(OutbreakActor{ID: uuid.New()}, parent.ID, input); err != nil {
-			t.Fatalf("create document %d: %v", index, err)
+	approved, err := service.TransitionResource(OutbreakActor{ID: reviewer}, parent.ID, pending.ID, "approve", TransitionInput{LockVersion: pending.LockVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.TransitionResource(OutbreakActor{ID: reviewer}, parent.ID, pending.ID, "publish", TransitionInput{LockVersion: approved.LockVersion}); err != nil {
+		t.Fatal(err)
+	}
+	var retired models.OutbreakResource
+	if err := service.DB.First(&retired, "id = ?", original.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if retired.Status != "withdrawn" || retired.WithdrawalReason != "superseded by approved correction: Clearer title" {
+		t.Fatalf("expected the original to be retired with the edit reason: %s %q", retired.Status, retired.WithdrawalReason)
+	}
+	page, err := (OutbreakService{DB: service.DB}).Resources(parent.ID, PageInput{})
+	if err != nil || page.TotalItems != 1 || page.Items[0].Title != newTitle {
+		t.Fatalf("expected only the corrected resource to be public: %#v %v", page, err)
+	}
+}
+
+func TestEditingResourceInReviewClearsApproval(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	now := time.Now()
+	reviewer := uuid.New()
+	parent := models.Outbreak{Title: "Parent", Status: "draft", LastUpdate: now, LockVersion: 1}
+	if err := service.DB.Create(&parent).Error; err != nil {
+		t.Fatal(err)
+	}
+	row := models.OutbreakResource{OutbreakID: parent.ID, Title: "Hub", ResourceType: "internal_route", DocumentKind: "other", URL: "/outbreak-hub", Status: "pending_review", ApprovedBy: &reviewer, ApprovedAt: &now, LockVersion: 1}
+	if err := service.DB.Create(&row).Error; err != nil {
+		t.Fatal(err)
+	}
+	title, lock := "Edited hub", 1
+	updated, err := service.UpdateResource(OutbreakActor{ID: uuid.New()}, parent.ID, row.ID, ChildContentInput{Title: &title, LockVersion: &lock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Status != "draft" || updated.ApprovedAt != nil || updated.Title != title {
+		t.Fatalf("expected edited resource back in draft without approval: %#v", updated)
+	}
+}
+
+func TestEditingPublishedUpdateReplacesItAfterReview(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	published := time.Now().Add(-time.Hour)
+	author, reviewer, editor := uuid.New(), uuid.New(), uuid.New()
+	parent := models.Outbreak{Title: "Live outbreak", Status: "active", PublishedAt: &published, LastUpdate: published, LockVersion: 1}
+	if err := service.DB.Create(&parent).Error; err != nil {
+		t.Fatal(err)
+	}
+	original := models.OutbreakUpdate{OutbreakID: parent.ID, Title: "Cases rising", Summary: "Twelve cases.", Status: "published", PublishedAt: &published, AuthorID: &author, LockVersion: 1}
+	if err := service.DB.Create(&original).Error; err != nil {
+		t.Fatal(err)
+	}
+	newSummary := "Fourteen cases."
+	edit := ResourceCorrectionInput{LockVersion: 1, Reason: "Late reports", Changes: &ChildContentInput{Summary: &newSummary}}
+
+	if _, err := service.EditPublishedUpdate(OutbreakActor{ID: editor}, parent.ID, original.ID, ResourceCorrectionInput{LockVersion: 1, Changes: edit.Changes}); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("expected a missing reason to be rejected, got %v", err)
+	}
+	pending, err := service.EditPublishedUpdate(OutbreakActor{ID: editor}, parent.ID, original.ID, edit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pending.Status != "pending_review" || pending.Summary != newSummary || pending.Title != original.Title || pending.SupersedesID == nil || *pending.SupersedesID != original.ID {
+		t.Fatalf("expected an edited correction in review: %#v", pending)
+	}
+	if _, err := service.EditPublishedUpdate(OutbreakActor{ID: editor}, parent.ID, original.ID, edit); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("expected a second pending edit to be rejected, got %v", err)
+	}
+
+	approved, err := service.TransitionUpdate(OutbreakActor{ID: reviewer}, parent.ID, pending.ID, "approve", TransitionInput{LockVersion: pending.LockVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.TransitionUpdate(OutbreakActor{ID: reviewer}, parent.ID, pending.ID, "publish", TransitionInput{LockVersion: approved.LockVersion}); err != nil {
+		t.Fatal(err)
+	}
+	var retired models.OutbreakUpdate
+	if err := service.DB.First(&retired, "id = ?", original.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if retired.Status != "withdrawn" || retired.WithdrawalReason != "superseded by approved correction: Late reports" {
+		t.Fatalf("expected the original to be retired with the edit reason: %s %q", retired.Status, retired.WithdrawalReason)
+	}
+	page, err := (OutbreakService{DB: service.DB}).Updates(parent.ID, PageInput{})
+	if err != nil || page.TotalItems != 1 || page.Items[0].Summary != newSummary {
+		t.Fatalf("expected only the corrected update to be public: %#v %v", page, err)
+	}
+}
+
+func TestEditingUpdateInReviewClearsApproval(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	now := time.Now()
+	reviewer := uuid.New()
+	parent := models.Outbreak{Title: "Parent", Status: "draft", LastUpdate: now, LockVersion: 1}
+	if err := service.DB.Create(&parent).Error; err != nil {
+		t.Fatal(err)
+	}
+	row := models.OutbreakUpdate{OutbreakID: parent.ID, Title: "Update", Status: "pending_review", ApprovedBy: &reviewer, ApprovedAt: &now, LockVersion: 1}
+	if err := service.DB.Create(&row).Error; err != nil {
+		t.Fatal(err)
+	}
+	title, lock := "Edited update", 1
+	updated, err := service.UpdateUpdate(OutbreakActor{ID: uuid.New()}, parent.ID, row.ID, ChildContentInput{Title: &title, LockVersion: &lock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Status != "draft" || updated.ApprovedAt != nil || updated.Title != title {
+		t.Fatalf("expected edited update back in draft without approval: %#v", updated)
+	}
+}
+
+func TestResourcesCanBeAddedUntilOutbreakIsClosedOrWithdrawn(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	now := time.Now()
+	title, resourceType, route := "Hub", "internal_route", "/outbreak-hub"
+	input := ChildContentInput{Title: &title, ResourceType: &resourceType, URL: &route}
+	for status, allowed := range map[string]bool{"draft": true, "active": true, "published": true, "closed": false, "withdrawn": false} {
+		parent := models.Outbreak{Title: status, Status: status, LastUpdate: now, LockVersion: 1}
+		if err := service.DB.Create(&parent).Error; err != nil {
+			t.Fatal(err)
 		}
-	}
-	page, err := service.ListDocuments(parent.ID, OutbreakDocumentQuery{Page: PageInput{Page: 1, PerPage: 1}, Search: "triage", DocumentKind: "sop", Authority: "ministry of health", Language: "EN", Sort: "title", Order: "asc"})
-	if err != nil || page.TotalItems != 1 || len(page.Items) != 1 || page.Items[0].Title != "Ebola triage SOP" {
-		t.Fatalf("typed document filters: %#v err=%v", page, err)
-	}
-	if _, err := service.ListDocuments(parent.ID, OutbreakDocumentQuery{Sort: "title; DROP TABLE outbreak_resources"}); !errors.Is(err, ErrOutbreakInvalid) {
-		t.Fatalf("unsafe sort accepted: %v", err)
+		_, err := service.CreateResource(OutbreakActor{ID: uuid.New()}, parent.ID, input)
+		if allowed && err != nil {
+			t.Fatalf("%s outbreak: expected a resource to be added, got %v", status, err)
+		}
+		if !allowed && (err == nil || err.Error() != "Resources can't be added to an outbreak that is "+status+".") {
+			t.Fatalf("%s outbreak: expected the resource to be refused, got %v", status, err)
+		}
 	}
 }

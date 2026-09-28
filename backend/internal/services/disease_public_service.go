@@ -344,14 +344,6 @@ func resolvePublicContentResource(ctx context.Context, db *gorm.DB, contentType 
 		resource.Title, resource.Description, resource.SourceOrganization = row.Title, row.Summary, row.SourceOrganization
 		resource.PublicationDate, resource.EffectiveAt, resource.ReviewAt = row.PublishedAt, row.EffectiveAt, row.LastVerifiedAt
 		resource.Route, resource.ReviewState, resource.Provenance = "/outbreaks/"+id.String(), "approved", row.SourceReference
-	case models.ContentDiseaseOutbreakDocument, models.ContentDiseaseForm:
-		var row models.OutbreakResource
-		if err := db.WithContext(ctx).First(&row, "id = ?", id).Error; err != nil {
-			return nil, err
-		}
-		resource.Title, resource.Description, resource.IssuingAuthority, resource.Version = row.Title, row.Description, row.IssuingAuthority, row.Version
-		resource.PublicationDate, resource.EffectiveAt, resource.ReviewAt, resource.ExpiresAt = row.PublishedAt, row.EffectiveDate, row.ReviewDate, row.ExpiresAt
-		resource.Route, resource.ReviewState = "/outbreaks/"+row.OutbreakID.String()+"/documents/"+id.String(), "approved"
 	case models.ContentDiseaseSituationReport:
 		var row models.SituationReport
 		if err := db.WithContext(ctx).First(&row, "id = ?", id).Error; err != nil {

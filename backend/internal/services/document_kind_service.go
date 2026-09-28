@@ -47,7 +47,7 @@ func (s GuidelineContentService) documentKindQuery() *gorm.DB {
 	return s.DB.Table("document_kinds dk").
 		Select(`dk.*,
 			(SELECT COUNT(*) FROM guideline_documents gd WHERE gd.document_kind_id = dk.id AND gd.deleted_at IS NULL) AS guideline_document_count,
-			(SELECT COUNT(*) FROM outbreak_resources r WHERE r.document_kind = dk.slug AND r.deleted_at IS NULL) AS outbreak_document_count`).
+			(SELECT COUNT(*) FROM outbreak_resources r WHERE r.document_kind = dk.slug AND r.deleted_at IS NULL) AS outbreak_resource_count`).
 		Where("dk.deleted_at IS NULL")
 }
 
@@ -119,6 +119,10 @@ func (s GuidelineContentService) SaveDocumentKind(id *uuid.UUID, in DocumentKind
 		}
 		item.PublishAsUploaded = *in.PublishAsUploaded
 	}
+	// Link kinds publish a URL, so they can never also publish an uploaded file.
+	if item.PublishAsLink && item.PublishAsUploaded {
+		return nil, ErrGuidelineContentInvalid
+	}
 	if item.Name == "" || len(item.Name) > 120 || !validDocumentKindSlug(item.Slug) || !oneOf(item.Status, "active", "inactive") || item.SortOrder < 0 || item.SortOrder > 10_000 {
 		return nil, ErrGuidelineContentInvalid
 	}
@@ -150,7 +154,7 @@ func (s GuidelineContentService) DeleteDocumentKind(id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	if kind.GuidelineDocumentCount+kind.OutbreakDocumentCount > 0 {
+	if kind.GuidelineDocumentCount+kind.OutbreakResourceCount > 0 {
 		return ErrDocumentKindInUse
 	}
 	if kind.Status == "active" {

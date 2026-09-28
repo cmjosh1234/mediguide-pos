@@ -72,6 +72,7 @@ type PublicGuidelineHandler struct {
 // @Param program_area query string false "Program area"
 // @Param category_id query string false "Guideline category UUID"
 // @Param disease_id query string false "Disease UUID"
+// @Param document_kind query string false "Document kind slug"
 // @Param country query string false "Country"
 // @Param language query string false "Language"
 // @Param updated_from query string false "RFC3339 lower update bound"
@@ -88,15 +89,16 @@ func (h PublicGuidelineHandler) List(c *gin.Context) {
 		return
 	}
 	filter := services.PublicGuidelineFilter{
-		Search:      c.Query("search"),
-		ProgramArea: c.Query("program_area"),
-		CategoryID:  c.Query("category_id"),
-		DiseaseID:   c.Query("disease_id"),
-		Country:     c.Query("country"),
-		Language:    c.Query("language"),
-		Sort:        c.Query("sort"),
-		Order:       c.Query("order"),
-		Page:        page,
+		Search:       c.Query("search"),
+		ProgramArea:  c.Query("program_area"),
+		CategoryID:   c.Query("category_id"),
+		DiseaseID:    c.Query("disease_id"),
+		DocumentKind: c.Query("document_kind"),
+		Country:      c.Query("country"),
+		Language:     c.Query("language"),
+		Sort:         c.Query("sort"),
+		Order:        c.Query("order"),
+		Page:         page,
 	}
 	if value := strings.TrimSpace(c.Query("updated_from")); value != "" {
 		updatedFrom, parseErr := time.Parse(time.RFC3339, value)

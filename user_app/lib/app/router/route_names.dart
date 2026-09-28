@@ -27,11 +27,8 @@ abstract final class AppRoutes {
   static const String outbreakHub = '/outbreak-hub';
   static const String situationReports = '/situation-reports';
   static const String outbreakDetails = '/outbreak-hub/:outbreakId';
-  static const String outbreakDocuments = '/outbreak-hub/:outbreakId/documents';
   static const String outbreakSection =
       '/outbreak-hub/:outbreakId/sections/:sectionId';
-  static const String outbreakDocumentDetails =
-      '/outbreak-hub/:outbreakId/documents/:documentId';
   static const String situationReportDetails = '/situation-reports/:reportId';
   static const String diseases = '/diseases';
   static const String diseaseDetails = '/diseases/:slug';
@@ -191,16 +188,8 @@ abstract final class AppRoutes {
     return '$outbreakHub/${Uri.encodeComponent(outbreakId)}';
   }
 
-  static String outbreakDocumentsFor(String outbreakId) {
-    return '$outbreakHub/${Uri.encodeComponent(outbreakId)}/documents';
-  }
-
   static String outbreakSectionFor(String outbreakId, String sectionId) {
     return '$outbreakHub/${Uri.encodeComponent(outbreakId)}/sections/${Uri.encodeComponent(sectionId)}';
-  }
-
-  static String outbreakDocument(String outbreakId, String documentId) {
-    return '${outbreakDocumentsFor(outbreakId)}/${Uri.encodeComponent(documentId)}';
   }
 
   static String situationReport(String reportId) {

@@ -25,8 +25,8 @@ var (
 	// kind publishes the uploaded file itself (for example forms).
 	ErrGuidelinePublishedAsUploaded = errors.New("this document is published as its uploaded file and has no editable content")
 	// ErrGuidelineDocumentKindModeLocked stops a document with an uploaded
-	// source from switching between as-uploaded and editable kinds.
-	ErrGuidelineDocumentKindModeLocked = errors.New("a document with an uploaded file cannot switch between publish-as-uploaded and editable document kinds")
+	// source or link from switching between as-uploaded, link and editable kinds.
+	ErrGuidelineDocumentKindModeLocked = errors.New("a document with an uploaded file or link cannot switch between publish-as-uploaded, link and editable document kinds")
 )
 
 // VersionPublishesAsUploaded reports whether the version's document kind keeps
@@ -64,7 +64,7 @@ func documentKindPublishesAsUploaded(tx *gorm.DB, kindID *uuid.UUID) (bool, erro
 }
 
 // ensureDocumentKindModeChange allows a kind change that keeps the publishing
-// mode, or any change before a file or Markdown has been added to the document.
+// mode, or any change before a file, Markdown or link has been added to the document.
 func ensureDocumentKindModeChange(tx *gorm.DB, document models.GuidelineDocument, kindID uuid.UUID) error {
 	current, err := documentKindPublishesAsUploaded(tx, document.DocumentKindID)
 	if err != nil {
@@ -74,12 +74,20 @@ func ensureDocumentKindModeChange(tx *gorm.DB, document models.GuidelineDocument
 	if err != nil {
 		return err
 	}
-	if current == next {
+	currentLink, err := documentKindPublishesAsLink(tx, document.DocumentKindID)
+	if err != nil {
+		return err
+	}
+	nextLink, err := documentKindPublishesAsLink(tx, &kindID)
+	if err != nil {
+		return err
+	}
+	if current == next && currentLink == nextLink {
 		return nil
 	}
 	var withContent int64
 	if err := tx.Model(&models.GuidelineVersion{}).
-		Where("document_id = ? AND (original_file_key <> '' OR markdown_file_key <> '' OR current_markdown_revision_id IS NOT NULL)", document.ID).
+		Where("document_id = ? AND (original_file_key <> '' OR markdown_file_key <> '' OR external_url <> '' OR current_markdown_revision_id IS NOT NULL)", document.ID).
 		Count(&withContent).Error; err != nil {
 		return err
 	}
@@ -145,6 +153,9 @@ func (s GuidelineService) UploadAsUploadedSource(ctx context.Context, versionID 
 		return nil, err
 	}
 	if err := validateVersionAllowsIngestion(&target); err != nil {
+		return nil, err
+	}
+	if err := rejectLinkVersion(s.DB, versionID); err != nil {
 		return nil, err
 	}
 	asUploaded, err := versionPublishesAsUploaded(s.DB, versionID)

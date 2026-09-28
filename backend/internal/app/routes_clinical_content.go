@@ -17,7 +17,7 @@ func registerClinicalContentRoutes(protected *gin.RouterGroup, guidelineContentH
 	protected.POST("/guideline-categories", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateCategory)
 	protected.PATCH("/guideline-categories/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.UpdateCategory)
 	protected.DELETE("/guideline-categories/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.DeleteCategory)
-	// Document kinds are shared: outbreak editors read them to classify outbreak documents.
+	// Outbreak editors read document kinds to classify typed resources.
 	protected.GET("/document-kinds", middleware.RequireAnyPermission("guideline.read", "outbreak.read"), guidelineContentH.ListDocumentKinds)
 	protected.GET("/document-kinds/:id", middleware.RequireAnyPermission("guideline.read", "outbreak.read"), guidelineContentH.GetDocumentKind)
 	protected.POST("/document-kinds", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateDocumentKind)

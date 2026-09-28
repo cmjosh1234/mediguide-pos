@@ -16,14 +16,12 @@ type GuidelineDocumentCategory struct {
 func (GuidelineDocumentCategory) TableName() string { return "guideline_document_categories" }
 
 const (
-	ContentDiseaseGuideline        = "guideline"
-	ContentDiseaseOutbreak         = "outbreak"
-	ContentDiseaseOutbreakDocument = "outbreak_document"
-	ContentDiseaseSituationReport  = "situation_report"
-	ContentDiseaseAlgorithm        = "algorithm"
-	ContentDiseaseClinicalTool     = "clinical_tool"
-	ContentDiseaseForm             = "form"
-	ContentDiseaseDrugReference    = "drug_reference"
+	ContentDiseaseGuideline       = "guideline"
+	ContentDiseaseOutbreak        = "outbreak"
+	ContentDiseaseSituationReport = "situation_report"
+	ContentDiseaseAlgorithm       = "algorithm"
+	ContentDiseaseClinicalTool    = "clinical_tool"
+	ContentDiseaseDrugReference   = "drug_reference"
 )
 
 type ContentDiseaseAssignment struct {

@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -18,9 +17,6 @@ import (
 var ErrOutbreakInvalid = errors.New("invalid outbreak query")
 var ErrOutbreakConflict = errors.New("outbreak content changed; reload and retry")
 var ErrOutbreakImmutable = errors.New("published outbreak content must be corrected, not edited")
-
-// ErrOutbreakDocumentKind is an ErrOutbreakInvalid with a message editors can act on.
-var ErrOutbreakDocumentKind = fmt.Errorf("%w: document kind must be an active document kind", ErrOutbreakInvalid)
 
 type OutbreakService struct {
 	DB                   *gorm.DB

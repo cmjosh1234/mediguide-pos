@@ -117,31 +117,7 @@ func (s ContentHubService) ConfigureOutbreakHub(actor ContentHubActor, outbreakI
 		bySlug[pillar.Slug] = pillar
 	}
 
-	documents := []models.OutbreakResource{}
-	if err := s.DB.Where("outbreak_id = ? AND deleted_at IS NULL AND status = ? AND published_at IS NOT NULL AND approved_at IS NOT NULL AND withdrawn_at IS NULL", outbreakID, "published").Order("sort_order ASC, title ASC").Find(&documents).Error; err != nil {
-		return nil, err
-	}
 	orders := map[uuid.UUID]int{}
-	for _, document := range documents {
-		pillar, ok := bySlug[outbreakDocumentPillar(document.DocumentKind)]
-		if !ok {
-			continue
-		}
-		orders[pillar.ID] += 10
-		kind := models.ContentDiseaseOutbreakDocument
-		if strings.EqualFold(document.DocumentKind, "form") {
-			kind = models.ContentDiseaseForm
-		}
-		id := document.ID
-		_, err = s.CreatePillarItem(actor, hub.ID, pillar.ID, ContentPillarItemInput{
-			ContentType: kind, ContentID: &id, LabelOverride: document.Title,
-			DescriptionOverride: document.Description, SortOrder: orders[pillar.ID],
-			Status: models.ContentPillarItemStatusActive,
-		})
-		if err != nil && err != ErrContentHubDuplicate {
-			return nil, err
-		}
-	}
 	reports := []models.SituationReport{}
 	if err := s.DB.Where("outbreak_id = ? AND deleted_at IS NULL AND status = ? AND published_at IS NOT NULL AND approved_at IS NOT NULL AND withdrawn_at IS NULL", outbreakID, "published").Order("publication_date DESC, title ASC").Find(&reports).Error; err != nil {
 		return nil, err
@@ -169,35 +145,6 @@ func (s ContentHubService) ConfigureOutbreakHub(actor ContentHubActor, outbreakI
 		}
 	}
 	return s.GetWorkspace(hub.ID)
-}
-
-func outbreakDocumentPillar(kind string) string {
-	switch strings.ToLower(strings.TrimSpace(kind)) {
-	case "case_definition":
-		return "case-definition"
-	case "surveillance_protocol":
-		return "surveillance-guidance"
-	case "checklist":
-		return "screening-triage"
-	case "ipc_protocol":
-		return "ipc-ppe"
-	case "laboratory_protocol":
-		return "laboratory"
-	case "form":
-		return "forms"
-	case "training_material", "communication_material":
-		return "training"
-	case "contact_tracing_guide":
-		return "contacts"
-	case "policy":
-		return "medicines"
-	case "situation_report_attachment":
-		return "situation-reports"
-	case "sop", "treatment_protocol", "referral_protocol":
-		return "clinical-management"
-	default:
-		return "faqs"
-	}
 }
 
 func (s ContentHubService) GetWorkspace(hubID uuid.UUID) (*ContentHubWorkspace, error) {
@@ -271,12 +218,6 @@ func (s ContentHubService) SearchAssignableResources(in ContentHubResourceQuery)
 	switch kind {
 	case models.ContentDiseaseGuideline:
 		table, title, description, status, contextColumn = "guideline_documents", "title", "description", "CASE WHEN current_version_id IS NULL THEN 'draft' ELSE 'published' END", "COALESCE(source_org, '')"
-	case models.ContentDiseaseOutbreakDocument, models.ContentDiseaseForm:
-		table, title, description, status, contextColumn = "outbreak_resources", "title", "description", "status", "COALESCE(document_kind, '')"
-		predicate += " AND resource_type IN ('managed_document','downloadable_asset')"
-		if kind == models.ContentDiseaseForm {
-			predicate += " AND lower(document_kind) = 'form'"
-		}
 	case models.ContentDiseaseSituationReport:
 		table, title, description, status, contextColumn = "situation_reports", "title", "summary", "status", "COALESCE(geographic_area, '')"
 	case models.ContentDiseaseAlgorithm:
@@ -287,7 +228,7 @@ func (s ContentHubService) SearchAssignableResources(in ContentHubResourceQuery)
 	case models.ContentDiseaseDrugReference:
 		table, title, description, status, contextColumn = "drugs", "name", "COALESCE(description, '')", "status", "COALESCE(brand_names, '')"
 	}
-	if strings.TrimSpace(in.OutbreakID) != "" && (kind == models.ContentDiseaseOutbreakDocument || kind == models.ContentDiseaseForm || kind == models.ContentDiseaseSituationReport) {
+	if strings.TrimSpace(in.OutbreakID) != "" && kind == models.ContentDiseaseSituationReport {
 		id, err := uuid.Parse(in.OutbreakID)
 		if err != nil {
 			return nil, ErrContentHubInvalid
