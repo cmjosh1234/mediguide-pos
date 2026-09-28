@@ -18,16 +18,26 @@ const PublicGuidelineReaderPage = lazy(() =>
 );
 
 const discovery = () => import("./features/discovery/DiscoveryPages");
-const DiseaseDirectoryPage = lazy(() => discovery().then((module) => ({ default: module.DiseaseDirectoryPage })));
-const DiseaseDetailPage = lazy(() => discovery().then((module) => ({ default: module.DiseaseDetailPage })));
-const HubPage = lazy(() => discovery().then((module) => ({ default: module.HubPage })));
-const PillarPage = lazy(() => discovery().then((module) => ({ default: module.PillarPage })));
+const DiseaseDirectoryPage = lazy(() =>
+  discovery().then((module) => ({ default: module.DiseaseDirectoryPage })),
+);
+const DiseaseDetailPage = lazy(() =>
+  discovery().then((module) => ({ default: module.DiseaseDetailPage })),
+);
+const HubPage = lazy(() =>
+  discovery().then((module) => ({ default: module.HubPage })),
+);
+const PillarPage = lazy(() =>
+  discovery().then((module) => ({ default: module.PillarPage })),
+);
 const OutbreakDocumentPage = lazy(() =>
   import("./features/discovery/OutbreakDocumentPage").then((module) => ({
     default: module.OutbreakDocumentPage,
   })),
 );
-const SearchPage = lazy(() => discovery().then((module) => ({ default: module.SearchPage })));
+const SearchPage = lazy(() =>
+  discovery().then((module) => ({ default: module.SearchPage })),
+);
 
 export default function App() {
   return (
@@ -35,12 +45,18 @@ export default function App() {
       <Routes>
         <Route element={<PublicLayout />}>
           <Route index element={<LandingPage />} />
-		  <Route path="diseases" element={<DiseaseDirectoryPage />} />
-		  <Route path="diseases/:slug" element={<DiseaseDetailPage />} />
-		  <Route path="hubs/:slug" element={<HubPage />} />
-		  <Route path="hubs/:slug/pillars/:pillarSlug" element={<PillarPage />} />
-		  <Route path="search" element={<SearchPage />} />
-		  <Route path="outbreaks/:outbreakId/documents/:documentId" element={<OutbreakDocumentPage />} />
+          <Route path="diseases" element={<DiseaseDirectoryPage />} />
+          <Route path="diseases/:slug" element={<DiseaseDetailPage />} />
+          <Route path="hubs/:slug" element={<HubPage />} />
+          <Route
+            path="hubs/:slug/pillars/:pillarSlug"
+            element={<PillarPage />}
+          />
+          <Route path="search" element={<SearchPage />} />
+          <Route
+            path="outbreaks/:outbreakId/documents/:documentId"
+            element={<OutbreakDocumentPage />}
+          />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
         <Route

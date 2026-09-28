@@ -28,8 +28,9 @@ class PublicationBlockView extends StatelessWidget {
       header: true,
       child: Padding(
         padding: const EdgeInsets.only(top: AppSpacing.sm),
-        child: Text(
-          text,
+        child: AppMarkdownBody(
+          data: text,
+          compact: true,
           style: level <= 2
               ? Theme.of(context).textTheme.titleLarge
               : Theme.of(context).textTheme.titleMedium,
@@ -292,10 +293,11 @@ class _CalloutBlock extends StatelessWidget {
                   ),
                   AppSpacing.gapSm,
                   Expanded(
-                    child: Text(
-                      payload.title.isEmpty
+                    child: AppMarkdownBody(
+                      data: payload.title.isEmpty
                           ? blockType.replaceAll('_', ' ')
                           : payload.title,
+                      compact: true,
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                   ),
@@ -327,8 +329,9 @@ class _AlgorithmBlock extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            payload.title.isEmpty ? 'Clinical algorithm' : payload.title,
+          AppMarkdownBody(
+            data: payload.title.isEmpty ? 'Clinical algorithm' : payload.title,
+            compact: true,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           AppSpacing.gapSm,

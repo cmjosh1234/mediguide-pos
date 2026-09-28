@@ -10,6 +10,10 @@ type SecureMarkdownProps = {
   headingIds?: readonly string[];
 };
 
+type SecureInlineMarkdownProps = {
+  content: string;
+};
+
 function isExternalUrl(value: string | undefined) {
   return /^https?:\/\//i.test(value ?? "");
 }
@@ -21,6 +25,17 @@ function safeImageSource(value: string | undefined) {
 }
 
 const remarkPlugins = [remarkGfm];
+const inlineAllowedElements = ["a", "br", "code", "del", "em", "strong"];
+
+function escapeRawHtml(value: string) {
+  return value.replace(/<\/?[A-Za-z][^>\n]*>/g, (tag) =>
+    tag.replace(/^</, "&lt;").replace(/>$/, "&gt;"),
+  );
+}
+
+function normalizeMarkdown(value: string) {
+  return escapeRawHtml(value).replace(/;\s*[•·]\s*/g, "  \n• ");
+}
 
 // Memoized so unrelated parent re-renders (e.g. typing in the reader search box)
 // don't re-parse and re-render the whole document.
@@ -68,7 +83,37 @@ export const SecureMarkdown = memo(function SecureMarkdown({ content, resolveIma
       rehypePlugins={rehypePlugins}
       components={components}
     >
-      {content}
+      {normalizeMarkdown(content)}
+    </ReactMarkdown>
+  );
+});
+
+// Structured publication fields (table cells, list items, captions, and
+// titles) contain inline Markdown but must not be allowed to introduce block
+// layout such as headings or nested tables. Keeping this renderer beside the
+// full document renderer gives both paths the same GFM and link-safety rules.
+export const SecureInlineMarkdown = memo(function SecureInlineMarkdown({
+  content,
+}: SecureInlineMarkdownProps) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={remarkPlugins}
+      allowedElements={inlineAllowedElements}
+      unwrapDisallowed
+      components={{
+        a: ({ href, children, ...properties }) => (
+          <a
+            href={href}
+            {...properties}
+            target={isExternalUrl(href) ? "_blank" : undefined}
+            rel={isExternalUrl(href) ? "noopener noreferrer" : undefined}
+          >
+            {children}
+          </a>
+        ),
+      }}
+    >
+      {normalizeMarkdown(content)}
     </ReactMarkdown>
   );
 });

@@ -2,6 +2,7 @@ import type {
   PublicGuidelineBlock,
   PublicGuidelineFigure,
 } from "../../../api/public-guidelines";
+import { SecureInlineMarkdown, SecureMarkdown } from "./SecureMarkdown";
 
 type GuidelineBlockRendererProps = {
   block: PublicGuidelineBlock;
@@ -31,17 +32,18 @@ export function GuidelineBlockRenderer({
     case "heading": {
       const text = textValue(content.text);
       const level = numberValue(content.level, 2);
-      rendered = level <= 2 ? <h2>{text}</h2> : level === 3 ? <h3>{text}</h3> : <h4>{text}</h4>;
+      const title = <SecureInlineMarkdown content={text} />;
+      rendered = level <= 2 ? <h2>{title}</h2> : level === 3 ? <h3>{title}</h3> : <h4>{title}</h4>;
       break;
     }
     case "paragraph":
-      rendered = <p>{textValue(content.text)}</p>;
+      rendered = <div className="structured-markdown markdown-content"><SecureMarkdown content={textValue(content.text)} /></div>;
       break;
     case "ordered_list":
-      rendered = <ol>{stringList(content.items).map((item, index) => <li key={`${block.id}-${index}`}>{item}</li>)}</ol>;
+      rendered = <ol>{stringList(content.items).map((item, index) => <li key={`${block.id}-${index}`}><SecureInlineMarkdown content={item} /></li>)}</ol>;
       break;
     case "unordered_list":
-      rendered = <ul>{stringList(content.items).map((item, index) => <li key={`${block.id}-${index}`}>{item}</li>)}</ul>;
+      rendered = <ul>{stringList(content.items).map((item, index) => <li key={`${block.id}-${index}`}><SecureInlineMarkdown content={item} /></li>)}</ul>;
       break;
     case "table":
       rendered = <StructuredTable content={content} />;
@@ -69,7 +71,7 @@ export function GuidelineBlockRenderer({
     case "reference": {
       const url = safeAssetUrl(textValue(content.url));
       rendered = <p className="reference-block">
-        {textValue(content.citation || content.text || content.content)}
+        <SecureInlineMarkdown content={textValue(content.citation || content.text || content.content)} />
         {url && <> <a href={url} target="_blank" rel="noopener noreferrer">Open source</a></>}
       </p>;
       break;
@@ -99,14 +101,14 @@ export function StructuredTable({ content }: { content: Record<string, unknown> 
   const footnotes = stringList(content.footnotes);
   return (
     <figure className="structured-table">
-      {textValue(content.title) && <figcaption>{textValue(content.title)}</figcaption>}
-      <div className="table-scroll" tabIndex={0} role="region" aria-label={textValue(content.title) || "Clinical table"}>
+      {textValue(content.title) && <figcaption><SecureInlineMarkdown content={textValue(content.title)} /></figcaption>}
+      <div className="table-scroll" tabIndex={0} role="region" aria-label={plainMarkdownText(textValue(content.title)) || "Clinical table"}>
         <table>
-          {columns.length > 0 && <thead><tr>{columns.map((column, index) => <th scope="col" key={`${column}-${index}`}>{column}</th>)}</tr></thead>}
-          <tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}>{columns.map((column, cellIndex) => <td data-label={column} key={cellIndex}>{row[cellIndex] ?? ""}</td>)}</tr>)}</tbody>
+          {columns.length > 0 && <thead><tr>{columns.map((column, index) => <th scope="col" key={`${column}-${index}`}><SecureInlineMarkdown content={column} /></th>)}</tr></thead>}
+          <tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}>{columns.map((column, cellIndex) => <td data-label={plainMarkdownText(column)} key={cellIndex}><SecureInlineMarkdown content={row[cellIndex] ?? ""} /></td>)}</tr>)}</tbody>
         </table>
       </div>
-      {footnotes.length > 0 && <ol className="table-footnotes">{footnotes.map((note, index) => <li key={index}>{note}</li>)}</ol>}
+      {footnotes.length > 0 && <ol className="table-footnotes">{footnotes.map((note, index) => <li key={index}><SecureInlineMarkdown content={note} /></li>)}</ol>}
     </figure>
   );
 }
@@ -118,7 +120,7 @@ function StructuredFigure({ content, figure }: { content: Record<string, unknown
   return (
     <figure className="structured-figure">
       {url ? <img src={url} alt={alt} loading="lazy" /> : <div className="asset-placeholder" role="img" aria-label={alt}>Reviewed figure unavailable</div>}
-      {caption && <figcaption>{caption}</figcaption>}
+      {caption && <figcaption><SecureInlineMarkdown content={caption} /></figcaption>}
     </figure>
   );
 }
@@ -126,9 +128,9 @@ function StructuredFigure({ content, figure }: { content: Record<string, unknown
 function ClinicalCallout({ kind, content }: { kind: string; content: Record<string, unknown> }) {
   const title = textValue(content.title) || kind.replace("_", " ");
   return (
-    <aside className={`clinical-callout callout-${safeToken(kind)}`} aria-label={title}>
-      <strong>{title}</strong>
-      <p>{textValue(content.content || content.text)}</p>
+    <aside className={`clinical-callout callout-${safeToken(kind)}`} aria-label={plainMarkdownText(title)}>
+      <strong><SecureInlineMarkdown content={title} /></strong>
+      <div className="clinical-callout-content markdown-content"><SecureMarkdown content={textValue(content.content || content.text)} /></div>
       {textValue(content.severity) && <small>Priority: {textValue(content.severity)}</small>}
       {textValue(content.evidence_grade) && <small>Evidence grade: {textValue(content.evidence_grade)}</small>}
       {textValue(content.source) && <small>Source: {textValue(content.source)}</small>}
@@ -144,10 +146,10 @@ export function StructuredAlgorithm({ content }: { content: Record<string, unkno
     : [];
   return (
     <figure className="structured-algorithm">
-      {textValue(content.title) && <figcaption>{textValue(content.title)}</figcaption>}
+      {textValue(content.title) && <figcaption><SecureInlineMarkdown content={textValue(content.title)} /></figcaption>}
       <ol>{nodes.map((node) => (
         <li key={node.id}>
-          <span>{node.kind || "step"}</span><strong>{node.label}</strong>
+          <span>{node.kind || "step"}</span><strong><SecureInlineMarkdown content={node.label} /></strong>
           {node.next.length > 0 && <small>Next: {node.next.join(", ")}</small>}
         </li>
       ))}</ol>
@@ -165,3 +167,11 @@ function stringRows(value: unknown) { return Array.isArray(value) ? value.map(st
 function safeToken(value: string) { return value.replace(/[^a-z0-9_-]/gi, "-"); }
 function safeAssetUrl(value: string | undefined) { return value && /^https?:\/\//i.test(value) ? value : undefined; }
 function pageRange(start: number, end?: number) { return end && end !== start ? `${start}–${end}` : String(start); }
+function plainMarkdownText(value: string) {
+  return value
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/(\*\*|__)(.*?)\1/g, "$2")
+    .replace(/([*_~`])([^\n]*?)\1/g, "$2")
+    .trim();
+}
