@@ -176,6 +176,10 @@ jobs:
       - name: Run tests
         run: flutter test
 
+      - name: Check Google Play submission prerequisites
+        if: inputs.destination == 'all' || inputs.destination == 'google-play'
+        run: python3 tool/check_play_store.py --submission
+
   google-play:
     name: Upload draft to Google Play production
     if: inputs.destination == 'all' || inputs.destination == 'google-play'

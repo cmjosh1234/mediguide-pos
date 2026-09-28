@@ -1,0 +1,4 @@
+Browse and search clinical guidelines.
+Read structured guideline sections and supported offline content.
+Use bookmarks, notes and clinical reference tools.
+Explore guidance with AI-assisted navigation and source citations.

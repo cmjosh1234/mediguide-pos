@@ -61,6 +61,8 @@ infra/backups/
 artifacts/clinical-tools-retirement-rehearsal/
 user_app/.env
 user_app/firebase-dart-defines.json
+user_app/google-play-service-account.json
+!user_app/play-store/*.md
 user_app/fastlane/report.xml
 user_app/fastlane/README.md
 user_app/fastlane/test_output/

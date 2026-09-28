@@ -1,0 +1,24 @@
+{
+  "package": "com.mediguide.ug",
+  "status": "PREPARATION_ONLY_NOT_SUBMISSION_APPROVAL",
+  "missing": [
+    "signed verified AAB",
+    "feature graphic",
+    "actual screenshots",
+    "published legal URLs",
+    "completed console declarations",
+    "functional account deletion",
+    "device acceptance evidence"
+  ],
+  "sha256": {
+    "README.md": "d083a64af1dcc8003eb1abd6df91fc49bbe6b6f30c490e87537d63a30b30505b",
+    "acceptance.csv": "c15ed9ffec71a3caba9bcdae42645949b186ae6b1927575822c174c22325426a",
+    "assets-and-review.md": "bd84e5b11dc9b38255ce2382f02e215def3f0359c446cdca76c5ddb104398b46",
+    "data-safety-worksheet.md": "69dd8b079f661c951d913a9cf8b59d90a040132792e05305aaf65acbc818079b",
+    "icon.png": "1fe431d1bddc486537d1d01723ec23a85233ed05af4a5c3ede8815637c07411e",
+    "metadata/en-US/changelogs/default.txt": "06cfda2f06eda03cf450b4e355856b70aef7ed57263397652370e4199ccbb09d",
+    "metadata/en-US/full_description.txt": "3221b0a883dff1b8248c3edcdd069216f2b2535bc069f1a360f272541e2999c8",
+    "metadata/en-US/short_description.txt": "f764b9033b802765e3217d28a9b86d991bc7161cc7fe3299f666fcc167da0741",
+    "metadata/en-US/title.txt": "64d4e6d5e626c8c89b00dea633395f68d01bce14a1e44871fd71315746ab2163"
+  }
+}

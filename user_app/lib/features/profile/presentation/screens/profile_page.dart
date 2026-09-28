@@ -18,6 +18,7 @@ import 'package:user_app/features/authentication/presentation/controllers/auth_s
 import 'package:user_app/features/authentication/presentation/controllers/biometric_controller.dart';
 
 import 'package:user_app/features/profile/presentation/screens/change_password_bottom_sheet.dart';
+import 'package:user_app/features/profile/presentation/screens/account_deletion_dialog.dart';
 
 import 'package:user_app/features/settings/presentation/controllers/app_update_controller.dart';
 import 'package:user_app/features/settings/presentation/controllers/language_controller.dart';
@@ -341,7 +342,7 @@ class ProfilePage extends ConsumerWidget {
               _SettingsTile(
                 icon: LucideIcons.trash2,
                 title: AppTranslationKey.deleteAccount.tr,
-                subtitle: AppTranslationKey.permanentlyDeleteAccount.tr,
+                subtitle: 'Request removal of your account and associated data',
                 iconColor: colors.error,
                 titleColor: colors.error,
                 showChevron: false,
@@ -455,25 +456,7 @@ class ProfilePage extends ConsumerWidget {
 
   Future<void> _deleteAccount(WidgetRef ref) async {
     await AppNavigator.dialog<void>(
-      child: AlertDialog(
-        icon: Icon(
-          LucideIcons.triangleAlert,
-          color: AppNavigator.theme.colorScheme.error,
-        ),
-        title: Text(AppTranslationKey.deleteAccount.tr),
-        content: const Text(
-          'Account deletion is not available in this version. '
-          'Please contact support for assistance with account removal.',
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              AppNavigator.pop();
-            },
-            child: const Text('Close'),
-          ),
-        ],
-      ),
+      child: const AccountDeletionDialog(),
     );
   }
 

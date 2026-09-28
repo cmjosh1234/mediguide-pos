@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:user_app/core/constants/app_spacing.dart';
 import 'package:user_app/core/utils/app_extensions.dart';
@@ -83,6 +84,28 @@ class TermsAndConditionsPage extends StatelessWidget {
                 // DOCUMENT INTRO
                 // ===========================================================
                 _LegalDocumentHeader(lastUpdated: _lastUpdated),
+                TextButton(
+                  onPressed: () async {
+                    try {
+                      final opened = await launchUrl(
+                        Uri.parse('https://mediguide.health.go.ug/privacy'),
+                        mode: LaunchMode.externalApplication,
+                      );
+                      if (!opened && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Unable to open the privacy page.')),
+                        );
+                      }
+                    } catch (_) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Unable to open the privacy page.')),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Public privacy information'),
+                ),
 
                 AppSpacing.gapXl,
 

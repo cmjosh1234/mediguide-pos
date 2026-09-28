@@ -188,6 +188,10 @@ func New(cfg config.Config) (*App, error) {
 			),
 		)
 		protected.POST("/auth/logout", wired.authH.Logout)
+		protected.POST("/me/deletion-request", rateLimiter.Limit(middleware.Policy("account-deletion-user", 3, time.Hour, 0), middleware.UserIdentity), wired.authH.RequestAccountDeletion)
+		v2.POST("/auth/deletion-request", privateNoStore,
+			rateLimiter.Limit(middleware.Policy("account-deletion-ip", 5, 15*time.Minute, 0), middleware.IPIdentity),
+			rateLimiter.Limit(middleware.Policy("account-deletion-account", 3, time.Hour, 0), middleware.IPAndJSONFieldIdentity("email")), wired.authH.RequestPublicAccountDeletion)
 		protected.GET("/me", wired.authH.Me)
 		protected.POST("/me/password", rateLimiter.Limit(middleware.Policy("password-change", 5, time.Hour, 0), middleware.UserIdentity), wired.authH.ChangePassword)
 

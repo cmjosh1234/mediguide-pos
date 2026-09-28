@@ -1,0 +1,15 @@
+Area,Scenario,Expected result,Status,Evidence
+Install,Install production bundle through Play internal testing,Correct package and production backend; no debug overlay,NOT_RUN,
+Upgrade,Upgrade existing release without clearing data,Session and saved content survive supported migration,NOT_RUN,
+Guest,Search and read public guideline,Results and sections load correctly,NOT_RUN,
+Account,Register login refresh logout,Correct identity and session lifecycle,NOT_RUN,
+Deletion,Initiate and complete account deletion in app and web,Account and associated data removed per policy; tokens invalidated,BLOCKED,Current UI says unavailable
+Offline,Download then enable airplane mode,Downloaded guideline and PDF remain readable,NOT_RUN,
+PDF,Open share and download document,No broad media/storage permission needed,NOT_RUN,
+Notifications,Allow and deny notifications; tap message,Permission choice respected and correct destination opens,NOT_RUN,
+AI,Query source and report problematic output,Citations valid; reporting works; no unsafe unsupported claims,NOT_RUN,
+Privacy,Open public policy and deletion URLs,Publicly accessible and consistent with actual behavior,NOT_RUN,
+Android16,Install and exercise reader keyboard back and layout,No compatibility crash or unusable layout,NOT_RUN,
+Native16KB,Run on 16 KB page-size emulator/device,Flutter PDF SQLite and native plugins work,NOT_RUN,
+Accessibility,Large text and screen reader,Navigation and content remain usable,NOT_RUN,
+Release,Inspect AAB and Play pre-launch report,Correct signature SDK ABI permissions and no blocking diagnostics,NOT_RUN,
