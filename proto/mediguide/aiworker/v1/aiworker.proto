@@ -10,6 +10,8 @@ message ChatMessage {
 }
 
 message AskRAGRequest {
+  // Transport metadata such as correlation IDs and internal authentication is
+  // carried in gRPC metadata, not duplicated in the application payload.
   string question = 1;
   string language = 2;
   string country = 3;
@@ -70,6 +72,12 @@ message RunIngestionJobResponse {
 }
 
 service AIWorkerService {
+  // Stateless internal RAG request. Safe for a bounded retry on transient
+  // UNAVAILABLE / RESOURCE_EXHAUSTED responses.
   rpc AskRAG(AskRAGRequest) returns (AskRAGResponse);
+
+  // Legacy compatibility only. Durable ingestion is owned by PostgreSQL
+  // ingestion_jobs and ai-worker-loop; the server returns FAILED_PRECONDITION.
+  // Remove this method in the next incompatible API version.
   rpc RunIngestionJob(RunIngestionJobRequest) returns (RunIngestionJobResponse);
 }

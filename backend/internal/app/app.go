@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"mediguide/internal/aiworkergrpc"
 	"mediguide/internal/buildinfo"
 	cachepkg "mediguide/internal/cache"
 	"mediguide/internal/config"
@@ -33,6 +34,7 @@ type App struct {
 	DB          *gorm.DB
 	Redis       *redis.Client
 	Cache       *cachepkg.Store
+	AIWorker    *aiworkergrpc.Client
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -67,7 +69,7 @@ func New(cfg config.Config) (*App, error) {
 	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
 		return nil, err
 	}
-	r.Use(gin.Recovery(), middleware.RequestLogger(), observability.OutbreakHTTP())
+	r.Use(gin.Recovery(), middleware.RequestID(), middleware.RequestLogger(), observability.OutbreakHTTP())
 
 	// Build CORS allow-list from config (comma-separated).
 	allowedOrigins := []string{}
@@ -78,8 +80,8 @@ func New(cfg config.Config) (*App, error) {
 	}
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:  allowedOrigins,
-		AllowHeaders:  []string{"Accept", "Authorization", "Content-Type", "If-Match", "If-None-Match"},
-		ExposeHeaders: []string{"ETag", "Last-Modified", "Retry-After", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset"},
+			AllowHeaders:  []string{"Accept", "Authorization", "Content-Type", "If-Match", "If-None-Match", middleware.RequestIDHeader},
+			ExposeHeaders: []string{"ETag", "Last-Modified", "Retry-After", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", middleware.RequestIDHeader},
 		AllowMethods:  []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 	}))
 
@@ -235,12 +237,27 @@ func New(cfg config.Config) (*App, error) {
 			}
 		}()
 	}
-	return &App{Router: r, DB: database, Redis: redisClient, Cache: cacheStore, stopUploads: stopUploads}, nil
+	provider := strings.ToLower(strings.TrimSpace(cfg.AIRAGProvider))
+	if wired.aiWorkerClient != nil && (provider == "worker" || provider == "ai-worker") {
+		healthTimeout := cfg.AIWorkerHealthTimeoutSecs
+		if healthTimeout <= 0 {
+			healthTimeout = 2
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(healthTimeout)*time.Second)
+		if err := wired.aiWorkerClient.Health(ctx); err != nil {
+			log.Warn().Err(err).Msg("AI worker gRPC health check failed during startup; RAG will fall back to approved local search")
+		}
+		cancel()
+	}
+	return &App{Router: r, DB: database, Redis: redisClient, Cache: cacheStore, AIWorker: wired.aiWorkerClient, stopUploads: stopUploads}, nil
 }
 
 func (a *App) Close() error {
 	if a != nil && a.stopUploads != nil {
 		a.stopUploads()
+	}
+	if a != nil && a.AIWorker != nil {
+		_ = a.AIWorker.Close()
 	}
 	if a == nil || a.Redis == nil {
 		return nil

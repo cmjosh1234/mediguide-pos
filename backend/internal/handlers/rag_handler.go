@@ -34,7 +34,7 @@ func (h RAGHandler) AskPublic(c *gin.Context) {
 		httpx.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	res, err := h.Service.AskPublic(req)
+	res, err := h.Service.AskPublicContext(c.Request.Context(), req)
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrInvalidPublicRAGQuestion), errors.Is(err, services.ErrInvalidRAGSession):
@@ -115,7 +115,7 @@ func (h RAGHandler) Ask(c *gin.Context) {
 		id := v.(*security.Claims).UserID
 		uid = &id
 	}
-	res, err := h.Service.Ask(uid, req)
+	res, err := h.Service.AskContext(c.Request.Context(), uid, req)
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidRAGQuestion) || errors.Is(err, services.ErrInvalidRAGSession) {
 			httpx.Error(c, http.StatusBadRequest, err.Error())

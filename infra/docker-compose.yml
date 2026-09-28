@@ -42,7 +42,11 @@ services:
       - "${REDIS_MAXMEMORY_POLICY:-noeviction}"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        - CMD-SHELL
+        - >-
+          redis-cli ping | grep -q '^PONG' &&
+          redis-cli INFO persistence | grep -q '^rdb_last_bgsave_status:ok'
       interval: 5s
       timeout: 5s
       retries: 10
@@ -101,9 +105,11 @@ services:
       S3_PUBLIC_ENDPOINT: "${S3_PUBLIC_ENDPOINT:-}"
       S3_PUBLIC_SSL: "${S3_PUBLIC_SSL:-true}"
       AI_RAG_PROVIDER: worker
-      AI_WORKER_URL: http://ai-worker:8090
       AI_WORKER_GRPC_ADDR: ai-worker:50051
       AI_WORKER_TIMEOUT_SECONDS: ${AI_WORKER_TIMEOUT_SECONDS:-120}
+      AI_WORKER_GRPC_RETRIES: ${AI_WORKER_GRPC_RETRIES:-1}
+      AI_WORKER_GRPC_HEALTH_TIMEOUT_SECONDS: ${AI_WORKER_GRPC_HEALTH_TIMEOUT_SECONDS:-2}
+      AI_WORKER_SECRET: "${AI_WORKER_SECRET:-}"
       DEFAULT_ADMIN_NAME: "${DEFAULT_ADMIN_NAME:-MediGuide Administrator}"
       DEFAULT_ADMIN_EMAIL: "${DEFAULT_ADMIN_EMAIL:-admin@mediguide.local}"
       DEFAULT_ADMIN_PASSWORD: "${DEFAULT_ADMIN_PASSWORD:-Admin123!}"
@@ -199,6 +205,7 @@ services:
       BUILD_REVISION: "${BUILD_REVISION:-unknown}"
       HTTP_PORT: 8090
       WORKER_GRPC_PORT: 50051
+      WORKER_API_SECRET: "${AI_WORKER_SECRET:-}"
       DATABASE_URL: "${AI_DATABASE_URL:-postgresql://mediguide:mediguide@postgres:5432/mediguide}"
       REDIS_URL: redis://redis:6379
       S3_ENDPOINT: minio:9000

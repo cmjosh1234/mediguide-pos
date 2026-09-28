@@ -80,7 +80,6 @@ class MakeSmokeTest(unittest.TestCase):
         self.assertIn(f"Version={version}", output)
         extension = ".exe" if os.name == "nt" else ""
         self.assertIn(f"bin/api{extension} ./cmd/api", output)
-        self.assertIn(f"bin/worker{extension} ./cmd/worker", output)
 
     def test_missing_production_env_stops_before_docker(self):
         with tempfile.TemporaryDirectory() as directory:

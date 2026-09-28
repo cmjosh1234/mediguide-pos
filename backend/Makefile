@@ -17,12 +17,8 @@ API_LDFLAGS := -X mediguide/internal/buildinfo.Version=$(BUILD_VERSION) -X medig
 run:
 	go run -ldflags "$(API_LDFLAGS)" ./cmd/api
 
-worker:
-	go run ./cmd/worker
-
 build:
 	go build -ldflags "$(API_LDFLAGS)" -o bin/api$(EXEEXT) ./cmd/api
-	go build -o bin/worker$(EXEEXT) ./cmd/worker
 
 test:
 	go test ./...
