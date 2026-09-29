@@ -192,10 +192,11 @@ disabled while the rest of MediGuide remains usable.
 Crashlytics is wired into development, staging and production for Android and
 iOS. The app records uncaught Flutter framework errors, uncaught asynchronous
 platform errors and explicitly reported non-fatal failures. Reports include the
-environment, operating system, app version and build number. An authenticated
-user ID may be attached for diagnosis; email addresses, names, access tokens,
-clinical content and request bodies must not be added to Crashlytics keys or
-logs.
+environment, operating system, app version and build number. MediGuide
+deliberately clears the Crashlytics user identifier, including after sign-in, so
+diagnostics are not directly linked to a MediGuide account. Email addresses,
+names, access tokens, clinical content and request bodies must not be added to
+Crashlytics keys or logs.
 
 For each Firebase project:
 

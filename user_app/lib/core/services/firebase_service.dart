@@ -266,9 +266,11 @@ final class MediGuideFirebaseService {
 
   Future<void> _syncCrashReportingUser() async {
     if (!_crashReportingEnabled) return;
-    final userID = _auth.currentUser.value?.id ?? '';
     try {
-      await FirebaseCrashlytics.instance.setUserIdentifier(userID);
+      // Crash diagnostics must not be linkable to a MediGuide account. The
+      // backend already provides authenticated operational audit trails where
+      // they are required; Crashlytics only needs build and platform context.
+      await FirebaseCrashlytics.instance.setUserIdentifier('');
     } catch (_) {
       // Crash reporting must never interrupt access to clinical content.
     }

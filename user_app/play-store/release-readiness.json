@@ -12,15 +12,15 @@
     },
     "data_safety": {
       "status": "pending",
-      "evidence": "Worksheet exists; production SDK/provider data mapping must be completed."
+      "evidence": "Source-backed production data inventory is documented, including Analytics, Crashlytics without account identifiers, Messaging, synchronized user content and self-hosted RAG; controller approval, retention and final Console answers remain outstanding."
     },
     "signed_aab": {
       "status": "pending",
-      "evidence": "Production build and upload certificate have not been verified."
+      "evidence": "GitHub Actions run 36545886164 produced signed production AAB build 61; jarsigner verification passed with upload certificate SHA-256 9D:36:7C:C3:2A:E9:0D:18:7A:73:F3:78:26:1C:24:29:62:C4:4F:95:EF:03:48:96:B8:5D:B1:27:B6:0E:75:FC. Play Console fingerprint match and bundle diagnostics remain outstanding."
     },
     "device_acceptance": {
       "status": "pending",
-      "evidence": "Internal Play install, Android 16 and 16 KB compatibility testing not run."
+      "evidence": "Production profile com.mediguide.ug 2.1.8+60 launched on Android 16 API 36 arm64 and its APK passed 16 KB zip alignment verification. Internal Play install and the complete reader, offline, notifications, AI, accessibility and account scenarios remain outstanding."
     },
     "store_assets": {
       "status": "pending",
