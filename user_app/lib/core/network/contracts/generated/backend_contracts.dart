@@ -688,6 +688,23 @@ final class HandlersAbbreviationEnvelope {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class HandlersAccountDeletionRequest {
+  HandlersAccountDeletionRequest(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersAccountDeletionRequest.fromJson(Map<String, dynamic> json) =>
+      HandlersAccountDeletionRequest(json);
+
+  static const schemaName = 'handlers.AccountDeletionRequest';
+  final Map<String, dynamic> value;
+
+  bool? get confirm => value['confirm'] as bool?;
+
+  String? get currentPassword => value['current_password']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class HandlersAskEnvelope {
   HandlersAskEnvelope(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -4931,6 +4948,26 @@ final class HandlersProtocolRunEnvelope {
   }
 
   bool? get success => value['success'] as bool?;
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class HandlersPublicAccountDeletionRequest {
+  HandlersPublicAccountDeletionRequest(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersPublicAccountDeletionRequest.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersPublicAccountDeletionRequest(json);
+
+  static const schemaName = 'handlers.PublicAccountDeletionRequest';
+  final Map<String, dynamic> value;
+
+  bool? get confirm => value['confirm'] as bool?;
+
+  String? get currentPassword => value['current_password']?.toString();
+
+  String? get email => value['email']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }
