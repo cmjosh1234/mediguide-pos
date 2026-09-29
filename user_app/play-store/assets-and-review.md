@@ -8,8 +8,13 @@ Prepared screenshots:
 - Six genuine 1080x1920 captures from the production flavor running in profile mode on
   an Android 16 emulator: guest home, empty search, populated search results, guideline
   overview, chapter browser and clinical tools.
+- Five genuine 1080x1920 7-inch-tablet captures and five genuine 1080x1920
+  10-inch-tablet captures: home, populated search, clinical tools, guideline overview
+  and chapter browser. These use actual tablet display-density configurations rather
+  than resized phone captures.
 - The captures contain no patient-identifiable information and are stored in
-  `fastlane/metadata/android/en-US/images/phoneScreenshots`.
+  the Fastlane `phoneScreenshots`, `sevenInchScreenshots` and `tenInchScreenshots`
+  directories.
 
 Still required:
 - Publisher visual approval. Re-capture from the signed production candidate if that build

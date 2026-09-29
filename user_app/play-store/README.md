@@ -11,17 +11,18 @@ Do not assume build 60 is unused; compare against all Play tracks.
 - Fastlane release-signing/HTTPS/flavor checks and a submission preflight.
 - Source/metadata checker and export command: python3 tool/check_play_store.py --export.
 - Existing production icon reused by the export command, a 1024x500 feature graphic,
-  and six genuine 1080x1920 production-profile emulator screenshots under Fastlane
-  metadata. No UI screenshots were fabricated.
+  six phone screenshots, five 7-inch tablet screenshots and five 10-inch tablet
+  screenshots under Fastlane metadata. Every screenshot is a genuine 1080x1920
+  production-profile emulator capture; no UI screenshots were fabricated.
 
 ## Blocking findings
 1. Verified deletion-request intake is now implemented in mobile, backend and the public /delete-account page. It creates a support request; it does not erase data. Assign a fulfilment owner, complete a schema-aware erasure procedure and demonstrate account/data removal before submission. See account-deletion-operations.md.
 2. The portal /privacy page is a draft. Finalize the operator's legal name, verified contact, actual processors, retention periods, deletion exceptions and AI processing, then publish and verify the URL. Existing in-app terms are not proof of a complete policy.
 3. Verify upload-key custody and Play App Signing. No secrets were read, generated, or validated in this review.
 4. Produce a signed production AAB and verify the merged manifest, upload certificate, 64-bit libraries, 16 KB native compatibility, and target SDK.
-5. Have the publisher approve the prepared feature graphic and genuine emulator
-   screenshots. Re-run the same capture set from the signed production candidate
-   before submission if its rendering or content differs.
+5. Have the publisher approve the prepared feature graphic and genuine phone and
+   tablet emulator screenshots. Re-run the same capture set from the signed production
+   candidate before submission if its rendering or content differs.
 6. Run analysis/tests and device acceptance, including Android 16, offline/PDF access, notifications, AI and account deletion.
 7. Finalize Data safety, health-app declaration, content rating, audience, app access and support details.
 

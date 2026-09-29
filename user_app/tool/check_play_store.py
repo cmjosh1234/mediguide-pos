@@ -56,21 +56,37 @@ def main():
     feature_graphic = IMAGES / "featureGraphic.png"
     if png_dimensions(feature_graphic) != (1024, 500):
         errors.append("Play feature graphic must be a 1024x500 PNG")
-    screenshots = sorted((IMAGES / "phoneScreenshots").glob("*.png"))
-    if args.submission:
-        if len(screenshots) < 2:
-            errors.append("At least two real phone screenshots are required for submission")
-    for screenshot in screenshots:
-        dimensions = png_dimensions(screenshot)
-        if dimensions is None:
-            errors.append(f"{screenshot.name}: phone screenshot must be a PNG")
-            continue
-        width, height = dimensions
-        short, long = sorted((width, height))
-        if short < 320 or long > 3840 or long > short * 2:
-            errors.append(
-                f"{screenshot.name}: dimensions {width}x{height} are outside Play phone screenshot limits"
-            )
+    screenshot_groups = (
+        ("phone", "phoneScreenshots", 2, 320, 3840, False),
+        ("7-inch tablet", "sevenInchScreenshots", 4, 1080, 7680, True),
+        ("10-inch tablet", "tenInchScreenshots", 4, 1080, 7680, True),
+    )
+    for label, directory, minimum, minimum_side, maximum_side, exact_large_ratio in screenshot_groups:
+        screenshots = sorted((IMAGES / directory).glob("*.png"))
+        if len(screenshots) < minimum:
+            errors.append(f"At least {minimum} real {label} screenshots are required")
+        if len(screenshots) > 8:
+            errors.append(f"At most 8 {label} screenshots are allowed")
+        for screenshot in screenshots:
+            dimensions = png_dimensions(screenshot)
+            if dimensions is None:
+                errors.append(f"{directory}/{screenshot.name}: screenshot must be a PNG")
+                continue
+            width, height = dimensions
+            short, long = sorted((width, height))
+            if short < minimum_side or long > maximum_side:
+                errors.append(
+                    f"{directory}/{screenshot.name}: dimensions {width}x{height} are outside Play limits"
+                )
+            if exact_large_ratio:
+                if long * 9 != short * 16:
+                    errors.append(
+                        f"{directory}/{screenshot.name}: large-screen screenshots must use 16:9 or 9:16"
+                    )
+            elif long > short * 2:
+                errors.append(
+                    f"{directory}/{screenshot.name}: phone screenshot aspect ratio is outside Play limits"
+                )
     profile = ROOT / "lib/features/profile/presentation/screens/profile_page.dart"
     unavailable = "Account deletion is not available in this version."
     if unavailable in profile.read_text(encoding="utf-8"):
@@ -83,7 +99,7 @@ def main():
         for error in errors:
             print("ERROR:", error, file=sys.stderr)
         return 1
-    print("Store text/icon checks passed. Build, signing, policies and device QA remain separate gates.")
+    print("Store text/image checks passed. Build, signing, policies and device QA remain separate gates.")
     if args.export:
         # Recreate only this dedicated generated-output folder; never copy credentials.
         output = ROOT / "build/play-store"
