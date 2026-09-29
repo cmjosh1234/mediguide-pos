@@ -1,4 +1,5 @@
 require "fileutils"
+require "uri"
 
 opt_out_usage
 default_platform(:android)
@@ -111,6 +112,11 @@ platform :android do
   lane :build_release do
     within_mobile_project do
       require_environment!("MOBILE_API_BASE_URL")
+      UI.user_error!("Release signing requires android/key.properties") unless File.file?("android/key.properties")
+      if mobile_flavor == "production"
+        uri = URI.parse(ENV.fetch("MOBILE_API_BASE_URL"))
+        UI.user_error!("Production API must use HTTPS") unless uri.scheme == "https" && uri.host && uri.userinfo.nil?
+      end
       sh("dart", "run", "build_runner", "build", "--delete-conflicting-outputs")
       sh("flutter", "build", "apk", "--release", "--flavor", mobile_flavor, "--target", flutter_target, *flutter_version_args, *flutter_defines)
       sh(
@@ -144,7 +150,12 @@ platform :android do
   lane :play_store do |options|
     within_mobile_project do
       require_environment!("GOOGLE_PLAY_SERVICE_ACCOUNT_FILE")
-      aab = options[:aab] || ENV["ANDROID_AAB_PATH"] || "build/app/outputs/bundle/#{mobile_flavor}Release/app-#{mobile_flavor}-release.aab"
+      UI.user_error!("Google Play uploads require the production flavor") unless mobile_flavor == "production"
+      UI.user_error!("Unexpected Google Play package") unless ENV.fetch("ANDROID_PACKAGE_NAME", "com.mediguide.ug") == "com.mediguide.ug"
+      sh("python3", "tool/check_play_store.py", "--submission")
+      aab = File.expand_path(
+        options[:aab] || ENV["ANDROID_AAB_PATH"] || "build/app/outputs/bundle/#{mobile_flavor}Release/app-#{mobile_flavor}-release.aab"
+      )
       UI.user_error!("Android App Bundle not found at #{aab}") unless File.file?(aab)
 
       upload_to_play_store(

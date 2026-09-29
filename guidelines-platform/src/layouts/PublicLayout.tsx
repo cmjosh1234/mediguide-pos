@@ -43,6 +43,8 @@ export function PublicLayout() {
           <div>
             <strong>For authorized staff</strong>
             <a href={dashboardLoginUrl}>Open the MediGuide dashboard</a>
+            <p><Link to="/delete-account">Request account deletion</Link></p>
+            <p><Link to="/privacy">Privacy information</Link></p>
           </div>
         </div>
       </footer>

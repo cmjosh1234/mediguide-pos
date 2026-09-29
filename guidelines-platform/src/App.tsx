@@ -18,6 +18,16 @@ const PublicGuidelineReaderPage = lazy(() =>
 );
 
 const discovery = () => import("./features/discovery/DiscoveryPages");
+const PrivacyPage = lazy(() =>
+  import("./features/legal/PrivacyPage").then((module) => ({
+    default: module.PrivacyPage,
+  })),
+);
+const AccountDeletionPage = lazy(() =>
+  import("./features/legal/AccountDeletionPage").then((module) => ({
+    default: module.AccountDeletionPage,
+  })),
+);
 const DiseaseDirectoryPage = lazy(() =>
   discovery().then((module) => ({ default: module.DiseaseDirectoryPage })),
 );
@@ -45,6 +55,8 @@ export default function App() {
       <Routes>
         <Route element={<PublicLayout />}>
           <Route index element={<LandingPage />} />
+          <Route path="delete-account" element={<AccountDeletionPage />} />
+          <Route path="privacy" element={<PrivacyPage />} />
           <Route path="diseases" element={<DiseaseDirectoryPage />} />
           <Route path="diseases/:slug" element={<DiseaseDetailPage />} />
           <Route path="hubs/:slug" element={<HubPage />} />

@@ -197,6 +197,12 @@ export interface HandlersAbbreviationEnvelope {
   success?: boolean;
 }
 
+export interface HandlersAccountDeletionRequest {
+  confirm: boolean;
+  /** @maxLength 1024 */
+  current_password: string;
+}
+
 export interface HandlersAskEnvelope {
   data?: ServicesAskResponse;
   /** @example true */
@@ -1350,6 +1356,14 @@ export interface HandlersProtocolRunEnvelope {
   data?: ServicesRunProtocolResult;
   /** @example true */
   success?: boolean;
+}
+
+export interface HandlersPublicAccountDeletionRequest {
+  confirm: boolean;
+  /** @maxLength 1024 */
+  current_password: string;
+  /** @maxLength 254 */
+  email: string;
 }
 
 export interface HandlersPublicContentHubEnvelope {

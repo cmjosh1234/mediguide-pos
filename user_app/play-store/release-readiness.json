@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "status": "blocked",
+  "checks": {
+    "deletion_fulfilment": {
+      "status": "pending",
+      "evidence": "Request intake implemented; fulfilment owner, retention procedure and end-to-end deletion evidence required."
+    },
+    "privacy_policy": {
+      "status": "pending",
+      "evidence": "Public draft added; verified privacy contact, processors and retention details outstanding."
+    },
+    "data_safety": {
+      "status": "pending",
+      "evidence": "Worksheet exists; production SDK/provider data mapping must be completed."
+    },
+    "signed_aab": {
+      "status": "pending",
+      "evidence": "Production build and upload certificate have not been verified."
+    },
+    "device_acceptance": {
+      "status": "pending",
+      "evidence": "Internal Play install, Android 16 and 16 KB compatibility testing not run."
+    },
+    "store_assets": {
+      "status": "pending",
+      "evidence": "Icon, listing drafts, a 1024x500 feature graphic, six phone screenshots, five 7-inch tablet screenshots and five 10-inch tablet screenshots are available as genuine 1080x1920 production-profile Android emulator captures; publisher approval and signed-candidate visual confirmation remain outstanding."
+    },
+    "console_declarations": {
+      "status": "pending",
+      "evidence": "Health declaration, app access, rating and account requirements not verified."
+    }
+  }
+}

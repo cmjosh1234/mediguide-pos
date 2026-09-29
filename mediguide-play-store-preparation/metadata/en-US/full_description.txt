@@ -1,0 +1,9 @@
+MediGuide helps healthcare professionals find and read clinical guidelines and reference information.
+
+Browse guideline content, search for relevant topics and navigate structured sections. Save supported guidelines for offline reading and reconnect periodically to check for updated content.
+
+Signed-in features include bookmarks, reading progress and notes. Clinical reference tools and AI-assisted navigation help users explore available guidance. Availability depends on published content and service access.
+
+Always check the source guideline, publication date and applicable local clinical procedures. Review AI citations carefully: generated answers can be incomplete or incorrect. Do not enter patient-identifiable information into AI queries or notes.
+
+MediGuide is a reference and information tool. It is not a medical device and does not diagnose, treat, cure or prevent medical conditions. It does not replace professional clinical judgment. Consult a qualified healthcare professional for medical advice, diagnosis or treatment. In an emergency, use the appropriate local emergency services.

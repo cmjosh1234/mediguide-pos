@@ -27,4 +27,11 @@ void main() {
       expect(workflow, contains('max_aab_bytes='));
     },
   );
+
+  test('Google Play upload passes an absolute AAB path to Fastlane', () {
+    final fastfile = File('fastlane/Fastfile').readAsStringSync();
+
+    expect(fastfile, contains('aab = File.expand_path('));
+    expect(fastfile, contains('aab: aab'));
+  });
 }

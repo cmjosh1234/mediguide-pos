@@ -148,6 +148,9 @@ func (s SupportService) CreateGuestTicket(in SupportTicketCreate) (*models.Suppo
 }
 
 func newSupportTicket(in SupportTicketCreate) (*models.SupportTicket, error) {
+	if in.Category != nil && strings.EqualFold(strings.TrimSpace(*in.Category), AccountDeletionCategory) {
+		return nil, ErrSupportInvalid
+	}
 	item := models.SupportTicket{Subject: strings.TrimSpace(in.Subject), Description: strings.TrimSpace(in.Description), Status: "open", Priority: in.Priority, Category: cleanOptional(in.Category)}
 	if item.Priority == "" {
 		item.Priority = "normal"
@@ -185,6 +188,15 @@ func (s SupportService) UpdateTicket(actor, id uuid.UUID, staff bool, in Support
 		return nil, err
 	}
 	updates := map[string]any{}
+	// Verified deletion requests cannot be forged or rewritten through generic support APIs.
+	if in.Category != nil && strings.EqualFold(strings.TrimSpace(*in.Category), AccountDeletionCategory) {
+		return nil, ErrSupportForbidden
+	}
+	if item.Category != nil && *item.Category == AccountDeletionCategory {
+		if !staff || in.Category != nil || in.Subject != nil || in.Description != nil {
+			return nil, ErrSupportForbidden
+		}
+	}
 	if in.Subject != nil {
 		value := strings.TrimSpace(*in.Subject)
 		if value == "" {
@@ -243,6 +255,9 @@ func (s SupportService) DeleteTicket(actor, id uuid.UUID, staff bool) error {
 	item, err := s.GetTicket(actor, id, staff)
 	if err != nil {
 		return err
+	}
+	if item.Category != nil && *item.Category == AccountDeletionCategory {
+		return ErrSupportForbidden
 	}
 	if !staff && item.Status != "open" {
 		return ErrSupportForbidden
