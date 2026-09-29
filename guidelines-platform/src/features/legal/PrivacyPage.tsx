@@ -7,8 +7,8 @@ export function PrivacyPage() {
       <p>MediGuide · Privacy</p>
       <h1>Privacy information</h1>
       <p role="status"><strong>Draft for publisher review.</strong> This notice
-        requires confirmation of retention periods, service providers and the
-        privacy contact before it can be used for the Play Store release.</p>
+        requires confirmation of retention periods, processing terms and
+        deletion exceptions before it can be used for the Play Store release.</p>
       <h2>About MediGuide</h2>
       <p>MediGuide provides clinical guidelines and reference tools for health
         workers. The application identifies Ministry of Health Uganda as its
@@ -21,8 +21,10 @@ export function PrivacyPage() {
         <li>Saved notes, bookmarks, reading progress, preferences and support requests.</li>
         <li>Questions, conversation content and retrieved sources used by AI-assisted features.</li>
         <li>Device registration and notification tokens used to deliver app updates.</li>
-        <li>Usage events, crash reports and technical diagnostics, including
-          identifiers used by Firebase Analytics and Crashlytics.</li>
+        <li>Usage events, crash reports and technical diagnostics. Firebase
+          Analytics uses an app-instance identifier and Firebase Messaging uses
+          an installation and notification token. MediGuide does not attach
+          your MediGuide account identifier to Crashlytics reports.</li>
       </ul>
       <h2>How information is used</h2>
       <p>Information supports account access, saved content, guideline navigation,
@@ -31,10 +33,13 @@ export function PrivacyPage() {
         content and some preferences are stored on your device.</p>
       <h2>Service providers and AI</h2>
       <p>MediGuide integrates Google Firebase services for notifications,
-        analytics and crash reporting. AI questions are processed by the
-        configured MediGuide AI services. Do not enter patient-identifiable
-        or confidential information into questions or notes. AI answers may
-        be incorrect; verify cited clinical guidance.</p>
+        analytics and crash reporting. Advertising identifiers and
+        advertising-personalization signals are disabled in the production
+        Android application. AI questions are processed by the configured
+        MediGuide retrieval service; the inspected production configuration
+        uses self-hosted Ollama models. Do not enter patient-identifiable or
+        confidential information into questions or notes. AI answers may be
+        incorrect; verify cited clinical guidance.</p>
       <h2>Account and data deletion</h2>
       <p>Use <Link to="/delete-account">Request account deletion</Link> or the
         account-deletion option in your mobile profile. Your current password
@@ -50,9 +55,12 @@ export function PrivacyPage() {
         notification permission in your device settings. Downloaded material can
         become outdated; reconnect to check for updates.</p>
       <h2>Contact</h2>
-      <p>Use MediGuide Help &amp; Support for account and privacy questions.
-        A verified public privacy contact and effective date must be added to
-        the final approved notice.</p>
+      <p>MediGuide is published by the Ministry of Health Uganda, Plot 6 Lourdel
+        Road, Nakasero, Kampala. Use MediGuide Help &amp; Support or email
+        {" "}<a href="mailto:info@health.go.ug">info@health.go.ug</a> for account
+        and privacy questions.</p>
+      <p>Draft last updated: 29 September 2026. The publisher must approve the
+        effective date before release.</p>
     </article>
   );
 }

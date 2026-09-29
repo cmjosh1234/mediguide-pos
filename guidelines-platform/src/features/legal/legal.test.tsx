@@ -28,5 +28,7 @@ describe("public legal pages", () => {
 
     expect(html).toContain("Draft for publisher review.");
     expect(html).toContain('href="/delete-account"');
+    expect(html).toContain('href="mailto:info@health.go.ug"');
+    expect(html).toContain("does not attach");
   });
 });
