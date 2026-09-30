@@ -18,9 +18,17 @@ testing.
 - Upload certificate SHA-256: `9D:36:7C:C3:2A:E9:0D:18:7A:73:F3:78:26:1C:24:29:62:C4:4F:95:EF:03:48:96:B8:5D:B1:27:B6:0E:75:FC`
 - Certificate expiry: 29 December 2053
 
-The publisher must compare the upload certificate fingerprint with **Play
-Console → Setup → App integrity → App signing**. The Play app-signing
-certificate is a different certificate and must be recorded separately.
+On 30 September 2026 the configured Google Play service account successfully
+authenticated, accessed `com.mediguide.ug`, read its four visible tracks and
+uploaded this AAB to a temporary uncommitted Play edit. Play accepted bundle
+version code `61`, proving that the upload certificate matches the application.
+The temporary edit was deleted and no release or track change was committed.
+
+The Play app-signing certificate is a different certificate and must still be
+recorded separately. The matching `9D:36:...:75:FC` private upload key currently
+used by GitHub Actions also needs an approved recoverable backup; the separately
+created local keystore has a different certificate and must not replace the
+working GitHub secret.
 
 ## Android runtime and packaging
 
@@ -65,11 +73,9 @@ The following passed on 29 September 2026:
 
 ## Remaining external evidence
 
-- Play Console upload-certificate fingerprint match.
 - Play bundle diagnostics and pre-launch report.
 - Internal-track installation of the exact signed candidate.
 - Completion of all scenarios in `acceptance.csv`.
 - Publisher approval of store assets, privacy notice, Data safety and health
   declarations.
 - Operational account-deletion fulfilment and retention evidence.
-

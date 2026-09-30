@@ -15,8 +15,8 @@
       "evidence": "Source-backed production data inventory is documented, including Analytics, Crashlytics without account identifiers, Messaging, synchronized user content and self-hosted RAG; controller approval, retention and final Console answers remain outstanding."
     },
     "signed_aab": {
-      "status": "pending",
-      "evidence": "GitHub Actions run 36545886164 produced signed production AAB build 61; jarsigner verification passed with upload certificate SHA-256 9D:36:7C:C3:2A:E9:0D:18:7A:73:F3:78:26:1C:24:29:62:C4:4F:95:EF:03:48:96:B8:5D:B1:27:B6:0E:75:FC. Play Console fingerprint match and bundle diagnostics remain outstanding."
+      "status": "passed",
+      "evidence": "GitHub Actions run 36545886164 produced signed production AAB build 61; jarsigner verification passed with upload certificate SHA-256 9D:36:7C:C3:2A:E9:0D:18:7A:73:F3:78:26:1C:24:29:62:C4:4F:95:EF:03:48:96:B8:5D:B1:27:B6:0E:75:FC. On 30 September 2026 Google Play authenticated the configured service account, granted access to com.mediguide.ug and accepted the AAB in a temporary uncommitted edit, which was then deleted."
     },
     "device_acceptance": {
       "status": "pending",
