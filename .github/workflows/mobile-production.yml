@@ -197,7 +197,7 @@ jobs:
       api_base_url: ${{ vars.MOBILE_API_BASE_URL || 'https://mediguide.health.go.ug' }}
       release_notes: ${{ inputs.release_notes }}
       build_number: ${{ needs.metadata.outputs.build_number }}
-      tester_groups: ${{ vars.FIREBASE_TESTER_GROUPS || 'mediguide-production-testers' }}
+      tester_groups: ${{ vars.FIREBASE_TESTER_GROUPS || 'mediguide-testers' }}
       flavor: production
       github_environment: production
       source_ref: ${{ inputs.release_tag }}

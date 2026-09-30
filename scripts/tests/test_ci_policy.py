@@ -151,9 +151,16 @@ class WorkflowPolicyTest(unittest.TestCase):
 
     def test_play_draft_does_not_claim_submission_readiness(self):
         workflow = self.workflow("mobile-production")
+        fastfile = (ROOT / "user_app/fastlane/Fastfile").read_text()
         self.assertIn("Check Google Play draft prerequisites", workflow)
         self.assertIn("run: python3 tool/check_play_store.py", workflow)
         self.assertNotIn("tool/check_play_store.py --submission", workflow)
+        self.assertNotIn('"tool/check_play_store.py", "--submission"', fastfile)
+
+    def test_production_deploy_injects_worker_secret(self):
+        workflow = self.workflow("deploy-production")
+        self.assertIn("AI_WORKER_SECRET: ${{ secrets.AI_WORKER_SECRET }}", workflow)
+        self.assertIn("printf 'AI_WORKER_SECRET=%s", workflow)
 
     def test_no_overlapping_gradle_caches(self):
         for name in ("mobile-release", "mobile-distribution", "mobile-production"):

@@ -152,7 +152,9 @@ platform :android do
       require_environment!("GOOGLE_PLAY_SERVICE_ACCOUNT_FILE")
       UI.user_error!("Google Play uploads require the production flavor") unless mobile_flavor == "production"
       UI.user_error!("Unexpected Google Play package") unless ENV.fetch("ANDROID_PACKAGE_NAME", "com.mediguide.ug") == "com.mediguide.ug"
-      sh("python3", "tool/check_play_store.py", "--submission")
+      # This lane creates a draft only; policy and device evidence are checked
+      # separately before any later rollout or promotion.
+      sh("python3", "tool/check_play_store.py")
       aab = File.expand_path(
         options[:aab] || ENV["ANDROID_AAB_PATH"] || "build/app/outputs/bundle/#{mobile_flavor}Release/app-#{mobile_flavor}-release.aab"
       )

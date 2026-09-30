@@ -73,6 +73,7 @@ jobs:
           DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+          AI_WORKER_SECRET: ${{ secrets.AI_WORKER_SECRET }}
           PUBLIC_SITE_URL: ${{ vars.PUBLIC_SITE_URL }}
           PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
           DASHBOARD_PUBLIC_URL: ${{ vars.DASHBOARD_PUBLIC_URL }}
@@ -80,7 +81,8 @@ jobs:
           set -euo pipefail
           for name in \
             DEPLOY_HOST DEPLOY_PORT DEPLOY_USER DEPLOY_PATH \
-            DEPLOY_SSH_PRIVATE_KEY DEPLOY_KNOWN_HOSTS PRODUCTION_ENV_FILE; do
+            DEPLOY_SSH_PRIVATE_KEY DEPLOY_KNOWN_HOSTS PRODUCTION_ENV_FILE \
+            AI_WORKER_SECRET; do
             if [ -z "${!name:-}" ]; then
               echo "Required GitHub secret ${name} is missing." >&2
               exit 1
@@ -118,6 +120,7 @@ jobs:
       - name: Prepare deployment bundle
         env:
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+          AI_WORKER_SECRET: ${{ secrets.AI_WORKER_SECRET }}
           PUBLIC_SITE_URL: ${{ vars.PUBLIC_SITE_URL }}
           PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
           DASHBOARD_PUBLIC_URL: ${{ vars.DASHBOARD_PUBLIC_URL }}
@@ -125,7 +128,20 @@ jobs:
           set -euo pipefail
           umask 077
           printf '%s\n' "${PRODUCTION_ENV_FILE}" > infra/production.env
+          # Keep internal worker authentication independent from the bundled
+          # environment file so it can be rotated without replacing every
+          # production setting. Remove stale entries before appending the
+          # protected value and canonical transport defaults.
+          awk -F= '
+            $1 != "AI_WORKER_SECRET" &&
+            $1 != "AI_WORKER_GRPC_RETRIES" &&
+            $1 != "AI_WORKER_GRPC_HEALTH_TIMEOUT_SECONDS"
+          ' infra/production.env > "${RUNNER_TEMP}/production.env"
+          mv "${RUNNER_TEMP}/production.env" infra/production.env
           {
+            printf 'AI_WORKER_SECRET=%s\n' "${AI_WORKER_SECRET}"
+            printf 'AI_WORKER_GRPC_RETRIES=1\n'
+            printf 'AI_WORKER_GRPC_HEALTH_TIMEOUT_SECONDS=2\n'
             echo
             echo "# Canonical browser-visible URLs managed by GitHub Actions variables."
             printf 'PUBLIC_SITE_URL=%s\n' "${PUBLIC_SITE_URL%/}"
