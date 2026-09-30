@@ -149,6 +149,12 @@ class WorkflowPolicyTest(unittest.TestCase):
         self.assertIn("      github_environment: production", workflow)
         self.assertIn("      source_ref: ${{ inputs.release_tag }}", workflow)
 
+    def test_play_draft_does_not_claim_submission_readiness(self):
+        workflow = self.workflow("mobile-production")
+        self.assertIn("Check Google Play draft prerequisites", workflow)
+        self.assertIn("run: python3 tool/check_play_store.py", workflow)
+        self.assertNotIn("tool/check_play_store.py --submission", workflow)
+
     def test_no_overlapping_gradle_caches(self):
         for name in ("mobile-release", "mobile-distribution", "mobile-production"):
             self.assertIn("gradle/actions/setup-gradle@v6", self.workflow(name))

@@ -177,9 +177,12 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Check Google Play submission prerequisites
+      - name: Check Google Play draft prerequisites
         if: inputs.destination == 'all' || inputs.destination == 'google-play'
-        run: python3 tool/check_play_store.py --submission
+        # This workflow only creates an uncommitted production-track draft.
+        # Policy evidence remains mandatory before any rollout workflow may
+        # promote that draft to testers or production users.
+        run: python3 tool/check_play_store.py
 
   firebase-android:
     name: Distribute production Android build to Firebase
