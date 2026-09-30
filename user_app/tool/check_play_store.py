@@ -11,10 +11,23 @@ import shutil
 import struct
 import sys
 import zipfile
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 METADATA = ROOT / "fastlane/metadata/android/en-US"
 IMAGES = METADATA / "images"
+ANDROID_NAME = "{http://schemas.android.com/apk/res/android}name"
+TOOLS_NODE = "{http://schemas.android.com/tools}node"
+PLAY_RESTRICTED_PERMISSIONS = {
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+    "android.permission.MANAGE_EXTERNAL_STORAGE",
+    "android.permission.READ_EXTERNAL_STORAGE",
+    "android.permission.READ_MEDIA_IMAGES",
+    "android.permission.READ_MEDIA_VIDEO",
+    "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+    "android.permission.WRITE_EXTERNAL_STORAGE",
+}
 
 
 def png_dimensions(path):
@@ -24,6 +37,25 @@ def png_dimensions(path):
     return struct.unpack(">II", header[16:24])
 
 
+def production_source_permissions():
+    """Return app-declared permissions that survive the production overlay."""
+    main_manifest = ET.parse(ROOT / "android/app/src/main/AndroidManifest.xml").getroot()
+    production_manifest = ET.parse(
+        ROOT / "android/app/src/production/AndroidManifest.xml"
+    ).getroot()
+    declared = {
+        node.attrib.get(ANDROID_NAME)
+        for node in main_manifest.findall("uses-permission")
+        if node.attrib.get(ANDROID_NAME)
+    }
+    removed = {
+        node.attrib.get(ANDROID_NAME)
+        for node in production_manifest.findall("uses-permission")
+        if node.attrib.get(TOOLS_NODE) == "remove" and node.attrib.get(ANDROID_NAME)
+    }
+    return declared - removed
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--submission", action="store_true",
@@ -31,6 +63,13 @@ def main():
     parser.add_argument("--export", action="store_true")
     args = parser.parse_args()
     errors = []
+    restricted_permissions = sorted(
+        production_source_permissions() & PLAY_RESTRICTED_PERMISSIONS
+    )
+    for permission in restricted_permissions:
+        errors.append(
+            f"Production declares {permission} without an approved Play use case"
+        )
     if args.submission:
         required = ("deletion_fulfilment", "privacy_policy", "data_safety",
                     "signed_aab", "device_acceptance", "store_assets",

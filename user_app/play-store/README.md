@@ -1,8 +1,9 @@
 # MediGuide Google Play release pack
 
-Prepared 28 September 2026 from the inspected repository. Status: NOT READY FOR SUBMISSION.
-Package: com.mediguide.ug. Observed mobile version: 2.1.8+60. Flutter: 3.44.8.
-Do not assume build 60 is unused; compare against all Play tracks.
+Prepared 28 September 2026 and updated 30 September 2026 from the inspected repository.
+Status: NOT READY FOR SUBMISSION. Package: com.mediguide.ug. Observed mobile
+version: 2.1.9+62. Flutter: 3.44.8. Do not assume build 62 is reusable; compare
+against all Play tracks and allocate a higher version code for the next upload.
 
 Executed technical evidence is recorded in
 [verification-evidence-2026-09-29.md](verification-evidence-2026-09-29.md).
@@ -107,6 +108,21 @@ Export directory: build/play-store. This exporter does not build or certify an A
 10. Review the draft in Play Console, resolve all review items, and submit. Use managed publishing
     when coordinating launch. For updates, use a staged rollout; monitor crashes, ANRs and feedback
     before expansion. A first production release may not support staged rollout.
+
+### Foreground-service and photo/video declarations
+
+MediGuide does not implement a foreground service and does not require broad access to the
+device photo or video library. Do not submit a declaration claiming otherwise. The production
+manifest removes `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`,
+`READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO` and legacy broad-storage permissions. The Play source
+check fails if the app reintroduces one of these permissions without an approved use case.
+
+If Play still requests a photo/video declaration after uploading a clean bundle, inspect every
+active artifact in Production, Open testing, Closed testing and Internal testing. Supersede or
+deactivate obsolete builds that still request broad media access. Play applies declaration
+requirements while a permission-bearing artifact remains active on any track. A bundle already
+uploaded with an allocated version code cannot be replaced; build and upload a corrected bundle
+with a higher version code.
 
 ## Existing GitHub configuration
 Variables: MOBILE_API_BASE_URL (HTTPS).

@@ -152,6 +152,11 @@ class WorkflowPolicyTest(unittest.TestCase):
     def test_play_draft_does_not_claim_submission_readiness(self):
         workflow = self.workflow("mobile-production")
         fastfile = (ROOT / "user_app/fastlane/Fastfile").read_text()
+        main_manifest = (ROOT / "user_app/android/app/src/main/AndroidManifest.xml").read_text()
+        production_manifest = (
+            ROOT / "user_app/android/app/src/production/AndroidManifest.xml"
+        ).read_text()
+        play_check = (ROOT / "user_app/tool/check_play_store.py").read_text()
         self.assertIn("Check Google Play draft prerequisites", workflow)
         self.assertIn("run: python3 tool/check_play_store.py", workflow)
         self.assertIn("Restore trusted release automation", workflow)
@@ -162,6 +167,17 @@ class WorkflowPolicyTest(unittest.TestCase):
         )
         self.assertNotIn("tool/check_play_store.py --submission", workflow)
         self.assertNotIn('"tool/check_play_store.py", "--submission"', fastfile)
+        self.assertNotIn(
+            '<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />',
+            main_manifest,
+        )
+        self.assertNotIn("android.permission.READ_MEDIA_IMAGES", main_manifest)
+        self.assertNotIn("android.permission.READ_MEDIA_VIDEO", main_manifest)
+        self.assertIn(
+            '<uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />',
+            production_manifest,
+        )
+        self.assertIn("PLAY_RESTRICTED_PERMISSIONS", play_check)
 
     def test_production_deploy_injects_worker_secret(self):
         workflow = self.workflow("deploy-production")
