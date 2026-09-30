@@ -141,6 +141,14 @@ class WorkflowPolicyTest(unittest.TestCase):
         for name in ("deploy-production", "mobile-alpha", "mobile-distribution", "mobile-production"):
             self.assertIn("cancel-in-progress: false", self.workflow(name))
 
+    def test_production_workflow_supports_android_firebase_distribution(self):
+        workflow = self.workflow("mobile-production")
+        self.assertIn("          - firebase-android", workflow)
+        self.assertIn("uses: ./.github/workflows/mobile-distribution.yml", workflow)
+        self.assertIn("      flavor: production", workflow)
+        self.assertIn("      github_environment: production", workflow)
+        self.assertIn("      source_ref: ${{ inputs.release_tag }}", workflow)
+
     def test_no_overlapping_gradle_caches(self):
         for name in ("mobile-release", "mobile-distribution", "mobile-production"):
             self.assertIn("gradle/actions/setup-gradle@v6", self.workflow(name))

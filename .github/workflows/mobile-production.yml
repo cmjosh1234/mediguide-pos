@@ -15,6 +15,7 @@ on:
         options:
           - all
           - google-play
+          - firebase-android
           - app-store
       confirmation:
         description: Enter the release tag again to confirm the store upload
@@ -179,6 +180,25 @@ jobs:
       - name: Check Google Play submission prerequisites
         if: inputs.destination == 'all' || inputs.destination == 'google-play'
         run: python3 tool/check_play_store.py --submission
+
+  firebase-android:
+    name: Distribute production Android build to Firebase
+    if: inputs.destination == 'all' || inputs.destination == 'firebase-android'
+    needs:
+      - metadata
+      - quality
+      - preflight
+    uses: ./.github/workflows/mobile-distribution.yml
+    with:
+      destination: firebase-android
+      api_base_url: ${{ vars.MOBILE_API_BASE_URL || 'https://mediguide.health.go.ug' }}
+      release_notes: ${{ inputs.release_notes }}
+      build_number: ${{ needs.metadata.outputs.build_number }}
+      tester_groups: ${{ vars.FIREBASE_TESTER_GROUPS || 'mediguide-production-testers' }}
+      flavor: production
+      github_environment: production
+      source_ref: ${{ inputs.release_tag }}
+    secrets: inherit
 
   google-play:
     name: Upload draft to Google Play production
