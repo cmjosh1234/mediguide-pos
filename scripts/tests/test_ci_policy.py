@@ -154,6 +154,12 @@ class WorkflowPolicyTest(unittest.TestCase):
         fastfile = (ROOT / "user_app/fastlane/Fastfile").read_text()
         self.assertIn("Check Google Play draft prerequisites", workflow)
         self.assertIn("run: python3 tool/check_play_store.py", workflow)
+        self.assertIn("Restore trusted release automation", workflow)
+        self.assertIn('RELEASE_AUTOMATION_SHA: ${{ github.sha }}', workflow)
+        self.assertIn(
+            'git show "${RELEASE_AUTOMATION_SHA}:user_app/fastlane/Fastfile"',
+            workflow,
+        )
         self.assertNotIn("tool/check_play_store.py --submission", workflow)
         self.assertNotIn('"tool/check_play_store.py", "--submission"', fastfile)
 
