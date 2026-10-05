@@ -54,7 +54,7 @@ final class HomeApi extends BackendApiService {
     Map<String, String>? query,
     bool includeAuth = true,
   }) async {
-    if (path == '/api/v2/calculators') {
+    if (path == '/api/public/calculators') {
       return {
         'data': {
           'items': [

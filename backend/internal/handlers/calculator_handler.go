@@ -130,6 +130,10 @@ func (h CalculatorHandler) PreviewVersion(c *gin.Context) {
 // @Failure 401 {object} handlers.ErrorResponse
 // @Router /api/v2/calculators [get]
 func (h CalculatorHandler) List(c *gin.Context) {
+	h.list(c, c.Query("status"))
+}
+
+func (h CalculatorHandler) list(c *gin.Context, status string) {
 	page, err := parsePageQuery(c, 20, 100)
 	if err != nil {
 		httpx.Error(c, http.StatusBadRequest, "invalid pagination parameters")
@@ -148,7 +152,7 @@ func (h CalculatorHandler) List(c *gin.Context) {
 		Page:     page,
 		Search:   c.Query("search"),
 		Type:     c.Query("type"),
-		Status:   c.Query("status"),
+		Status:   status,
 		Featured: featured,
 		Sort:     c.Query("sort"),
 		Order:    c.Query("order"),

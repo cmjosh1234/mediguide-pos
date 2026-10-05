@@ -32,7 +32,8 @@ final class ToolApi extends BackendApiService {
     Map<String, String>? query,
     bool includeAuth = true,
   }) async {
-    if (path == '/api/v2/calculators/calculator-1') {
+    expect(includeAuth, isFalse);
+    if (path == '/api/public/calculators/calculator-1') {
       return {
         'data': {
           'id': 'calculator-1',
@@ -43,7 +44,7 @@ final class ToolApi extends BackendApiService {
         },
       };
     }
-    if (path == '/api/v2/calculators/calculator-1/definition') {
+    if (path == '/api/public/calculators/calculator-1/definition') {
       return {
         'data': {
           'calculator_id': 'calculator-1',

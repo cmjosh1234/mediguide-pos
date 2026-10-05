@@ -3,6 +3,27 @@ import 'package:user_app/app/router/route_names.dart';
 
 void main() {
   group('AppRoutes', () {
+    test('clinical tools and ministry directory are public at every entry', () {
+      for (final route in [
+        AppRoutes.tools,
+        '${AppRoutes.tools}?initialTab=1',
+        '${AppRoutes.tools}?initialTab=2',
+        '${AppRoutes.tools}?initialTab=3',
+        AppRoutes.allActions,
+        AppRoutes.calculators,
+        AppRoutes.calculator('tool-1'),
+        '${AppRoutes.calculator('tool-1')}?source=search',
+        AppRoutes.ministryDirectory,
+      ]) {
+        expect(AppRoutes.isPublic(route), isTrue, reason: route);
+      }
+      expect(
+        AppRoutes.isPublic(AppRoutes.reviewCalculator('draft-1')),
+        isFalse,
+      );
+      expect(AppRoutes.isPublic(AppRoutes.editProfile), isFalse);
+    });
+
     test('recognizes published guideline deep links as public', () {
       expect(
         AppRoutes.isPublic('/public/guidelines/guideline-1?section=diagnosis'),

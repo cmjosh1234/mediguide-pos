@@ -10,6 +10,7 @@ class FakeCalculatorApi extends BackendApiService {
   String? path;
   Map<String, String>? query;
   bool offline = false;
+  bool? requestedAuth;
 
   @override
   Future<Map<String, dynamic>> requestJson(
@@ -21,6 +22,7 @@ class FakeCalculatorApi extends BackendApiService {
   }) async {
     this.path = path;
     this.query = query;
+    requestedAuth = includeAuth;
     if (offline) throw const SocketException('offline');
     if (path.endsWith('/definition')) {
       return {
@@ -82,7 +84,8 @@ void main() {
           order: 'desc',
         );
 
-    expect(api.path, '/api/v2/calculators');
+    expect(api.path, '/api/public/calculators');
+    expect(api.requestedAuth, isFalse);
     expect(api.query?['search'], 'BMI');
     expect(api.query?['status'], 'active');
     expect(api.query?['featured'], 'true');
@@ -103,6 +106,8 @@ void main() {
         CalculatorLocalRepository(store.cache),
       );
       final online = await repository.definition('calculator-1');
+      expect(api.path, '/api/public/calculators/calculator-1/definition');
+      expect(api.requestedAuth, isFalse);
       expect(online.definitionChecksum, 'server-checksum');
       api.offline = true;
       final offline = await repository.definition('calculator-1');

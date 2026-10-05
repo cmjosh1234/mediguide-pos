@@ -154,6 +154,7 @@ func New(cfg config.Config) (*App, error) {
 		registerPublicHubsRoutes(public, wired.contentHubH, wired.diseaseH)
 		registerPublicAiRoutes(public, rateLimiter, wired.ragH)
 		registerPublicOutbreakRoutes(public, rateLimiter, wired.supportH, wired.outbreakH, wired.contentHubH)
+		registerPublicToolsRoutes(public, wired.calculatorH, wired.contentReferenceH)
 	}
 
 	v2 := r.Group("/api/v2")

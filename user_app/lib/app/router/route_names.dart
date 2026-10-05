@@ -91,6 +91,10 @@ abstract final class AppRoutes {
     home,
     search,
     more,
+    tools,
+    allActions,
+    calculators,
+    ministryDirectory,
     publicGuidelines,
     offlineContent,
     documentReader,
@@ -113,6 +117,7 @@ abstract final class AppRoutes {
     final path = Uri.tryParse(location)?.path ?? location;
     return publicRoutes.contains(path) ||
         path.startsWith('$publicGuidelines/') ||
+        path.startsWith('$calculators/') ||
         path.startsWith('$outbreakHub/') ||
         path.startsWith('$situationReports/') ||
         path.startsWith('$healthFacilities/') ||

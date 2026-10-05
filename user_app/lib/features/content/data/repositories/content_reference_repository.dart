@@ -243,8 +243,9 @@ final class MinistryDirectoryRepository {
     try {
       final data = _data(
         await _api.requestJson(
-          '/api/v2/ministry-directory',
+          '/api/public/ministry-directory',
           method: 'GET',
+          includeAuth: false,
           query: {
             'page': '$safePage',
             'per_page': '$safePerPage',

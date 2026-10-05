@@ -19,7 +19,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY . .
 # Keep Bun for locked dependency installation, but compile with the production
 # Node runtime: Bun's musl TypeScript worker can crash with SIGILL/SIGSEGV.
-RUN node node_modules/next/dist/bin/next build
+RUN node node_modules/next/dist/bin/next build --webpack
 
 FROM node:22.18.0-alpine3.22 AS production
 

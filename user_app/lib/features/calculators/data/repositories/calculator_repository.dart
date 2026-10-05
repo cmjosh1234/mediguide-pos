@@ -30,8 +30,9 @@ final class CalculatorRepository {
 
     try {
       final response = await _api.requestJson(
-        '/api/v2/calculators',
+        '/api/public/calculators',
         method: 'GET',
+        includeAuth: false,
         query: {
           'page': '$safePage',
           'per_page': '$safePerPage',
@@ -88,8 +89,9 @@ final class CalculatorRepository {
   Future<ClinicalToolDefinitionEnvelope> definition(String id) async {
     try {
       final response = await _api.requestJson(
-        '/api/v2/calculators/${Uri.encodeComponent(id)}/definition',
+        '/api/public/calculators/${Uri.encodeComponent(id)}/definition',
         method: 'GET',
+        includeAuth: false,
       );
       final generated = ServicesCalculatorDefinitionDTO.fromJson(
         _itemData(response),
@@ -141,8 +143,9 @@ final class CalculatorRepository {
 
     try {
       final response = await _api.requestJson(
-        '/api/v2/calculators/${Uri.encodeComponent(normalizedId)}',
+        '/api/public/calculators/${Uri.encodeComponent(normalizedId)}',
         method: 'GET',
+        includeAuth: false,
       );
 
       final calculator = Calculator.fromJson(_itemData(response));
