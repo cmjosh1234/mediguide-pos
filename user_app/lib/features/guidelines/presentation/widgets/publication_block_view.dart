@@ -145,7 +145,11 @@ class _TextBlock extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      AppMarkdownBody(data: text, style: Theme.of(context).textTheme.bodyLarge),
+      AppMarkdownBody(
+        data: text,
+        style: Theme.of(context).textTheme.bodyLarge,
+        justify: true,
+      ),
       if (pageStart != null)
         Padding(
           padding: const EdgeInsets.only(top: AppSpacing.xs),
@@ -176,7 +180,11 @@ class _ListBlock extends StatelessWidget {
             children: [
               SizedBox(width: 28, child: Text(ordered ? '${index + 1}.' : '•')),
               Expanded(
-                child: AppMarkdownBody(data: items[index], compact: true),
+                child: AppMarkdownBody(
+                  data: items[index],
+                  compact: true,
+                  justify: true,
+                ),
               ),
             ],
           ),
@@ -304,7 +312,7 @@ class _CalloutBlock extends StatelessWidget {
                 ],
               ),
               AppSpacing.gapSm,
-              AppMarkdownBody(data: payload.content),
+              AppMarkdownBody(data: payload.content, justify: true),
               if (payload.evidenceGrade.isNotEmpty)
                 Text('Evidence: ${payload.evidenceGrade}'),
               if (payload.source.isNotEmpty) Text('Source: ${payload.source}'),

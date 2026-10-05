@@ -4,6 +4,41 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:user_app/shared/widgets/app_markdown_body.dart';
 
 void main() {
+  testWidgets('renders extracted HTML bold tags as bold reader text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: AppMarkdownBody(
+            selectable: false,
+            data:
+                '<b>Important</b> and &lt;B&gt;Encoded&lt;/B&gt;\n\n'
+                '- <strong> Warning </strong>\n\n'
+                '| Note |\n| --- |\n| <b>Table note</b> |\n\n'
+                '<b>Unclosed\n\n<script>unsupported</script>',
+          ),
+        ),
+      ),
+    );
+
+    final spans = tester
+        .widgetList<RichText>(find.byType(RichText))
+        .map((widget) => widget.text)
+        .toList();
+    final rendered = spans.map((span) => span.toPlainText()).join(' ');
+    for (final text in ['Important', 'Encoded', 'Warning', 'Table note']) {
+      expect(rendered, contains(text));
+      expect(spans.any((span) => _containsBoldText(span, text)), isTrue);
+    }
+    expect(rendered, contains('Unclosed'));
+    expect(rendered, isNot(contains('<b>')));
+    expect(rendered, isNot(contains('&lt;B&gt;')));
+    expect(rendered, isNot(contains('<strong>')));
+    expect(rendered, contains('<script>unsupported</script>'));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('renders publication markdown instead of exposing its markers', (
     tester,
   ) async {
@@ -72,4 +107,13 @@ void main() {
     expect(tester.getSize(find.byType(Table)).width, greaterThan(320));
     expect(tester.takeException(), isNull);
   });
+}
+
+bool _containsBoldText(InlineSpan span, String text) {
+  if (span is! TextSpan) return false;
+  if (span.style?.fontWeight == FontWeight.bold &&
+      span.toPlainText().contains(text)) {
+    return true;
+  }
+  return span.children?.any((child) => _containsBoldText(child, text)) ?? false;
 }

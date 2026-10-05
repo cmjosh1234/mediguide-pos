@@ -42,6 +42,11 @@ import 'package:user_app/features/settings/presentation/controllers/language_con
 
 import 'golden_test_support.dart';
 
+// Keep relative-time labels stable as the calendar advances. The golden used
+// to pin this to a July date, which changed from "9w ago" to "10w ago" and
+// caused unrelated home snapshots to fail.
+final _goldenLastReadAt = DateTime.now().subtract(const Duration(days: 63));
+
 final class _GoldenAuthController extends AuthController {
   @override
   Future<AuthState> build() async => const AuthState.authenticated(
@@ -67,7 +72,7 @@ final class _GoldenHomeController extends HomeController {
         currentSection: 'assessment',
         totalSections: 4,
         progressPercentage: .65,
-        lastReadAtValue: DateTime.utc(2026, 7, 26),
+        lastReadAtValue: _goldenLastReadAt,
       ),
     ],
     recentlyUpdatedGuidelines: const [_publication],
@@ -365,7 +370,7 @@ void main() {
             guidelineId: 'golden-guideline',
             progressPercentage: .65,
             isBookmarked: true,
-            lastReadAtValue: DateTime.utc(2026, 7, 26),
+            lastReadAtValue: _goldenLastReadAt,
           ),
         ],
         history: const [],

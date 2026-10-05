@@ -15,12 +15,14 @@ class AppMarkdownBody extends StatelessWidget {
     this.style,
     this.selectable = true,
     this.compact = false,
+    this.justify = false,
   });
 
   final String data;
   final TextStyle? style;
   final bool selectable;
   final bool compact;
+  final bool justify;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +30,16 @@ class AppMarkdownBody extends StatelessWidget {
     final textStyle = style ?? theme.textTheme.bodyMedium;
     final sheet = MarkdownStyleSheet.fromTheme(theme).copyWith(
       p: textStyle,
+      textAlign: justify ? WrapAlignment.spaceBetween : WrapAlignment.start,
+      unorderedListAlign: justify
+          ? WrapAlignment.spaceBetween
+          : WrapAlignment.start,
+      orderedListAlign: justify
+          ? WrapAlignment.spaceBetween
+          : WrapAlignment.start,
+      blockquoteAlign: justify
+          ? WrapAlignment.spaceBetween
+          : WrapAlignment.start,
       listBullet: textStyle,
       tableBody: textStyle,
       a: textStyle?.copyWith(
@@ -58,15 +70,13 @@ class AppMarkdownBody extends StatelessWidget {
     final source = _normalizeMarkdown(data.trim());
 
     return MarkdownBody(
-      // flutter_markdown deliberately drops raw HTML nodes. Preserve them as
-      // visible, inert source text instead: clinical content must never execute
-      // embedded HTML, but silently hiding it can change the meaning of the
-      // reviewed source and makes unsafe markup impossible to spot.
+      // Known bold tags are normalized to Markdown. Other HTML remains visible
+      // and inert so unsupported markup cannot silently hide clinical content.
       data: source,
       // Selectable text claims horizontal drags on mobile, so leaving it on
       // would swallow the sideways scroll a table needs to be readable.
       selectable: selectable && !_containsTable(source),
-      fitContent: true,
+      fitContent: !justify,
       styleSheet: sheet,
       onTapLink: (_, href, _) => _openLink(context, href),
     );
@@ -96,8 +106,33 @@ String _normalizeMarkdown(String value) {
         (_) => '  \n',
       );
   return _escapeRawHtml(
-    withLineBreaks,
+    _normalizeBoldTags(withLineBreaks),
   ).replaceAll(RegExp(r';\s*[•·]\s*'), '  \n• ');
+}
+
+String _normalizeBoldTags(String value) {
+  // Accept only these formatting tags, including entity-encoded source from
+  // document extraction. Never enable general HTML rendering.
+  final decoded = value.replaceAllMapped(
+    RegExp(r'&lt;(/?(?:b|strong)\s*)&gt;', caseSensitive: false),
+    (match) => '<${match.group(1)}>',
+  );
+  final formatted = decoded.replaceAllMapped(
+    RegExp(r'<(b|strong)\s*>(.*?)</\1\s*>', caseSensitive: false, dotAll: true),
+    (match) {
+      final content = match.group(2)!;
+      final text = content.trim();
+      if (text.isEmpty) return content;
+      final leading = content.substring(0, content.indexOf(text));
+      final trailing = content.substring(content.indexOf(text) + text.length);
+      return '$leading**$text**$trailing';
+    },
+  );
+  // Incomplete extraction can leave a lone formatting tag. Keep its text.
+  return formatted.replaceAll(
+    RegExp(r'</?(?:b|strong)\s*>', caseSensitive: false),
+    '',
+  );
 }
 
 String _escapeRawHtml(String value) {
