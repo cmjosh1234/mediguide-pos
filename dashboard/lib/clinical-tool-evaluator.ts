@@ -8,7 +8,8 @@ function convertUnit(value: number, from = "", to = ""): number {
   if (!from || !to || from === to) return value
   if (from === "celsius" && to === "fahrenheit") return value * 9 / 5 + 32
   if (from === "fahrenheit" && to === "celsius") return (value - 32) * 5 / 9
-  if (!(from in unitFactors) || !(to in unitFactors)) throw new Error(`Unsupported unit conversion: ${from} to ${to}`)
+  const groups = ["kg,g,mg,mcg,lb", "m,cm,mm,ft,in", "L,mL", "weeks,days,hours,minutes"]
+  if (!groups.some((group) => group.split(",").includes(from) && group.split(",").includes(to))) throw new Error(`Unsupported unit conversion: ${from} to ${to}`)
   return value * unitFactors[from] / unitFactors[to]
 }
 
@@ -95,27 +96,65 @@ function evaluate(expression: ClinicalToolExpression, values: Record<string, unk
   }
 }
 
+export function clinicalToolInitialInputs(definition: ClinicalToolDefinition): Record<string, unknown> {
+  return Object.fromEntries(definition.inputs.filter((field) => field.default !== undefined && field.default !== null).map((field) => [field.key, field.default]))
+}
+
+// Visibility is evaluated without calculating a partially completed form.
+export function clinicalToolInputVisible(definition: ClinicalToolDefinition, key: string, input: Record<string, unknown>, now = new Date().toISOString()): boolean {
+  const field = definition.inputs.find((item) => item.key === key)
+  if (!field?.visible_when) return true
+  const values = { ...clinicalToolInitialInputs(definition), ...input }
+  for (const item of definition.inputs) {
+    const candidate = values[item.key]
+    if (candidate && typeof candidate === "object" && "value" in candidate) {
+      const measurement = candidate as { value: unknown; unit?: string }
+      values[item.key] = convertUnit(Number(measurement.value), measurement.unit, item.default_unit)
+    }
+  }
+  return Boolean(evaluate(field.visible_when, values, now))
+}
+
 export function previewClinicalTool(definition: ClinicalToolDefinition, input: Record<string, unknown>, options: { fixedNow?: string } = {}): ClinicalToolPreviewResult {
   const now = options.fixedNow ?? new Date().toISOString()
   const values = { ...input }
   const normalizedInputs: Record<string, unknown> = {}
   const knownInputs = new Set(definition.inputs.map((field) => field.key))
   for (const key of Object.keys(input)) if (!knownInputs.has(key)) throw new Error(`Unknown input: ${key}`)
+  Object.assign(values, clinicalToolInitialInputs(definition), input)
   for (const field of definition.inputs) {
-    if ((values[field.key] === undefined || values[field.key] === null) && field.default !== undefined && field.default !== null) values[field.key] = field.default
+    let candidate = values[field.key] ?? field.default
+    if (candidate === undefined || candidate === null) continue
+    if (["number", "integer", "measurement"].includes(field.type)) {
+      if (field.type === "measurement") {
+        const measurement = typeof candidate === "object" && candidate !== null
+          ? candidate as { value: unknown; unit?: string }
+          : { value: candidate, unit: field.default_unit }
+        if (typeof measurement.value !== "number" || !Number.isFinite(measurement.value)) throw new Error(`Invalid numeric input: ${field.key}`)
+        if (!measurement.unit || !field.allowed_units?.includes(measurement.unit)) throw new Error(`Unsupported measurement unit: ${field.key}`)
+        candidate = convertUnit(measurement.value, measurement.unit, field.default_unit)
+        normalizedInputs[field.key] = { value: candidate, unit: field.default_unit }
+      }
+      if (typeof candidate !== "number" || !Number.isFinite(candidate) || (field.type === "integer" && !Number.isInteger(candidate))) throw new Error(`Invalid numeric input: ${field.key}`)
+      if (field.minimum !== undefined && candidate < field.minimum) throw new Error(`Input below minimum: ${field.key}`)
+      if (field.maximum !== undefined && candidate > field.maximum) throw new Error(`Input above maximum: ${field.key}`)
+    } else if (field.type === "boolean" && typeof candidate !== "boolean") {
+      throw new Error(`Invalid boolean input: ${field.key}`)
+    } else if (field.type === "single_selection" && !field.options?.some((option) => option.value === candidate)) {
+      throw new Error(`Unsupported option: ${field.key}`)
+    } else if (field.type === "multiple_selection" && (!Array.isArray(candidate) || candidate.some((value) => !field.options?.some((option) => option.value === value)))) {
+      throw new Error(`Unsupported options: ${field.key}`)
+    } else if (["text", "date", "time"].includes(field.type)) {
+      if (typeof candidate !== "string") throw new Error(`Invalid text input: ${field.key}`)
+      if (field.type === "date" && (!/^\d{4}-\d{2}-\d{2}$/.test(candidate) || !Number.isFinite(Date.parse(candidate)) || new Date(candidate).toISOString().slice(0, 10) !== candidate)) throw new Error(`Invalid date: ${field.key}`)
+      if (field.type === "time" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(candidate)) throw new Error(`Invalid time: ${field.key}`)
+    }
+    values[field.key] = candidate
+    if (!(field.key in normalizedInputs)) normalizedInputs[field.key] = candidate
   }
   for (const field of definition.inputs) {
-    const candidate = values[field.key]
     const visible = !field.visible_when || Boolean(evaluate(field.visible_when, values, now))
-    if (visible && field.required && (candidate === undefined || candidate === null || candidate === "")) throw new Error(`Required input: ${field.key}`)
-    if (candidate === undefined || candidate === null) continue
-    if (candidate && typeof candidate === "object" && "value" in candidate) {
-      const measurement = candidate as { value: unknown; unit?: string }
-      values[field.key] = convertUnit(Number(measurement.value), measurement.unit, field.default_unit)
-      normalizedInputs[field.key] = { value: values[field.key], unit: field.default_unit }
-    } else {
-      normalizedInputs[field.key] = candidate
-    }
+    if (visible && field.required && (values[field.key] === undefined || values[field.key] === null || values[field.key] === "")) throw new Error(`Required input: ${field.key}`)
   }
   for (const calculation of definition.calculation) values[calculation.key] = applyPrecision(evaluate(calculation.expression, values, now), calculation.precision, calculation.rounding_mode)
   const output: Record<string, unknown> = {}

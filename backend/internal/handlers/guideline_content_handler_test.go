@@ -133,7 +133,7 @@ func testGuidelineContentHandler(t *testing.T) GuidelineContentHandler {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := database.AutoMigrate(&models.GuidelineCategory{}, &models.GuidelineTag{}, &models.Abbreviation{}, &models.GuidelineIndexEntry{}, &models.MedicalGuideline{}, &models.DocumentKind{}, &models.GuidelineDocument{}, &models.OutbreakResource{}); err != nil {
+	if err := database.AutoMigrate(&models.GuidelineCategory{}, &models.GuidelineTag{}, &models.Abbreviation{}, &models.GuidelineIndexEntry{}, &models.DocumentKind{}, &models.GuidelineDocument{}, &models.OutbreakResource{}); err != nil {
 		t.Fatal(err)
 	}
 	return GuidelineContentHandler{Service: services.GuidelineContentService{DB: database}}

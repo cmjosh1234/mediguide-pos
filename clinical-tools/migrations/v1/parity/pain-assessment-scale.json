@@ -8,7 +8,7 @@
   "exact_matches": 4,
   "tolerance_matches": 0,
   "presentation_differences": [
-    "Each scale is represented by typed conditional fields rather than DOM tabs; PQRST uses a recorded 0–10 severity score plus contextual fields."
+    "BPS and FLACC inputs retain the named HTML options and scores; only fields for the selected scale are displayed."
   ],
   "logic_differences": [
     "Every component required by the selected BPS or FLACC scale is mandatory; the legacy page treated unanswered behavioral components as zero."

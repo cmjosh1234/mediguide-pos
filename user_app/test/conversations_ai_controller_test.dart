@@ -248,6 +248,8 @@ void main() {
     () async {
       final api = ConversationAiApi();
       final rag = FakeRagAssistant();
+      final usageStore = TestLocalStore();
+      addTearDown(usageStore.close);
       final context = AiContext.guideline(
         title: 'Hypertension',
         content: 'Assess blood pressure and cardiovascular risk.',
@@ -265,7 +267,9 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(preferences),
           ragRepositoryProvider.overrideWithValue(rag),
           aiContextServiceProvider.overrideWithValue(AiContextService()),
-          usageRepositoryProvider.overrideWithValue(UsageRepository(api)),
+          usageRepositoryProvider.overrideWithValue(
+            UsageRepository(api, usageStore.cache, () => 'user-1'),
+          ),
         ],
       );
       addTearDown(scoped.dispose);
@@ -288,6 +292,7 @@ void main() {
       expect(state.conversationHistory, hasLength(2));
       expect(state.latestCitations.single.chunkId, 'chunk-1');
       expect(state.isLoading, isFalse);
+      await scoped.read(usageRepositoryProvider).sync();
       expect(api.usageWrites, 1);
       expect(api.lastBody?.containsKey('user_id'), isFalse);
 

@@ -8,7 +8,7 @@
   "exact_matches": 3,
   "tolerance_matches": 0,
   "presentation_differences": [
-    "The six optional four-hour urine interval boxes are not included because the legacy result ignores them; the 24-hour urine output remains typed."
+    "All six optional four-hour urine interval fields are retained as typed context; the calculation uses the separately entered 24-hour urine output."
   ],
   "logic_differences": [
     "Age zero is rejected instead of passing HTML validation and then failing the legacy JavaScript truthiness check.",
@@ -16,7 +16,7 @@
   ],
   "unresolved_clinical_ambiguities": [
     "Approve supported populations, intake/output defaults, balance thresholds, age-adjusted urine thresholds, and condition-specific recommendations.",
-    "Confirm whether interval urine entries should affect the calculation or be removed from the replacement UI.",
+    "Confirm whether interval urine entries should affect the calculation or remain separately recorded context.",
     "Provide governing citations and effective/review dates."
   ],
   "reviewer_decision": "Pending independent clinician approval. Do not approve or publish this review draft."

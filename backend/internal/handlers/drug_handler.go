@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -162,6 +163,7 @@ func (h DrugHandler) Delete(c *gin.Context) {
 
 // RecordUsage godoc
 // @Summary Record authenticated drug usage
+// @Param payload body services.UsageEventInput false "Optional retry key"
 // @Tags drugs
 // @Security BearerAuth
 // @Param id path string true "Drug ID" format(uuid)
@@ -173,7 +175,12 @@ func (h DrugHandler) RecordUsage(c *gin.Context) {
 		return
 	}
 	claims := c.MustGet(middleware.ClaimsKey).(*security.Claims)
-	item, err := h.Service.RecordUsage(claims.UserID, id)
+	var input services.UsageEventInput
+	if err := c.ShouldBindJSON(&input); err != nil && !errors.Is(err, io.EOF) {
+		httpx.Error(c, 400, "invalid usage payload")
+		return
+	}
+	item, err := h.Service.RecordUsage(claims.UserID, id, input.IdempotencyKey)
 	if err != nil {
 		h.writeError(c, err)
 		return
@@ -183,6 +190,8 @@ func (h DrugHandler) RecordUsage(c *gin.Context) {
 
 func (h DrugHandler) writeError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, services.ErrProgressUsageInvalid):
+		httpx.Error(c, 400, "invalid usage payload")
 	case errors.Is(err, services.ErrDrugInvalidPayload):
 		httpx.Error(c, http.StatusBadRequest, "invalid drug payload")
 	case errors.Is(err, gorm.ErrRecordNotFound):

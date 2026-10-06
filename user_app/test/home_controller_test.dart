@@ -63,7 +63,8 @@ final class HomeApi extends BackendApiService {
         },
       };
     }
-    if (path == '/api/v2/guideline-categories') {
+    if (path == '/api/public/guideline-categories') {
+      expect(includeAuth, isFalse);
       return {
         'data': {
           'items': [

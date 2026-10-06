@@ -40,7 +40,6 @@ export const Collections = {
 	HealthSubDistricts: "health_sub_districts",
 	HealthSubRegions: "health_sub_regions",
 	Languages: "languages",
-	MedicalGuidelines: "medical_guidelines",
 	Messages: "messages",
 	MinistryDirectory: "ministry_directory",
 	NotificationCampaigns: "notification_campaigns",
@@ -689,44 +688,6 @@ export type LanguagesRecord<Ttranslations = unknown> = {
 	version?: number
 }
 
-export type MedicalGuidelinesRecord = {
-	categories?: RecordIdString[]
-	causes?: HTMLString
-	classification_critical?: HTMLString
-	classification_mild?: HTMLString
-	classification_moderate?: HTMLString
-	classification_severe?: HTMLString
-	clinical_features?: HTMLString
-	condition_name: string
-	contraindications?: HTMLString
-	created: IsoAutoDateString
-	definition?: HTMLString
-	differential_diagnosis?: HTMLString
-	dosage_adult?: HTMLString
-	dosage_pediatric?: HTMLString
-	dosage_secondary_adult?: HTMLString
-	dosage_secondary_pediatric?: HTMLString
-	general_management?: HTMLString
-	healthcare_level_required?: string
-	icd10_code?: string
-	id: string
-	index_item?: RecordIdString
-	is_published?: boolean
-	medication_primary?: string
-	medication_secondary?: string
-	monitoring_requirements?: HTMLString
-	prevention_measures?: HTMLString
-	priority?: string
-	route_administration?: string
-	special_notes?: HTMLString
-	status?: string
-	tags?: RecordIdString[]
-	target_population?: string
-	updated: IsoAutoDateString
-	usageCount?: number
-	version?: string
-}
-
 export const MessagesMessageTypeOptions = {
 	"text": "text",
 	"image": "image",
@@ -1148,7 +1109,6 @@ export type HealthFacilitiesResponse<Texpand = unknown> = Required<HealthFacilit
 export type HealthSubDistrictsResponse<Texpand = unknown> = Required<HealthSubDistrictsRecord> & BaseSystemFields<Texpand>
 export type HealthSubRegionsResponse<Texpand = unknown> = Required<HealthSubRegionsRecord> & BaseSystemFields<Texpand>
 export type LanguagesResponse<Ttranslations = unknown, Texpand = unknown> = Required<LanguagesRecord<Ttranslations>> & BaseSystemFields<Texpand>
-export type MedicalGuidelinesResponse<Texpand = unknown> = Required<MedicalGuidelinesRecord> & BaseSystemFields<Texpand>
 export type MessagesResponse<Treactions = unknown, Tread_by = unknown, Texpand = unknown> = Required<MessagesRecord<Treactions, Tread_by>> & BaseSystemFields<Texpand>
 export type MinistryDirectoryResponse<Texpand = unknown> = Required<MinistryDirectoryRecord> & BaseSystemFields<Texpand>
 export type NotificationCampaignsResponse<Taudience_countries = unknown, Taudience_roles = unknown, Tchannels = unknown, Texpand = unknown> = Required<NotificationCampaignsRecord<Taudience_countries, Taudience_roles, Tchannels>> & BaseSystemFields<Texpand>
@@ -1203,7 +1163,6 @@ export type CollectionRecords = {
 	health_sub_districts: HealthSubDistrictsRecord
 	health_sub_regions: HealthSubRegionsRecord
 	languages: LanguagesRecord
-	medical_guidelines: MedicalGuidelinesRecord
 	messages: MessagesRecord
 	ministry_directory: MinistryDirectoryRecord
 	notification_campaigns: NotificationCampaignsRecord
@@ -1257,7 +1216,6 @@ export type CollectionResponses = {
 	health_sub_districts: HealthSubDistrictsResponse
 	health_sub_regions: HealthSubRegionsResponse
 	languages: LanguagesResponse
-	medical_guidelines: MedicalGuidelinesResponse
 	messages: MessagesResponse
 	ministry_directory: MinistryDirectoryResponse
 	notification_campaigns: NotificationCampaignsResponse

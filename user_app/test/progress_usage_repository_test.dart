@@ -53,7 +53,11 @@ void main() {
 
   test('usage writes send no client owner id', () async {
     final api = FakeProgressApi();
-    await UsageRepository(api).abbreviation('abbreviation-1');
+    final store = TestLocalStore();
+    addTearDown(store.close);
+    final usage = UsageRepository(api, store.cache, () => 'user-1');
+    await usage.abbreviation('abbreviation-1');
+    await usage.sync();
     expect(api.path, '/api/v2/usage/abbreviations');
     expect(api.body?['resource_id'], 'abbreviation-1');
     expect(api.body?.containsKey('user_id'), isFalse);

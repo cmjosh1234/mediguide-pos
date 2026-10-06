@@ -336,7 +336,7 @@ func (s DiseaseService) ListMigrationReport(in DiseaseMigrationReportQuery) (*Pa
 		q = q.Where("resolution_status = ?", in.Status)
 	}
 	if in.SourceTable != "" {
-		if !oneOf(in.SourceTable, "outbreaks", "medical_guidelines", "guideline_documents") {
+		if !oneOf(in.SourceTable, "outbreaks", "guideline_documents") {
 			return nil, ErrDiseaseInvalid
 		}
 		q = q.Where("source_table = ?", in.SourceTable)

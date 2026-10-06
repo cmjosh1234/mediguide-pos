@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -156,6 +157,7 @@ func (h FacilityHandler) DeleteFacility(c *gin.Context) {
 
 // RecordUsage godoc
 // @Summary Record current-user facility usage
+// @Param payload body services.UsageEventInput false "Optional retry key"
 // @Tags facilities
 // @Security BearerAuth
 // @Param id path string true "Facility UUID"
@@ -168,7 +170,12 @@ func (h FacilityHandler) RecordUsage(c *gin.Context) {
 		return
 	}
 	claims := c.MustGet(middleware.ClaimsKey).(*security.Claims)
-	item, err := h.Service.RecordUsage(claims.UserID, id)
+	var input services.UsageEventInput
+	if err := c.ShouldBindJSON(&input); err != nil && !errors.Is(err, io.EOF) {
+		httpx.Error(c, 400, "invalid usage payload")
+		return
+	}
+	item, err := h.Service.RecordUsage(claims.UserID, id, input.IdempotencyKey)
 	if err != nil {
 		h.writeError(c, err)
 		return
@@ -413,6 +420,8 @@ func (h FacilityHandler) deleteReference(c *gin.Context, resource services.Facil
 
 func (h FacilityHandler) writeError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, services.ErrProgressUsageInvalid):
+		httpx.Error(c, 400, "invalid usage payload")
 	case errors.Is(err, services.ErrFacilityInvalid):
 		httpx.Error(c, http.StatusBadRequest, "invalid facility data")
 	case errors.Is(err, gorm.ErrRecordNotFound):

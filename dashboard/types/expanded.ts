@@ -17,7 +17,6 @@ import {
   GuidelineCategoriesResponse,
   AbbreviationsResponse,
   GuidelineTagsResponse,
-  MedicalGuidelinesResponse,
   GuidelineIndexResponse,
   FaqsResponse,
   FaqTagsResponse,
@@ -108,15 +107,6 @@ export type AbbreviationsWithExpanded = AbbreviationsResponse<{
 }>
 
 /**
- * Medical Guidelines with expanded categories, tags, and index_item relationships
- */
-export type MedicalGuidelinesWithExpanded = MedicalGuidelinesResponse<{
-  categories?: GuidelineCategoriesResponse[]
-  tags?: GuidelineTagsResponse[]
-  index_item?: GuidelineIndexResponse
-}>
-
-/**
  * Guideline Index with expanded parent relationship and children
  */
 export type GuidelineIndexWithExpanded = GuidelineIndexResponse<{
@@ -148,12 +138,6 @@ export function hasExpandedCategoryAndTags(
   record: AbbreviationsResponse
 ): record is AbbreviationsWithExpanded {
   return !!(record.expand as any)?.category || !!(record.expand as any)?.tags
-}
-
-export function hasExpandedMedicalGuidelineRelations(
-  record: MedicalGuidelinesResponse
-): record is MedicalGuidelinesWithExpanded {
-  return !!(record.expand as any)?.categories || !!(record.expand as any)?.tags || !!(record.expand as any)?.index_item
 }
 
 export function hasExpandedGuidelineIndex(

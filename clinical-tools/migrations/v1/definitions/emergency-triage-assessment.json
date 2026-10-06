@@ -2,13 +2,13 @@
   "legacy_id": "emergency-triage-assessment",
   "legacy_file": "emergency-triage-assessment.html",
   "source_checksum": "086efb599f8c535faa94f589d19b477e0bef3afd635ca0a0ccb7ee3c061c7420",
-  "change_summary": "Clinician review draft: preserve the legacy minimum-priority calculation, age conversion, vital thresholds, and pain escalation while requiring age and representing named signs as explicit priority groups.",
+  "change_summary": "Clinician review draft: preserve the legacy minimum-priority calculation, age conversion, vital thresholds, and pain escalation while requiring age and representing named signs as explicit priority groups. Named HTML controls and scored choices are preserved; aggregate counts/sign groups are derived from typed responses. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "decision_tool",
     "title": "Legacy Emergency Triage Classification (Unapproved)",
     "description": "Reproduces the legacy priority matrix for clinical review. It is not a validated Manchester Triage System implementation and must not delay emergency care.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [],
     "exclusions": [
@@ -47,7 +47,8 @@
         "label": "Age",
         "required": true,
         "minimum": 0,
-        "maximum": 120
+        "maximum": 120,
+        "section_key": "patient"
       },
       {
         "key": "age_unit",
@@ -68,7 +69,9 @@
             "value": "days",
             "label": "Days"
           }
-        ]
+        ],
+        "section_key": "patient",
+        "control": "select"
       },
       {
         "key": "heart_rate",
@@ -77,7 +80,8 @@
         "required": false,
         "minimum": 20,
         "maximum": 250,
-        "default": 80
+        "default": 80,
+        "section_key": "patient"
       },
       {
         "key": "respiratory_rate",
@@ -86,7 +90,8 @@
         "required": false,
         "minimum": 5,
         "maximum": 60,
-        "default": 16
+        "default": 16,
+        "section_key": "patient"
       },
       {
         "key": "systolic_bp",
@@ -95,7 +100,8 @@
         "required": false,
         "minimum": 50,
         "maximum": 250,
-        "default": 120
+        "default": 120,
+        "section_key": "patient"
       },
       {
         "key": "diastolic_bp",
@@ -104,7 +110,8 @@
         "required": false,
         "minimum": 30,
         "maximum": 150,
-        "default": 80
+        "default": 80,
+        "section_key": "patient"
       },
       {
         "key": "temperature_c",
@@ -113,7 +120,9 @@
         "required": false,
         "minimum": 30,
         "maximum": 45,
-        "default": 37
+        "default": 37,
+        "section_key": "patient",
+        "step": 0.1
       },
       {
         "key": "oxygen_saturation",
@@ -122,7 +131,8 @@
         "required": false,
         "minimum": 70,
         "maximum": 100,
-        "default": 98
+        "default": 98,
+        "section_key": "patient"
       },
       {
         "key": "pain_score",
@@ -131,39 +141,168 @@
         "required": false,
         "minimum": 0,
         "maximum": 10,
-        "default": 0
+        "default": 0,
+        "section_key": "patient"
       },
       {
-        "key": "has_priority_1_sign",
+        "key": "cardiac_arrest",
         "type": "boolean",
-        "label": "Any immediate-threat sign recorded",
+        "label": "Cardiac/respiratory arrest or imminent",
         "required": false,
         "default": false,
-        "help_text": "Cardiac/respiratory arrest or imminent arrest, complete airway obstruction, severe shock, or unconscious/unresponsive."
+        "section_key": "signs"
       },
       {
-        "key": "has_priority_2_sign",
+        "key": "airway_obstruction",
         "type": "boolean",
-        "label": "Any very-urgent sign recorded",
+        "label": "Complete airway obstruction",
         "required": false,
         "default": false,
-        "help_text": "Severe breathing difficulty, cardiac-feature chest pain, altered consciousness, severe hemorrhage, anaphylaxis, or acute stroke signs."
+        "section_key": "signs"
       },
       {
-        "key": "has_priority_3_sign",
+        "key": "severe_shock",
         "type": "boolean",
-        "label": "Any urgent sign recorded",
+        "label": "Severe shock (systolic BP <70)",
         "required": false,
         "default": false,
-        "help_text": "Moderate breathing difficulty, severe pain, persistent vomiting with dehydration, concerning high fever, or significant injury."
+        "section_key": "signs"
       },
       {
-        "key": "has_priority_4_sign",
+        "key": "unconscious",
         "type": "boolean",
-        "label": "Any standard-priority sign recorded",
+        "label": "Unconscious/unresponsive (GCS ≤8)",
         "required": false,
         "default": false,
-        "help_text": "Stable condition needing assessment, moderate pain, minor injury, or routine symptoms."
+        "section_key": "signs"
+      },
+      {
+        "key": "severe_breathing",
+        "type": "boolean",
+        "label": "Severe breathing difficulty",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "chest_pain",
+        "type": "boolean",
+        "label": "Severe chest pain with cardiac features",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "altered_consciousness",
+        "type": "boolean",
+        "label": "Significantly altered consciousness",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "severe_hemorrhage",
+        "type": "boolean",
+        "label": "Severe active hemorrhage",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "anaphylaxis",
+        "type": "boolean",
+        "label": "Signs of anaphylaxis",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "stroke_signs",
+        "type": "boolean",
+        "label": "Acute stroke signs (FAST positive)",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "moderate_breathing",
+        "type": "boolean",
+        "label": "Moderate breathing difficulty",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "severe_pain",
+        "type": "boolean",
+        "label": "Severe pain (8-10/10)",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "persistent_vomiting",
+        "type": "boolean",
+        "label": "Persistent vomiting with dehydration",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "high_fever",
+        "type": "boolean",
+        "label": "High fever with concerning features",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "significant_injury",
+        "type": "boolean",
+        "label": "Significant trauma/injury",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "stable_condition",
+        "type": "boolean",
+        "label": "Stable condition requiring assessment",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "moderate_pain",
+        "type": "boolean",
+        "label": "Moderate pain (4-7/10)",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "minor_injury",
+        "type": "boolean",
+        "label": "Minor injuries",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "routine_symptoms",
+        "type": "boolean",
+        "label": "Routine symptoms (cough, cold, etc.)",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "chief_complaint",
+        "type": "text",
+        "label": "Chief Complaint:",
+        "required": false,
+        "section_key": "patient",
+        "help_text": "Recorded as assessment context; does not change the calculated result."
       }
     ],
     "sections": [
@@ -181,6 +320,114 @@
       }
     ],
     "calculation": [
+      {
+        "key": "has_priority_4_sign",
+        "expression": {
+          "op": "or",
+          "args": [
+            {
+              "op": "field",
+              "field": "stable_condition"
+            },
+            {
+              "op": "field",
+              "field": "moderate_pain"
+            },
+            {
+              "op": "field",
+              "field": "minor_injury"
+            },
+            {
+              "op": "field",
+              "field": "routine_symptoms"
+            }
+          ]
+        }
+      },
+      {
+        "key": "has_priority_3_sign",
+        "expression": {
+          "op": "or",
+          "args": [
+            {
+              "op": "field",
+              "field": "moderate_breathing"
+            },
+            {
+              "op": "field",
+              "field": "severe_pain"
+            },
+            {
+              "op": "field",
+              "field": "persistent_vomiting"
+            },
+            {
+              "op": "field",
+              "field": "high_fever"
+            },
+            {
+              "op": "field",
+              "field": "significant_injury"
+            }
+          ]
+        }
+      },
+      {
+        "key": "has_priority_2_sign",
+        "expression": {
+          "op": "or",
+          "args": [
+            {
+              "op": "field",
+              "field": "severe_breathing"
+            },
+            {
+              "op": "field",
+              "field": "chest_pain"
+            },
+            {
+              "op": "field",
+              "field": "altered_consciousness"
+            },
+            {
+              "op": "field",
+              "field": "severe_hemorrhage"
+            },
+            {
+              "op": "field",
+              "field": "anaphylaxis"
+            },
+            {
+              "op": "field",
+              "field": "stroke_signs"
+            }
+          ]
+        }
+      },
+      {
+        "key": "has_priority_1_sign",
+        "expression": {
+          "op": "or",
+          "args": [
+            {
+              "op": "field",
+              "field": "cardiac_arrest"
+            },
+            {
+              "op": "field",
+              "field": "airway_obstruction"
+            },
+            {
+              "op": "field",
+              "field": "severe_shock"
+            },
+            {
+              "op": "field",
+              "field": "unconscious"
+            }
+          ]
+        }
+      },
       {
         "key": "age_years",
         "expression": {
@@ -1466,7 +1713,7 @@
         "key": "priority_one_sign",
         "inputs": {
           "age_value": 35,
-          "has_priority_1_sign": true
+          "cardiac_arrest": true
         },
         "expected": {
           "priority": 1,

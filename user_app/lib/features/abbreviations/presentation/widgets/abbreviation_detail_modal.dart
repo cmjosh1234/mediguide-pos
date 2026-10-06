@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:user_app/app/providers/app_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:user_app/core/utils/app_extensions.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -5,7 +8,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:user_app/features/abbreviations/data/models/abbreviation.dart';
 import 'package:user_app/core/constants/app_spacing.dart';
 
-class AbbreviationDetailModal extends StatelessWidget {
+class AbbreviationDetailModal extends ConsumerStatefulWidget {
   final Abbreviation abbreviation;
   final ScrollController? scrollController;
 
@@ -36,6 +39,21 @@ class AbbreviationDetailModal extends StatelessWidget {
         );
       },
     );
+  }
+
+  @override
+  ConsumerState<AbbreviationDetailModal> createState() =>
+      _AbbreviationDetailModalState();
+}
+
+class _AbbreviationDetailModalState
+    extends ConsumerState<AbbreviationDetailModal> {
+  Abbreviation get abbreviation => widget.abbreviation;
+  ScrollController? get scrollController => widget.scrollController;
+  @override
+  void initState() {
+    super.initState();
+    unawaited(ref.read(usageRepositoryProvider).abbreviation(abbreviation.id));
   }
 
   bool get _hasCategory => abbreviation.hasCategory;

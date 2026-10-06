@@ -30,8 +30,6 @@ import 'package:user_app/features/drugs/presentation/screens/drug_index_page.dar
 import 'package:user_app/features/facilities/presentation/screens/health_facility_detail_page.dart';
 import 'package:user_app/features/facilities/presentation/screens/health_infrastructure_page.dart';
 import 'package:user_app/features/guidelines/presentation/screens/guidelines_indexer_page.dart';
-import 'package:user_app/features/guidelines/presentation/screens/guidelines_page.dart';
-import 'package:user_app/features/guidelines/presentation/screens/read_guideline_page.dart';
 import 'package:user_app/features/guidelines/presentation/screens/publication_catalogue_page.dart';
 import 'package:user_app/features/guidelines/presentation/screens/publication_guideline_page.dart';
 import 'package:user_app/features/guidelines/presentation/screens/publication_clinical_viewers.dart';
@@ -134,7 +132,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.guidelines,
         builder: (_, state) {
-          return GuidelinesPage(arguments: state.extra);
+          final args = state.extra;
+          final category = args is Map
+              ? (args['categoryId'] ?? args['category'])?.toString() ?? ''
+              : '';
+          return PublicationCataloguePage(categoryId: category);
         },
       ),
       GoRoute(
@@ -233,7 +235,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             return const _InvalidRoutePage(message: 'Guideline ID is missing.');
           }
 
-          return ReadGuidelinePage(arguments: state.extra ?? guidelineId);
+          return PublicationGuidelinePage(guidelineId: guidelineId);
         },
       ),
       GoRoute(

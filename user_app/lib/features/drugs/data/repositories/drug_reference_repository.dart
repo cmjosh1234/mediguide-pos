@@ -22,7 +22,7 @@ final class DrugReferenceRepository {
 
   Future<List<DrugCategory>> categories() {
     return _items<DrugCategory>(
-      path: '/api/v2/drug-categories',
+      path: '/api/public/drug-categories',
       cacheKey: 'drug-reference:categories',
       fromJson: DrugCategory.fromJson,
       saveLocal: _local.saveCategories,
@@ -36,7 +36,7 @@ final class DrugReferenceRepository {
 
   Future<List<DrugTag>> tags() {
     return _items<DrugTag>(
-      path: '/api/v2/drug-tags',
+      path: '/api/public/drug-tags',
       cacheKey: 'drug-reference:tags',
       fromJson: DrugTag.fromJson,
       saveLocal: _local.saveTags,
@@ -50,7 +50,7 @@ final class DrugReferenceRepository {
 
   Future<List<DrugClass>> classes() {
     return _items<DrugClass>(
-      path: '/api/v2/drug-classes',
+      path: '/api/public/drug-classes',
       cacheKey: 'drug-reference:classes',
       fromJson: DrugClass.fromJson,
       saveLocal: _local.saveClasses,
@@ -64,7 +64,7 @@ final class DrugReferenceRepository {
 
   Future<List<TherapeuticCategory>> therapeuticCategories() {
     return _items<TherapeuticCategory>(
-      path: '/api/v2/therapeutic-categories',
+      path: '/api/public/therapeutic-categories',
       cacheKey: 'drug-reference:therapeutic-categories',
       fromJson: TherapeuticCategory.fromJson,
       saveLocal: _local.saveTherapeuticCategories,
@@ -137,6 +137,7 @@ final class DrugReferenceRepository {
         load: () => _api.requestJson(
           path,
           method: 'GET',
+          includeAuth: false,
           query: const {
             'page': '1',
             'per_page': '100',

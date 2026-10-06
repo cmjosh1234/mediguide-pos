@@ -22,7 +22,10 @@ export type OverviewData = {
     drugsPendingReview: number
     drugsInactive: number
   }
+  featureUsage?: { feature: string; last7: number; last30: number }[]
   engagement: {
+    abbreviationUsage7d?: number
+    abbreviationUsage30d?: number
     aiUsage7d: number
     aiUsage30d: number
     calculatorUsage7d: number

@@ -7,6 +7,9 @@ import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 
 import 'package:user_app/app/theme/app_theme.dart';
+import 'package:user_app/app/providers/app_providers.dart';
+import 'package:user_app/core/network/api_client.dart';
+import 'package:user_app/features/guidelines/data/repositories/progress_usage_repository.dart';
 import 'package:user_app/features/ai_assistant/presentation/controllers/ai_assistant_controller.dart';
 import 'package:user_app/features/ai_assistant/presentation/screens/ai_assistant_page.dart';
 import 'package:user_app/features/authentication/data/models/user.dart';
@@ -41,6 +44,7 @@ import 'package:user_app/features/settings/presentation/controllers/app_update_c
 import 'package:user_app/features/settings/presentation/controllers/language_controller.dart';
 
 import 'golden_test_support.dart';
+import 'helpers/test_local_store.dart';
 
 // Keep relative-time labels stable as the calendar advances. The golden used
 // to pin this to a July date, which changed from "9w ago" to "10w ago" and
@@ -485,6 +489,8 @@ void main() {
   for (final scenario in scenarios) {
     for (final viewport in viewports) {
       testWidgets('${scenario.name} — ${viewport.name}', (tester) async {
+        final store = TestLocalStore();
+        addTearDown(store.close);
         tester.view.physicalSize = viewport.size;
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
@@ -498,7 +504,13 @@ void main() {
 
         await tester.pumpWidget(
           ProviderScope(
-            overrides: [...commonOverrides, ...scenario.overrides],
+            overrides: [
+              ...commonOverrides,
+              usageRepositoryProvider.overrideWithValue(
+                UsageRepository(BackendApiService(), store.cache, () => null),
+              ),
+              ...scenario.overrides,
+            ],
             child: MaterialApp.router(
               debugShowCheckedModeBanner: false,
               theme: AppTheme.light,

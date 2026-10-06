@@ -8,7 +8,7 @@
   "exact_matches": 4,
   "tolerance_matches": 0,
   "presentation_differences": [
-    "The definition evaluates four explicit sign-group confirmations; native UI must retain every named sign and derive the groups without trusting a user-entered priority."
+    "All nineteen named signs are retained; the four sign groups are derived by the definition rather than supplied as group confirmations."
   ],
   "logic_differences": [
     "Age is required and absent optional vital signs receive documented normal defaults instead of JavaScript NaN behavior."

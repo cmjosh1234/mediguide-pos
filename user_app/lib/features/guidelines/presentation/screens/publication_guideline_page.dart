@@ -74,6 +74,7 @@ class _PublicationGuidelinePageState
 
   final ScrollController _readerScrollController = ScrollController();
 
+  bool _usageTracked = false;
   bool _deepLinkApplied = false;
   bool _initialProgressScheduled = false;
 
@@ -113,6 +114,12 @@ class _PublicationGuidelinePageState
         ? completeContent
         : summaryContent;
 
+    if (!_usageTracked && content.valueOrNull != null) {
+      _usageTracked = true;
+      unawaited(
+        ref.read(usageRepositoryProvider).guideline(widget.guidelineId),
+      );
+    }
     final progress = ref
         .watch(publicationReadingProgressProvider(widget.guidelineId))
         .valueOrNull;

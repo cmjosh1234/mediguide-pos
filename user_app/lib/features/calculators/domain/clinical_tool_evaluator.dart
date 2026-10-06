@@ -51,17 +51,94 @@ final class ClinicalToolEvaluator {
 
   final DateTime? fixedNow;
 
+  bool inputVisible(
+    ClinicalToolDefinition definition,
+    ClinicalToolInput field,
+    Map<String, Object?> input,
+  ) {
+    if (field.visibleWhen == null) return true;
+    final values = <String, Object?>{
+      for (final item in definition.inputs) item.key: item.defaultValue,
+      ...input,
+    };
+    for (final item in definition.inputs) {
+      final candidate = values[item.key];
+      if (candidate is Map && candidate['value'] is num) {
+        values[item.key] = _convert(
+          (candidate['value'] as num).toDouble(),
+          candidate['unit']?.toString() ?? item.defaultUnit,
+          item.defaultUnit,
+        );
+      }
+    }
+    return _truth(_expression(field.visibleWhen!, values));
+  }
+
   ClinicalToolResult evaluate(
     ClinicalToolDefinition definition,
     Map<String, Object?> input,
   ) {
     final values = <String, Object?>{...input};
     final normalizedInputs = <String, Object?>{};
+    final known = definition.inputs.map((field) => field.key).toSet();
+    for (final key in input.keys) {
+      if (!known.contains(key)) throw FormatException('Unknown input: $key');
+    }
     for (final field in definition.inputs) {
-      if ((!values.containsKey(field.key) || values[field.key] == null) &&
-          field.defaultValue != null) {
-        values[field.key] = field.defaultValue;
+      values[field.key] ??= field.defaultValue;
+      var value = values[field.key];
+      if (value == null) continue;
+      if (['number', 'integer', 'measurement'].contains(field.type)) {
+        if (field.type == 'measurement') {
+          final raw = value is Map ? value['value'] : value;
+          final unit = value is Map ? value['unit'] : field.defaultUnit;
+          if (raw is! num ||
+              !raw.isFinite ||
+              unit is! String ||
+              !field.allowedUnits.contains(unit)) {
+            throw FormatException('Invalid measurement: ${field.label}');
+          }
+          value = _convert(raw.toDouble(), unit, field.defaultUnit);
+          normalizedInputs[field.key] = {
+            'value': value,
+            'unit': field.defaultUnit,
+          };
+        }
+        if (value is! num ||
+            !value.isFinite ||
+            (field.type == 'integer' && value != value.truncateToDouble())) {
+          throw FormatException('Invalid numeric input: ${field.label}');
+        }
+        if (field.minimum != null && value < field.minimum!) {
+          throw FormatException('${field.label} is below the minimum');
+        }
+        if (field.maximum != null && value > field.maximum!) {
+          throw FormatException('${field.label} exceeds the maximum');
+        }
+      } else if (field.type == 'boolean' && value is! bool) {
+        throw FormatException('Invalid boolean: ${field.label}');
+      } else if (field.type == 'single_selection' &&
+          !field.options.any((option) => option.value == value)) {
+        throw FormatException('Unsupported option: ${field.label}');
+      } else if (['text', 'date', 'time'].contains(field.type)) {
+        if (value is! String) {
+          throw FormatException('Invalid text: ${field.label}');
+        }
+        if (field.type == 'date') {
+          final parsed = DateTime.tryParse(value);
+          if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value) ||
+              parsed == null ||
+              parsed.toIso8601String().substring(0, 10) != value) {
+            throw FormatException('Invalid date: ${field.label}');
+          }
+        }
+        if (field.type == 'time' &&
+            !RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch(value)) {
+          throw FormatException('Invalid time: ${field.label}');
+        }
       }
+      values[field.key] = value;
+      normalizedInputs.putIfAbsent(field.key, () => value);
     }
     for (final field in definition.inputs) {
       final visible =
@@ -69,30 +146,8 @@ final class ClinicalToolEvaluator {
           _truth(_expression(field.visibleWhen!, values));
       if (visible &&
           field.required &&
-          (!values.containsKey(field.key) || values[field.key] == null)) {
+          (values[field.key] == null || values[field.key] == '')) {
         throw FormatException('${field.label} is required');
-      }
-      final value = values[field.key];
-      if (value == null) continue;
-      if (value is Map && value['value'] is num) {
-        final unit = value['unit']?.toString() ?? field.defaultUnit;
-        values[field.key] = _convert(
-          (value['value'] as num).toDouble(),
-          unit,
-          field.defaultUnit,
-        );
-        normalizedInputs[field.key] = {
-          'value': values[field.key],
-          'unit': field.defaultUnit,
-        };
-      } else {
-        normalizedInputs[field.key] = value;
-      }
-      if (value is num && field.minimum != null && value < field.minimum!) {
-        throw FormatException('${field.label} is below the minimum');
-      }
-      if (value is num && field.maximum != null && value > field.maximum!) {
-        throw FormatException('${field.label} exceeds the maximum');
       }
     }
     for (final item in definition.calculations) {

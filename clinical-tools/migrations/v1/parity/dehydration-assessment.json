@@ -8,7 +8,7 @@
   "exact_matches": 3,
   "tolerance_matches": 0,
   "presentation_differences": [
-    "Additional symptoms are currently represented as an explicit count; the native UI must retain the named symptom checklist."
+    "All six scored signs retain their descriptive HTML choices; all five named additional symptoms are retained and counted by the definition."
   ],
   "logic_differences": [
     "All six signs and measured weight are required; the legacy page treated unanswered signs as zero and silently substituted 10 kg."

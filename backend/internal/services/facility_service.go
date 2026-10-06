@@ -179,24 +179,27 @@ func (s FacilityService) DeleteFacility(id uuid.UUID) error {
 	return nil
 }
 
-func (s FacilityService) RecordUsage(userID, facilityID uuid.UUID) (*models.FacilityUsageLog, error) {
-	var count int64
-	if err := s.DB.Model(&models.HealthFacility{}).Where("id = ? AND deleted_at IS NULL", facilityID).Count(&count).Error; err != nil || count == 0 {
-		return nil, gorm.ErrRecordNotFound
-	}
-	usage := models.FacilityUsageLog{UserID: userID, FacilityID: facilityID}
-	if err := s.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&usage).Error; err != nil {
-			return err
-		}
-		return tx.Model(&models.HealthFacility{}).Where("id = ?", facilityID).UpdateColumn("usage_count", gorm.Expr("usage_count + 1")).Error
-	}); err != nil {
+func (s FacilityService) RecordUsage(userID, facilityID uuid.UUID, keys ...string) (*models.FacilityUsageLog, error) {
+	if err := requireUsageResource(s.DB, &models.HealthFacility{}, facilityID); err != nil {
 		return nil, err
 	}
-	if s.Cache != nil {
+	key := ""
+	if len(keys) > 0 {
+		key = strings.TrimSpace(keys[0])
+		if len(key) > 128 {
+			return nil, ErrProgressUsageInvalid
+		}
+	}
+	var keyPointer *string
+	if key != "" {
+		keyPointer = &key
+	}
+	value := models.FacilityUsageLog{UserID: userID, FacilityID: facilityID, IdempotencyKey: keyPointer}
+	usage, err := createUsage(s.DB, value, userID, key, "facility_id", facilityID, &models.HealthFacility{}, facilityID)
+	if err == nil && s.Cache != nil {
 		_ = s.Cache.InvalidateNamespace(context.Background(), "dashboard-aggregates")
 	}
-	return &usage, nil
+	return usage, err
 }
 
 func (s FacilityService) invalidateFacilityCaches() {

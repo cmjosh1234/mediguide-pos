@@ -2,13 +2,13 @@
   "legacy_id": "wound-assessment-tool",
   "legacy_file": "wound-assessment-tool.html",
   "source_checksum": "5fa5f696c90a583d61e8363068b914e1e1d5fadc57af7b7389a2609aff511675",
-  "change_summary": "Review draft: preserve legacy severity, infection-risk, and healing-potential rules while requiring wound location/type and typed assessment values. Completeness and care guidance require clinician approval.",
+  "change_summary": "Review draft: preserve legacy severity, infection-risk, and healing-potential rules while requiring wound location/type and typed assessment values. Completeness and care guidance require clinician approval. Named HTML controls and scored choices are preserved; aggregate counts/sign groups are derived from typed responses. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "decision_tool",
     "title": "Wound Assessment",
     "description": "Classifies recorded wound characteristics using the legacy thresholds. Review draft only; not approved for clinical publication.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [],
     "exclusions": [
@@ -88,7 +88,7 @@
         "options": [
           {
             "value": "head_neck",
-            "label": "Head or neck"
+            "label": "Head/Neck"
           },
           {
             "value": "chest",
@@ -103,18 +103,36 @@
             "label": "Back"
           },
           {
+            "value": "arm-upper",
+            "label": "Upper Arm"
+          },
+          {
+            "value": "arm-lower",
+            "label": "Lower Arm/Hand"
+          },
+          {
+            "value": "leg-upper",
+            "label": "Upper Leg/Thigh"
+          },
+          {
+            "value": "leg-lower",
+            "label": "Lower Leg/Foot"
+          },
+          {
+            "value": "genitals",
+            "label": "Genital Area"
+          },
+          {
             "value": "arm",
             "label": "Arm or hand"
           },
           {
             "value": "leg",
             "label": "Leg or foot"
-          },
-          {
-            "value": "genitals",
-            "label": "Genital area"
           }
-        ]
+        ],
+        "section_key": "wound",
+        "control": "select"
       },
       {
         "key": "wound_type",
@@ -146,7 +164,9 @@
             "value": "surgical",
             "label": "Surgical"
           }
-        ]
+        ],
+        "section_key": "wound",
+        "control": "radio"
       },
       {
         "key": "length",
@@ -158,7 +178,9 @@
         "allowed_units": [
           "cm"
         ],
-        "default_unit": "cm"
+        "default_unit": "cm",
+        "section_key": "wound",
+        "step": 0.1
       },
       {
         "key": "width",
@@ -170,7 +192,9 @@
         "allowed_units": [
           "cm"
         ],
-        "default_unit": "cm"
+        "default_unit": "cm",
+        "section_key": "wound",
+        "step": 0.1
       },
       {
         "key": "depth",
@@ -182,28 +206,33 @@
         "allowed_units": [
           "cm"
         ],
-        "default_unit": "cm"
+        "default_unit": "cm",
+        "section_key": "wound",
+        "step": 0.1
       },
       {
         "key": "has_necrotic",
         "type": "boolean",
         "label": "Necrotic tissue",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "wound"
       },
       {
         "key": "has_slough",
         "type": "boolean",
         "label": "Slough",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "wound"
       },
       {
         "key": "bone_visible",
         "type": "boolean",
         "label": "Bone or tendon visible",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "wound"
       },
       {
         "key": "exudate_amount",
@@ -227,7 +256,10 @@
             "value": "heavy",
             "label": "Heavy"
           }
-        ]
+        ],
+        "section_key": "wound",
+        "control": "select",
+        "default": "none"
       },
       {
         "key": "exudate_type",
@@ -237,46 +269,32 @@
         "options": [
           {
             "value": "serous",
-            "label": "Serous"
+            "label": "Serous (clear)"
           },
           {
             "value": "sanguineous",
-            "label": "Sanguineous"
+            "label": "Sanguineous (bloody)"
           },
           {
             "value": "purulent",
-            "label": "Purulent"
+            "label": "Purulent (pus)"
           },
           {
             "value": "malodorous",
             "label": "Malodorous"
           }
-        ]
-      },
-      {
-        "key": "infection_sign_count",
-        "type": "integer",
-        "label": "Infection signs present",
-        "required": false,
-        "minimum": 0,
-        "maximum": 8,
-        "default": 0
+        ],
+        "section_key": "wound",
+        "control": "select",
+        "default": "serous"
       },
       {
         "key": "red_streaking",
         "type": "boolean",
         "label": "Red streaking",
         "required": false,
-        "default": false
-      },
-      {
-        "key": "risk_factor_count",
-        "type": "integer",
-        "label": "Healing risk factors present",
-        "required": false,
-        "minimum": 0,
-        "maximum": 6,
-        "default": 0
+        "default": false,
+        "section_key": "risk"
       },
       {
         "key": "tetanus_status",
@@ -290,21 +308,162 @@
           },
           {
             "value": "current",
-            "label": "Up to date"
+            "label": "Up to date (within 10 years)"
           },
           {
             "value": "dirty_current",
-            "label": "Up to date for dirty wounds"
+            "label": "Up to date for dirty wounds (within 5 years)"
           },
           {
             "value": "overdue",
-            "label": "Overdue"
+            "label": "Overdue (>10 years ago)"
           },
           {
             "value": "never",
             "label": "Never vaccinated"
           }
-        ]
+        ],
+        "section_key": "risk",
+        "control": "select",
+        "default": "unknown"
+      },
+      {
+        "key": "tissue_healthy",
+        "type": "boolean",
+        "label": "Healthy granulation tissue",
+        "required": false,
+        "default": false,
+        "section_key": "wound"
+      },
+      {
+        "key": "infection_redness",
+        "type": "boolean",
+        "label": "Redness around wound",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "infection_warmth",
+        "type": "boolean",
+        "label": "Warmth to touch",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "infection_swelling",
+        "type": "boolean",
+        "label": "Swelling/edema",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "infection_pain",
+        "type": "boolean",
+        "label": "Increasing pain",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "infection_pus",
+        "type": "boolean",
+        "label": "Pus or thick drainage",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "infection_fever",
+        "type": "boolean",
+        "label": "Fever/systemic symptoms",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "infection_foreign",
+        "type": "boolean",
+        "label": "Foreign material present",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "risk_diabetes",
+        "type": "boolean",
+        "label": "Diabetes",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "risk_immunocompromised",
+        "type": "boolean",
+        "label": "Immunocompromised",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "risk_circulation",
+        "type": "boolean",
+        "label": "Poor circulation",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "risk_medications",
+        "type": "boolean",
+        "label": "On blood thinners/steroids",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "risk_elderly",
+        "type": "boolean",
+        "label": "Age >65 years",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "risk_malnutrition",
+        "type": "boolean",
+        "label": "Poor nutrition",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "edges",
+        "type": "single_selection",
+        "label": "Wound edges",
+        "required": false,
+        "options": [
+          {
+            "value": "clean",
+            "label": "Clean, well-approximated"
+          },
+          {
+            "value": "irregular",
+            "label": "Irregular, jagged"
+          },
+          {
+            "value": "gaping",
+            "label": "Gaping, cannot close"
+          },
+          {
+            "value": "necrotic",
+            "label": "Necrotic tissue present"
+          }
+        ],
+        "section_key": "wound",
+        "control": "radio"
       }
     ],
     "sections": [
@@ -321,6 +480,260 @@
       }
     ],
     "calculation": [
+      {
+        "key": "risk_factor_count",
+        "expression": {
+          "op": "add",
+          "args": [
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "risk_diabetes"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "risk_immunocompromised"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "risk_circulation"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "risk_medications"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "risk_elderly"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "risk_malnutrition"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "infection_sign_count",
+        "expression": {
+          "op": "add",
+          "args": [
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "infection_redness"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "infection_warmth"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "infection_swelling"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "infection_pain"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "infection_pus"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "infection_fever"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "red_streaking"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "infection_foreign"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            }
+          ]
+        }
+      },
       {
         "key": "area",
         "expression": {
@@ -943,11 +1356,15 @@
             "unit": "cm"
           },
           "bone_visible": true,
-          "infection_sign_count": 3,
           "exudate_amount": "heavy",
           "exudate_type": "purulent",
-          "risk_factor_count": 3,
-          "tetanus_status": "unknown"
+          "tetanus_status": "unknown",
+          "infection_redness": true,
+          "infection_warmth": true,
+          "infection_swelling": true,
+          "risk_diabetes": true,
+          "risk_immunocompromised": true,
+          "risk_circulation": true
         },
         "expected": {
           "severity": "Major Wound",

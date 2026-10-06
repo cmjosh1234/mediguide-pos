@@ -1,0 +1,533 @@
+{
+  "dehydration-assessment": [
+    {
+      "html_id": "thirst",
+      "input_key": "thirst"
+    },
+    {
+      "html_id": "nausea",
+      "input_key": "nausea"
+    },
+    {
+      "html_id": "diarrhea",
+      "input_key": "diarrhea"
+    },
+    {
+      "html_id": "fever",
+      "input_key": "fever"
+    },
+    {
+      "html_id": "dizziness",
+      "input_key": "dizziness"
+    },
+    {
+      "html_id": "appearance-normal",
+      "input_key": "appearance",
+      "value": 0
+    },
+    {
+      "html_id": "appearance-restless",
+      "input_key": "appearance",
+      "value": 1
+    },
+    {
+      "html_id": "appearance-lethargic",
+      "input_key": "appearance",
+      "value": 2
+    },
+    {
+      "html_id": "eyes-normal",
+      "input_key": "eyes",
+      "value": 0
+    },
+    {
+      "html_id": "eyes-sunken",
+      "input_key": "eyes",
+      "value": 1
+    },
+    {
+      "html_id": "eyes-very-sunken",
+      "input_key": "eyes",
+      "value": 2
+    },
+    {
+      "html_id": "mouth-moist",
+      "input_key": "mouth",
+      "value": 0
+    },
+    {
+      "html_id": "mouth-sticky",
+      "input_key": "mouth",
+      "value": 1
+    },
+    {
+      "html_id": "mouth-dry",
+      "input_key": "mouth",
+      "value": 2
+    },
+    {
+      "html_id": "tears-present",
+      "input_key": "tears",
+      "value": 0
+    },
+    {
+      "html_id": "tears-decreased",
+      "input_key": "tears",
+      "value": 1
+    },
+    {
+      "html_id": "tears-absent",
+      "input_key": "tears",
+      "value": 2
+    },
+    {
+      "html_id": "skin-normal",
+      "input_key": "skin",
+      "value": 0
+    },
+    {
+      "html_id": "skin-slow",
+      "input_key": "skin",
+      "value": 1
+    },
+    {
+      "html_id": "skin-very-slow",
+      "input_key": "skin",
+      "value": 2
+    },
+    {
+      "html_id": "urine-normal",
+      "input_key": "urine",
+      "value": 0
+    },
+    {
+      "html_id": "urine-decreased",
+      "input_key": "urine",
+      "value": 1
+    },
+    {
+      "html_id": "urine-minimal",
+      "input_key": "urine",
+      "value": 2
+    }
+  ],
+  "pediatric-fever-management": [
+    {
+      "html_id": "difficulty-breathing",
+      "input_key": "difficulty_breathing"
+    },
+    {
+      "html_id": "poor-feeding",
+      "input_key": "poor_feeding"
+    },
+    {
+      "html_id": "vomiting",
+      "input_key": "vomiting"
+    },
+    {
+      "html_id": "lethargy",
+      "input_key": "lethargy"
+    },
+    {
+      "html_id": "irritability",
+      "input_key": "irritability"
+    },
+    {
+      "html_id": "rash",
+      "input_key": "rash"
+    },
+    {
+      "html_id": "neck-stiffness",
+      "input_key": "neck_stiffness"
+    },
+    {
+      "html_id": "convulsions",
+      "input_key": "convulsions"
+    }
+  ],
+  "cardiac-risk-assessment": [
+    {
+      "html_id": "diabetes",
+      "input_key": "diabetes"
+    },
+    {
+      "html_id": "smoking",
+      "input_key": "smoking"
+    },
+    {
+      "html_id": "hypertension",
+      "input_key": "hypertension"
+    },
+    {
+      "html_id": "obesity",
+      "input_key": "obesity"
+    },
+    {
+      "html_id": "chronic-kidney",
+      "input_key": "chronic_kidney_disease"
+    },
+    {
+      "html_id": "atrial-fib",
+      "input_key": "atrial_fib"
+    },
+    {
+      "html_id": "inflammatory",
+      "input_key": "inflammatory"
+    },
+    {
+      "html_id": "sleep-apnea",
+      "input_key": "sleep_apnea"
+    },
+    {
+      "html_id": "sedentary",
+      "input_key": "sedentary"
+    },
+    {
+      "html_id": "depression",
+      "input_key": "depression"
+    }
+  ],
+  "emergency-triage-assessment": [
+    {
+      "html_id": "cardiac-arrest",
+      "input_key": "cardiac_arrest"
+    },
+    {
+      "html_id": "airway-obstruction",
+      "input_key": "airway_obstruction"
+    },
+    {
+      "html_id": "severe-shock",
+      "input_key": "severe_shock"
+    },
+    {
+      "html_id": "unconscious",
+      "input_key": "unconscious"
+    },
+    {
+      "html_id": "severe-breathing",
+      "input_key": "severe_breathing"
+    },
+    {
+      "html_id": "chest-pain",
+      "input_key": "chest_pain"
+    },
+    {
+      "html_id": "altered-consciousness",
+      "input_key": "altered_consciousness"
+    },
+    {
+      "html_id": "severe-hemorrhage",
+      "input_key": "severe_hemorrhage"
+    },
+    {
+      "html_id": "anaphylaxis",
+      "input_key": "anaphylaxis"
+    },
+    {
+      "html_id": "stroke-signs",
+      "input_key": "stroke_signs"
+    },
+    {
+      "html_id": "moderate-breathing",
+      "input_key": "moderate_breathing"
+    },
+    {
+      "html_id": "severe-pain",
+      "input_key": "severe_pain"
+    },
+    {
+      "html_id": "persistent-vomiting",
+      "input_key": "persistent_vomiting"
+    },
+    {
+      "html_id": "high-fever",
+      "input_key": "high_fever"
+    },
+    {
+      "html_id": "significant-injury",
+      "input_key": "significant_injury"
+    },
+    {
+      "html_id": "stable-condition",
+      "input_key": "stable_condition"
+    },
+    {
+      "html_id": "moderate-pain",
+      "input_key": "moderate_pain"
+    },
+    {
+      "html_id": "minor-injury",
+      "input_key": "minor_injury"
+    },
+    {
+      "html_id": "routine-symptoms",
+      "input_key": "routine_symptoms"
+    }
+  ],
+  "wound-assessment-tool": [
+    {
+      "html_id": "tissue-healthy",
+      "input_key": "tissue_healthy"
+    },
+    {
+      "html_id": "tissue-necrotic",
+      "input_key": "has_necrotic"
+    },
+    {
+      "html_id": "tissue-slough",
+      "input_key": "has_slough"
+    },
+    {
+      "html_id": "tissue-bone",
+      "input_key": "bone_visible"
+    },
+    {
+      "html_id": "infection-redness",
+      "input_key": "infection_redness"
+    },
+    {
+      "html_id": "infection-warmth",
+      "input_key": "infection_warmth"
+    },
+    {
+      "html_id": "infection-swelling",
+      "input_key": "infection_swelling"
+    },
+    {
+      "html_id": "infection-pain",
+      "input_key": "infection_pain"
+    },
+    {
+      "html_id": "infection-pus",
+      "input_key": "infection_pus"
+    },
+    {
+      "html_id": "infection-fever",
+      "input_key": "infection_fever"
+    },
+    {
+      "html_id": "infection-streaks",
+      "input_key": "red_streaking"
+    },
+    {
+      "html_id": "infection-foreign",
+      "input_key": "infection_foreign"
+    },
+    {
+      "html_id": "risk-diabetes",
+      "input_key": "risk_diabetes"
+    },
+    {
+      "html_id": "risk-immunocompromised",
+      "input_key": "risk_immunocompromised"
+    },
+    {
+      "html_id": "risk-circulation",
+      "input_key": "risk_circulation"
+    },
+    {
+      "html_id": "risk-medications",
+      "input_key": "risk_medications"
+    },
+    {
+      "html_id": "risk-elderly",
+      "input_key": "risk_elderly"
+    },
+    {
+      "html_id": "risk-malnutrition",
+      "input_key": "risk_malnutrition"
+    },
+    {
+      "html_id": "edges-clean",
+      "input_key": "edges",
+      "value": "clean"
+    },
+    {
+      "html_id": "edges-irregular",
+      "input_key": "edges",
+      "value": "irregular"
+    },
+    {
+      "html_id": "edges-gaping",
+      "input_key": "edges",
+      "value": "gaping"
+    },
+    {
+      "html_id": "edges-necrotic",
+      "input_key": "edges",
+      "value": "necrotic"
+    }
+  ],
+  "immunization-schedule-checker": [
+    {
+      "html_id": "asthma",
+      "input_key": "asthma"
+    },
+    {
+      "html_id": "diabetes",
+      "input_key": "diabetes"
+    },
+    {
+      "html_id": "heart-disease",
+      "input_key": "heart_disease"
+    },
+    {
+      "html_id": "kidney-disease",
+      "input_key": "kidney_disease"
+    },
+    {
+      "html_id": "liver-disease",
+      "input_key": "liver_disease"
+    },
+    {
+      "html_id": "hiv",
+      "input_key": "hiv_or_immunocompromised"
+    },
+    {
+      "html_id": "cancer",
+      "input_key": "cancer"
+    },
+    {
+      "html_id": "pregnancy",
+      "input_key": "pregnancy"
+    }
+  ],
+  "pain-assessment-scale": [
+    {
+      "html_id": "facial-1",
+      "input_key": "bps_facial",
+      "value": 1
+    },
+    {
+      "html_id": "facial-2",
+      "input_key": "bps_facial",
+      "value": 2
+    },
+    {
+      "html_id": "facial-3",
+      "input_key": "bps_facial",
+      "value": 3
+    },
+    {
+      "html_id": "facial-4",
+      "input_key": "bps_facial",
+      "value": 4
+    },
+    {
+      "html_id": "limbs-1",
+      "input_key": "bps_upper_limbs",
+      "value": 1
+    },
+    {
+      "html_id": "limbs-2",
+      "input_key": "bps_upper_limbs",
+      "value": 2
+    },
+    {
+      "html_id": "limbs-3",
+      "input_key": "bps_upper_limbs",
+      "value": 3
+    },
+    {
+      "html_id": "limbs-4",
+      "input_key": "bps_upper_limbs",
+      "value": 4
+    },
+    {
+      "html_id": "vent-1",
+      "input_key": "bps_ventilation",
+      "value": 1
+    },
+    {
+      "html_id": "vent-2",
+      "input_key": "bps_ventilation",
+      "value": 2
+    },
+    {
+      "html_id": "vent-3",
+      "input_key": "bps_ventilation",
+      "value": 3
+    },
+    {
+      "html_id": "vent-4",
+      "input_key": "bps_ventilation",
+      "value": 4
+    },
+    {
+      "html_id": "flacc-face-0",
+      "input_key": "flacc_face",
+      "value": 0
+    },
+    {
+      "html_id": "flacc-face-1",
+      "input_key": "flacc_face",
+      "value": 1
+    },
+    {
+      "html_id": "flacc-face-2",
+      "input_key": "flacc_face",
+      "value": 2
+    },
+    {
+      "html_id": "flacc-legs-0",
+      "input_key": "flacc_legs",
+      "value": 0
+    },
+    {
+      "html_id": "flacc-legs-1",
+      "input_key": "flacc_legs",
+      "value": 1
+    },
+    {
+      "html_id": "flacc-legs-2",
+      "input_key": "flacc_legs",
+      "value": 2
+    },
+    {
+      "html_id": "flacc-activity-0",
+      "input_key": "flacc_activity",
+      "value": 0
+    },
+    {
+      "html_id": "flacc-activity-1",
+      "input_key": "flacc_activity",
+      "value": 1
+    },
+    {
+      "html_id": "flacc-activity-2",
+      "input_key": "flacc_activity",
+      "value": 2
+    },
+    {
+      "html_id": "flacc-cry-0",
+      "input_key": "flacc_cry",
+      "value": 0
+    },
+    {
+      "html_id": "flacc-cry-1",
+      "input_key": "flacc_cry",
+      "value": 1
+    },
+    {
+      "html_id": "flacc-cry-2",
+      "input_key": "flacc_cry",
+      "value": 2
+    },
+    {
+      "html_id": "flacc-console-0",
+      "input_key": "flacc_consolability",
+      "value": 0
+    },
+    {
+      "html_id": "flacc-console-1",
+      "input_key": "flacc_consolability",
+      "value": 1
+    },
+    {
+      "html_id": "flacc-console-2",
+      "input_key": "flacc_consolability",
+      "value": 2
+    }
+  ]
+}

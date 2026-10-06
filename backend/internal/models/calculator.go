@@ -32,7 +32,8 @@ func (Calculator) TableName() string {
 
 type CalculatorUsageLog struct {
 	Base
-	UserID              uuid.UUID  `gorm:"type:uuid;not null;column:user_id" json:"user_id"`
+	IdempotencyKey      *string    `gorm:"uniqueIndex:calculator_usage_user_key" json:"idempotency_key,omitempty"`
+	UserID              uuid.UUID  `gorm:"type:uuid;not null;column:user_id;uniqueIndex:calculator_usage_user_key" json:"user_id"`
 	CalculatorID        uuid.UUID  `gorm:"type:uuid;not null;column:calculator_id" json:"calculator_id"`
 	SessionStart        string     `gorm:"not null;column:session_start" json:"session_start"`
 	SessionEnd          *string    `gorm:"column:session_end" json:"session_end,omitempty"`

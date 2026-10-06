@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter/foundation.dart';
+import 'package:user_app/features/calculators/data/repositories/calculator_usage_tracker.dart';
 import 'package:user_app/app/providers/app_providers.dart';
 import 'package:user_app/features/authentication/presentation/controllers/auth_controller.dart';
 import 'package:user_app/features/calculators/data/models/clinical_tool_definition.dart';
@@ -39,9 +41,6 @@ final class UseCalculatorState {
 
 @riverpod
 class UseCalculatorController extends _$UseCalculatorController {
-  DateTime? _sessionStart;
-  String? _usageId;
-  Future<void>? _usageStart;
   CalculatorRepository get _repository =>
       ref.read(calculatorRepositoryProvider);
 
@@ -50,13 +49,15 @@ class UseCalculatorController extends _$UseCalculatorController {
     if (request.id.trim().isEmpty) {
       throw ArgumentError.value(request.id, 'calculatorId', 'is required');
     }
-    final calculator = request.calculator ?? await _repository.get(request.id);
-    _usageStart = _startUsage(calculator);
-    ref.onDispose(() => unawaited(_finishUsage()));
+    var disposed = false;
+    ref.onDispose(() => disposed = true);
+    final repository = _repository;
+    final calculator = request.calculator ?? await repository.get(request.id);
 
     // A published schema is now the only executable clinical-tool runtime.
     // The repository may return a checksum-validated cached definition offline.
-    final definition = await _repository.definition(calculator.id);
+    final definition = await repository.definition(calculator.id);
+    if (disposed) throw StateError('Tool page closed during loading');
     final userId = ref.read(authControllerProvider).valueOrNull?.user?.id;
     final responses =
         userId == null || !definition.definition.completion.allowResume
@@ -66,6 +67,37 @@ class UseCalculatorController extends _$UseCalculatorController {
             userId: userId,
             definition: definition,
           );
+    if (!disposed && userId != null) {
+      final tracker = ref.read(calculatorUsageTrackerProvider);
+      final started = tracker.begin(
+        userId: userId,
+        calculatorId: calculator.id,
+        versionId: definition.versionId,
+        calculatorType: _calculatorTypeValue(calculator.type),
+        start: DateTime.now().toUtc(),
+      );
+      // Observe errors without making the clinical form depend on analytics.
+      unawaited(
+        started.then<void>(
+          (_) {},
+          onError: (Object error) {
+            debugPrint(
+              'Clinical tool usage start failed: ${error.runtimeType}',
+            );
+          },
+        ),
+      );
+      ref.onDispose(() {
+        final end = DateTime.now().toUtc();
+        unawaited(
+          started.then((id) => tracker.end(userId, id, end)).catchError((
+            Object error,
+          ) {
+            debugPrint('Clinical tool usage end failed: ${error.runtimeType}');
+          }),
+        );
+      });
+    }
     return UseCalculatorState(
       calculator: calculator,
       definition: definition,
@@ -95,42 +127,6 @@ class UseCalculatorController extends _$UseCalculatorController {
   Future<void> reload() async {
     ref.invalidateSelf();
     await future;
-  }
-
-  Future<void> _startUsage(Calculator calculator) async {
-    if (ref.read(authControllerProvider).valueOrNull?.user == null) return;
-    try {
-      _sessionStart = DateTime.now().toUtc();
-      final record = await _repository.startUsage(
-        calculatorId: calculator.id,
-        sessionStart: _sessionStart!.toIso8601String(),
-        calculatorType: _calculatorTypeValue(calculator.type),
-      );
-      _usageId = record.id;
-    } catch (_) {
-      /* Analytics must never block tool use. */
-    }
-  }
-
-  Future<void> _finishUsage() async {
-    try {
-      await _usageStart;
-    } catch (_) {
-      return;
-    }
-    final start = _sessionStart;
-    final usageId = _usageId;
-    if (start == null || usageId == null) return;
-    final end = DateTime.now().toUtc();
-    if (end.difference(start).inSeconds < 5) return;
-    try {
-      await _repository.finishUsage(
-        usageId: usageId,
-        sessionEnd: end.toIso8601String(),
-      );
-    } catch (_) {
-      /* Non-blocking analytics. */
-    }
   }
 
   String _calculatorTypeValue(CalculatorType type) => switch (type) {

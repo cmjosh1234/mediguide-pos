@@ -171,6 +171,8 @@ definitions:
         type: string
       clinical_warning:
         type: string
+      control:
+        type: string
       critical:
         type: boolean
       default:
@@ -996,6 +998,10 @@ definitions:
           format: int64
           type: integer
         type: object
+      featureUsage:
+        items:
+          $ref: '#/definitions/services.FeatureUsageSummary'
+        type: array
       metrics:
         additionalProperties:
           format: int64
@@ -1142,13 +1148,6 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/services.MarkdownValidationResult'
-      success:
-        type: boolean
-    type: object
-  handlers.MedicalGuidelineEnvelope:
-    properties:
-      data:
-        $ref: '#/definitions/models.MedicalGuideline'
       success:
         type: boolean
     type: object
@@ -1714,13 +1713,6 @@ definitions:
         $ref: '#/definitions/handlers.PaginatedMarkdownRevisions'
       success:
         example: true
-        type: boolean
-    type: object
-  handlers.PaginatedMedicalGuidelinesEnvelope:
-    properties:
-      data:
-        $ref: '#/definitions/services.PageResult-models_MedicalGuideline'
-      success:
         type: boolean
     type: object
   handlers.PaginatedMessagesEnvelope:
@@ -2671,6 +2663,8 @@ definitions:
         type: string
       id:
         type: string
+      idempotency_key:
+        type: string
       session_end:
         type: string
       session_start:
@@ -3162,6 +3156,8 @@ definitions:
         type: string
       id:
         type: string
+      idempotency_key:
+        type: string
       updated_at:
         type: string
       user_id:
@@ -3287,6 +3283,8 @@ definitions:
       facility_id:
         type: string
       id:
+        type: string
+      idempotency_key:
         type: string
       updated_at:
         type: string
@@ -4129,93 +4127,6 @@ definitions:
         type: string
       version:
         type: number
-    type: object
-  models.MedicalGuideline:
-    properties:
-      categories:
-        items:
-          type: string
-        type: array
-      category_details:
-        items:
-          $ref: '#/definitions/models.GuidelineCategory'
-        type: array
-      causes:
-        type: string
-      classification_critical:
-        type: string
-      classification_mild:
-        type: string
-      classification_moderate:
-        type: string
-      classification_severe:
-        type: string
-      clinical_features:
-        type: string
-      condition_name:
-        type: string
-      contraindications:
-        type: string
-      created_at:
-        type: string
-      definition:
-        type: string
-      differential_diagnosis:
-        type: string
-      dosage_adult:
-        type: string
-      dosage_pediatric:
-        type: string
-      dosage_secondary_adult:
-        type: string
-      dosage_secondary_pediatric:
-        type: string
-      general_management:
-        type: string
-      healthcare_level_required:
-        type: string
-      icd10_code:
-        type: string
-      id:
-        type: string
-      index_item_id:
-        type: string
-      index_item_title:
-        type: string
-      is_published:
-        type: boolean
-      medication_primary:
-        type: string
-      medication_secondary:
-        type: string
-      monitoring_requirements:
-        type: string
-      prevention_measures:
-        type: string
-      priority:
-        type: string
-      route_administration:
-        type: string
-      special_notes:
-        type: string
-      status:
-        type: string
-      tag_details:
-        items:
-          $ref: '#/definitions/models.GuidelineTag'
-        type: array
-      tags:
-        items:
-          type: string
-        type: array
-      target_population:
-        type: string
-      updated_at:
-        type: string
-      usage_count:
-        type: integer
-      version:
-        type: string
     type: object
   models.MinistryDirectoryEntry:
     properties:
@@ -5892,6 +5803,15 @@ definitions:
       usage_count:
         type: integer
     type: object
+  services.FeatureUsageSummary:
+    properties:
+      feature:
+        type: string
+      last7:
+        type: integer
+      last30:
+        type: integer
+    type: object
   services.FinishCalculatorUsageInput:
     properties:
       session_end:
@@ -6822,75 +6742,6 @@ definitions:
         type: boolean
       warnings:
         type: integer
-    type: object
-  services.MedicalGuidelineInput:
-    properties:
-      categories:
-        items:
-          type: string
-        type: array
-      causes:
-        type: string
-      classification_critical:
-        type: string
-      classification_mild:
-        type: string
-      classification_moderate:
-        type: string
-      classification_severe:
-        type: string
-      clinical_features:
-        type: string
-      condition_name:
-        type: string
-      contraindications:
-        type: string
-      definition:
-        type: string
-      differential_diagnosis:
-        type: string
-      dosage_adult:
-        type: string
-      dosage_pediatric:
-        type: string
-      dosage_secondary_adult:
-        type: string
-      dosage_secondary_pediatric:
-        type: string
-      general_management:
-        type: string
-      healthcare_level_required:
-        type: string
-      icd10_code:
-        type: string
-      index_item_id:
-        type: string
-      is_published:
-        type: boolean
-      medication_primary:
-        type: string
-      medication_secondary:
-        type: string
-      monitoring_requirements:
-        type: string
-      prevention_measures:
-        type: string
-      priority:
-        type: string
-      route_administration:
-        type: string
-      special_notes:
-        type: string
-      status:
-        type: string
-      tags:
-        items:
-          type: string
-        type: array
-      target_population:
-        type: string
-      version:
-        type: string
     type: object
   services.MergeGuidelineSectionInput:
     properties:
@@ -8019,21 +7870,6 @@ definitions:
       items:
         items:
           $ref: '#/definitions/models.GuidelineTag'
-        type: array
-      page:
-        type: integer
-      per_page:
-        type: integer
-      total_items:
-        type: integer
-      total_pages:
-        type: integer
-    type: object
-  services.PageResult-models_MedicalGuideline:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/models.MedicalGuideline'
         type: array
       page:
         type: integer
@@ -9447,6 +9283,10 @@ definitions:
     properties:
       calculator_type:
         type: string
+      calculator_version_id:
+        type: string
+      idempotency_key:
+        type: string
       session_start:
         type: string
     type: object
@@ -9646,9 +9486,13 @@ definitions:
     type: object
   services.UsageEventInput:
     properties:
+      feature:
+        type: string
       idempotency_key:
         type: string
       resource_id:
+        type: string
+      resource_type:
         type: string
     type: object
   services.UserCreateInput:
@@ -9798,6 +9642,32 @@ info:
   title: MediGuide Backend API
   version: 2.1.11
 paths:
+  /api/public/abbreviations:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PaginatedAbbreviationsEnvelope'
+      summary: List abbreviations
+      tags:
+      - guideline-content
+  /api/public/abbreviations/{id}:
+    get:
+      parameters:
+      - description: Abbreviation UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AbbreviationEnvelope'
+      summary: Get an abbreviation
+      tags:
+      - guideline-content
   /api/public/assistant/ask:
     post:
       consumes:
@@ -9837,6 +9707,42 @@ paths:
       summary: Ask the public assistant across approved guidelines
       tags:
       - public-guidelines
+  /api/public/authorities:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/authorities/{id}:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/counties:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/counties/{id}:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
   /api/public/diseases:
     get:
       parameters:
@@ -9900,6 +9806,313 @@ paths:
       summary: Browse the eligible public disease hierarchy
       tags:
       - public-diseases
+  /api/public/districts:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/districts/{id}:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/drug-categories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PaginatedDrugCategoriesEnvelope'
+      summary: List drug categories
+      tags:
+      - drugs
+  /api/public/drug-classes:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PaginatedDrugClassesEnvelope'
+      summary: List drug classes
+      tags:
+      - drugs
+  /api/public/drug-tags:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PaginatedDrugTagsEnvelope'
+      summary: List drug tags
+      tags:
+      - drugs
+  /api/public/drugs:
+    get:
+      parameters:
+      - description: Page number
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        maximum: 100
+        minimum: 1
+        name: per_page
+        type: integer
+      - description: Drug name, brand, indication, or keyword
+        in: query
+        name: search
+        type: string
+      - description: Drug status
+        in: query
+        name: status
+        type: string
+      - description: Review status
+        in: query
+        name: review_status
+        type: string
+      - description: Drug class UUID
+        in: query
+        name: drug_class_id
+        type: string
+      - description: Therapeutic category UUID
+        in: query
+        name: therapeutic_category_id
+        type: string
+      - description: Route of administration
+        in: query
+        name: route
+        type: string
+      - description: Pregnancy category
+        in: query
+        name: pregnancy_category
+        type: string
+      - description: WHO essential medicines only
+        in: query
+        name: who_eml
+        type: boolean
+      - description: Antimicrobials only
+        in: query
+        name: antimicrobial
+        type: boolean
+      - description: 'Allowed values: name, created_at, updated_at, usage_count'
+        in: query
+        name: sort
+        type: string
+      - description: 'Allowed values: asc, desc'
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PaginatedDrugsEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: List drugs
+      tags:
+      - drugs
+  /api/public/drugs/{id}:
+    get:
+      parameters:
+      - description: Drug ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.DrugEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Get a drug
+      tags:
+      - drugs
+  /api/public/facilities:
+    get:
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Name, code, or district search
+        in: query
+        name: search
+        type: string
+      - description: Region UUID
+        in: query
+        name: region_id
+        type: string
+      - description: District UUID
+        in: query
+        name: district_id
+        type: string
+      - description: Facility level UUID
+        in: query
+        name: facility_level_id
+        type: string
+      - description: Ownership type UUID
+        in: query
+        name: ownership_type_id
+        type: string
+      - description: name, created_at, updated_at, or usage_count
+        in: query
+        name: sort
+        type: string
+      - description: asc or desc
+        in: query
+        name: order
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.FacilityPage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: List health facilities
+      tags:
+      - facilities
+  /api/public/facilities/{id}:
+    get:
+      parameters:
+      - description: Facility UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.FacilityItem'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Get a health facility
+      tags:
+      - facilities
+  /api/public/facility-levels:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/facility-levels/{id}:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/guideline-categories:
+    get:
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Name, slug, or description
+        in: query
+        name: search
+        type: string
+      - description: Status (editors only)
+        in: query
+        name: status
+        type: string
+      - description: Parent UUID
+        in: query
+        name: parent_id
+        type: string
+      - description: Allowlisted sort field
+        in: query
+        name: sort
+        type: string
+      - description: asc or desc
+        in: query
+        name: order
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PaginatedGuidelineCategoriesEnvelope'
+      summary: List guideline categories
+      tags:
+      - guideline-taxonomy
+  /api/public/guideline-categories/{id}:
+    get:
+      parameters:
+      - description: Category UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GuidelineCategoryEnvelope'
+      summary: Get a guideline category
+      tags:
+      - guideline-taxonomy
+  /api/public/guideline-tags:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PaginatedGuidelineTagsEnvelope'
+      summary: List guideline tags
+      tags:
+      - guideline-taxonomy
   /api/public/guidelines:
     get:
       parameters:
@@ -10344,6 +10557,42 @@ paths:
       summary: List document kinds represented in the published guideline library
       tags:
       - Public Guidelines
+  /api/public/health-sub-districts:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/health-sub-districts/{id}:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/health-sub-regions:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/health-sub-regions/{id}:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
   /api/public/hubs:
     get:
       parameters:
@@ -10564,6 +10813,84 @@ paths:
       summary: List a published outbreak's updates
       tags:
       - public-outbreaks
+  /api/public/ownership-types:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/ownership-types/{id}:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/parishes:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/parishes/{id}:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/regions:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/regions/{id}:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/regions/{id}/children:
+    get:
+      parameters:
+      - description: Region UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.RegionChildren'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Get typed children for a region
+      tags:
+      - facilities
   /api/public/search:
     get:
       parameters:
@@ -10710,6 +11037,24 @@ paths:
       summary: Open the managed PDF for a published situation report
       tags:
       - public-outbreaks
+  /api/public/subcounties:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
+  /api/public/subcounties/{id}:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Read public reference
   /api/public/support/tickets:
     post:
       description: Unauthenticated visitors must supply requester_name and requester_email
@@ -10734,6 +11079,18 @@ paths:
       summary: Create a support ticket without signing in
       tags:
       - support
+  /api/public/therapeutic-categories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PaginatedTherapeuticCategoriesEnvelope'
+      summary: List therapeutic categories
+      tags:
+      - drugs
   /api/v1/health-facilities/tree:
     get:
       description: Legacy v1 endpoint that groups facilities by region, district,
@@ -13703,6 +14060,11 @@ paths:
   /api/v2/drugs/{id}/usage:
     post:
       parameters:
+      - description: Optional retry key
+        in: body
+        name: payload
+        schema:
+          $ref: '#/definitions/services.UsageEventInput'
       - description: Drug ID
         format: uuid
         in: path
@@ -14035,6 +14397,11 @@ paths:
   /api/v2/facilities/{id}/usage:
     post:
       parameters:
+      - description: Optional retry key
+        in: body
+        name: payload
+        schema:
+          $ref: '#/definitions/services.UsageEventInput'
       - description: Facility UUID
         in: path
         name: id
@@ -17771,131 +18138,6 @@ paths:
       summary: Change the current user's password
       tags:
       - auth
-  /api/v2/medical-guidelines:
-    get:
-      description: Readers see published guidelines only. Editors may query any publication
-        state.
-      parameters:
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Items per page
-        in: query
-        name: per_page
-        type: integer
-      - description: Condition, ICD-10 code, or population
-        in: query
-        name: search
-        type: string
-      - description: Status (editors only)
-        in: query
-        name: status
-        type: string
-      - description: Category UUID
-        in: query
-        name: category_id
-        type: string
-      - description: Tag UUID
-        in: query
-        name: tag_id
-        type: string
-      - description: Publication state (editors only)
-        in: query
-        name: is_published
-        type: boolean
-      - description: Allowlisted sort field
-        in: query
-        name: sort
-        type: string
-      - description: asc or desc
-        in: query
-        name: order
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.PaginatedMedicalGuidelinesEnvelope'
-      security:
-      - BearerAuth: []
-      summary: List medical guidelines
-      tags:
-      - guideline-content
-    post:
-      parameters:
-      - description: Guideline
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/services.MedicalGuidelineInput'
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/handlers.MedicalGuidelineEnvelope'
-      security:
-      - BearerAuth: []
-      summary: Create a medical guideline
-      tags:
-      - guideline-content
-  /api/v2/medical-guidelines/{id}:
-    delete:
-      parameters:
-      - description: Guideline UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-      security:
-      - BearerAuth: []
-      summary: Archive a medical guideline
-      tags:
-      - guideline-content
-    get:
-      parameters:
-      - description: Guideline UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.MedicalGuidelineEnvelope'
-      security:
-      - BearerAuth: []
-      summary: Get a medical guideline
-      tags:
-      - guideline-content
-    patch:
-      parameters:
-      - description: Guideline UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Guideline changes
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/services.MedicalGuidelineInput'
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.MedicalGuidelineEnvelope'
-      security:
-      - BearerAuth: []
-      summary: Update a medical guideline
-      tags:
-      - guideline-content
   /api/v2/ministry-directory:
     get:
       responses:
@@ -20527,6 +20769,25 @@ paths:
       security:
       - BearerAuth: []
       summary: Record idempotent AI usage
+      tags:
+      - progress-usage
+  /api/v2/usage/features:
+    post:
+      parameters:
+      - description: Feature visit
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/services.UsageEventInput'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UsageEventEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Record a signed-in app feature visit
       tags:
       - progress-usage
   /api/v2/usage/guidelines:

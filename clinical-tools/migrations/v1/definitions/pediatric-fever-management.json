@@ -2,13 +2,13 @@
   "legacy_id": "pediatric-fever-management",
   "legacy_file": "pediatric-fever-management.html",
   "source_checksum": "db1ae667c44ebe12a1cd6227e9faa033e2cd04e07d56b1d02f96cdf7f244e39d",
-  "change_summary": "Review draft: preserve age/temperature conversion and risk thresholds while requiring measured weight for any dose output and accepting an explicit age of zero months. All thresholds, danger signs, and doses require clinician/pharmacist approval.",
+  "change_summary": "Review draft: preserve age/temperature conversion and risk thresholds while requiring measured weight for any dose output and accepting an explicit age of zero months. All thresholds, danger signs, and doses require clinician/pharmacist approval. Named HTML controls and scored choices are preserved; aggregate counts/sign groups are derived from typed responses. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "decision_tool",
     "title": "Pediatric Fever Assessment",
     "description": "Classifies pediatric fever using age, temperature, and recorded danger signs. Review draft only; not approved for clinical publication.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [
       "Children from birth through 18 years, subject to clinician confirmation"
@@ -80,7 +80,8 @@
         "label": "Age",
         "required": true,
         "minimum": 0,
-        "maximum": 216
+        "maximum": 216,
+        "section_key": "patient"
       },
       {
         "key": "age_unit",
@@ -97,7 +98,9 @@
             "value": "years",
             "label": "Years"
           }
-        ]
+        ],
+        "section_key": "patient",
+        "control": "select"
       },
       {
         "key": "weight",
@@ -109,7 +112,9 @@
         "allowed_units": [
           "kg"
         ],
-        "default_unit": "kg"
+        "default_unit": "kg",
+        "section_key": "patient",
+        "step": 0.1
       },
       {
         "key": "temperature",
@@ -122,17 +127,73 @@
           "celsius",
           "fahrenheit"
         ],
-        "default_unit": "celsius"
+        "default_unit": "celsius",
+        "section_key": "patient",
+        "step": 0.1
       },
       {
-        "key": "danger_sign_count",
-        "type": "integer",
-        "label": "Danger signs present",
+        "key": "difficulty_breathing",
+        "type": "boolean",
+        "label": "Difficulty breathing or fast breathing",
         "required": false,
-        "minimum": 0,
-        "maximum": 8,
-        "default": 0,
-        "help_text": "Difficulty breathing, poor feeding, persistent vomiting, lethargy, irritability, rash, neck stiffness, or convulsions."
+        "default": false,
+        "section_key": "patient"
+      },
+      {
+        "key": "poor_feeding",
+        "type": "boolean",
+        "label": "Poor feeding or refusing to drink",
+        "required": false,
+        "default": false,
+        "section_key": "patient"
+      },
+      {
+        "key": "vomiting",
+        "type": "boolean",
+        "label": "Persistent vomiting",
+        "required": false,
+        "default": false,
+        "section_key": "patient"
+      },
+      {
+        "key": "lethargy",
+        "type": "boolean",
+        "label": "Unusual sleepiness or difficulty waking",
+        "required": false,
+        "default": false,
+        "section_key": "patient"
+      },
+      {
+        "key": "irritability",
+        "type": "boolean",
+        "label": "Extreme irritability or inconsolable crying",
+        "required": false,
+        "default": false,
+        "section_key": "patient"
+      },
+      {
+        "key": "rash",
+        "type": "boolean",
+        "label": "Non-blanching rash (doesn't fade when pressed)",
+        "required": false,
+        "default": false,
+        "section_key": "patient"
+      },
+      {
+        "key": "neck_stiffness",
+        "type": "boolean",
+        "label": "Neck stiffness",
+        "required": false,
+        "default": false,
+        "section_key": "patient"
+      },
+      {
+        "key": "convulsions",
+        "type": "boolean",
+        "label": "Convulsions or seizures",
+        "required": false,
+        "default": false,
+        "section_key": "patient"
       }
     ],
     "sections": [
@@ -144,6 +205,150 @@
       }
     ],
     "calculation": [
+      {
+        "key": "danger_sign_count",
+        "expression": {
+          "op": "add",
+          "args": [
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "difficulty_breathing"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "poor_feeding"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "vomiting"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "lethargy"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "irritability"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "rash"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "neck_stiffness"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "convulsions"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            }
+          ]
+        }
+      },
       {
         "key": "age_months",
         "expression": {
@@ -744,7 +949,7 @@
             "value": 37.5,
             "unit": "celsius"
           },
-          "danger_sign_count": 1
+          "difficulty_breathing": true
         },
         "expected": {
           "interpretations": [

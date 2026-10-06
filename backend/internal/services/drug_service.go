@@ -160,21 +160,23 @@ func (s DrugService) Delete(id uuid.UUID) error {
 	return nil
 }
 
-func (s DrugService) RecordUsage(userID, drugID uuid.UUID) (*models.DrugUsageLog, error) {
-	if _, err := s.Get(drugID); err != nil {
+func (s DrugService) RecordUsage(userID, drugID uuid.UUID, keys ...string) (*models.DrugUsageLog, error) {
+	if err := requireUsageResource(s.DB, &models.Drug{}, drugID); err != nil {
 		return nil, err
 	}
-	log := models.DrugUsageLog{UserID: userID, DrugID: drugID}
-	if err := s.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&log).Error; err != nil {
-			return err
+	key := ""
+	if len(keys) > 0 {
+		key = strings.TrimSpace(keys[0])
+		if len(key) > 128 {
+			return nil, ErrProgressUsageInvalid
 		}
-		return tx.Model(&models.Drug{}).Where("id = ?", drugID).
-			UpdateColumn("usage_count", gorm.Expr("usage_count + 1")).Error
-	}); err != nil {
-		return nil, err
 	}
-	return &log, nil
+	var keyPointer *string
+	if key != "" {
+		keyPointer = &key
+	}
+	value := models.DrugUsageLog{UserID: userID, DrugID: drugID, IdempotencyKey: keyPointer}
+	return createUsage(s.DB, value, userID, key, "drug_id", drugID, &models.Drug{}, drugID)
 }
 
 func (s DrugService) drugQuery() *gorm.DB {

@@ -2,13 +2,13 @@
   "legacy_id": "apgar-score-calculator",
   "legacy_file": "apgar-score-calculator.html",
   "source_checksum": "4b4ba682704ce5a95e745117e459b8a76a9bb6bce0e960cee57ff7d72106a677",
-  "change_summary": "Review draft: preserve the five APGAR component scores and legacy thresholds while requiring every component. The optional 1-minute/5-minute comparison remains outside the calculation draft pending clinician workflow approval.",
+  "change_summary": "Review draft: preserve the five APGAR component scores and legacy thresholds while requiring every component. The optional 1-minute/5-minute comparison remains outside the calculation draft pending clinician workflow approval. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "calculator",
     "title": "APGAR Score",
     "description": "Scores five newborn observations from 0 to 2 each. This migration draft is not approved for clinical publication.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [
       "Newborns assessed by an appropriately trained clinician"
@@ -22,8 +22,14 @@
         "when": {
           "op": "less_than_or_equal",
           "args": [
-            { "op": "field", "field": "total_score" },
-            { "op": "literal", "value": 3 }
+            {
+              "op": "field",
+              "field": "total_score"
+            },
+            {
+              "op": "literal",
+              "value": 3
+            }
           ]
         }
       }
@@ -36,10 +42,21 @@
         "label": "Activity (Muscle Tone)",
         "required": true,
         "options": [
-          { "value": 0, "label": "0 - Limp or flaccid" },
-          { "value": 1, "label": "1 - Some flexion of extremities" },
-          { "value": 2, "label": "2 - Active motion and well-flexed" }
-        ]
+          {
+            "value": 0,
+            "label": "0 - Limp or flaccid"
+          },
+          {
+            "value": 1,
+            "label": "1 - Some flexion of extremities"
+          },
+          {
+            "value": 2,
+            "label": "2 - Active motion and well-flexed"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
       },
       {
         "key": "pulse",
@@ -47,10 +64,21 @@
         "label": "Pulse (Heart Rate)",
         "required": true,
         "options": [
-          { "value": 0, "label": "0 - Absent" },
-          { "value": 1, "label": "1 - Below 100 bpm" },
-          { "value": 2, "label": "2 - Above 100 bpm" }
-        ]
+          {
+            "value": 0,
+            "label": "0 - Absent"
+          },
+          {
+            "value": 1,
+            "label": "1 - Below 100 bpm"
+          },
+          {
+            "value": 2,
+            "label": "2 - Above 100 bpm"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
       },
       {
         "key": "grimace",
@@ -58,10 +86,21 @@
         "label": "Grimace (Reflex Irritability)",
         "required": true,
         "options": [
-          { "value": 0, "label": "0 - No response to stimulation" },
-          { "value": 1, "label": "1 - Grimace or weak cry" },
-          { "value": 2, "label": "2 - Vigorous cry or sneeze" }
-        ]
+          {
+            "value": 0,
+            "label": "0 - No response to stimulation"
+          },
+          {
+            "value": 1,
+            "label": "1 - Grimace or weak cry"
+          },
+          {
+            "value": 2,
+            "label": "2 - Vigorous cry or sneeze"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
       },
       {
         "key": "appearance",
@@ -69,10 +108,21 @@
         "label": "Appearance (Color)",
         "required": true,
         "options": [
-          { "value": 0, "label": "0 - Blue or pale all over" },
-          { "value": 1, "label": "1 - Body pink and extremities blue" },
-          { "value": 2, "label": "2 - Pink all over" }
-        ]
+          {
+            "value": 0,
+            "label": "0 - Blue or pale all over"
+          },
+          {
+            "value": 1,
+            "label": "1 - Body pink and extremities blue"
+          },
+          {
+            "value": 2,
+            "label": "2 - Pink all over"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
       },
       {
         "key": "respiration",
@@ -80,10 +130,41 @@
         "label": "Respiration (Breathing Effort)",
         "required": true,
         "options": [
-          { "value": 0, "label": "0 - Absent" },
-          { "value": 1, "label": "1 - Slow, irregular, or weak cry" },
-          { "value": 2, "label": "2 - Good and strong cry" }
-        ]
+          {
+            "value": 0,
+            "label": "0 - Absent"
+          },
+          {
+            "value": 1,
+            "label": "1 - Slow, irregular, or weak cry"
+          },
+          {
+            "value": 2,
+            "label": "2 - Good and strong cry"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
+      },
+      {
+        "key": "score_1min",
+        "type": "integer",
+        "label": "1 Minute Score",
+        "required": false,
+        "minimum": 0,
+        "maximum": 10,
+        "section_key": "comparison",
+        "help_text": "Recorded as assessment context; does not change the calculated result."
+      },
+      {
+        "key": "score_5min",
+        "type": "integer",
+        "label": "5 Minutes Score",
+        "required": false,
+        "minimum": 0,
+        "maximum": 10,
+        "section_key": "comparison",
+        "help_text": "Recorded as assessment context; does not change the calculated result."
       }
     ],
     "sections": [
@@ -92,6 +173,11 @@
         "title": "Current Assessment",
         "order": 0,
         "review_before_completion": true
+      },
+      {
+        "key": "comparison",
+        "title": "Previous assessments",
+        "order": 1
       }
     ],
     "calculation": [
@@ -100,11 +186,26 @@
         "expression": {
           "op": "add",
           "args": [
-            { "op": "field", "field": "activity" },
-            { "op": "field", "field": "pulse" },
-            { "op": "field", "field": "grimace" },
-            { "op": "field", "field": "appearance" },
-            { "op": "field", "field": "respiration" }
+            {
+              "op": "field",
+              "field": "activity"
+            },
+            {
+              "op": "field",
+              "field": "pulse"
+            },
+            {
+              "op": "field",
+              "field": "grimace"
+            },
+            {
+              "op": "field",
+              "field": "appearance"
+            },
+            {
+              "op": "field",
+              "field": "respiration"
+            }
           ]
         },
         "precision": 0,
@@ -117,7 +218,10 @@
       {
         "key": "total_score",
         "label": "Total APGAR Score",
-        "value": { "op": "field", "field": "total_score" },
+        "value": {
+          "op": "field",
+          "field": "total_score"
+        },
         "unit": "points",
         "precision": 0,
         "rounding_mode": "half_up"
@@ -129,8 +233,14 @@
         "when": {
           "op": "less_than_or_equal",
           "args": [
-            { "op": "field", "field": "total_score" },
-            { "op": "literal", "value": 3 }
+            {
+              "op": "field",
+              "field": "total_score"
+            },
+            {
+              "op": "literal",
+              "value": 3
+            }
           ]
         },
         "label": "Severe Depression (0-3)",
@@ -149,15 +259,27 @@
             {
               "op": "greater_than_or_equal",
               "args": [
-                { "op": "field", "field": "total_score" },
-                { "op": "literal", "value": 4 }
+                {
+                  "op": "field",
+                  "field": "total_score"
+                },
+                {
+                  "op": "literal",
+                  "value": 4
+                }
               ]
             },
             {
               "op": "less_than_or_equal",
               "args": [
-                { "op": "field", "field": "total_score" },
-                { "op": "literal", "value": 7 }
+                {
+                  "op": "field",
+                  "field": "total_score"
+                },
+                {
+                  "op": "literal",
+                  "value": 7
+                }
               ]
             }
           ]
@@ -175,8 +297,14 @@
         "when": {
           "op": "greater_than_or_equal",
           "args": [
-            { "op": "field", "field": "total_score" },
-            { "op": "literal", "value": 8 }
+            {
+              "op": "field",
+              "field": "total_score"
+            },
+            {
+              "op": "literal",
+              "value": 8
+            }
           ]
         },
         "label": "Excellent (8-10)",
@@ -207,8 +335,12 @@
         },
         "expected": {
           "total_score": 0,
-          "interpretations": ["severe_depression"],
-          "warnings": ["immediate_assessment"]
+          "interpretations": [
+            "severe_depression"
+          ],
+          "warnings": [
+            "immediate_assessment"
+          ]
         }
       },
       {
@@ -222,7 +354,9 @@
         },
         "expected": {
           "total_score": 4,
-          "interpretations": ["moderate_depression"],
+          "interpretations": [
+            "moderate_depression"
+          ],
           "warnings": []
         }
       },
@@ -237,7 +371,9 @@
         },
         "expected": {
           "total_score": 8,
-          "interpretations": ["excellent"],
+          "interpretations": [
+            "excellent"
+          ],
           "warnings": []
         }
       },
@@ -252,7 +388,9 @@
         },
         "expected": {
           "total_score": 10,
-          "interpretations": ["excellent"],
+          "interpretations": [
+            "excellent"
+          ],
           "warnings": []
         }
       }

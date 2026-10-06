@@ -1052,7 +1052,6 @@ var legacySeedSkippedTables = map[string]struct{}{
 	"guideline_categories":    {},
 	"guideline_tags":          {},
 	"guideline_index":         {},
-	"medical_guidelines":      {},
 	"drug_categories":         {},
 	"drug_tags":               {},
 	"drug_classes":            {},

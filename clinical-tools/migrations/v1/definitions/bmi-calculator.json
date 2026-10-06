@@ -2,13 +2,13 @@
   "legacy_id": "bmi-calculator",
   "legacy_file": "bmi-calculator.html",
   "source_checksum": "5317c90a25a1e1f00df9f3bfdb934e5f91c1e5944e8bde266497640804d98391",
-  "change_summary": "Review draft: preserve BMI conversion, rounding, and classification while rejecting missing, zero, non-finite, and out-of-range measurements. Requires clinician approval before publication.",
+  "change_summary": "Review draft: preserve BMI conversion, rounding, and classification while rejecting missing, zero, non-finite, and out-of-range measurements. Requires clinician approval before publication. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "calculator",
     "title": "BMI Calculator",
     "description": "Calculates adult body mass index from weight and height. This migration draft is not approved for clinical publication.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [
       "Adults, subject to clinician confirmation"
@@ -30,7 +30,9 @@
           "kg",
           "lb"
         ],
-        "default_unit": "kg"
+        "default_unit": "kg",
+        "section_key": "measurements",
+        "step": 0.1
       },
       {
         "key": "height",
@@ -45,7 +47,9 @@
           "ft",
           "in"
         ],
-        "default_unit": "m"
+        "default_unit": "m",
+        "section_key": "measurements",
+        "step": 0.01
       }
     ],
     "sections": [

@@ -14,6 +14,12 @@ void main() {
         AppRoutes.calculator('tool-1'),
         '${AppRoutes.calculator('tool-1')}?source=search',
         AppRoutes.ministryDirectory,
+        AppRoutes.drugIndex,
+        AppRoutes.abbreviations,
+        AppRoutes.healthInfrastructure,
+        AppRoutes.healthFacilities,
+        AppRoutes.healthFacility('facility-1'),
+        AppRoutes.publicGuidelineAlgorithmView('document-1', 'algorithm-1'),
       ]) {
         expect(AppRoutes.isPublic(route), isTrue, reason: route);
       }

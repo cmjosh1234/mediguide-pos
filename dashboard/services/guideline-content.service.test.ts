@@ -4,7 +4,6 @@ import {
   abbreviationService,
   guidelineCategoryService,
   guidelineIndexService,
-  medicalGuidelineService,
 } from "./guideline-content.service";
 
 const json = (data: unknown, status = 200) =>
@@ -80,23 +79,4 @@ describe("typed guideline content services", () => {
     ).toMatchObject({ parent_id: "", sort_order: 2 });
   });
 
-  it("updates publication through the typed guideline endpoint", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      json({
-        id: "g-1",
-        condition_name: "Example",
-        status: "published",
-        is_published: true,
-      }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    await medicalGuidelineService.update("g-1", {
-      is_published: true,
-      status: "published",
-    });
-    expect(String(fetchMock.mock.calls[0][0])).toContain(
-      "/api/v2/medical-guidelines/g-1",
-    );
-    expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("PATCH");
-  });
 });

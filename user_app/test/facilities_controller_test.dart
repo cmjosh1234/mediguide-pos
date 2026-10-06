@@ -1,3 +1,4 @@
+import 'package:user_app/features/guidelines/data/repositories/progress_usage_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,10 +22,11 @@ final class DirectoryApi extends BackendApiService {
     Map<String, String>? query,
     bool includeAuth = true,
   }) async {
+    if (path.startsWith('/api/public/')) expect(includeAuth, isFalse);
     lastPath = path;
     lastQuery = query;
     if (method == 'POST') return {'data': {}};
-    if (path == '/api/v2/regions') {
+    if (path == '/api/public/regions') {
       return {
         'data': {
           'items': [
@@ -33,7 +35,7 @@ final class DirectoryApi extends BackendApiService {
         },
       };
     }
-    if (path == '/api/v2/facility-levels') {
+    if (path == '/api/public/facility-levels') {
       return {
         'data': {
           'items': [
@@ -42,7 +44,7 @@ final class DirectoryApi extends BackendApiService {
         },
       };
     }
-    if (path == '/api/v2/ownership-types') {
+    if (path == '/api/public/ownership-types') {
       return {
         'data': {
           'items': [
@@ -51,7 +53,7 @@ final class DirectoryApi extends BackendApiService {
         },
       };
     }
-    if (path == '/api/v2/districts') {
+    if (path == '/api/public/districts') {
       return {
         'data': {
           'items': [
@@ -60,7 +62,7 @@ final class DirectoryApi extends BackendApiService {
         },
       };
     }
-    if (path == '/api/v2/facilities') {
+    if (path == '/api/public/facilities') {
       return {
         'data': {
           'items': [
@@ -69,7 +71,7 @@ final class DirectoryApi extends BackendApiService {
         },
       };
     }
-    if (path == '/api/v2/facilities/facility-1') {
+    if (path == '/api/public/facilities/facility-1') {
       return {
         'data': {
           'id': 'facility-1',
@@ -99,7 +101,12 @@ void main() {
     };
     final provider = healthInfrastructureControllerProvider(arguments);
     final container = ProviderContainer(
-      overrides: [facilityRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        facilityRepositoryProvider.overrideWithValue(repository),
+        usageRepositoryProvider.overrideWithValue(
+          UsageRepository(DirectoryApi(), store.cache, () => null),
+        ),
+      ],
     );
     addTearDown(container.dispose);
     container.listen(provider, (_, _) {});
@@ -125,12 +132,14 @@ void main() {
       regionId: 'region-1',
       districtId: 'district-1',
     );
-    expect(api.lastPath, '/api/v2/facilities');
+    expect(api.lastPath, '/api/public/facilities');
     expect(api.lastQuery?['region_id'], 'region-1');
     expect(api.lastQuery?['district_id'], 'district-1');
     expect(api.lastQuery?.containsKey('filter'), isFalse);
 
-    await repository.recordUsage('facility-1');
+    final usage = UsageRepository(api, store.cache, () => 'owner');
+    await usage.facility('facility-1');
+    await usage.sync();
     expect(api.lastPath, '/api/v2/facilities/facility-1/usage');
   });
 
@@ -147,7 +156,12 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [facilityRepositoryProvider.overrideWithValue(repository)],
+          overrides: [
+            facilityRepositoryProvider.overrideWithValue(repository),
+            usageRepositoryProvider.overrideWithValue(
+              UsageRepository(api, store.cache, () => null),
+            ),
+          ],
           child: const MaterialApp(
             home: HealthFacilityDetailPage(facilityId: 'facility-1'),
           ),
@@ -155,7 +169,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(api.lastPath, '/api/v2/facilities/facility-1');
+      expect(api.lastPath, '/api/public/facilities/facility-1');
       expect(find.text('City Hospital'), findsWidgets);
       expect(find.text('Facility unavailable'), findsNothing);
     },

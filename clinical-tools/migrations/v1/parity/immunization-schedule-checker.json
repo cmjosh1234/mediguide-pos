@@ -9,7 +9,7 @@
   "tolerance_matches": 0,
   "presentation_differences": [
     "The review draft reports only deterministic age and legacy candidate-row count; it deliberately suppresses vaccine rows, status labels, alerts, catch-up advice, and contraindication claims.",
-    "The named condition checklist must be retained in native UI and mapped to typed risk inputs."
+    "All eight named condition checkboxes are retained; the legacy pneumococcal risk flag is derived from asthma, diabetes and heart disease. Schedule recommendations remain suppressed."
   ],
   "logic_differences": [
     "The legacy country selector did not alter its hard-coded schedule, risk-category immunocompromise was not connected to condition checks, prior dose history was absent, and future birth dates were not rejected.",

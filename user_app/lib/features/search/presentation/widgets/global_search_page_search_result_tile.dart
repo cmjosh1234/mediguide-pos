@@ -38,10 +38,23 @@ class _SearchResultTile extends ConsumerWidget {
           onTap: !canOpen
               ? null
               : () async {
-                  await ref
-                      .read(globalSearchControllerProvider.notifier)
-                      .recordSelection(result);
+                  unawaited(
+                    ref
+                        .read(globalSearchControllerProvider.notifier)
+                        .recordSelection(result),
+                  );
                   if (!context.mounted) return;
+                  if (result.getItem<Drug>() case final drug?) {
+                    await DrugDetailsBottomSheet.show(
+                      context: context,
+                      drug: drug,
+                    );
+                    return;
+                  }
+                  if (result.getItem<Abbreviation>() case final abbreviation?) {
+                    await AbbreviationDetailModal.show(context, abbreviation);
+                    return;
+                  }
                   if (result.externalUrl case final String value) {
                     final confirmed = await showDialog<bool>(
                       context: context,

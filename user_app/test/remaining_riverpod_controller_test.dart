@@ -32,6 +32,7 @@ class RemainingFeaturesApi extends BackendApiService {
     Map<String, String>? query,
     bool includeAuth = true,
   }) async {
+    if (path.startsWith('/api/public/')) expect(includeAuth, isFalse);
     paths.add(path);
     if (path == '/api/v2/pages') {
       return _page([
@@ -65,16 +66,16 @@ class RemainingFeaturesApi extends BackendApiService {
         },
       ]);
     }
-    if (path == '/api/v2/guideline-categories' ||
-        path == '/api/v2/guideline-tags') {
+    if (path == '/api/public/guideline-categories' ||
+        path == '/api/public/guideline-tags') {
       return _page(const []);
     }
-    if (path == '/api/v2/districts') {
+    if (path == '/api/public/districts') {
       return _page([
         {'id': 'district-1', 'name': 'Kampala'},
       ]);
     }
-    if (path == '/api/v2/regions') {
+    if (path == '/api/public/regions') {
       return _page([
         {'id': 'region-1', 'name': 'Central'},
       ]);
@@ -152,7 +153,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         guidelineContentRepositoryProvider.overrideWithValue(repository),
-        usageRepositoryProvider.overrideWithValue(UsageRepository(api)),
+        usageRepositoryProvider.overrideWithValue(
+          UsageRepository(api, store.cache, () => null),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -162,8 +165,8 @@ void main() {
 
     controller.search('BP');
     expect(container.read(abbreviationsControllerProvider).query.search, 'BP');
-    expect(api.paths, contains('/api/v2/guideline-categories'));
-    expect(api.paths, contains('/api/v2/guideline-tags'));
+    expect(api.paths, contains('/api/public/guideline-categories'));
+    expect(api.paths, contains('/api/public/guideline-tags'));
   });
 
   test(
@@ -202,7 +205,7 @@ void main() {
       expect(state.query.selectedDistrict, 'Kampala');
       expect(state.query.showEmergencyOnly, isTrue);
       expect(state.hasActiveFilters, isTrue);
-      expect(api.paths, contains('/api/v2/regions'));
+      expect(api.paths, contains('/api/public/regions'));
     },
   );
 

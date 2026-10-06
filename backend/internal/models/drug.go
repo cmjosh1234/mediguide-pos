@@ -82,6 +82,7 @@ type TherapeuticCategory struct {
 
 type DrugUsageLog struct {
 	Base
-	UserID uuid.UUID `json:"user_id"`
-	DrugID uuid.UUID `json:"drug_id"`
+	UserID         uuid.UUID `gorm:"uniqueIndex:drug_usage_user_key" json:"user_id"`
+	DrugID         uuid.UUID `json:"drug_id"`
+	IdempotencyKey *string   `gorm:"uniqueIndex:drug_usage_user_key" json:"idempotency_key,omitempty"`
 }

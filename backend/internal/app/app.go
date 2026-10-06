@@ -80,8 +80,8 @@ func New(cfg config.Config) (*App, error) {
 	}
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:  allowedOrigins,
-			AllowHeaders:  []string{"Accept", "Authorization", "Content-Type", "If-Match", "If-None-Match", middleware.RequestIDHeader},
-			ExposeHeaders: []string{"ETag", "Last-Modified", "Retry-After", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", middleware.RequestIDHeader},
+		AllowHeaders:  []string{"Accept", "Authorization", "Content-Type", "If-Match", "If-None-Match", middleware.RequestIDHeader},
+		ExposeHeaders: []string{"ETag", "Last-Modified", "Retry-After", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", middleware.RequestIDHeader},
 		AllowMethods:  []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 	}))
 
@@ -155,6 +155,7 @@ func New(cfg config.Config) (*App, error) {
 		registerPublicAiRoutes(public, rateLimiter, wired.ragH)
 		registerPublicOutbreakRoutes(public, rateLimiter, wired.supportH, wired.outbreakH, wired.contentHubH)
 		registerPublicToolsRoutes(public, wired.calculatorH, wired.contentReferenceH)
+		registerPublicReferenceRoutes(public, wired.drugH, wired.drugReferenceH, wired.guidelineContentH, wired.facilityH)
 	}
 
 	v2 := r.Group("/api/v2")

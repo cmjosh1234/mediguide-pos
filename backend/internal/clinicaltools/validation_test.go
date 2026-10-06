@@ -154,3 +154,24 @@ func hasCode(result ValidationResult, code string) bool {
 	}
 	return false
 }
+
+func TestValidateInputControlMatchesSemanticType(t *testing.T) {
+	for _, test := range []struct {
+		control, inputType string
+		valid              bool
+	}{
+		{"", "number", true}, {"textarea", "text", true},
+		{"radio", "single_selection", true}, {"select", "single_selection", true},
+		{"textarea", "number", false}, {"radio", "boolean", false}, {"unknown", "text", false},
+	} {
+		t.Run(test.control+"/"+test.inputType, func(t *testing.T) {
+			definition := validDefinition()
+			definition.Inputs = append(definition.Inputs, Input{Key: "context", Type: test.inputType, Label: "Context", Control: test.control,
+				Options: []Option{{Value: json.RawMessage(`1`), Label: "One"}}})
+			result := Validate(&definition)
+			if result.Valid != test.valid {
+				t.Fatalf("unexpected validation: %#v", result.Errors)
+			}
+		})
+	}
+}

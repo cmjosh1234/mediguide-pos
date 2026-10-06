@@ -67,6 +67,7 @@ abstract class ClinicalToolInput with _$ClinicalToolInput {
   const factory ClinicalToolInput({
     required String key,
     required String type,
+    @Default('') String control,
     required String label,
     @Default('') String description,
     @Default(false) bool required,

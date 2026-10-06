@@ -396,6 +396,13 @@
             "$ref": "#/$defs/key"
           },
           "uniqueItems": true
+        },
+        "control": {
+          "enum": [
+            "select",
+            "radio",
+            "textarea"
+          ]
         }
       },
       "allOf": [
@@ -444,6 +451,47 @@
               "section_key",
               "checklist_kind"
             ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "control"
+            ],
+            "properties": {
+              "control": {
+                "enum": [
+                  "radio",
+                  "select"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "single_selection"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "control"
+            ],
+            "properties": {
+              "control": {
+                "const": "textarea"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "text"
+              }
+            }
           }
         }
       ]

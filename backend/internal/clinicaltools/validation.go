@@ -137,6 +137,9 @@ func Validate(definition *Definition) ValidationResult {
 		if !validInputTypes[input.Type] {
 			add(path+".type", "unsupported", "unsupported input type")
 		}
+		if input.Control != "" && !((input.Control == "select" || input.Control == "radio") && input.Type == "single_selection" || input.Control == "textarea" && input.Type == "text") {
+			add(path+".control", "unsupported", "control must match the input type")
+		}
 		if strings.TrimSpace(input.Label) == "" {
 			add(path+".label", "required", "input label is required")
 		}

@@ -2,13 +2,13 @@
   "legacy_id": "pain-assessment-scale",
   "legacy_file": "pain-assessment-scale.html",
   "source_checksum": "6f4231a0c9e348aa4479511328d683f81db3c6fc3b066322a076a47578dc7db5",
-  "change_summary": "Review draft: represent Numeric, FACES, BPS, FLACC, and PQRST branches with typed conditional inputs and require every component used by the selected scale. Management wording and completeness rules require clinician approval.",
+  "change_summary": "Review draft: represent Numeric, FACES, BPS, FLACC, and PQRST branches with typed conditional inputs and require every component used by the selected scale. Management wording and completeness rules require clinician approval. Named HTML controls and scored choices are preserved; aggregate counts/sign groups are derived from typed responses. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "calculator",
     "title": "Pain Assessment",
     "description": "Records a selected pain scale and classifies its score. Review draft only; not approved for clinical publication.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [],
     "exclusions": [
@@ -60,13 +60,39 @@
         "label": "Patient age",
         "required": false,
         "minimum": 0,
-        "maximum": 120
+        "maximum": 120,
+        "section_key": "context"
       },
       {
         "key": "cognitive_status",
-        "type": "text",
+        "type": "single_selection",
         "label": "Cognitive or communication status",
-        "required": false
+        "required": false,
+        "section_key": "context",
+        "control": "select",
+        "options": [
+          {
+            "value": "normal",
+            "label": "Normal/Alert"
+          },
+          {
+            "value": "mild-impairment",
+            "label": "Mild impairment"
+          },
+          {
+            "value": "moderate-impairment",
+            "label": "Moderate impairment"
+          },
+          {
+            "value": "severe-impairment",
+            "label": "Severe impairment"
+          },
+          {
+            "value": "nonverbal",
+            "label": "Nonverbal"
+          }
+        ],
+        "default": "normal"
       },
       {
         "key": "pain_duration",
@@ -76,19 +102,27 @@
         "options": [
           {
             "value": "acute",
-            "label": "Acute"
+            "label": "Acute (< 3 months)"
           },
           {
             "value": "chronic",
-            "label": "Chronic"
+            "label": "Chronic (> 3 months)"
+          },
+          {
+            "value": "acute-on-chronic",
+            "label": "Acute on chronic"
           }
-        ]
+        ],
+        "section_key": "context",
+        "control": "select",
+        "default": "acute"
       },
       {
         "key": "pain_location",
         "type": "text",
         "label": "Pain location",
-        "required": false
+        "required": false,
+        "section_key": "context"
       },
       {
         "key": "scale",
@@ -116,7 +150,8 @@
             "value": "pqrst",
             "label": "PQRST"
           }
-        ]
+        ],
+        "section_key": "assessment"
       },
       {
         "key": "direct_score",
@@ -145,15 +180,14 @@
               "value": "pqrst"
             }
           ]
-        }
+        },
+        "section_key": "assessment"
       },
       {
         "key": "bps_facial",
-        "type": "integer",
+        "type": "single_selection",
         "label": "BPS facial expression",
         "required": true,
-        "minimum": 1,
-        "maximum": 4,
         "visible_when": {
           "op": "equal",
           "args": [
@@ -166,15 +200,33 @@
               "value": "bps"
             }
           ]
-        }
+        },
+        "options": [
+          {
+            "value": 1,
+            "label": "Relaxed (1 point)"
+          },
+          {
+            "value": 2,
+            "label": "Partially tightened (2 points)"
+          },
+          {
+            "value": 3,
+            "label": "Fully tightened (3 points)"
+          },
+          {
+            "value": 4,
+            "label": "Grimacing (4 points)"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
       },
       {
         "key": "bps_upper_limbs",
-        "type": "integer",
+        "type": "single_selection",
         "label": "BPS upper limbs",
         "required": true,
-        "minimum": 1,
-        "maximum": 4,
         "visible_when": {
           "op": "equal",
           "args": [
@@ -187,15 +239,33 @@
               "value": "bps"
             }
           ]
-        }
+        },
+        "options": [
+          {
+            "value": 1,
+            "label": "No movement (1 point)"
+          },
+          {
+            "value": 2,
+            "label": "Partially bent (2 points)"
+          },
+          {
+            "value": 3,
+            "label": "Fully bent with finger flexion (3 points)"
+          },
+          {
+            "value": 4,
+            "label": "Permanently retracted (4 points)"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
       },
       {
         "key": "bps_ventilation",
-        "type": "integer",
+        "type": "single_selection",
         "label": "BPS ventilation compliance",
         "required": true,
-        "minimum": 1,
-        "maximum": 4,
         "visible_when": {
           "op": "equal",
           "args": [
@@ -208,15 +278,33 @@
               "value": "bps"
             }
           ]
-        }
+        },
+        "options": [
+          {
+            "value": 1,
+            "label": "Tolerating movement (1 point)"
+          },
+          {
+            "value": 2,
+            "label": "Coughing but tolerating (2 points)"
+          },
+          {
+            "value": 3,
+            "label": "Fighting ventilator (3 points)"
+          },
+          {
+            "value": 4,
+            "label": "Unable to control ventilation (4 points)"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
       },
       {
         "key": "flacc_face",
-        "type": "integer",
+        "type": "single_selection",
         "label": "FLACC face",
         "required": true,
-        "minimum": 0,
-        "maximum": 2,
         "visible_when": {
           "op": "equal",
           "args": [
@@ -229,15 +317,29 @@
               "value": "flacc"
             }
           ]
-        }
+        },
+        "options": [
+          {
+            "value": 0,
+            "label": "No particular expression (0)"
+          },
+          {
+            "value": 1,
+            "label": "Occasional grimace, withdrawn (1)"
+          },
+          {
+            "value": 2,
+            "label": "Frequent grimace, clenched jaw (2)"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
       },
       {
         "key": "flacc_legs",
-        "type": "integer",
+        "type": "single_selection",
         "label": "FLACC legs",
         "required": true,
-        "minimum": 0,
-        "maximum": 2,
         "visible_when": {
           "op": "equal",
           "args": [
@@ -250,15 +352,29 @@
               "value": "flacc"
             }
           ]
-        }
+        },
+        "options": [
+          {
+            "value": 0,
+            "label": "Normal position, relaxed (0)"
+          },
+          {
+            "value": 1,
+            "label": "Uneasy, restless, tense (1)"
+          },
+          {
+            "value": 2,
+            "label": "Kicking or legs drawn up (2)"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
       },
       {
         "key": "flacc_activity",
-        "type": "integer",
+        "type": "single_selection",
         "label": "FLACC activity",
         "required": true,
-        "minimum": 0,
-        "maximum": 2,
         "visible_when": {
           "op": "equal",
           "args": [
@@ -271,15 +387,29 @@
               "value": "flacc"
             }
           ]
-        }
+        },
+        "options": [
+          {
+            "value": 0,
+            "label": "Lying quietly, normal position (0)"
+          },
+          {
+            "value": 1,
+            "label": "Squirming, shifting, tense (1)"
+          },
+          {
+            "value": 2,
+            "label": "Arched, rigid, jerking (2)"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
       },
       {
         "key": "flacc_cry",
-        "type": "integer",
+        "type": "single_selection",
         "label": "FLACC cry",
         "required": true,
-        "minimum": 0,
-        "maximum": 2,
         "visible_when": {
           "op": "equal",
           "args": [
@@ -292,15 +422,29 @@
               "value": "flacc"
             }
           ]
-        }
+        },
+        "options": [
+          {
+            "value": 0,
+            "label": "No cry (0)"
+          },
+          {
+            "value": 1,
+            "label": "Moans, whimpers (1)"
+          },
+          {
+            "value": 2,
+            "label": "Crying steadily, screams (2)"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
       },
       {
         "key": "flacc_consolability",
-        "type": "integer",
+        "type": "single_selection",
         "label": "FLACC consolability",
         "required": true,
-        "minimum": 0,
-        "maximum": 2,
         "visible_when": {
           "op": "equal",
           "args": [
@@ -313,7 +457,141 @@
               "value": "flacc"
             }
           ]
-        }
+        },
+        "options": [
+          {
+            "value": 0,
+            "label": "Content, relaxed (0)"
+          },
+          {
+            "value": 1,
+            "label": "Reassured by occasional touching (1)"
+          },
+          {
+            "value": 2,
+            "label": "Difficult to console (2)"
+          }
+        ],
+        "section_key": "assessment",
+        "control": "radio"
+      },
+      {
+        "key": "pqrst_provocation",
+        "type": "text",
+        "label": "P - Provocation/Palliation: What makes it better or worse?",
+        "required": false,
+        "section_key": "pqrst",
+        "visible_when": {
+          "op": "equal",
+          "args": [
+            {
+              "op": "field",
+              "field": "scale"
+            },
+            {
+              "op": "literal",
+              "value": "pqrst"
+            }
+          ]
+        },
+        "help_text": "Recorded as assessment context; does not change the calculated result.",
+        "control": "textarea"
+      },
+      {
+        "key": "pqrst_quality",
+        "type": "single_selection",
+        "label": "Q - Quality: How would you describe the pain?",
+        "required": false,
+        "section_key": "pqrst",
+        "visible_when": {
+          "op": "equal",
+          "args": [
+            {
+              "op": "field",
+              "field": "scale"
+            },
+            {
+              "op": "literal",
+              "value": "pqrst"
+            }
+          ]
+        },
+        "help_text": "Recorded as assessment context; does not change the calculated result.",
+        "control": "select",
+        "options": [
+          {
+            "value": "sharp",
+            "label": "Sharp/Stabbing"
+          },
+          {
+            "value": "dull",
+            "label": "Dull/Aching"
+          },
+          {
+            "value": "burning",
+            "label": "Burning"
+          },
+          {
+            "value": "throbbing",
+            "label": "Throbbing/Pulsating"
+          },
+          {
+            "value": "cramping",
+            "label": "Cramping"
+          },
+          {
+            "value": "shooting",
+            "label": "Shooting"
+          },
+          {
+            "value": "pressure",
+            "label": "Pressure/Squeezing"
+          }
+        ]
+      },
+      {
+        "key": "pqrst_region",
+        "type": "text",
+        "label": "R - Region/Radiation: Where is the pain? Does it spread?",
+        "required": false,
+        "section_key": "pqrst",
+        "visible_when": {
+          "op": "equal",
+          "args": [
+            {
+              "op": "field",
+              "field": "scale"
+            },
+            {
+              "op": "literal",
+              "value": "pqrst"
+            }
+          ]
+        },
+        "help_text": "Recorded as assessment context; does not change the calculated result.",
+        "control": "textarea"
+      },
+      {
+        "key": "pqrst_timing",
+        "type": "text",
+        "label": "T - Timing: When did it start? How long does it last?",
+        "required": false,
+        "section_key": "pqrst",
+        "visible_when": {
+          "op": "equal",
+          "args": [
+            {
+              "op": "field",
+              "field": "scale"
+            },
+            {
+              "op": "literal",
+              "value": "pqrst"
+            }
+          ]
+        },
+        "help_text": "Recorded as assessment context; does not change the calculated result.",
+        "control": "textarea"
       }
     ],
     "sections": [
@@ -327,6 +605,11 @@
         "title": "Selected assessment scale",
         "order": 1,
         "review_before_completion": true
+      },
+      {
+        "key": "pqrst",
+        "title": "PQRST details",
+        "order": 2
       }
     ],
     "calculation": [

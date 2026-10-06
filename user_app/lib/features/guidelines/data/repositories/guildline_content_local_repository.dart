@@ -21,7 +21,7 @@ final class GuidelineContentLocalRepository {
 
   static const String _scope = 'public';
 
-  static const String _guidelineType = 'medical_guideline';
+  static const String _guidelineType = 'guideline_document_metadata';
   static const String _categoryType = 'guideline_category';
   static const String _tagType = 'guideline_tag';
   static const String _indexType = 'guideline_index';

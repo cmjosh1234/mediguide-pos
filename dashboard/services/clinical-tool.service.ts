@@ -24,7 +24,7 @@ export type ClinicalToolDefinition = Omit<ClinicaltoolsDefinition, "schema_versi
   clinical_reviewer?: string
   warnings?: Array<{ key: string; text: string; severity: string; when?: ClinicalToolExpression }>
   citations?: Array<{ key: string; title: string; organization?: string; url?: string }>
-  inputs: Array<{ key: string; type: string; label: string; required: boolean; minimum?: number; maximum?: number; default?: unknown; default_unit?: string; allowed_units?: string[]; options?: Array<{ value: unknown; label: string }>; visible_when?: ClinicalToolExpression; critical?: boolean }>
+  inputs: Array<{ key: string; type: string; label: string; required: boolean; section_key?: string; help_text?: string; clinical_warning?: string; control?: "select" | "radio" | "textarea"; step?: number; minimum?: number; maximum?: number; default?: unknown; default_unit?: string; allowed_units?: string[]; options?: Array<{ value: unknown; label: string }>; visible_when?: ClinicalToolExpression; critical?: boolean }>
   sections: Array<{ key: string; title: string; order: number }>
   calculation: Array<{ key: string; expression: ClinicalToolExpression; precision?: number; rounding_mode?: string; unit?: string }>
   rules: Array<{ key: string; when: ClinicalToolExpression; actions: Array<{ type: string; target?: string; value?: ClinicalToolExpression; message_key?: string }>; order: number; stop?: boolean }>

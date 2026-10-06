@@ -290,10 +290,6 @@ type PaginatedDocumentationEnvelope struct {
 	Data    services.PageResult[models.Documentation] `json:"data"`
 }
 
-type MedicalGuidelineEnvelope struct {
-	Success bool                    `json:"success"`
-	Data    models.MedicalGuideline `json:"data"`
-}
 type GuidelineCategoryEnvelope struct {
 	Success bool                     `json:"success"`
 	Data    models.GuidelineCategory `json:"data"`
@@ -309,10 +305,6 @@ type AbbreviationEnvelope struct {
 type GuidelineIndexEnvelope struct {
 	Success bool                       `json:"success"`
 	Data    models.GuidelineIndexEntry `json:"data"`
-}
-type PaginatedMedicalGuidelinesEnvelope struct {
-	Success bool                                         `json:"success"`
-	Data    services.PageResult[models.MedicalGuideline] `json:"data"`
 }
 type PaginatedGuidelineCategoriesEnvelope struct {
 	Success bool                                          `json:"success"`
@@ -844,7 +836,7 @@ type LegacyStatsResult = services.StatsResult
 
 type ResourceListResult struct {
 	Success    bool      `json:"success" example:"true"`
-	Collection string    `json:"collection" example:"medical_guidelines"`
+	Collection string    `json:"collection" example:"guideline_documents"`
 	Page       int       `json:"page" example:"1"`
 	PerPage    int       `json:"per_page" example:"20"`
 	TotalItems int64     `json:"total_items" example:"1"`
@@ -853,7 +845,7 @@ type ResourceListResult struct {
 
 type ResourceItemResult struct {
 	Success    bool    `json:"success" example:"true"`
-	Collection string  `json:"collection" example:"medical_guidelines"`
+	Collection string  `json:"collection" example:"guideline_documents"`
 	Item       JSONMap `json:"item"`
 }
 

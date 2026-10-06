@@ -17,7 +17,7 @@ func progressUsageTestService(t *testing.T) ProgressUsageService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.GuidelineDocument{}, &models.ReadingProgress{}, &models.GuidelineUsageLog{}, &models.AbbreviationUsageLog{}, &models.AIUsageLog{}); err != nil {
+	if err := db.AutoMigrate(&models.GuidelineDocument{}, &models.HistoricalGuidelineUsageLog{}, &models.FeatureUsageLog{}, &models.DrugUsageLog{}, &models.FacilityUsageLog{}, &models.Abbreviation{}, &models.ReadingProgress{}, &models.GuidelineUsageLog{}, &models.AbbreviationUsageLog{}, &models.AIUsageLog{}, &models.CalculatorUsageLog{}); err != nil {
 		t.Fatal(err)
 	}
 	return ProgressUsageService{DB: db}
@@ -90,5 +90,23 @@ func TestProgressUsageRejectsUnknownGuidelineDocument(t *testing.T) {
 	resource := missing.String()
 	if _, err := s.RecordUsage(owner, "guideline", UsageEventInput{ResourceID: &resource, IdempotencyKey: "missing-guideline"}); !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("expected missing guideline for usage, got %v", err)
+	}
+}
+
+func TestUsageAggregatesIncludesClinicalTools(t *testing.T) {
+	s := progressUsageTestService(t)
+	for _, kind := range []string{"calculator", "decision_tool", "checklist"} {
+		if err := s.DB.Create(&models.CalculatorUsageLog{UserID: uuid.New(), CalculatorID: uuid.New(), CalculatorType: kind, SessionStart: "2026-07-30T12:00:00Z"}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, err := s.UsageAggregates(nil)
+	if err != nil || len(rows) != 3 {
+		t.Fatalf("missing tool aggregates: %#v %v", rows, err)
+	}
+	for _, row := range rows {
+		if row.Count != 1 {
+			t.Fatalf("wrong count: %#v", row)
+		}
 	}
 }

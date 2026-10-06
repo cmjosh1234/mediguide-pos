@@ -5,18 +5,15 @@ import type {
   AbbreviationsWithExpanded,
   GuidelineCategoriesWithParent,
   GuidelineIndexWithExpanded,
-  MedicalGuidelinesWithExpanded,
 } from "@/types/expanded";
 import type {
   ModelsAbbreviation,
   ModelsGuidelineCategory,
   ModelsGuidelineIndexEntry,
   ModelsGuidelineTag,
-  ModelsMedicalGuideline,
   ServicesAbbreviationInput,
   ServicesGuidelineCategoryInput,
   ServicesGuidelineIndexInput,
-  ServicesMedicalGuidelineInput,
 } from "@/types/generated/backend-openapi";
 
 type JsonInput = Record<string, unknown>;
@@ -36,11 +33,9 @@ type WireCategory = ModelsGuidelineCategory;
 type WireTag = ModelsGuidelineTag;
 type WireAbbreviation = ModelsAbbreviation;
 type WireIndex = ModelsGuidelineIndexEntry;
-type WireGuideline = ModelsMedicalGuideline;
 
 export type GuidelineCategoryRecord = GuidelineCategoriesWithParent;
 export type GuidelineIndexRecord = GuidelineIndexWithExpanded;
-export type GuidelineRecord = MedicalGuidelinesWithExpanded;
 
 const base = (value: WireBase, collection: string) => ({
   id: value.id || "",
@@ -94,22 +89,6 @@ const normalizeIndex = (v: WireIndex): GuidelineIndexRecord =>
       ? { parent: [{ id: v.parent_id, title: v.parent_title || "" }] }
       : {},
   }) as unknown as GuidelineIndexRecord;
-const normalizeGuideline = (v: WireGuideline): GuidelineRecord =>
-  ({
-    ...v,
-    condition_name: v.condition_name || "",
-    ...base(v, "medical_guidelines"),
-    index_item: v.index_item_id || "",
-    usageCount: v.usage_count || 0,
-    expand: {
-      index_item: v.index_item_id
-        ? { id: v.index_item_id, title: v.index_item_title || "" }
-        : undefined,
-      categories: [],
-      tags: [],
-    },
-  }) as unknown as GuidelineRecord;
-
 async function list<T>(path: string, query: Record<string, unknown> = {}) {
   return backendClient.send<Page<T>>(path, {
     query: { page: 1, per_page: 100, ...query },
@@ -152,12 +131,6 @@ const indexPayload = (data: JsonInput): ServicesGuidelineIndexInput => ({
   parent_id: (data.parent_id ?? data.parent) as string | undefined,
   sort_order: (data.sort_order ?? data.order) as number | undefined,
 });
-const guidelinePayload = (data: JsonInput): ServicesMedicalGuidelineInput =>
-  ({
-    ...data,
-    index_item_id: data.index_item_id ?? data.index_item,
-  }) as ServicesMedicalGuidelineInput;
-
 export const guidelineCategoryService = {
   async list(query: Record<string, unknown> = {}) {
     return list<WireCategory>("/api/v2/guideline-categories", query);
@@ -330,44 +303,6 @@ export const guidelineIndexService = {
     });
   },
 };
-export const medicalGuidelineService = {
-  async list(query: Record<string, unknown> = {}) {
-    return list<WireGuideline>("/api/v2/medical-guidelines", query);
-  },
-  listTable: table(
-    (q) => list<WireGuideline>("/api/v2/medical-guidelines", q),
-    normalizeGuideline,
-  ),
-  async get(id: string) {
-    return normalizeGuideline(
-      await backendClient.send<WireGuideline>(
-        `/api/v2/medical-guidelines/${id}`,
-      ),
-    );
-  },
-  async create(data: JsonInput) {
-    return normalizeGuideline(
-      await backendClient.send<WireGuideline>("/api/v2/medical-guidelines", {
-        method: "POST",
-        body: body(guidelinePayload(data)),
-      }),
-    );
-  },
-  async update(id: string, data: JsonInput) {
-    return normalizeGuideline(
-      await backendClient.send<WireGuideline>(
-        `/api/v2/medical-guidelines/${id}`,
-        { method: "PATCH", body: body(guidelinePayload(data)) },
-      ),
-    );
-  },
-  async delete(id: string) {
-    await backendClient.send<void>(`/api/v2/medical-guidelines/${id}`, {
-      method: "DELETE",
-    });
-  },
-};
-
 export const guidelineCategoryCrud = {
   create: guidelineCategoryService.create.bind(guidelineCategoryService),
   update: guidelineCategoryService.update.bind(guidelineCategoryService),

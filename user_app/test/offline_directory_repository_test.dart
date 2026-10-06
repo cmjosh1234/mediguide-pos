@@ -20,9 +20,12 @@ final class OfflineDirectoryApi extends BackendApiService {
     bool includeAuth = true,
   }) async {
     lastQuery = query;
+    if (path.startsWith('/api/public/')) {
+      expect(includeAuth, isFalse);
+    }
     if (offline) throw StateError('offline');
 
-    if (path == '/api/v2/facilities') {
+    if (path == '/api/public/facilities') {
       return {
         'data': {
           'items': [_facility],
@@ -33,7 +36,7 @@ final class OfflineDirectoryApi extends BackendApiService {
         },
       };
     }
-    if (path == '/api/v2/facilities/facility-1') {
+    if (path == '/api/public/facilities/facility-1') {
       return {'data': _facility};
     }
     if (path == '/api/v2/conversations') {

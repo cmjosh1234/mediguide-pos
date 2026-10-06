@@ -331,6 +331,8 @@ final class ClinicaltoolsInput {
 
   String? get clinicalWarning => value['clinical_warning']?.toString();
 
+  String? get control => value['control']?.toString();
+
   bool? get critical => value['critical'] as bool?;
 
   Map<String, dynamic> get defaultField => _jsonMap(value['default']);
@@ -2324,6 +2326,15 @@ final class HandlersLegacyOverviewResult {
 
   Map<String, dynamic> get engagement => _jsonMap(value['engagement']);
 
+  List<ServicesFeatureUsageSummary> get featureusage {
+    final raw = value['featureUsage'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => ServicesFeatureUsageSummary.fromJson(_jsonMap(item)))
+        .toList(growable: false);
+  }
+
   Map<String, dynamic> get metrics => _jsonMap(value['metrics']);
 
   Map<String, dynamic> get pipeline => _jsonMap(value['pipeline']);
@@ -2599,28 +2610,6 @@ final class HandlersMarkdownValidationEnvelope {
     final raw = value['data'];
     if (raw is! Map) return null;
     return ServicesMarkdownValidationResult.fromJson(_jsonMap(raw));
-  }
-
-  bool? get success => value['success'] as bool?;
-
-  Map<String, dynamic> toJson() => Map.of(value);
-}
-
-final class HandlersMedicalGuidelineEnvelope {
-  HandlersMedicalGuidelineEnvelope(Map<String, dynamic> value)
-    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
-
-  factory HandlersMedicalGuidelineEnvelope.fromJson(
-    Map<String, dynamic> json,
-  ) => HandlersMedicalGuidelineEnvelope(json);
-
-  static const schemaName = 'handlers.MedicalGuidelineEnvelope';
-  final Map<String, dynamic> value;
-
-  ModelsMedicalGuideline? get data {
-    final raw = value['data'];
-    if (raw is! Map) return null;
-    return ModelsMedicalGuideline.fromJson(_jsonMap(raw));
   }
 
   bool? get success => value['success'] as bool?;
@@ -3937,28 +3926,6 @@ final class HandlersPaginatedMarkdownRevisionsEnvelope {
     final raw = value['data'];
     if (raw is! Map) return null;
     return HandlersPaginatedMarkdownRevisions.fromJson(_jsonMap(raw));
-  }
-
-  bool? get success => value['success'] as bool?;
-
-  Map<String, dynamic> toJson() => Map.of(value);
-}
-
-final class HandlersPaginatedMedicalGuidelinesEnvelope {
-  HandlersPaginatedMedicalGuidelinesEnvelope(Map<String, dynamic> value)
-    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
-
-  factory HandlersPaginatedMedicalGuidelinesEnvelope.fromJson(
-    Map<String, dynamic> json,
-  ) => HandlersPaginatedMedicalGuidelinesEnvelope(json);
-
-  static const schemaName = 'handlers.PaginatedMedicalGuidelinesEnvelope';
-  final Map<String, dynamic> value;
-
-  ServicesPageResultModelsMedicalGuideline? get data {
-    final raw = value['data'];
-    if (raw is! Map) return null;
-    return ServicesPageResultModelsMedicalGuideline.fromJson(_jsonMap(raw));
   }
 
   bool? get success => value['success'] as bool?;
@@ -6206,6 +6173,8 @@ final class ModelsCalculatorUsageLog {
 
   String? get id => value['id']?.toString();
 
+  String? get idempotencyKey => value['idempotency_key']?.toString();
+
   String? get sessionEnd => value['session_end']?.toString();
 
   String? get sessionStart => value['session_start']?.toString();
@@ -6907,6 +6876,8 @@ final class ModelsDrugUsageLog {
 
   String? get id => value['id']?.toString();
 
+  String? get idempotencyKey => value['idempotency_key']?.toString();
+
   String? get updatedAt => value['updated_at']?.toString();
 
   String? get userId => value['user_id']?.toString();
@@ -7079,6 +7050,8 @@ final class ModelsFacilityUsageLog {
   String? get facilityId => value['facility_id']?.toString();
 
   String? get id => value['id']?.toString();
+
+  String? get idempotencyKey => value['idempotency_key']?.toString();
 
   String? get updatedAt => value['updated_at']?.toString();
 
@@ -8213,125 +8186,6 @@ final class ModelsLanguage {
   String? get updatedAt => value['updated_at']?.toString();
 
   num? get version => value['version'] as num?;
-
-  Map<String, dynamic> toJson() => Map.of(value);
-}
-
-final class ModelsMedicalGuideline {
-  ModelsMedicalGuideline(Map<String, dynamic> value)
-    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
-
-  factory ModelsMedicalGuideline.fromJson(Map<String, dynamic> json) =>
-      ModelsMedicalGuideline(json);
-
-  static const schemaName = 'models.MedicalGuideline';
-  final Map<String, dynamic> value;
-
-  List<String> get categories {
-    final raw = value['categories'];
-    if (raw is! List) return const [];
-    return raw.whereType<String>().toList(growable: false);
-  }
-
-  List<ModelsGuidelineCategory> get categoryDetails {
-    final raw = value['category_details'];
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map((item) => ModelsGuidelineCategory.fromJson(_jsonMap(item)))
-        .toList(growable: false);
-  }
-
-  String? get causes => value['causes']?.toString();
-
-  String? get classificationCritical =>
-      value['classification_critical']?.toString();
-
-  String? get classificationMild => value['classification_mild']?.toString();
-
-  String? get classificationModerate =>
-      value['classification_moderate']?.toString();
-
-  String? get classificationSevere =>
-      value['classification_severe']?.toString();
-
-  String? get clinicalFeatures => value['clinical_features']?.toString();
-
-  String? get conditionName => value['condition_name']?.toString();
-
-  String? get contraindications => value['contraindications']?.toString();
-
-  String? get createdAt => value['created_at']?.toString();
-
-  String? get definition => value['definition']?.toString();
-
-  String? get differentialDiagnosis =>
-      value['differential_diagnosis']?.toString();
-
-  String? get dosageAdult => value['dosage_adult']?.toString();
-
-  String? get dosagePediatric => value['dosage_pediatric']?.toString();
-
-  String? get dosageSecondaryAdult =>
-      value['dosage_secondary_adult']?.toString();
-
-  String? get dosageSecondaryPediatric =>
-      value['dosage_secondary_pediatric']?.toString();
-
-  String? get generalManagement => value['general_management']?.toString();
-
-  String? get healthcareLevelRequired =>
-      value['healthcare_level_required']?.toString();
-
-  String? get icd10Code => value['icd10_code']?.toString();
-
-  String? get id => value['id']?.toString();
-
-  String? get indexItemId => value['index_item_id']?.toString();
-
-  String? get indexItemTitle => value['index_item_title']?.toString();
-
-  bool? get isPublished => value['is_published'] as bool?;
-
-  String? get medicationPrimary => value['medication_primary']?.toString();
-
-  String? get medicationSecondary => value['medication_secondary']?.toString();
-
-  String? get monitoringRequirements =>
-      value['monitoring_requirements']?.toString();
-
-  String? get preventionMeasures => value['prevention_measures']?.toString();
-
-  String? get priority => value['priority']?.toString();
-
-  String? get routeAdministration => value['route_administration']?.toString();
-
-  String? get specialNotes => value['special_notes']?.toString();
-
-  String? get status => value['status']?.toString();
-
-  List<ModelsGuidelineTag> get tagDetails {
-    final raw = value['tag_details'];
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map((item) => ModelsGuidelineTag.fromJson(_jsonMap(item)))
-        .toList(growable: false);
-  }
-
-  List<String> get tags {
-    final raw = value['tags'];
-    if (raw is! List) return const [];
-    return raw.whereType<String>().toList(growable: false);
-  }
-
-  String? get targetPopulation => value['target_population']?.toString();
-
-  String? get updatedAt => value['updated_at']?.toString();
-
-  int? get usageCount => (value['usage_count'] as num?)?.toInt();
-
-  String? get version => value['version']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }
@@ -10861,6 +10715,25 @@ final class ServicesFacilityView {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ServicesFeatureUsageSummary {
+  ServicesFeatureUsageSummary(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesFeatureUsageSummary.fromJson(Map<String, dynamic> json) =>
+      ServicesFeatureUsageSummary(json);
+
+  static const schemaName = 'services.FeatureUsageSummary';
+  final Map<String, dynamic> value;
+
+  String? get feature => value['feature']?.toString();
+
+  int? get last30 => (value['last30'] as num?)?.toInt();
+
+  int? get last7 => (value['last7'] as num?)?.toInt();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ServicesFinishCalculatorUsageInput {
   ServicesFinishCalculatorUsageInput(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -12614,97 +12487,6 @@ final class ServicesMarkdownValidationResult {
   bool? get valid => value['valid'] as bool?;
 
   int? get warnings => (value['warnings'] as num?)?.toInt();
-
-  Map<String, dynamic> toJson() => Map.of(value);
-}
-
-final class ServicesMedicalGuidelineInput {
-  ServicesMedicalGuidelineInput(Map<String, dynamic> value)
-    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
-
-  factory ServicesMedicalGuidelineInput.fromJson(Map<String, dynamic> json) =>
-      ServicesMedicalGuidelineInput(json);
-
-  static const schemaName = 'services.MedicalGuidelineInput';
-  final Map<String, dynamic> value;
-
-  List<String> get categories {
-    final raw = value['categories'];
-    if (raw is! List) return const [];
-    return raw.whereType<String>().toList(growable: false);
-  }
-
-  String? get causes => value['causes']?.toString();
-
-  String? get classificationCritical =>
-      value['classification_critical']?.toString();
-
-  String? get classificationMild => value['classification_mild']?.toString();
-
-  String? get classificationModerate =>
-      value['classification_moderate']?.toString();
-
-  String? get classificationSevere =>
-      value['classification_severe']?.toString();
-
-  String? get clinicalFeatures => value['clinical_features']?.toString();
-
-  String? get conditionName => value['condition_name']?.toString();
-
-  String? get contraindications => value['contraindications']?.toString();
-
-  String? get definition => value['definition']?.toString();
-
-  String? get differentialDiagnosis =>
-      value['differential_diagnosis']?.toString();
-
-  String? get dosageAdult => value['dosage_adult']?.toString();
-
-  String? get dosagePediatric => value['dosage_pediatric']?.toString();
-
-  String? get dosageSecondaryAdult =>
-      value['dosage_secondary_adult']?.toString();
-
-  String? get dosageSecondaryPediatric =>
-      value['dosage_secondary_pediatric']?.toString();
-
-  String? get generalManagement => value['general_management']?.toString();
-
-  String? get healthcareLevelRequired =>
-      value['healthcare_level_required']?.toString();
-
-  String? get icd10Code => value['icd10_code']?.toString();
-
-  String? get indexItemId => value['index_item_id']?.toString();
-
-  bool? get isPublished => value['is_published'] as bool?;
-
-  String? get medicationPrimary => value['medication_primary']?.toString();
-
-  String? get medicationSecondary => value['medication_secondary']?.toString();
-
-  String? get monitoringRequirements =>
-      value['monitoring_requirements']?.toString();
-
-  String? get preventionMeasures => value['prevention_measures']?.toString();
-
-  String? get priority => value['priority']?.toString();
-
-  String? get routeAdministration => value['route_administration']?.toString();
-
-  String? get specialNotes => value['special_notes']?.toString();
-
-  String? get status => value['status']?.toString();
-
-  List<String> get tags {
-    final raw = value['tags'];
-    if (raw is! List) return const [];
-    return raw.whereType<String>().toList(growable: false);
-  }
-
-  String? get targetPopulation => value['target_population']?.toString();
-
-  String? get version => value['version']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }
@@ -14503,37 +14285,6 @@ final class ServicesPageResultModelsGuidelineTag {
     return raw
         .whereType<Map>()
         .map((item) => ModelsGuidelineTag.fromJson(_jsonMap(item)))
-        .toList(growable: false);
-  }
-
-  int? get page => (value['page'] as num?)?.toInt();
-
-  int? get perPage => (value['per_page'] as num?)?.toInt();
-
-  int? get totalItems => (value['total_items'] as num?)?.toInt();
-
-  int? get totalPages => (value['total_pages'] as num?)?.toInt();
-
-  Map<String, dynamic> toJson() => Map.of(value);
-}
-
-final class ServicesPageResultModelsMedicalGuideline {
-  ServicesPageResultModelsMedicalGuideline(Map<String, dynamic> value)
-    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
-
-  factory ServicesPageResultModelsMedicalGuideline.fromJson(
-    Map<String, dynamic> json,
-  ) => ServicesPageResultModelsMedicalGuideline(json);
-
-  static const schemaName = 'services.PageResult-models_MedicalGuideline';
-  final Map<String, dynamic> value;
-
-  List<ModelsMedicalGuideline> get items {
-    final raw = value['items'];
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map((item) => ModelsMedicalGuideline.fromJson(_jsonMap(item)))
         .toList(growable: false);
   }
 
@@ -16987,6 +16738,10 @@ final class ServicesStartCalculatorUsageInput {
 
   String? get calculatorType => value['calculator_type']?.toString();
 
+  String? get calculatorVersionId => value['calculator_version_id']?.toString();
+
+  String? get idempotencyKey => value['idempotency_key']?.toString();
+
   String? get sessionStart => value['session_start']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
@@ -17328,9 +17083,13 @@ final class ServicesUsageEventInput {
   static const schemaName = 'services.UsageEventInput';
   final Map<String, dynamic> value;
 
+  String? get feature => value['feature']?.toString();
+
   String? get idempotencyKey => value['idempotency_key']?.toString();
 
   String? get resourceId => value['resource_id']?.toString();
+
+  String? get resourceType => value['resource_type']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }

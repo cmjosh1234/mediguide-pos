@@ -7,11 +7,6 @@ import (
 )
 
 func registerClinicalContentRoutes(protected *gin.RouterGroup, guidelineContentH handlers.GuidelineContentHandler, diseaseH handlers.DiseaseHandler, contentDiseaseH handlers.ContentDiseaseHandler, contentHubH handlers.ContentHubHandler, emergencyProtocolH handlers.EmergencyProtocolHandler, contentReferenceH handlers.ContentReferenceHandler) {
-	protected.GET("/medical-guidelines", middleware.RequirePermission("guideline.read"), guidelineContentH.ListMedicalGuidelines)
-	protected.GET("/medical-guidelines/:id", middleware.RequirePermission("guideline.read"), guidelineContentH.GetMedicalGuideline)
-	protected.POST("/medical-guidelines", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateMedicalGuideline)
-	protected.PATCH("/medical-guidelines/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.UpdateMedicalGuideline)
-	protected.DELETE("/medical-guidelines/:id", middleware.RequirePermission("guideline.write"), guidelineContentH.DeleteMedicalGuideline)
 	protected.GET("/guideline-categories", middleware.RequirePermission("guideline.read"), guidelineContentH.ListCategories)
 	protected.GET("/guideline-categories/:id", middleware.RequirePermission("guideline.read"), guidelineContentH.GetCategory)
 	protected.POST("/guideline-categories", middleware.RequirePermission("guideline.write"), guidelineContentH.CreateCategory)

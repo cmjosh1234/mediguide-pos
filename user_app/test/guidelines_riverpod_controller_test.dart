@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:user_app/shared/models/models.dart';
 import 'package:user_app/features/guidelines/data/repositories/guideline_content_repository.dart';
 import 'package:user_app/core/network/api_client.dart';
+import 'package:user_app/core/storage/local_cache_service.dart';
 import 'package:user_app/features/authentication/presentation/controllers/auth_controller.dart';
 import 'package:user_app/features/authentication/data/datasources/auth_local_datasource.dart';
 import 'package:user_app/features/guidelines/presentation/controllers/read_guideline_controller.dart';
@@ -54,12 +55,12 @@ final class GuidelineApi extends BackendApiService {
         },
       };
     }
-    if (path == '/api/v2/medical-guidelines/guideline-1') {
+    if (path == '/api/public/guidelines/guideline-1') {
       return {
         'data': {
           'id': 'guideline-1',
-          'condition_name': 'Asthma',
-          'definition': '<p>Airway inflammation</p>',
+          'title': 'Asthma',
+          'description': '<p>Airway inflammation</p>',
           'causes': '<p>Triggers</p>',
           'status': 'published',
           'is_published': true,
@@ -92,12 +93,14 @@ final class GuidelineApi extends BackendApiService {
       };
     }
     if (path == '/api/v2/usage/guidelines') return {'data': {}};
-    if (path == '/api/v2/guideline-categories') {
+    if (path == '/api/public/guideline-categories') {
+      expect(includeAuth, isFalse);
       return {
         'data': {'items': <Map<String, dynamic>>[]},
       };
     }
-    if (path == '/api/v2/guideline-tags') {
+    if (path == '/api/public/guideline-tags') {
+      expect(includeAuth, isFalse);
       return {
         'data': {'items': <Map<String, dynamic>>[]},
       };
@@ -152,6 +155,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           backendApiServiceProvider.overrideWithValue(api),
+          localCacheServiceProvider.overrideWithValue(store.cache),
           authSessionStoreProvider.overrideWithValue(TestSessionStore()),
           sharedPreferencesProvider.overrideWithValue(preferences),
           guidelineContentRepositoryProvider.overrideWithValue(
@@ -171,10 +175,7 @@ void main() {
         readGuidelineControllerProvider(request).future,
       );
       expect(state.guideline.conditionName, 'Asthma');
-      expect(state.sections, [
-        GuidelineSection.definition,
-        GuidelineSection.causes,
-      ]);
+      expect(state.sections, [GuidelineSection.definition]);
       expect(state.currentSection, 'causes');
       expect(state.progressPercentage, 0.4);
 

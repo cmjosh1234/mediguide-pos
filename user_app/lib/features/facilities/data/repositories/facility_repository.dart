@@ -25,8 +25,9 @@ final class FacilityRepository {
   }) async {
     try {
       final response = await _api.requestJson(
-        '/api/v2/facilities',
+        '/api/public/facilities',
         method: 'GET',
+        includeAuth: false,
         query: {
           'page': '$page',
           'per_page': '$perPage',
@@ -73,7 +74,11 @@ final class FacilityRepository {
   Future<HealthFacility> facility(String id) async {
     try {
       final item = _facilityItem(
-        await _api.requestJson('/api/v2/facilities/$id', method: 'GET'),
+        await _api.requestJson(
+          '/api/public/facilities/$id',
+          method: 'GET',
+          includeAuth: false,
+        ),
       );
       await _bestEffort(() => _local.saveFacility(item));
       return item;
@@ -120,7 +125,7 @@ final class FacilityRepository {
     int page = 1,
     int perPage = 100,
   }) => _referenceList(
-    '/api/v2/regions',
+    '/api/public/regions',
     Region.fromJson,
     page: page,
     perPage: perPage,
@@ -133,7 +138,7 @@ final class FacilityRepository {
     int page = 1,
     int perPage = 100,
   }) => _referenceList(
-    '/api/v2/districts',
+    '/api/public/districts',
     District.fromJson,
     page: page,
     perPage: perPage,
@@ -151,7 +156,7 @@ final class FacilityRepository {
     int page = 1,
     int perPage = 100,
   }) => _referenceList(
-    '/api/v2/health-sub-regions',
+    '/api/public/health-sub-regions',
     HealthSubRegion.fromJson,
     page: page,
     perPage: perPage,
@@ -169,7 +174,7 @@ final class FacilityRepository {
     int page = 1,
     int perPage = 100,
   }) => _referenceList(
-    '/api/v2/health-sub-districts',
+    '/api/public/health-sub-districts',
     HealthSubDistrict.fromJson,
     page: page,
     perPage: perPage,
@@ -187,7 +192,7 @@ final class FacilityRepository {
     int page = 1,
     int perPage = 100,
   }) => _referenceList(
-    '/api/v2/counties',
+    '/api/public/counties',
     County.fromJson,
     page: page,
     perPage: perPage,
@@ -206,7 +211,7 @@ final class FacilityRepository {
     int page = 1,
     int perPage = 100,
   }) => _referenceList(
-    '/api/v2/subcounties',
+    '/api/public/subcounties',
     Subcounty.fromJson,
     page: page,
     perPage: perPage,
@@ -228,7 +233,7 @@ final class FacilityRepository {
     int page = 1,
     int perPage = 100,
   }) => _referenceList(
-    '/api/v2/parishes',
+    '/api/public/parishes',
     Parish.fromJson,
     page: page,
     perPage: perPage,
@@ -246,7 +251,7 @@ final class FacilityRepository {
     int page = 1,
     int perPage = 100,
   }) => _referenceList(
-    '/api/v2/authorities',
+    '/api/public/authorities',
     Authority.fromJson,
     page: page,
     perPage: perPage,
@@ -262,25 +267,18 @@ final class FacilityRepository {
   );
 
   Future<PaginatedResponse<FacilityLevel>> levels() => _referenceList(
-    '/api/v2/facility-levels',
+    '/api/public/facility-levels',
     FacilityLevel.fromJson,
     save: _local.saveFacilityLevels,
     local: _local.facilityLevels,
   );
 
   Future<PaginatedResponse<OwnershipType>> ownershipTypes() => _referenceList(
-    '/api/v2/ownership-types',
+    '/api/public/ownership-types',
     OwnershipType.fromJson,
     save: _local.saveOwnershipTypes,
     local: _local.ownershipTypes,
   );
-
-  Future<void> recordUsage(String facilityId) async {
-    await _api.requestJson(
-      '/api/v2/facilities/$facilityId/usage',
-      method: 'POST',
-    );
-  }
 
   Future<PaginatedResponse<T>> _referenceList<T>(
     String path,
@@ -296,7 +294,12 @@ final class FacilityRepository {
       final response = await _cache.getOrLoad(
         key: 'facility-reference:$path:${jsonEncode(requestQuery)}',
         ttl: const Duration(minutes: 30),
-        load: () => _api.requestJson(path, method: 'GET', query: requestQuery),
+        load: () => _api.requestJson(
+          path,
+          method: 'GET',
+          includeAuth: false,
+          query: requestQuery,
+        ),
       );
       final data = _data(response);
       final items = (data['items'] as List? ?? const [])

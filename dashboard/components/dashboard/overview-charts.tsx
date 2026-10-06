@@ -98,7 +98,7 @@ export function OverviewEngagementChart({ engagement }: EngagementProps) {
       last30: engagement.aiUsage30d,
     },
     {
-      name: "Calculators",
+      name: "Clinical tools",
       last7: engagement.calculatorUsage7d,
       last30: engagement.calculatorUsage30d,
     },
@@ -106,6 +106,11 @@ export function OverviewEngagementChart({ engagement }: EngagementProps) {
       name: "Guidelines",
       last7: engagement.guidelineUsage7d,
       last30: engagement.guidelineUsage30d,
+    },
+    {
+      name: "Abbreviations",
+      last7: engagement.abbreviationUsage7d ?? 0,
+      last30: engagement.abbreviationUsage30d ?? 0,
     },
     {
       name: "Drugs",
@@ -146,6 +151,29 @@ export function OverviewEngagementChart({ engagement }: EngagementProps) {
             <Bar dataKey="last30" fill="var(--color-last30)" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ChartContainer>
+    </ChartCard>
+  )
+}
+
+export function OverviewFeatureUsageChart({ data }: { data: NonNullable<OverviewData["featureUsage"]> }) {
+  return (
+    <ChartCard title="App feature visits (7d vs 30d)">
+      {data.length === 0 ? <p className="p-4 text-sm text-muted-foreground">Feature visits will appear after signed-in users open app sections.</p> : (
+        <ChartContainer className="w-full" style={{ height: Math.max(260, data.length * 36) }} config={{
+          last7: { label: "Last 7 days", color: "var(--chart-4)" },
+          last30: { label: "Last 30 days", color: "var(--chart-5)" },
+        }}>
+          <BarChart data={data.map(item => ({ ...item, name: item.feature.replaceAll("_", " ") }))} layout="vertical" margin={{ left: 12, right: 16 }}>
+            <CartesianGrid horizontal={false} />
+            <XAxis type="number" allowDecimals={false} />
+            <YAxis type="category" dataKey="name" width={120} tickLine={false} axisLine={false} />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <ChartLegend content={<ChartLegendContent />} />
+            <Bar dataKey="last7" fill="var(--color-last7)" radius={3} />
+            <Bar dataKey="last30" fill="var(--color-last30)" radius={3} />
+          </BarChart>
+        </ChartContainer>
+      )}
     </ChartCard>
   )
 }

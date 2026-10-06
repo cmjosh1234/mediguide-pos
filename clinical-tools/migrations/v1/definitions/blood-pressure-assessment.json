@@ -2,13 +2,13 @@
   "legacy_id": "blood-pressure-assessment",
   "legacy_file": "blood-pressure-assessment.html",
   "source_checksum": "7a3ca6bb79e40c2ca14124287f025c375ba10809134a7c63f794a9102b0c4e2a",
-  "change_summary": "Review draft: preserve the legacy category and risk-count behavior while enforcing 70–250 mmHg systolic and 40–150 mmHg diastolic bounds. Escalation wording and ranges require clinician approval before publication.",
+  "change_summary": "Review draft: preserve the legacy category and risk-count behavior while enforcing 70–250 mmHg systolic and 40–150 mmHg diastolic bounds. Escalation wording and ranges require clinician approval before publication. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "calculator",
     "title": "Blood Pressure Risk Assessment",
     "description": "Classifies a blood-pressure reading and summarizes selected risk factors. This migration draft is not approved for clinical publication.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [
       "Adults, subject to clinician confirmation"
@@ -65,7 +65,8 @@
         "maximum": 250,
         "step": 1,
         "clinical_warning": "Confirm the reading and use an appropriately sized cuff.",
-        "accessibility_label": "Systolic blood pressure in millimetres of mercury"
+        "accessibility_label": "Systolic blood pressure in millimetres of mercury",
+        "section_key": "reading"
       },
       {
         "key": "diastolic",
@@ -76,77 +77,88 @@
         "maximum": 150,
         "step": 1,
         "clinical_warning": "Confirm the reading and use an appropriately sized cuff.",
-        "accessibility_label": "Diastolic blood pressure in millimetres of mercury"
+        "accessibility_label": "Diastolic blood pressure in millimetres of mercury",
+        "section_key": "reading"
       },
       {
         "key": "age_over_65",
         "type": "boolean",
         "label": "Age over 65 years",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk_factors"
       },
       {
         "key": "family_history",
         "type": "boolean",
         "label": "Family history of heart disease or stroke",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk_factors"
       },
       {
         "key": "diabetes",
         "type": "boolean",
         "label": "Diabetes",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk_factors"
       },
       {
         "key": "smoking",
         "type": "boolean",
         "label": "Current smoker",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk_factors"
       },
       {
         "key": "overweight",
         "type": "boolean",
         "label": "Overweight or obese (BMI above 25)",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk_factors"
       },
       {
         "key": "sedentary",
         "type": "boolean",
         "label": "Sedentary lifestyle",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk_factors"
       },
       {
         "key": "heavy_alcohol",
         "type": "boolean",
         "label": "Heavy alcohol consumption",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk_factors"
       },
       {
         "key": "high_stress",
         "type": "boolean",
         "label": "High stress levels",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk_factors"
       },
       {
         "key": "poor_sleep",
         "type": "boolean",
         "label": "Sleep disorder or poor sleep quality",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk_factors"
       },
       {
         "key": "high_sodium",
         "type": "boolean",
         "label": "High sodium diet",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk_factors"
       }
     ],
     "sections": [

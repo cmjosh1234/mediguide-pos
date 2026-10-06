@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"mediguide/internal/models"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -188,8 +190,80 @@ func testCalculatorService(t *testing.T) CalculatorService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := database.AutoMigrate(&models.Calculator{}, &models.CalculatorUsageLog{}); err != nil {
+	if err := database.AutoMigrate(&models.Calculator{}, &models.CalculatorUsageLog{}, &models.CalculatorVersion{}); err != nil {
 		t.Fatal(err)
 	}
 	return CalculatorService{DB: database, LegacyClinicalToolsDir: t.TempDir()}
+}
+
+func TestCalculatorUsageRetriesValidationAndExactVersion(t *testing.T) {
+	s := testCalculatorService(t)
+	owner := uuid.New()
+	tool, err := s.Create(owner, CreateCalculatorInput{Name: "BMI", Version: "1", Type: "calculator", Status: "active", AppFileJSON: json.RawMessage(`{"path":"bmi-calculator.html"}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	published := time.Now().UTC()
+	oldVersion := models.CalculatorVersion{CalculatorID: tool.ID, SemanticVersion: "1", SchemaVersion: "1", DefinitionJSON: datatypes.JSON(`{}`), DefinitionChecksum: "old", PublishedAt: &published, Status: "superseded"}
+	if err := s.DB.Create(&oldVersion).Error; err != nil {
+		t.Fatal(err)
+	}
+	in := StartCalculatorUsageInput{SessionStart: "2026-07-30T15:00:00+03:00", CalculatorType: "calculator", CalculatorVersionID: &oldVersion.ID, IdempotencyKey: "offline-retry"}
+	first, err := s.StartUsage(owner, tool.ID, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replay, err := s.StartUsage(owner, tool.ID, in)
+	if err != nil || replay.ID != first.ID || *first.CalculatorVersionID != oldVersion.ID {
+		t.Fatalf("retry/version: %#v %v", replay, err)
+	}
+	updated, _ := s.Get(tool.ID)
+	if updated.UsageCount != 1 {
+		t.Fatalf("retry counted twice: %d", updated.UsageCount)
+	}
+	if _, err := s.StartUsage(uuid.New(), tool.ID, in); err != nil {
+		t.Fatal(err)
+	}
+	updated, _ = s.Get(tool.ID)
+	if updated.UsageCount != 2 {
+		t.Fatal("key should be scoped to user")
+	}
+	for _, mutation := range []func(*StartCalculatorUsageInput){
+		func(i *StartCalculatorUsageInput) { i.SessionStart = "invalid" },
+		func(i *StartCalculatorUsageInput) { i.CalculatorType = "checklist" },
+		func(i *StartCalculatorUsageInput) { i.SessionStart = "2026-07-30T12:01:00Z" },
+		func(i *StartCalculatorUsageInput) { id := uuid.New(); i.CalculatorVersionID = &id },
+	} {
+		invalid := in
+		mutation(&invalid)
+		if _, err := s.StartUsage(owner, tool.ID, invalid); !errors.Is(err, ErrCalculatorInvalidPayload) {
+			t.Fatalf("invalid start accepted: %v", err)
+		}
+	}
+	draft := oldVersion
+	draft.ID = uuid.New()
+	draft.PublishedAt = nil
+	draft.Status = "draft"
+	if err := s.DB.Create(&draft).Error; err != nil {
+		t.Fatal(err)
+	}
+	invalid := in
+	invalid.CalculatorVersionID = &draft.ID
+	if _, err := s.StartUsage(owner, tool.ID, invalid); !errors.Is(err, ErrCalculatorInvalidPayload) {
+		t.Fatalf("draft accepted: %v", err)
+	}
+	for _, end := range []string{"invalid", "2026-07-30T11:59:59Z"} {
+		if _, err := s.FinishUsage(owner, first.ID, FinishCalculatorUsageInput{SessionEnd: end}); !errors.Is(err, ErrCalculatorInvalidPayload) {
+			t.Fatalf("invalid end accepted: %v", err)
+		}
+	}
+	finish := FinishCalculatorUsageInput{SessionEnd: "2026-07-30T12:00:01Z"}
+	for range 2 {
+		if _, err := s.FinishUsage(owner, first.ID, finish); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.FinishUsage(owner, first.ID, FinishCalculatorUsageInput{SessionEnd: "2026-07-30T12:01:00Z"}); !errors.Is(err, ErrCalculatorInvalidPayload) {
+		t.Fatalf("closed session altered: %v", err)
+	}
 }

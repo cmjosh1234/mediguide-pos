@@ -106,7 +106,7 @@ void main() {
       inputs: [
         ClinicalToolInput(
           key: 'weight',
-          type: 'number',
+          type: 'measurement',
           label: 'Weight',
           required: true,
           defaultUnit: 'kg',
@@ -130,5 +130,64 @@ void main() {
       'weight': {'value': 100, 'unit': 'lb'},
     });
     expect(result.values['result'], 45.36);
+  });
+  test('validates normalized measurement bounds and typed input values', () {
+    const measured = ClinicalToolDefinition(
+      schemaVersion: '1.0',
+      toolType: 'calculator',
+      title: 'Measurement',
+      version: '1.0.0',
+      inputs: [
+        ClinicalToolInput(
+          key: 'weight',
+          type: 'measurement',
+          label: 'Weight',
+          required: true,
+          minimum: 1,
+          maximum: 50,
+          defaultUnit: 'kg',
+          allowedUnits: ['kg', 'lb'],
+        ),
+      ],
+      completion: ClinicalToolCompletion(mode: 'none'),
+    );
+    const evaluator = ClinicalToolEvaluator();
+    expect(
+      evaluator.evaluate(measured, {
+        'weight': {'value': 100, 'unit': 'lb'},
+      }).normalizedInputs['weight'],
+      {'value': 45.359237, 'unit': 'kg'},
+    );
+    for (final invalid in [
+      double.nan,
+      double.infinity,
+      '40',
+      {'value': 120, 'unit': 'lb'},
+      {'value': 40, 'unit': 'cm'},
+      {'value': -1, 'unit': 'kg'},
+    ]) {
+      expect(
+        () => evaluator.evaluate(measured, {'weight': invalid}),
+        throwsFormatException,
+      );
+    }
+    final integer = measured.copyWith(
+      inputs: const [
+        ClinicalToolInput(
+          key: 'weight',
+          type: 'integer',
+          label: 'Weight',
+          required: true,
+        ),
+      ],
+    );
+    expect(
+      () => evaluator.evaluate(integer, {'weight': 1.5}),
+      throwsFormatException,
+    );
+    expect(
+      () => evaluator.evaluate(integer, {'weight': 1, 'unknown': true}),
+      throwsFormatException,
+    );
   });
 }

@@ -22,6 +22,47 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/public/abbreviations": {
+            "get": {
+                "tags": [
+                    "guideline-content"
+                ],
+                "summary": "List abbreviations",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PaginatedAbbreviationsEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/abbreviations/{id}": {
+            "get": {
+                "tags": [
+                    "guideline-content"
+                ],
+                "summary": "Get an abbreviation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Abbreviation UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AbbreviationEnvelope"
+                        }
+                    }
+                }
+            }
+        },
         "/api/public/assistant/ask": {
             "post": {
                 "description": "Returns citation-first content from approved guideline chunks. Anonymous sessions are isolated and rate limited.",
@@ -75,6 +116,62 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/authorities": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/authorities/{id}": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/counties": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/counties/{id}": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -173,6 +270,478 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handlers.PublicDiseaseEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/districts": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/districts/{id}": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/drug-categories": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drugs"
+                ],
+                "summary": "List drug categories",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PaginatedDrugCategoriesEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/drug-classes": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drugs"
+                ],
+                "summary": "List drug classes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PaginatedDrugClassesEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/drug-tags": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drugs"
+                ],
+                "summary": "List drug tags",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PaginatedDrugTagsEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/drugs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drugs"
+                ],
+                "summary": "List drugs",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Drug name, brand, indication, or keyword",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Drug status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Review status",
+                        "name": "review_status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Drug class UUID",
+                        "name": "drug_class_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Therapeutic category UUID",
+                        "name": "therapeutic_category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Route of administration",
+                        "name": "route",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pregnancy category",
+                        "name": "pregnancy_category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WHO essential medicines only",
+                        "name": "who_eml",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Antimicrobials only",
+                        "name": "antimicrobial",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Allowed values: name, created_at, updated_at, usage_count",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Allowed values: asc, desc",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PaginatedDrugsEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/drugs/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drugs"
+                ],
+                "summary": "Get a drug",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Drug ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DrugEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/facilities": {
+            "get": {
+                "tags": [
+                    "facilities"
+                ],
+                "summary": "List health facilities",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name, code, or district search",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Region UUID",
+                        "name": "region_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "District UUID",
+                        "name": "district_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Facility level UUID",
+                        "name": "facility_level_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Ownership type UUID",
+                        "name": "ownership_type_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "name, created_at, updated_at, or usage_count",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc or desc",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.FacilityPage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/facilities/{id}": {
+            "get": {
+                "tags": [
+                    "facilities"
+                ],
+                "summary": "Get a health facility",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Facility UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.FacilityItem"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/facility-levels": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/facility-levels/{id}": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/guideline-categories": {
+            "get": {
+                "tags": [
+                    "guideline-taxonomy"
+                ],
+                "summary": "List guideline categories",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name, slug, or description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Status (editors only)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Parent UUID",
+                        "name": "parent_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Allowlisted sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc or desc",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PaginatedGuidelineCategoriesEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/guideline-categories/{id}": {
+            "get": {
+                "tags": [
+                    "guideline-taxonomy"
+                ],
+                "summary": "Get a guideline category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GuidelineCategoryEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/guideline-tags": {
+            "get": {
+                "tags": [
+                    "guideline-taxonomy"
+                ],
+                "summary": "List guideline tags",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PaginatedGuidelineTagsEnvelope"
                         }
                     }
                 }
@@ -857,6 +1426,62 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/public/health-sub-districts": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/health-sub-districts/{id}": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/health-sub-regions": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/health-sub-regions/{id}": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/public/hubs": {
             "get": {
                 "tags": [
@@ -1196,6 +1821,127 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/public/ownership-types": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/ownership-types/{id}": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/parishes": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/parishes/{id}": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/regions": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/regions/{id}": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/regions/{id}/children": {
+            "get": {
+                "tags": [
+                    "facilities"
+                ],
+                "summary": "Get typed children for a region",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Region UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.RegionChildren"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/public/search": {
             "get": {
                 "produces": [
@@ -1418,6 +2164,34 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/public/subcounties": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/subcounties/{id}": {
+            "get": {
+                "summary": "Read public reference",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/public/support/tickets": {
             "post": {
                 "description": "Unauthenticated visitors must supply requester_name and requester_email so support staff can follow up. Guest tickets cannot be listed or replied to from the public API.",
@@ -1447,6 +2221,25 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/therapeutic-categories": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drugs"
+                ],
+                "summary": "List therapeutic categories",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PaginatedTherapeuticCategoriesEnvelope"
                         }
                     }
                 }
@@ -6180,6 +6973,14 @@ const docTemplate = `{
                 "summary": "Record authenticated drug usage",
                 "parameters": [
                     {
+                        "description": "Optional retry key",
+                        "name": "payload",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/services.UsageEventInput"
+                        }
+                    },
+                    {
                         "type": "string",
                         "format": "uuid",
                         "description": "Drug ID",
@@ -6708,6 +7509,14 @@ const docTemplate = `{
                 ],
                 "summary": "Record current-user facility usage",
                 "parameters": [
+                    {
+                        "description": "Optional retry key",
+                        "name": "payload",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/services.UsageEventInput"
+                        }
+                    },
                     {
                         "type": "string",
                         "description": "Facility UUID",
@@ -12601,206 +13410,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/medical-guidelines": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Readers see published guidelines only. Editors may query any publication state.",
-                "tags": [
-                    "guideline-content"
-                ],
-                "summary": "List medical guidelines",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Items per page",
-                        "name": "per_page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Condition, ICD-10 code, or population",
-                        "name": "search",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Status (editors only)",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Category UUID",
-                        "name": "category_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Tag UUID",
-                        "name": "tag_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Publication state (editors only)",
-                        "name": "is_published",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Allowlisted sort field",
-                        "name": "sort",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "asc or desc",
-                        "name": "order",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.PaginatedMedicalGuidelinesEnvelope"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "guideline-content"
-                ],
-                "summary": "Create a medical guideline",
-                "parameters": [
-                    {
-                        "description": "Guideline",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.MedicalGuidelineInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.MedicalGuidelineEnvelope"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/medical-guidelines/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "guideline-content"
-                ],
-                "summary": "Get a medical guideline",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Guideline UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.MedicalGuidelineEnvelope"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "guideline-content"
-                ],
-                "summary": "Archive a medical guideline",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Guideline UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    }
-                }
-            },
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "guideline-content"
-                ],
-                "summary": "Update a medical guideline",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Guideline UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Guideline changes",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.MedicalGuidelineInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.MedicalGuidelineEnvelope"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/ministry-directory": {
             "get": {
                 "security": [
@@ -17116,6 +17725,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/usage/features": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "progress-usage"
+                ],
+                "summary": "Record a signed-in app feature visit",
+                "parameters": [
+                    {
+                        "description": "Feature visit",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.UsageEventInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UsageEventEnvelope"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/usage/guidelines": {
             "post": {
                 "security": [
@@ -17758,6 +18399,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "clinical_warning": {
+                    "type": "string"
+                },
+                "control": {
                     "type": "string"
                 },
                 "critical": {
@@ -19019,6 +19663,12 @@ const docTemplate = `{
                         "format": "int64"
                     }
                 },
+                "featureUsage": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.FeatureUsageSummary"
+                    }
+                },
                 "metrics": {
                     "type": "object",
                     "additionalProperties": {
@@ -19234,17 +19884,6 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/services.MarkdownValidationResult"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "handlers.MedicalGuidelineEnvelope": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/models.MedicalGuideline"
                 },
                 "success": {
                     "type": "boolean"
@@ -20100,17 +20739,6 @@ const docTemplate = `{
                 "success": {
                     "type": "boolean",
                     "example": true
-                }
-            }
-        },
-        "handlers.PaginatedMedicalGuidelinesEnvelope": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/services.PageResult-models_MedicalGuideline"
-                },
-                "success": {
-                    "type": "boolean"
                 }
             }
         },
@@ -21554,6 +22182,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "idempotency_key": {
+                    "type": "string"
+                },
                 "session_end": {
                     "type": "string"
                 },
@@ -22292,6 +22923,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "idempotency_key": {
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 },
@@ -22481,6 +23115,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "idempotency_key": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -23720,137 +24357,6 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "number"
-                }
-            }
-        },
-        "models.MedicalGuideline": {
-            "type": "object",
-            "properties": {
-                "categories": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "category_details": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.GuidelineCategory"
-                    }
-                },
-                "causes": {
-                    "type": "string"
-                },
-                "classification_critical": {
-                    "type": "string"
-                },
-                "classification_mild": {
-                    "type": "string"
-                },
-                "classification_moderate": {
-                    "type": "string"
-                },
-                "classification_severe": {
-                    "type": "string"
-                },
-                "clinical_features": {
-                    "type": "string"
-                },
-                "condition_name": {
-                    "type": "string"
-                },
-                "contraindications": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "definition": {
-                    "type": "string"
-                },
-                "differential_diagnosis": {
-                    "type": "string"
-                },
-                "dosage_adult": {
-                    "type": "string"
-                },
-                "dosage_pediatric": {
-                    "type": "string"
-                },
-                "dosage_secondary_adult": {
-                    "type": "string"
-                },
-                "dosage_secondary_pediatric": {
-                    "type": "string"
-                },
-                "general_management": {
-                    "type": "string"
-                },
-                "healthcare_level_required": {
-                    "type": "string"
-                },
-                "icd10_code": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "index_item_id": {
-                    "type": "string"
-                },
-                "index_item_title": {
-                    "type": "string"
-                },
-                "is_published": {
-                    "type": "boolean"
-                },
-                "medication_primary": {
-                    "type": "string"
-                },
-                "medication_secondary": {
-                    "type": "string"
-                },
-                "monitoring_requirements": {
-                    "type": "string"
-                },
-                "prevention_measures": {
-                    "type": "string"
-                },
-                "priority": {
-                    "type": "string"
-                },
-                "route_administration": {
-                    "type": "string"
-                },
-                "special_notes": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "tag_details": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.GuidelineTag"
-                    }
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "target_population": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "usage_count": {
-                    "type": "integer"
-                },
-                "version": {
-                    "type": "string"
                 }
             }
         },
@@ -26377,6 +26883,20 @@ const docTemplate = `{
                 }
             }
         },
+        "services.FeatureUsageSummary": {
+            "type": "object",
+            "properties": {
+                "feature": {
+                    "type": "string"
+                },
+                "last30": {
+                    "type": "integer"
+                },
+                "last7": {
+                    "type": "integer"
+                }
+            }
+        },
         "services.FinishCalculatorUsageInput": {
             "type": "object",
             "properties": {
@@ -27799,110 +28319,6 @@ const docTemplate = `{
                 },
                 "warnings": {
                     "type": "integer"
-                }
-            }
-        },
-        "services.MedicalGuidelineInput": {
-            "type": "object",
-            "properties": {
-                "categories": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "causes": {
-                    "type": "string"
-                },
-                "classification_critical": {
-                    "type": "string"
-                },
-                "classification_mild": {
-                    "type": "string"
-                },
-                "classification_moderate": {
-                    "type": "string"
-                },
-                "classification_severe": {
-                    "type": "string"
-                },
-                "clinical_features": {
-                    "type": "string"
-                },
-                "condition_name": {
-                    "type": "string"
-                },
-                "contraindications": {
-                    "type": "string"
-                },
-                "definition": {
-                    "type": "string"
-                },
-                "differential_diagnosis": {
-                    "type": "string"
-                },
-                "dosage_adult": {
-                    "type": "string"
-                },
-                "dosage_pediatric": {
-                    "type": "string"
-                },
-                "dosage_secondary_adult": {
-                    "type": "string"
-                },
-                "dosage_secondary_pediatric": {
-                    "type": "string"
-                },
-                "general_management": {
-                    "type": "string"
-                },
-                "healthcare_level_required": {
-                    "type": "string"
-                },
-                "icd10_code": {
-                    "type": "string"
-                },
-                "index_item_id": {
-                    "type": "string"
-                },
-                "is_published": {
-                    "type": "boolean"
-                },
-                "medication_primary": {
-                    "type": "string"
-                },
-                "medication_secondary": {
-                    "type": "string"
-                },
-                "monitoring_requirements": {
-                    "type": "string"
-                },
-                "prevention_measures": {
-                    "type": "string"
-                },
-                "priority": {
-                    "type": "string"
-                },
-                "route_administration": {
-                    "type": "string"
-                },
-                "special_notes": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "target_population": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
                 }
             }
         },
@@ -29609,29 +30025,6 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.GuidelineTag"
-                    }
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "per_page": {
-                    "type": "integer"
-                },
-                "total_items": {
-                    "type": "integer"
-                },
-                "total_pages": {
-                    "type": "integer"
-                }
-            }
-        },
-        "services.PageResult-models_MedicalGuideline": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.MedicalGuideline"
                     }
                 },
                 "page": {
@@ -31781,6 +32174,12 @@ const docTemplate = `{
                 "calculator_type": {
                     "type": "string"
                 },
+                "calculator_version_id": {
+                    "type": "string"
+                },
+                "idempotency_key": {
+                    "type": "string"
+                },
                 "session_start": {
                     "type": "string"
                 }
@@ -32082,10 +32481,16 @@ const docTemplate = `{
         "services.UsageEventInput": {
             "type": "object",
             "properties": {
+                "feature": {
+                    "type": "string"
+                },
                 "idempotency_key": {
                     "type": "string"
                 },
                 "resource_id": {
+                    "type": "string"
+                },
+                "resource_type": {
                     "type": "string"
                 }
             }

@@ -2,13 +2,13 @@
   "legacy_id": "immunization-schedule-checker",
   "legacy_file": "immunization-schedule-checker.html",
   "source_checksum": "6a5bf25184ccc0c9df9b666d1a50346851ff36d755cff146180536a7dac54030",
-  "change_summary": "Clinician review draft: deterministically reproduce legacy age derivation and candidate-row count while blocking dose-status and catch-up recommendations until a jurisdiction-owned versioned schedule model is approved.",
+  "change_summary": "Clinician review draft: deterministically reproduce legacy age derivation and candidate-row count while blocking dose-status and catch-up recommendations until a jurisdiction-owned versioned schedule model is approved. Named HTML controls and scored choices are preserved; aggregate counts/sign groups are derived from typed responses. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "decision_tool",
     "title": "Immunization Schedule Intake (Clinical Review Required)",
     "description": "Captures the patient and jurisdiction inputs used by the legacy page and exposes its candidate-row count for parity review. It intentionally does not issue vaccine-due or catch-up advice.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [],
     "exclusions": [
@@ -67,7 +67,8 @@
         "key": "birth_date",
         "type": "date",
         "label": "Date of birth",
-        "required": true
+        "required": true,
+        "section_key": "patient"
       },
       {
         "key": "sex",
@@ -86,9 +87,11 @@
           },
           {
             "value": "other",
-            "label": "Other or unknown"
+            "label": "Other/Unknown"
           }
-        ]
+        ],
+        "section_key": "patient",
+        "control": "select"
       },
       {
         "key": "jurisdiction",
@@ -98,11 +101,11 @@
         "options": [
           {
             "value": "usa",
-            "label": "United States"
+            "label": "United States (CDC schedule)"
           },
           {
             "value": "who",
-            "label": "WHO global"
+            "label": "WHO Global Recommendations"
           },
           {
             "value": "canada",
@@ -116,7 +119,10 @@
             "value": "australia",
             "label": "Australia"
           }
-        ]
+        ],
+        "section_key": "patient",
+        "control": "select",
+        "default": "usa"
       },
       {
         "key": "risk_category",
@@ -127,7 +133,7 @@
         "options": [
           {
             "value": "standard",
-            "label": "Standard risk"
+            "label": "Standard Risk"
           },
           {
             "value": "immunocompromised",
@@ -135,45 +141,83 @@
           },
           {
             "value": "chronic_conditions",
-            "label": "Chronic conditions"
+            "label": "Chronic Medical Conditions"
           },
           {
             "value": "healthcare_worker",
-            "label": "Healthcare worker"
+            "label": "Healthcare Worker"
           },
           {
             "value": "travel",
-            "label": "International travel"
+            "label": "International Travel"
           }
-        ]
-      },
-      {
-        "key": "has_pneumococcal_risk_condition",
-        "type": "boolean",
-        "label": "Asthma, diabetes, or heart disease recorded",
-        "required": false,
-        "default": false
+        ],
+        "section_key": "patient",
+        "control": "select"
       },
       {
         "key": "pregnancy",
         "type": "boolean",
         "label": "Pregnancy recorded",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk"
       },
       {
         "key": "hiv_or_immunocompromised",
         "type": "boolean",
         "label": "HIV or immunocompromised status recorded",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk"
       },
       {
         "key": "cancer",
         "type": "boolean",
         "label": "Cancer recorded",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "asthma",
+        "type": "boolean",
+        "label": "Asthma",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "diabetes",
+        "type": "boolean",
+        "label": "Diabetes",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "heart_disease",
+        "type": "boolean",
+        "label": "Heart Disease",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "kidney_disease",
+        "type": "boolean",
+        "label": "Kidney Disease",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "liver_disease",
+        "type": "boolean",
+        "label": "Liver Disease",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
       }
     ],
     "sections": [
@@ -191,6 +235,26 @@
       }
     ],
     "calculation": [
+      {
+        "key": "has_pneumococcal_risk_condition",
+        "expression": {
+          "op": "or",
+          "args": [
+            {
+              "op": "field",
+              "field": "diabetes"
+            },
+            {
+              "op": "field",
+              "field": "heart_disease"
+            },
+            {
+              "op": "field",
+              "field": "asthma"
+            }
+          ]
+        }
+      },
       {
         "key": "age_days",
         "expression": {
@@ -556,8 +620,8 @@
           "birth_date": "1950-01-15",
           "jurisdiction": "usa",
           "risk_category": "immunocompromised",
-          "has_pneumococcal_risk_condition": true,
-          "hiv_or_immunocompromised": true
+          "hiv_or_immunocompromised": true,
+          "diabetes": true
         },
         "expected": {
           "age_years": 76,

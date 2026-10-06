@@ -2,13 +2,13 @@
   "legacy_id": "pregnancy-due-date-calculator",
   "legacy_file": "pregnancy-due-date-calculator.html",
   "source_checksum": "4298a2ee251e8d9f0a6ec74d748cb37c1c694dae78aedc67c1ecf490fa4d4e5a",
-  "change_summary": "Review draft: preserve the legacy LMP, conception, and ultrasound dating formulas using deterministic date_add/date_difference operations. Validation, cycle adjustment, milestones, and clinical wording require clinician approval.",
+  "change_summary": "Review draft: preserve the legacy LMP, conception, and ultrasound dating formulas using deterministic date_add/date_difference operations. Validation, cycle adjustment, milestones, and clinical wording require clinician approval. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "calculator",
     "title": "Pregnancy Due Date Calculator",
     "description": "Estimates pregnancy dates from LMP, conception date, or ultrasound dating. Review draft only; not approved for clinical publication.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [
       "Pregnant patients with an appropriate dating history or ultrasound assessment"
@@ -38,7 +38,8 @@
             "value": "ultrasound",
             "label": "Ultrasound dating"
           }
-        ]
+        ],
+        "section_key": "dating"
       },
       {
         "key": "lmp_date",
@@ -57,7 +58,8 @@
               "value": "lmp"
             }
           ]
-        }
+        },
+        "section_key": "dating"
       },
       {
         "key": "cycle_length",
@@ -66,7 +68,21 @@
         "required": false,
         "minimum": 21,
         "maximum": 35,
-        "default": 28
+        "default": 28,
+        "section_key": "dating",
+        "visible_when": {
+          "op": "equal",
+          "args": [
+            {
+              "op": "field",
+              "field": "method"
+            },
+            {
+              "op": "literal",
+              "value": "lmp"
+            }
+          ]
+        }
       },
       {
         "key": "conception_date",
@@ -85,7 +101,8 @@
               "value": "conception"
             }
           ]
-        }
+        },
+        "section_key": "dating"
       },
       {
         "key": "ultrasound_date",
@@ -104,7 +121,8 @@
               "value": "ultrasound"
             }
           ]
-        }
+        },
+        "section_key": "dating"
       },
       {
         "key": "ultrasound_weeks",
@@ -125,7 +143,8 @@
               "value": "ultrasound"
             }
           ]
-        }
+        },
+        "section_key": "dating"
       },
       {
         "key": "ultrasound_days",
@@ -147,7 +166,8 @@
               "value": "ultrasound"
             }
           ]
-        }
+        },
+        "section_key": "dating"
       }
     ],
     "sections": [

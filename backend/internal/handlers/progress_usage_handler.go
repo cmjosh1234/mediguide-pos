@@ -208,3 +208,12 @@ func progressQuery(c *gin.Context) (services.ReadingProgressQuery, bool) {
 	}
 	return services.ReadingProgressQuery{Page: p, GuidelineID: c.Query("guideline_id"), Bookmarked: bookmarked, ProgressMin: min, ProgressMax: max, Sort: c.Query("sort"), Order: c.Query("order")}, true
 }
+
+// RecordFeatureUsage godoc
+// @Summary Record a signed-in app feature visit
+// @Tags progress-usage
+// @Security BearerAuth
+// @Param payload body services.UsageEventInput true "Feature visit"
+// @Success 200 {object} handlers.UsageEventEnvelope
+// @Router /api/v2/usage/features [post]
+func (h ProgressUsageHandler) RecordFeatureUsage(c *gin.Context) { h.record(c, "feature") }

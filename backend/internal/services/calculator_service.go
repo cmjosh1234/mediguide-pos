@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -70,8 +71,10 @@ type UpdateCalculatorInput struct {
 }
 
 type StartCalculatorUsageInput struct {
-	SessionStart   string `json:"session_start"`
-	CalculatorType string `json:"calculator_type"`
+	IdempotencyKey      string     `json:"idempotency_key"`
+	CalculatorVersionID *uuid.UUID `json:"calculator_version_id"`
+	SessionStart        string     `json:"session_start"`
+	CalculatorType      string     `json:"calculator_type"`
 }
 
 type FinishCalculatorUsageInput struct {
@@ -243,27 +246,50 @@ func (s CalculatorService) Artifact(id uuid.UUID) (*CalculatorArtifact, error) {
 }
 
 func (s CalculatorService) StartUsage(userID, calculatorID uuid.UUID, in StartCalculatorUsageInput) (*models.CalculatorUsageLog, error) {
-	if strings.TrimSpace(in.SessionStart) == "" || !validCalculatorType(in.CalculatorType) {
+	start, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(in.SessionStart))
+	key := strings.TrimSpace(in.IdempotencyKey)
+	if err != nil || len(key) > 128 || !validCalculatorType(in.CalculatorType) {
 		return nil, ErrCalculatorInvalidPayload
 	}
 	calculator, err := s.Get(calculatorID)
 	if err != nil {
 		return nil, err
 	}
-	log := models.CalculatorUsageLog{
-		UserID:              userID,
-		CalculatorID:        calculatorID,
-		SessionStart:        strings.TrimSpace(in.SessionStart),
-		CalculatorType:      strings.TrimSpace(in.CalculatorType),
-		CalculatorVersionID: calculator.CurrentVersionID,
+	if strings.TrimSpace(in.CalculatorType) != calculator.Type {
+		return nil, ErrCalculatorInvalidPayload
+	}
+	versionID := calculator.CurrentVersionID
+	if in.CalculatorVersionID != nil {
+		var version models.CalculatorVersion
+		if err := s.DB.Where("id = ? AND calculator_id = ? AND published_at IS NOT NULL", *in.CalculatorVersionID, calculatorID).First(&version).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrCalculatorInvalidPayload
+			}
+			return nil, err
+		}
+		versionID = in.CalculatorVersionID
+	}
+	log := models.CalculatorUsageLog{UserID: userID, CalculatorID: calculatorID, SessionStart: start.UTC().Format(time.RFC3339Nano), CalculatorType: calculator.Type, CalculatorVersionID: versionID}
+	if key != "" {
+		log.IdempotencyKey = &key
 	}
 	err = s.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&log).Error; err != nil {
-			return err
+		result := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "user_id"}, {Name: "idempotency_key"}}, DoNothing: true}).Create(&log)
+		if result.Error != nil {
+			return result.Error
 		}
-		return tx.Model(&models.Calculator{}).
-			Where("id = ?", calculatorID).
-			UpdateColumn("usage_count", gorm.Expr("usage_count + 1")).Error
+		if result.RowsAffected == 0 {
+			var existing models.CalculatorUsageLog
+			if err := tx.Where("user_id = ? AND idempotency_key = ?", userID, key).First(&existing).Error; err != nil {
+				return err
+			}
+			if existing.CalculatorID != calculatorID || existing.SessionStart != log.SessionStart || existing.CalculatorType != log.CalculatorType || (in.CalculatorVersionID != nil && (existing.CalculatorVersionID == nil || *existing.CalculatorVersionID != *in.CalculatorVersionID)) {
+				return ErrCalculatorInvalidPayload
+			}
+			log = existing
+			return nil
+		}
+		return tx.Model(&models.Calculator{}).Where("id = ?", calculatorID).UpdateColumn("usage_count", gorm.Expr("usage_count + 1")).Error
 	})
 	if err != nil {
 		return nil, err
@@ -272,21 +298,36 @@ func (s CalculatorService) StartUsage(userID, calculatorID uuid.UUID, in StartCa
 }
 
 func (s CalculatorService) FinishUsage(userID, usageID uuid.UUID, in FinishCalculatorUsageInput) (*models.CalculatorUsageLog, error) {
-	sessionEnd := strings.TrimSpace(in.SessionEnd)
-	if sessionEnd == "" {
+	end, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(in.SessionEnd))
+	if err != nil {
 		return nil, ErrCalculatorInvalidPayload
 	}
-	result := s.DB.Model(&models.CalculatorUsageLog{}).
-		Where("id = ? AND user_id = ?", usageID, userID).
-		Updates(map[string]any{"session_end": sessionEnd, "updated_at": time.Now().UTC()})
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	if result.RowsAffected == 0 {
-		return nil, ErrCalculatorUsageForbidden
-	}
+	sessionEnd := end.UTC().Format(time.RFC3339Nano)
 	var log models.CalculatorUsageLog
-	if err := s.DB.First(&log, "id = ? AND user_id = ?", usageID, userID).Error; err != nil {
+	err = s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND user_id = ?", usageID, userID).First(&log).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrCalculatorUsageForbidden
+			}
+			return err
+		}
+		start, err := time.Parse(time.RFC3339Nano, log.SessionStart)
+		if err != nil || end.Before(start) {
+			return ErrCalculatorInvalidPayload
+		}
+		if log.SessionEnd != nil {
+			if *log.SessionEnd != sessionEnd {
+				return ErrCalculatorInvalidPayload
+			}
+			return nil
+		}
+		if err := tx.Model(&log).Updates(map[string]any{"session_end": sessionEnd, "updated_at": time.Now().UTC()}).Error; err != nil {
+			return err
+		}
+		log.SessionEnd = &sessionEnd
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 	return &log, nil

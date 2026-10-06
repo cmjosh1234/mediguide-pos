@@ -17,6 +17,7 @@ class FakeGuidelineContentApi extends BackendApiService {
     Map<String, String>? query,
     bool includeAuth = true,
   }) async {
+    if (path.startsWith('/api/public/')) expect(includeAuth, isFalse);
     this.path = path;
     this.query = query;
     return {
@@ -24,7 +25,7 @@ class FakeGuidelineContentApi extends BackendApiService {
         'items': [
           {
             'id': 'item-1',
-            'condition_name': 'Hypertension',
+            'title': 'Hypertension',
             'status': 'published',
             'is_published': true,
             'created_at': '2026-01-01T00:00:00Z',
@@ -59,11 +60,11 @@ void main() {
         published: true,
         status: 'published',
       );
-      expect(api.path, '/api/v2/medical-guidelines');
+      expect(api.path, '/api/public/guidelines');
       expect(api.query?['search'], 'blood pressure');
       expect(api.query?['category_id'], 'category-1');
-      expect(api.query?['tag_id'], 'tag-1');
-      expect(api.query?['is_published'], 'true');
+      expect(api.query?.containsKey('tag_id'), isFalse);
+      expect(api.query?.containsKey('is_published'), isFalse);
       expect(api.query?.containsKey('filter'), isFalse);
       expect(result.items.single.conditionName, 'Hypertension');
     },
@@ -79,7 +80,7 @@ void main() {
       AbbreviationLocalRepository(store.cache),
     );
     await repository.categories(parentId: 'parent-1');
-    expect(api.path, '/api/v2/guideline-categories');
+    expect(api.path, '/api/public/guideline-categories');
     expect(api.query?['parent_id'], 'parent-1');
     expect(api.query?.containsKey('filter'), isFalse);
   });

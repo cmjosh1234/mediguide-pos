@@ -98,6 +98,7 @@ type HealthFacility struct {
 
 type FacilityUsageLog struct {
 	Base
-	UserID     uuid.UUID `gorm:"type:uuid" json:"user_id"`
-	FacilityID uuid.UUID `gorm:"type:uuid" json:"facility_id"`
+	UserID         uuid.UUID `gorm:"type:uuid;uniqueIndex:facility_usage_user_key" json:"user_id"`
+	FacilityID     uuid.UUID `gorm:"type:uuid" json:"facility_id"`
+	IdempotencyKey *string   `gorm:"uniqueIndex:facility_usage_user_key" json:"idempotency_key,omitempty"`
 }

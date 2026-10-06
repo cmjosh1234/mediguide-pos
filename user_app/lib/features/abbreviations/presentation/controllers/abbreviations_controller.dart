@@ -13,12 +13,9 @@ import 'package:user_app/core/utils/app_message.dart';
 import 'package:user_app/features/abbreviations/data/models/abbreviation.dart';
 import 'package:user_app/features/abbreviations/presentation/widgets/abbreviation_detail_modal.dart';
 
-import 'package:user_app/features/authentication/presentation/controllers/auth_controller.dart';
-
 import 'package:user_app/features/guidelines/data/models/guideline_category.dart';
 import 'package:user_app/features/guidelines/data/models/guideline_tag.dart';
 import 'package:user_app/features/guidelines/data/repositories/guideline_content_repository.dart';
-import 'package:user_app/features/guidelines/data/repositories/progress_usage_repository.dart';
 
 import 'package:user_app/shared/models/filter_models.dart';
 import 'package:user_app/shared/widgets/generic_filter_bottom_sheet.dart';
@@ -113,11 +110,6 @@ class AbbreviationsController extends _$AbbreviationsController {
 
   GuidelineContentRepository get _contentRepository =>
       ref.read(guidelineContentRepositoryProvider);
-
-  UsageRepository get _usageRepository => ref.read(usageRepositoryProvider);
-
-  bool get _canTrackUsage =>
-      ref.read(authControllerProvider).valueOrNull?.user != null;
 
   @override
   AbbreviationsState build() {
@@ -352,25 +344,12 @@ class AbbreviationsController extends _$AbbreviationsController {
     BuildContext context,
     Abbreviation abbreviation,
   ) async {
-    unawaited(_trackUsage(abbreviation.id));
-
     await AbbreviationDetailModal.show(context, abbreviation);
   }
 
   // ======================================================
   // USAGE TRACKING
   // ======================================================
-
-  Future<void> _trackUsage(String id) async {
-    if (!_canTrackUsage) return;
-
-    try {
-      await _usageRepository.abbreviation(id);
-    } catch (_) {
-      // Usage tracking should never interrupt
-      // the user's clinical workflow.
-    }
-  }
 
   // ======================================================
   // FILTER DATA

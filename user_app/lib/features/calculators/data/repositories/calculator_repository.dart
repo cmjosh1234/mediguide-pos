@@ -178,12 +178,19 @@ final class CalculatorRepository {
     required String calculatorId,
     required String sessionStart,
     required String calculatorType,
+    String? versionId,
+    String? idempotencyKey,
   }) async {
     final response = await _api.requestJson(
       '/api/v2/calculators/'
       '${Uri.encodeComponent(calculatorId)}/usage',
       method: 'POST',
-      body: {'session_start': sessionStart, 'calculator_type': calculatorType},
+      body: {
+        'session_start': sessionStart,
+        'calculator_type': calculatorType,
+        if (versionId != null) 'calculator_version_id': versionId,
+        if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      },
     );
 
     return CalculatorUsageLog.fromJson(_itemData(response));

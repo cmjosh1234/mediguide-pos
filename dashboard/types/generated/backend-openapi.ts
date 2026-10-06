@@ -93,6 +93,7 @@ export interface ClinicaltoolsInput {
   allowed_units?: string[];
   checklist_kind?: string;
   clinical_warning?: string;
+  control?: string;
   critical?: boolean;
   default?: object;
   default_unit?: string;
@@ -620,6 +621,7 @@ export interface HandlersLegacyOverviewResult {
   contentHealth?: Record<string, number>;
   coverage?: Record<string, number>;
   engagement?: Record<string, number>;
+  featureUsage?: ServicesFeatureUsageSummary[];
   metrics?: Record<string, number>;
   pipeline?: Record<string, number>;
   series?: Record<string, any>;
@@ -710,11 +712,6 @@ export interface HandlersMarkdownUpdateResult {
 
 export interface HandlersMarkdownValidationEnvelope {
   data?: ServicesMarkdownValidationResult;
-  success?: boolean;
-}
-
-export interface HandlersMedicalGuidelineEnvelope {
-  data?: ModelsMedicalGuideline;
   success?: boolean;
 }
 
@@ -1091,11 +1088,6 @@ export interface HandlersPaginatedMarkdownRevisions {
 export interface HandlersPaginatedMarkdownRevisionsEnvelope {
   data?: HandlersPaginatedMarkdownRevisions;
   /** @example true */
-  success?: boolean;
-}
-
-export interface HandlersPaginatedMedicalGuidelinesEnvelope {
-  data?: ServicesPageResultModelsMedicalGuideline;
   success?: boolean;
 }
 
@@ -1723,6 +1715,7 @@ export interface ModelsCalculatorUsageLog {
   calculator_version_id?: string;
   created_at?: string;
   id?: string;
+  idempotency_key?: string;
   session_end?: string;
   session_start?: string;
   updated_at?: string;
@@ -1990,6 +1983,7 @@ export interface ModelsDrugUsageLog {
   created_at?: string;
   drug_id?: string;
   id?: string;
+  idempotency_key?: string;
   updated_at?: string;
   user_id?: string;
 }
@@ -2056,6 +2050,7 @@ export interface ModelsFacilityUsageLog {
   created_at?: string;
   facility_id?: string;
   id?: string;
+  idempotency_key?: string;
   updated_at?: string;
   user_id?: string;
 }
@@ -2503,47 +2498,6 @@ export interface ModelsLanguage {
   translations_url?: string;
   updated_at?: string;
   version?: number;
-}
-
-export interface ModelsMedicalGuideline {
-  icd10_code?: string;
-  categories?: string[];
-  category_details?: ModelsGuidelineCategory[];
-  causes?: string;
-  classification_critical?: string;
-  classification_mild?: string;
-  classification_moderate?: string;
-  classification_severe?: string;
-  clinical_features?: string;
-  condition_name?: string;
-  contraindications?: string;
-  created_at?: string;
-  definition?: string;
-  differential_diagnosis?: string;
-  dosage_adult?: string;
-  dosage_pediatric?: string;
-  dosage_secondary_adult?: string;
-  dosage_secondary_pediatric?: string;
-  general_management?: string;
-  healthcare_level_required?: string;
-  id?: string;
-  index_item_id?: string;
-  index_item_title?: string;
-  is_published?: boolean;
-  medication_primary?: string;
-  medication_secondary?: string;
-  monitoring_requirements?: string;
-  prevention_measures?: string;
-  priority?: string;
-  route_administration?: string;
-  special_notes?: string;
-  status?: string;
-  tag_details?: ModelsGuidelineTag[];
-  tags?: string[];
-  target_population?: string;
-  updated_at?: string;
-  usage_count?: number;
-  version?: string;
 }
 
 export interface ModelsMinistryDirectoryEntry {
@@ -3459,6 +3413,12 @@ export interface ServicesFacilityView {
   usage_count?: number;
 }
 
+export interface ServicesFeatureUsageSummary {
+  last30?: number;
+  last7?: number;
+  feature?: string;
+}
+
 export interface ServicesFinishCalculatorUsageInput {
   session_end?: string;
 }
@@ -3972,40 +3932,6 @@ export interface ServicesMarkdownValidationResult {
   revision_id?: string;
   valid?: boolean;
   warnings?: number;
-}
-
-export interface ServicesMedicalGuidelineInput {
-  icd10_code?: string;
-  categories?: string[];
-  causes?: string;
-  classification_critical?: string;
-  classification_mild?: string;
-  classification_moderate?: string;
-  classification_severe?: string;
-  clinical_features?: string;
-  condition_name?: string;
-  contraindications?: string;
-  definition?: string;
-  differential_diagnosis?: string;
-  dosage_adult?: string;
-  dosage_pediatric?: string;
-  dosage_secondary_adult?: string;
-  dosage_secondary_pediatric?: string;
-  general_management?: string;
-  healthcare_level_required?: string;
-  index_item_id?: string;
-  is_published?: boolean;
-  medication_primary?: string;
-  medication_secondary?: string;
-  monitoring_requirements?: string;
-  prevention_measures?: string;
-  priority?: string;
-  route_administration?: string;
-  special_notes?: string;
-  status?: string;
-  tags?: string[];
-  target_population?: string;
-  version?: string;
 }
 
 export interface ServicesMergeGuidelineSectionInput {
@@ -4614,14 +4540,6 @@ export interface ServicesPageResultModelsGuidelineIndexEntry {
 
 export interface ServicesPageResultModelsGuidelineTag {
   items?: ModelsGuidelineTag[];
-  page?: number;
-  per_page?: number;
-  total_items?: number;
-  total_pages?: number;
-}
-
-export interface ServicesPageResultModelsMedicalGuideline {
-  items?: ModelsMedicalGuideline[];
   page?: number;
   per_page?: number;
   total_items?: number;
@@ -5374,6 +5292,8 @@ export interface ServicesSplitGuidelineSectionInput {
 
 export interface ServicesStartCalculatorUsageInput {
   calculator_type?: string;
+  calculator_version_id?: string;
+  idempotency_key?: string;
   session_start?: string;
 }
 
@@ -5493,8 +5413,10 @@ export interface ServicesUsageAggregate {
 }
 
 export interface ServicesUsageEventInput {
+  feature?: string;
   idempotency_key?: string;
   resource_id?: string;
+  resource_type?: string;
 }
 
 export interface ServicesUserCreateInput {

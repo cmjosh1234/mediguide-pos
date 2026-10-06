@@ -60,8 +60,7 @@ describe("NotificationAdministrationPage", () => {
     const user = userEvent.setup()
     render(<NotificationAdministrationPage />)
 
-    await waitFor(() => expect(screen.getByText("Notification Administration")).toBeInTheDocument())
-    expect(screen.getByText(/approval resolves and freezes the audience/i)).toBeInTheDocument()
+    expect(await screen.findByText(/approval resolves and freezes the audience/i)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "New template" })).toBeEnabled()
     await user.click(screen.getByRole("tab", { name: "Campaigns" }))
     expect(screen.getByRole("button", { name: "New campaign" })).toBeDisabled()
@@ -77,7 +76,7 @@ describe("NotificationAdministrationPage", () => {
     })
     const user = userEvent.setup()
     render(<NotificationAdministrationPage />)
-    await screen.findByText("Notification Administration")
+    await screen.findByText(/approval resolves and freezes the audience/i)
     await user.click(screen.getByRole("tab", { name: "Campaigns" }))
     await user.click(screen.getByRole("button", { name: "New campaign" }))
     await user.click(screen.getByRole("button", { name: "Estimate audience" }))

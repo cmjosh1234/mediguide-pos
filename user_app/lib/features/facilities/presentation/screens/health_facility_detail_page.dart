@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -21,21 +22,36 @@ final healthFacilityDetailsProvider = FutureProvider.autoDispose
       return ref.watch(facilityRepositoryProvider).facility(facilityId);
     });
 
-class HealthFacilityDetailPage extends ConsumerWidget {
+class HealthFacilityDetailPage extends ConsumerStatefulWidget {
   const HealthFacilityDetailPage({super.key, this.facilityId, this.facility});
 
   final String? facilityId;
   final HealthFacility? facility;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final initialValue = facility;
+  ConsumerState<HealthFacilityDetailPage> createState() =>
+      _HealthFacilityDetailPageState();
+}
+
+class _HealthFacilityDetailPageState
+    extends ConsumerState<HealthFacilityDetailPage> {
+  bool _tracked = false;
+  void _track(String id) {
+    if (_tracked) return;
+    _tracked = true;
+    unawaited(ref.read(usageRepositoryProvider).facility(id));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final initialValue = widget.facility;
 
     if (initialValue != null) {
+      _track(initialValue.id);
       return _FacilityDetailsScaffold(facility: initialValue);
     }
 
-    final id = facilityId?.trim() ?? '';
+    final id = widget.facilityId?.trim() ?? '';
 
     if (id.isEmpty) {
       return Scaffold(
@@ -68,6 +84,7 @@ class HealthFacilityDetailPage extends ConsumerWidget {
             ),
           ),
           data: (value) {
+            _track(value.id);
             return _FacilityDetailsScaffold(facility: value);
           },
         );

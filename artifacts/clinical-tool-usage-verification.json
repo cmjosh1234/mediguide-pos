@@ -1,0 +1,45 @@
+{
+  "tool": "APGAR Score Calculator",
+  "usage_id": "39ec7a8a-d84f-4188-ae80-7343e3d0382f",
+  "version_id": "0dc18fdb-04ef-4dca-9b82-a77d73112d5a",
+  "counter_before": 19,
+  "counter_after": 20,
+  "retry_same_id": true,
+  "finish_retry_ok": true,
+  "invalid_end_status": 400,
+  "unauthenticated_status": 401,
+  "aggregate": [
+    {
+      "event_type": "abbreviation",
+      "count": 6
+    },
+    {
+      "event_type": "ai",
+      "count": 16
+    },
+    {
+      "event_type": "calculator",
+      "count": 110
+    },
+    {
+      "event_type": "checklist",
+      "count": 8
+    },
+    {
+      "event_type": "decision_tool",
+      "count": 76
+    }
+  ],
+  "engagement": {
+    "aiUsage30d": 0,
+    "aiUsage7d": 0,
+    "calculatorUsage30d": 2,
+    "calculatorUsage7d": 1,
+    "drugUsage30d": 0,
+    "drugUsage7d": 0,
+    "facilityUsage30d": 1,
+    "facilityUsage7d": 0,
+    "guidelineUsage30d": 0,
+    "guidelineUsage7d": 0
+  }
+}

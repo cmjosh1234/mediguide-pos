@@ -348,8 +348,10 @@ class AiAssistantController extends _$AiAssistantController {
   }
 
   Future<void> _trackUsage() async {
+    final ownerId = _domainUser?.id;
+    if (ownerId == null) return;
     try {
-      await _usageRepository.ai();
+      await _usageRepository.ai(ownerId: ownerId);
     } catch (_) {
       // Analytics must never interrupt the assistant.
     }

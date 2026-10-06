@@ -34,17 +34,18 @@ final class DrugRepository {
 
     try {
       final response = await _api.requestJson(
-        '/api/v2/drugs',
+        '/api/public/drugs',
         method: 'GET',
+        includeAuth: false,
         query: {
           'page': '$safePage',
           'per_page': '$safePerPage',
 
           if (_present(search)) 'search': search!.trim(),
 
-          if (_present(status)) 'status': status!,
+          'status': 'active',
 
-          if (_present(reviewStatus)) 'review_status': reviewStatus!,
+          'review_status': 'approved',
 
           if (_present(drugClassId)) 'drug_class_id': drugClassId!,
 
@@ -104,8 +105,8 @@ final class DrugRepository {
         page: safePage,
         perPage: safePerPage,
         search: search ?? '',
-        status: status ?? '',
-        reviewStatus: reviewStatus ?? '',
+        status: 'active',
+        reviewStatus: 'approved',
         drugClassId: drugClassId ?? '',
         therapeuticCategoryId: therapeuticCategoryId ?? '',
         route: route ?? '',
@@ -153,8 +154,8 @@ final class DrugRepository {
       page: page,
       perPage: perPage,
       search: search ?? '',
-      status: status ?? '',
-      reviewStatus: reviewStatus ?? '',
+      status: 'active',
+      reviewStatus: 'approved',
       drugClassId: drugClassId ?? '',
       therapeuticCategoryId: therapeuticCategoryId ?? '',
       route: route ?? '',
@@ -187,9 +188,10 @@ final class DrugRepository {
 
     try {
       final response = await _api.requestJson(
-        '/api/v2/drugs/'
+        '/api/public/drugs/'
         '${Uri.encodeComponent(normalizedId)}',
         method: 'GET',
+        includeAuth: false,
       );
 
       final drug = Drug.fromJson(_itemData(response));
@@ -202,7 +204,11 @@ final class DrugRepository {
 
       return drug;
     } catch (_) {
-      return _local.get(normalizedId);
+      final cached = await _local.get(normalizedId);
+      return cached?.status.name == 'active' &&
+              cached?.reviewStatus.name == 'approved'
+          ? cached
+          : null;
     }
   }
 
@@ -217,26 +223,6 @@ final class DrugRepository {
   // =========================================================
   // USAGE
   // =========================================================
-
-  Future<void> recordUsage(String id) async {
-    final normalizedId = id.trim();
-
-    if (normalizedId.isEmpty) {
-      return;
-    }
-
-    try {
-      await _api.requestJson(
-        '/api/v2/drugs/'
-        '${Uri.encodeComponent(normalizedId)}'
-        '/usage',
-        method: 'POST',
-      );
-    } catch (_) {
-      // Usage telemetry is best effort.
-      // It must never prevent drug access while offline.
-    }
-  }
 
   // =========================================================
   // CACHE STATE

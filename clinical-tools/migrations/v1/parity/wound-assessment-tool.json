@@ -8,7 +8,7 @@
   "exact_matches": 3,
   "tolerance_matches": 0,
   "presentation_differences": [
-    "Named tissue, infection, and risk-factor checklists are summarized as typed booleans/counts in the calculation draft; the native UI must preserve each named item."
+    "Named tissue, infection and risk checklists are retained; counts are derived, and red streaking is included once in the infection count. Wound-edge observations are retained without introducing new scoring."
   ],
   "logic_differences": [
     "Location, wound type, dimensions, exudate, and tetanus status are mandatory; the legacy empty form returned a minor unspecified wound."

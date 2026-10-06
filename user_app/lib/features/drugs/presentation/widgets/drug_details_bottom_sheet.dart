@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:user_app/core/utils/app_extensions.dart';
@@ -14,7 +15,7 @@ import 'package:user_app/app/providers/app_providers.dart';
 import 'package:user_app/app/router/route_names.dart';
 
 /// Bottom sheet for displaying comprehensive drug details
-class DrugDetailsBottomSheet extends ConsumerWidget {
+class DrugDetailsBottomSheet extends ConsumerStatefulWidget {
   final Drug drug;
 
   const DrugDetailsBottomSheet({super.key, required this.drug});
@@ -35,7 +36,21 @@ class DrugDetailsBottomSheet extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DrugDetailsBottomSheet> createState() =>
+      _DrugDetailsBottomSheetState();
+}
+
+class _DrugDetailsBottomSheetState
+    extends ConsumerState<DrugDetailsBottomSheet> {
+  Drug get drug => widget.drug;
+  @override
+  void initState() {
+    super.initState();
+    unawaited(ref.read(usageRepositoryProvider).drug(drug.id));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final contextService = ref.watch(aiContextServiceProvider);
     return DraggableScrollableSheet(
       initialChildSize: 0.7,

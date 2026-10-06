@@ -1,3 +1,4 @@
+import 'package:user_app/features/guidelines/data/repositories/progress_usage_repository.dart';
 import 'package:user_app/shared/models/models.dart';
 import 'package:user_app/core/network/api_client.dart';
 
@@ -5,8 +6,14 @@ import 'package:user_app/features/notifications/data/repositories/notification_l
 import 'package:user_app/features/notifications/data/models/notification_preferences.dart';
 
 final class NotificationRepository {
-  NotificationRepository(this._api, this._local, {required this.userId});
+  NotificationRepository(
+    this._api,
+    this._local, {
+    required this.userId,
+    this.usage,
+  });
 
+  final UsageRepository? usage;
   final BackendApiService _api;
   final NotificationLocalRepository _local;
 
@@ -181,6 +188,15 @@ final class NotificationRepository {
   ) async {
     final id = deliveryId.trim();
     if (id.isEmpty) return;
+    if (usage != null) {
+      await usage!.notificationDelivery(
+        ownerId: userId,
+        deliveryId: id,
+        eventType: eventType,
+        eventId: eventId,
+      );
+      return;
+    }
     await _api.requestJson(
       '/api/v2/notification-deliveries/${Uri.encodeComponent(id)}/$eventType',
       method: 'POST',

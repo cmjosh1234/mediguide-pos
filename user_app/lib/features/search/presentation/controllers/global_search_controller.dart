@@ -5,7 +5,6 @@ import 'package:user_app/app/router/app_router.dart';
 import 'package:user_app/core/network/api_client.dart';
 
 import 'package:user_app/features/abbreviations/data/models/abbreviation.dart';
-import 'package:user_app/features/authentication/presentation/controllers/auth_controller.dart';
 import 'package:user_app/features/calculators/data/models/calculator.dart';
 import 'package:user_app/features/calculators/data/repositories/calculator_repository.dart';
 import 'package:user_app/features/drugs/data/models/drug.dart';
@@ -198,21 +197,6 @@ class GlobalSearchController extends _$GlobalSearchController {
   // ======================================================
   // DRUG USAGE
   // ======================================================
-
-  Future<void> recordDrugUsage(String drugId) async {
-    final user = ref.read(authControllerProvider).valueOrNull?.user;
-
-    if (user == null) {
-      return;
-    }
-
-    try {
-      await ref.read(drugRepositoryProvider).recordUsage(drugId);
-    } catch (_) {
-      // Usage telemetry must never prevent
-      // opening a search result.
-    }
-  }
 
   Future<void> recordSelection(SearchResult result) async {
     try {

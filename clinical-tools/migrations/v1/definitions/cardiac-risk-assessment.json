@@ -2,13 +2,13 @@
   "legacy_id": "cardiac-risk-assessment",
   "legacy_file": "cardiac-risk-assessment.html",
   "source_checksum": "3f801e2205c368fdda49af1b428a6fc00bd9235cf3e59e62564fc4bf6e1e9f6a",
-  "change_summary": "Clinician review draft: reproduce the two simplified legacy calculations and overall categorization while removing unsupported Framingham and ASCVD branding.",
+  "change_summary": "Clinician review draft: reproduce the two simplified legacy calculations and overall categorization while removing unsupported Framingham and ASCVD branding. Named HTML controls and scored choices are preserved; aggregate counts/sign groups are derived from typed responses. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "calculator",
     "title": "Legacy Cardiac Risk Estimate (Unvalidated)",
     "description": "Reproduces two simplified local formulas for comparison and retirement review. These outputs are not validated Framingham or ASCVD scores.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [],
     "exclusions": [
@@ -47,7 +47,8 @@
         "label": "Age",
         "required": true,
         "minimum": 20,
-        "maximum": 100
+        "maximum": 100,
+        "section_key": "patient"
       },
       {
         "key": "sex",
@@ -63,7 +64,9 @@
             "value": "female",
             "label": "Female"
           }
-        ]
+        ],
+        "section_key": "patient",
+        "control": "select"
       },
       {
         "key": "ethnicity",
@@ -78,11 +81,11 @@
           },
           {
             "value": "black",
-            "label": "Black"
+            "label": "Black/African American"
           },
           {
             "value": "hispanic",
-            "label": "Hispanic"
+            "label": "Hispanic/Latino"
           },
           {
             "value": "asian",
@@ -92,7 +95,9 @@
             "value": "other",
             "label": "Other"
           }
-        ]
+        ],
+        "section_key": "patient",
+        "control": "select"
       },
       {
         "key": "systolic_bp",
@@ -100,7 +105,8 @@
         "label": "Systolic blood pressure",
         "required": true,
         "minimum": 90,
-        "maximum": 250
+        "maximum": 250,
+        "section_key": "patient"
       },
       {
         "key": "diastolic_bp",
@@ -108,7 +114,8 @@
         "label": "Diastolic blood pressure",
         "required": true,
         "minimum": 50,
-        "maximum": 150
+        "maximum": 150,
+        "section_key": "patient"
       },
       {
         "key": "total_cholesterol",
@@ -116,7 +123,8 @@
         "label": "Total cholesterol",
         "required": true,
         "minimum": 100,
-        "maximum": 400
+        "maximum": 400,
+        "section_key": "patient"
       },
       {
         "key": "hdl_cholesterol",
@@ -124,51 +132,168 @@
         "label": "HDL cholesterol",
         "required": true,
         "minimum": 20,
-        "maximum": 100
+        "maximum": 100,
+        "section_key": "patient"
       },
       {
         "key": "bp_treatment",
-        "type": "boolean",
+        "type": "single_selection",
         "label": "Blood-pressure treatment",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk",
+        "control": "select",
+        "options": [
+          {
+            "value": false,
+            "label": "No"
+          },
+          {
+            "value": true,
+            "label": "Yes"
+          }
+        ]
       },
       {
         "key": "family_history",
-        "type": "boolean",
+        "type": "single_selection",
         "label": "Strong family history",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk",
+        "control": "select",
+        "options": [
+          {
+            "value": false,
+            "label": "No"
+          },
+          {
+            "value": true,
+            "label": "Yes (Male <55, Female <65)"
+          }
+        ]
       },
       {
         "key": "smoking",
         "type": "boolean",
         "label": "Smoking",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk"
       },
       {
         "key": "diabetes",
         "type": "boolean",
         "label": "Diabetes",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk"
       },
       {
         "key": "chronic_kidney_disease",
         "type": "boolean",
         "label": "Chronic kidney disease",
         "required": false,
-        "default": false
+        "default": false,
+        "section_key": "risk"
       },
       {
-        "key": "risk_factor_count",
-        "type": "integer",
-        "label": "Total selected legacy risk factors",
+        "key": "hypertension",
+        "type": "boolean",
+        "label": "Hypertension",
         "required": false,
-        "minimum": 0,
-        "maximum": 10,
-        "default": 0
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "obesity",
+        "type": "boolean",
+        "label": "Obesity (BMI ≥30)",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "atrial_fib",
+        "type": "boolean",
+        "label": "Atrial Fibrillation",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "inflammatory",
+        "type": "boolean",
+        "label": "Inflammatory Disease (RA, etc.)",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "sleep_apnea",
+        "type": "boolean",
+        "label": "Sleep Apnea",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "sedentary",
+        "type": "boolean",
+        "label": "Sedentary Lifestyle",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "depression",
+        "type": "boolean",
+        "label": "Depression",
+        "required": false,
+        "default": false,
+        "section_key": "risk"
+      },
+      {
+        "key": "ldl_cholesterol",
+        "type": "integer",
+        "label": "LDL Cholesterol (mg/dL):",
+        "required": false,
+        "minimum": 50,
+        "maximum": 300,
+        "section_key": "patient",
+        "default_unit": "mg/dL",
+        "help_text": "Recorded as assessment context; does not change the calculated result."
+      },
+      {
+        "key": "triglycerides",
+        "type": "integer",
+        "label": "Triglycerides (mg/dL):",
+        "required": false,
+        "minimum": 50,
+        "maximum": 800,
+        "section_key": "patient",
+        "default_unit": "mg/dL",
+        "help_text": "Recorded as assessment context; does not change the calculated result."
+      },
+      {
+        "key": "statin_therapy",
+        "type": "single_selection",
+        "label": "Currently on Statin Therapy:",
+        "required": false,
+        "section_key": "patient",
+        "help_text": "Recorded as assessment context; does not change the calculated result.",
+        "control": "select",
+        "options": [
+          {
+            "value": "no",
+            "label": "No"
+          },
+          {
+            "value": "yes",
+            "label": "Yes"
+          }
+        ],
+        "default": "no"
       }
     ],
     "sections": [
@@ -186,6 +311,184 @@
       }
     ],
     "calculation": [
+      {
+        "key": "risk_factor_count",
+        "expression": {
+          "op": "add",
+          "args": [
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "diabetes"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "smoking"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "hypertension"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "obesity"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "chronic_kidney_disease"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "atrial_fib"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "inflammatory"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "sleep_apnea"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "sedentary"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "depression"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            }
+          ]
+        }
+      },
       {
         "key": "age_points",
         "expression": {
@@ -1717,7 +2020,7 @@
           "diabetes": true,
           "smoking": true,
           "chronic_kidney_disease": false,
-          "risk_factor_count": 3
+          "hypertension": true
         },
         "expected": {
           "legacy_points_risk": 35,

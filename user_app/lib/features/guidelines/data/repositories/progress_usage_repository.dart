@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:user_app/core/storage/local_cache_service.dart';
 import 'package:user_app/shared/models/paginated_response.dart';
 import 'package:user_app/core/network/api_client.dart';
@@ -537,49 +540,180 @@ final class ReadingProgressRepository {
 // ===========================================================
 // USAGE / ANALYTICS
 // ===========================================================
-//
-// Usage telemetry remains best-effort.
-//
-// We deliberately DO NOT make a failed usage event prevent:
-// - reading guidelines
-// - opening abbreviations
-// - using AI
-//
-// Later this repository can write events to the generic pending
-// mutation queue and upload them when connectivity returns.
-// ===========================================================
+// Events are persisted before sending; analytics never block clinical content.
 
 final class UsageRepository {
-  UsageRepository(this._api);
-
+  UsageRepository(this._api, this._cache, this.currentUserId);
   final BackendApiService _api;
+  final LocalCacheService _cache;
+  final String? Function() currentUserId;
+  Future<void> _writes = Future.value();
+  Completer<void>? _syncing;
+  bool _syncAgain = false;
+  static const _type = 'usage_pending';
 
-  Future<void> guideline(String id) {
-    return _record('guidelines', id);
+  Future<void> guideline(String id) =>
+      _record('guidelines', resourceId: id, resourceType: 'guideline_document');
+  Future<void> abbreviation(String id) =>
+      _record('abbreviations', resourceId: id);
+  Future<void> ai({String? ownerId}) {
+    if (ownerId != null && currentUserId() != ownerId) return Future.value();
+    return _record('ai');
   }
 
-  Future<void> abbreviation(String id) {
-    return _record('abbreviations', id);
-  }
+  Future<void> drug(String id) => _record('drugs', resourceId: id);
+  Future<void> facility(String id) => _record('facilities', resourceId: id);
+  Future<void> feature(String feature) => _record('features', feature: feature);
 
-  Future<void> ai() {
-    return _record('ai', null);
-  }
-
-  Future<void> _record(String type, String? resourceId) async {
-    final key =
-        '$type-'
-        '${resourceId ?? 'interaction'}-'
-        '${DateTime.now().microsecondsSinceEpoch}';
-
-    await _api.requestJson(
-      '/api/v2/usage/$type',
-      method: 'POST',
-      body: {
-        if (resourceId != null) 'resource_id': resourceId,
-        'idempotency_key': key,
+  Future<T> _write<T>(Future<T> Function() work) {
+    final result = _writes.then((_) => work());
+    _writes = result.then<void>(
+      (_) {},
+      onError: (Object error) {
+        debugPrint('Usage cache failed: ${error.runtimeType}');
       },
     );
+    return result;
+  }
+
+  Future<void> _record(
+    String type, {
+    String? resourceId,
+    String? resourceType,
+    String? feature,
+  }) async {
+    final userId = currentUserId();
+    if (userId == null || userId.isEmpty) return;
+    final random = Random.secure();
+    final key = List.generate(
+      16,
+      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
+    final path = type == 'drugs' || type == 'facilities'
+        ? '/api/v2/$type/${Uri.encodeComponent(resourceId!)}/usage'
+        : '/api/v2/usage/$type';
+    await _enqueue(userId, key, path, {
+      'idempotency_key': key,
+      if (resourceId != null) 'resource_id': resourceId,
+      if (resourceType != null) 'resource_type': resourceType,
+      if (feature != null) 'feature': feature,
+    });
+  }
+
+  Future<void> notificationDelivery({
+    required String ownerId,
+    required String deliveryId,
+    required String eventType,
+    required String eventId,
+  }) async {
+    if (currentUserId() != ownerId ||
+        ownerId.isEmpty ||
+        deliveryId.trim().isEmpty) {
+      return;
+    }
+    if (eventType != 'open' && eventType != 'click') return;
+    // The server deduplicates by the supplied event ID, which survives retries.
+    final key = 'notification-$eventType-$eventId';
+    await _enqueue(
+      ownerId,
+      key,
+      '/api/v2/notification-deliveries/${Uri.encodeComponent(deliveryId)}/$eventType',
+      {
+        'event_id': eventId,
+        'occurred_at': DateTime.now().toUtc().toIso8601String(),
+      },
+    );
+  }
+
+  Future<void> _enqueue(
+    String userId,
+    String key,
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      await _write(() async {
+        if (await _cache.get(type: _type, id: key, scope: 'user:$userId') !=
+            null) {
+          return;
+        }
+        await _cache.put(
+          type: _type,
+          id: key,
+          scope: 'user:$userId',
+          data: {'id': key, 'path': path, 'body': body},
+        );
+      });
+      unawaited(sync());
+    } catch (error) {
+      debugPrint('Usage event deferred: ${error.runtimeType}');
+    }
+  }
+
+  Future<void> sync() async {
+    if (_syncing != null) {
+      _syncAgain = true;
+      return _syncing!.future;
+    }
+    final done = Completer<void>();
+    _syncing = done;
+    try {
+      do {
+        _syncAgain = false;
+        final userId = currentUserId();
+        if (userId == null || userId.isEmpty) return;
+        await _writes;
+        final events = await _cache.list(
+          type: _type,
+          scope: 'user:$userId',
+          limit: 10000,
+        );
+        for (final event in events) {
+          if (currentUserId() != userId) return;
+          // Queued events from the retired condition-card reader cannot be
+          // assigned to a document ID. Remove them during the client upgrade.
+          if ((event['body'] as Map?)?['resource_type'] ==
+              'medical_guideline') {
+            await _write(
+              () => _cache.tombstone(
+                type: _type,
+                id: event['id'] as String,
+                scope: 'user:$userId',
+              ),
+            );
+            continue;
+          }
+          try {
+            await _api.requestJson(
+              event['path'] as String,
+              method: 'POST',
+              body: Map<String, dynamic>.from(event['body'] as Map),
+            );
+            await _write(
+              () => _cache.tombstone(
+                type: _type,
+                id: event['id'] as String,
+                scope: 'user:$userId',
+              ),
+            );
+          } catch (error) {
+            debugPrint('Usage sync deferred: ${error.runtimeType}');
+            if (error is BackendApiException &&
+                (error.statusCode == 0 ||
+                    error.statusCode == 401 ||
+                    error.statusCode == 429 ||
+                    error.statusCode >= 500)) {
+              return;
+            }
+          }
+        }
+      } while (_syncAgain);
+    } catch (error) {
+      debugPrint('Usage queue unavailable: ${error.runtimeType}');
+    } finally {
+      _syncing = null;
+      done.complete();
+    }
   }
 }
 

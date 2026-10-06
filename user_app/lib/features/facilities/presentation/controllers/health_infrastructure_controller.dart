@@ -389,17 +389,7 @@ class HealthInfrastructureController extends _$HealthInfrastructureController {
   // ======================================================
 
   void goToFacilityDetail(HealthFacility facility) {
-    unawaited(_recordUsage(facility.id));
-
     AppNavigator.push(AppRoutes.healthFacility(facility.id), extra: facility);
-  }
-
-  Future<void> _recordUsage(String id) async {
-    try {
-      await _repository.recordUsage(id);
-    } catch (_) {
-      // Analytics must never block facility details.
-    }
   }
 
   // ======================================================

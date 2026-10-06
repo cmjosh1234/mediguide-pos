@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:user_app/features/authentication/presentation/controllers/auth_controller.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
@@ -240,6 +241,7 @@ final notificationRepositoryProvider = Provider<NotificationRepository>(
   (ref) => NotificationRepository(
     ref.watch(backendApiServiceProvider),
     ref.watch(notificationLocalRepositoryProvider),
+    usage: ref.watch(usageRepositoryProvider),
     userId: ref.watch(authServiceProvider).currentUser.value?.id ?? '',
   ),
 );
@@ -311,9 +313,17 @@ final guidelineDownloadServiceProvider = Provider<GuidelineDownloadService>((
   return service;
 });
 
-final usageRepositoryProvider = Provider<UsageRepository>(
-  (ref) => UsageRepository(ref.watch(backendApiServiceProvider)),
-);
+final usageRepositoryProvider = Provider<UsageRepository>((ref) {
+  var disposed = false;
+  ref.onDispose(() => disposed = true);
+  return UsageRepository(
+    ref.watch(backendApiServiceProvider),
+    ref.watch(localCacheServiceProvider),
+    () => disposed
+        ? null
+        : ref.read(authControllerProvider).valueOrNull?.user?.id,
+  );
+});
 
 final conversationRepositoryProvider = Provider<ConversationRepository>(
   (ref) => ConversationRepository(

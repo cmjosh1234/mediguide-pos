@@ -14,6 +14,7 @@ import { getBackendClient } from "@/lib/backend-client"
 import type { OverviewData } from "@/types/overview"
 import {
   OverviewEngagementChart,
+  OverviewFeatureUsageChart,
   OverviewSeriesChart,
 } from "@/components/dashboard/overview-charts"
 import { StatCard } from "@/components/dashboard/stat-card"
@@ -157,6 +158,7 @@ function OverviewCharts({
         facilities={data.series.facilitiesByDay}
       />
       <OverviewEngagementChart engagement={data.engagement} />
+      <OverviewFeatureUsageChart data={data.featureUsage ?? []} />
     </div>
   )
 }

@@ -50,6 +50,7 @@ type Citation struct {
 }
 
 type Input struct {
+	Control               string          `json:"control,omitempty"`
 	Key                   string          `json:"key"`
 	Type                  string          `json:"type"`
 	Label                 string          `json:"label"`

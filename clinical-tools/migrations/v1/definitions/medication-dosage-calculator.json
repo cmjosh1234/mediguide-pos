@@ -2,13 +2,13 @@
   "legacy_id": "medication-dosage-calculator",
   "legacy_file": "medication-dosage-calculator.html",
   "source_checksum": "0b97e86b8cf06fb99e090afa852dc824b6f19e296d032ce24516c178974850bb",
-  "change_summary": "Pharmacist review draft: preserve the legacy weight conversion, preset selection, single-dose caps, frequency, and daily-total calculation. No preset is approved for clinical use.",
+  "change_summary": "Pharmacist review draft: preserve the legacy weight conversion, preset selection, single-dose caps, frequency, and daily-total calculation. No preset is approved for clinical use. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "calculator",
     "title": "Legacy Medication Dose Calculation (Unapproved)",
     "description": "Reproduces the legacy educational dose arithmetic for pharmacist review. It must not be published or used to prescribe or administer medication before approval.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [],
     "exclusions": [
@@ -103,29 +103,31 @@
         "options": [
           {
             "value": "paracetamol",
-            "label": "Paracetamol / acetaminophen (legacy preset)"
+            "label": "Paracetamol/Acetaminophen"
           },
           {
             "value": "ibuprofen",
-            "label": "Ibuprofen (legacy preset)"
+            "label": "Ibuprofen"
           },
           {
             "value": "amoxicillin",
-            "label": "Amoxicillin (legacy preset)"
+            "label": "Amoxicillin"
           },
           {
             "value": "aspirin",
-            "label": "Aspirin low-dose (legacy preset)"
+            "label": "Aspirin (Low-dose)"
           },
           {
             "value": "prednisolone",
-            "label": "Prednisolone (legacy preset)"
+            "label": "Prednisolone"
           },
           {
             "value": "custom",
-            "label": "Custom arithmetic only"
+            "label": "Custom Calculation"
           }
-        ]
+        ],
+        "section_key": "patient",
+        "control": "select"
       },
       {
         "key": "weight",
@@ -138,7 +140,9 @@
           "kg",
           "lb"
         ],
-        "default_unit": "kg"
+        "default_unit": "kg",
+        "section_key": "patient",
+        "step": 0.1
       },
       {
         "key": "age_years",
@@ -146,7 +150,8 @@
         "label": "Age",
         "required": true,
         "minimum": 0,
-        "maximum": 120
+        "maximum": 120,
+        "section_key": "patient"
       },
       {
         "key": "custom_mg_per_kg",
@@ -167,7 +172,9 @@
               "value": "custom"
             }
           ]
-        }
+        },
+        "section_key": "patient",
+        "step": 0.1
       },
       {
         "key": "custom_frequency",
@@ -181,19 +188,19 @@
           },
           {
             "value": 2,
-            "label": "Twice daily"
+            "label": "Twice daily (every 12 hours)"
           },
           {
             "value": 3,
-            "label": "Three times daily"
+            "label": "Three times daily (every 8 hours)"
           },
           {
             "value": 4,
-            "label": "Four times daily"
+            "label": "Four times daily (every 6 hours)"
           },
           {
             "value": 6,
-            "label": "Every four hours"
+            "label": "Every 4 hours"
           }
         ],
         "visible_when": {
@@ -208,7 +215,10 @@
               "value": "custom"
             }
           ]
-        }
+        },
+        "section_key": "patient",
+        "control": "select",
+        "default": 1
       }
     ],
     "sections": [

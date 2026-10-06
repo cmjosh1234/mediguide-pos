@@ -24,6 +24,35 @@ class CalculatorLocalRepository {
   static const String _definitionType = 'calculator_definition';
   static const String _workflowType = 'calculator_workflow';
 
+  Future<void> saveUsage(String userId, String id, Map<String, dynamic> data) =>
+      _localCacheService.put(
+        type: 'calculator_usage_pending',
+        id: id,
+        scope: 'user:$userId',
+        data: data,
+      );
+
+  Future<Map<String, dynamic>?> getUsage(String userId, String id) =>
+      _localCacheService.get(
+        type: 'calculator_usage_pending',
+        id: id,
+        scope: 'user:$userId',
+      );
+
+  Future<List<Map<String, dynamic>>> pendingUsage(String userId) =>
+      _localCacheService.list(
+        type: 'calculator_usage_pending',
+        scope: 'user:$userId',
+        limit: 10000,
+      );
+
+  Future<void> removeUsage(String userId, String id) =>
+      _localCacheService.tombstone(
+        type: 'calculator_usage_pending',
+        id: id,
+        scope: 'user:$userId',
+      );
+
   Future<void> saveDefinition(ClinicalToolDefinitionEnvelope value) {
     final data = value.toJson();
     data['_cache_integrity'] = sha256

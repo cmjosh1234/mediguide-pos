@@ -67,17 +67,24 @@ type TreeResult struct {
 	Data    []TreeNode `json:"data"`
 }
 
+type FeatureUsageSummary struct {
+	Feature string `json:"feature"`
+	Last7   int64  `json:"last7"`
+	Last30  int64  `json:"last30"`
+}
+
 type OverviewResult struct {
-	Success       bool             `json:"success"`
-	CachedAt      string           `json:"cached_at"`
-	Metrics       map[string]int64 `json:"metrics"`
-	Pipeline      map[string]int64 `json:"pipeline"`
-	Engagement    map[string]int64 `json:"engagement"`
-	ContentHealth map[string]int64 `json:"contentHealth"`
-	Support       map[string]int64 `json:"support"`
-	Taxonomy      map[string]int64 `json:"taxonomy"`
-	Coverage      map[string]int64 `json:"coverage"`
-	Series        map[string]any   `json:"series"`
+	FeatureUsage  []FeatureUsageSummary `json:"featureUsage"`
+	Success       bool                  `json:"success"`
+	CachedAt      string                `json:"cached_at"`
+	Metrics       map[string]int64      `json:"metrics"`
+	Pipeline      map[string]int64      `json:"pipeline"`
+	Engagement    map[string]int64      `json:"engagement"`
+	ContentHealth map[string]int64      `json:"contentHealth"`
+	Support       map[string]int64      `json:"support"`
+	Taxonomy      map[string]int64      `json:"taxonomy"`
+	Coverage      map[string]int64      `json:"coverage"`
+	Series        map[string]any        `json:"series"`
 }
 
 type StatsResult struct {

@@ -1,3 +1,7 @@
+import 'package:user_app/features/drugs/data/models/drug.dart';
+import 'package:user_app/features/abbreviations/data/models/abbreviation.dart';
+import 'package:user_app/features/drugs/presentation/widgets/drug_details_bottom_sheet.dart';
+import 'package:user_app/features/abbreviations/presentation/widgets/abbreviation_detail_modal.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';

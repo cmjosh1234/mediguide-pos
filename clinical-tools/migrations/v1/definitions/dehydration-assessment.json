@@ -2,13 +2,13 @@
   "legacy_id": "dehydration-assessment",
   "legacy_file": "dehydration-assessment.html",
   "source_checksum": "1e007a6d5908a4f25739e73a7424df0c44b14b81216258c800f6ec161e4d9597",
-  "change_summary": "Review draft: preserve the six-sign 0–12 score and symptom modifier while requiring every sign and a measured weight. Fluid recommendations require clinician approval.",
+  "change_summary": "Review draft: preserve the six-sign 0–12 score and symptom modifier while requiring every sign and a measured weight. Fluid recommendations require clinician approval. Named HTML controls and scored choices are preserved; aggregate counts/sign groups are derived from typed responses. Assign every field to its declared form section. Supersedes engineering review.1; remains unapproved. Complete HTML field and option coverage; preserve radio and multiline controls. Supersedes engineering review.2.",
   "definition": {
     "schema_version": "1.0",
     "tool_type": "calculator",
     "title": "Dehydration Assessment",
     "description": "Scores six observed signs and additional symptoms. Review draft only; not approved for clinical publication.",
-    "version": "1.0.0-review.1",
+    "version": "1.0.0-review.3",
     "locale": "en",
     "supported_population": [],
     "exclusions": [
@@ -44,21 +44,24 @@
         "options": [
           {
             "value": "infant",
-            "label": "Infant (0–12 months)"
+            "label": "Infant (0-12 months)"
           },
           {
             "value": "child",
-            "label": "Child (1–12 years)"
+            "label": "Child (1-12 years)"
           },
           {
             "value": "adolescent",
-            "label": "Adolescent (13–17 years)"
+            "label": "Adolescent (13-17 years)"
           },
           {
             "value": "adult",
-            "label": "Adult"
+            "label": "Adult (18+ years)"
           }
-        ]
+        ],
+        "section_key": "patient",
+        "control": "select",
+        "default": "infant"
       },
       {
         "key": "weight",
@@ -70,64 +73,181 @@
         "allowed_units": [
           "kg"
         ],
-        "default_unit": "kg"
+        "default_unit": "kg",
+        "section_key": "patient",
+        "step": 0.1
       },
       {
         "key": "appearance",
-        "type": "integer",
+        "type": "single_selection",
         "label": "General appearance score",
         "required": true,
-        "minimum": 0,
-        "maximum": 2
+        "options": [
+          {
+            "value": 0,
+            "label": "Alert, active, normal behavior"
+          },
+          {
+            "value": 1,
+            "label": "Restless, irritable, or slightly lethargic"
+          },
+          {
+            "value": 2,
+            "label": "Lethargic, unconscious, or very weak"
+          }
+        ],
+        "section_key": "signs",
+        "control": "radio"
       },
       {
         "key": "eyes",
-        "type": "integer",
+        "type": "single_selection",
         "label": "Eyes score",
         "required": true,
-        "minimum": 0,
-        "maximum": 2
+        "options": [
+          {
+            "value": 0,
+            "label": "Normal"
+          },
+          {
+            "value": 1,
+            "label": "Slightly sunken"
+          },
+          {
+            "value": 2,
+            "label": "Very sunken"
+          }
+        ],
+        "section_key": "signs",
+        "control": "radio"
       },
       {
         "key": "mouth",
-        "type": "integer",
+        "type": "single_selection",
         "label": "Mouth score",
         "required": true,
-        "minimum": 0,
-        "maximum": 2
+        "options": [
+          {
+            "value": 0,
+            "label": "Moist"
+          },
+          {
+            "value": 1,
+            "label": "Sticky, decreased saliva"
+          },
+          {
+            "value": 2,
+            "label": "Dry, no saliva"
+          }
+        ],
+        "section_key": "signs",
+        "control": "radio"
       },
       {
         "key": "tears",
-        "type": "integer",
+        "type": "single_selection",
         "label": "Tears score",
         "required": true,
-        "minimum": 0,
-        "maximum": 2
+        "options": [
+          {
+            "value": 0,
+            "label": "Present when crying"
+          },
+          {
+            "value": 1,
+            "label": "Decreased tears"
+          },
+          {
+            "value": 2,
+            "label": "Absent tears"
+          }
+        ],
+        "section_key": "signs",
+        "control": "radio"
       },
       {
         "key": "skin",
-        "type": "integer",
+        "type": "single_selection",
         "label": "Skin turgor score",
         "required": true,
-        "minimum": 0,
-        "maximum": 2
+        "options": [
+          {
+            "value": 0,
+            "label": "Returns immediately (< 2 seconds)"
+          },
+          {
+            "value": 1,
+            "label": "Returns slowly (2-3 seconds)"
+          },
+          {
+            "value": 2,
+            "label": "Returns very slowly (> 3 seconds)"
+          }
+        ],
+        "section_key": "signs",
+        "control": "radio"
       },
       {
         "key": "urine",
-        "type": "integer",
+        "type": "single_selection",
         "label": "Urine output score",
         "required": true,
-        "minimum": 0,
-        "maximum": 2
+        "options": [
+          {
+            "value": 0,
+            "label": "Normal frequency and amount"
+          },
+          {
+            "value": 1,
+            "label": "Decreased frequency, dark color"
+          },
+          {
+            "value": 2,
+            "label": "Little to no urine output"
+          }
+        ],
+        "section_key": "signs",
+        "control": "radio"
       },
       {
-        "key": "additional_symptoms",
-        "type": "integer",
-        "label": "Additional symptoms present",
+        "key": "thirst",
+        "type": "boolean",
+        "label": "Increased thirst",
         "required": false,
-        "minimum": 0,
-        "maximum": 5,
-        "default": 0
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "nausea",
+        "type": "boolean",
+        "label": "Nausea or vomiting",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "diarrhea",
+        "type": "boolean",
+        "label": "Diarrhea",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "fever",
+        "type": "boolean",
+        "label": "Fever",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
+      },
+      {
+        "key": "dizziness",
+        "type": "boolean",
+        "label": "Dizziness or lightheadedness",
+        "required": false,
+        "default": false,
+        "section_key": "signs"
       }
     ],
     "sections": [
@@ -144,6 +264,99 @@
       }
     ],
     "calculation": [
+      {
+        "key": "additional_symptoms",
+        "expression": {
+          "op": "add",
+          "args": [
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "thirst"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "nausea"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "diarrhea"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "fever"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "if",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "dizziness"
+                },
+                {
+                  "op": "literal",
+                  "value": 1
+                },
+                {
+                  "op": "literal",
+                  "value": 0
+                }
+              ]
+            }
+          ]
+        }
+      },
       {
         "key": "total_score",
         "expression": {

@@ -1,0 +1,203 @@
+{
+  "content_checks": [
+    {
+      "category": "guideline_document",
+      "record_id": "a85fff83-a498-47b8-ab8d-7963ddf8724c",
+      "concurrent_retries_counted_once": true,
+      "counter_before": null,
+      "counter_after": null
+    },
+    {
+      "category": "medical_guideline",
+      "record_id": "b4b69d86-8a14-4f9b-85e7-b70933b44879",
+      "concurrent_retries_counted_once": true,
+      "counter_before": 1,
+      "counter_after": 2
+    },
+    {
+      "category": "abbreviation",
+      "record_id": "bf8482f8-ea25-4d93-8dae-bad48d874ee8",
+      "concurrent_retries_counted_once": true,
+      "counter_before": 11,
+      "counter_after": 12
+    },
+    {
+      "category": "drug",
+      "record_id": "d3387121-ae03-4c18-a384-8173b2cb493a",
+      "concurrent_retries_counted_once": true,
+      "counter_before": 21,
+      "counter_after": 22
+    },
+    {
+      "category": "facility",
+      "record_id": "609e6641-9705-40d6-aaab-c2f581f24e13",
+      "concurrent_retries_counted_once": true,
+      "counter_before": 3,
+      "counter_after": 4
+    },
+    {
+      "category": "ai",
+      "retries_counted_once": true
+    }
+  ],
+  "feature_categories_verified": [
+    "home",
+    "guidelines",
+    "drugs",
+    "facilities",
+    "ministry_directory",
+    "abbreviations",
+    "ai",
+    "tools",
+    "documents",
+    "downloads",
+    "library",
+    "outbreaks",
+    "search",
+    "notifications",
+    "conversations",
+    "profile",
+    "support",
+    "discovery",
+    "more"
+  ],
+  "aggregate_increases": {
+    "guideline": 2,
+    "abbreviation": 1,
+    "drug": 1,
+    "facility": 1,
+    "ai": 1,
+    "feature_home": 1,
+    "feature_guidelines": 1,
+    "feature_drugs": 1,
+    "feature_facilities": 1,
+    "feature_ministry_directory": 1,
+    "feature_abbreviations": 1,
+    "feature_ai": 1,
+    "feature_tools": 1,
+    "feature_documents": 1,
+    "feature_downloads": 1,
+    "feature_library": 1,
+    "feature_outbreaks": 1,
+    "feature_search": 1,
+    "feature_notifications": 1,
+    "feature_conversations": 1,
+    "feature_profile": 1,
+    "feature_support": 1,
+    "feature_discovery": 1,
+    "feature_more": 1
+  },
+  "invalid_feature_rejected": true,
+  "unauthenticated_rejected": true,
+  "engagement": {
+    "abbreviationUsage30d": 2,
+    "abbreviationUsage7d": 2,
+    "aiUsage30d": 1,
+    "aiUsage7d": 1,
+    "calculatorUsage30d": 2,
+    "calculatorUsage7d": 1,
+    "drugUsage30d": 2,
+    "drugUsage7d": 2,
+    "facilityUsage30d": 2,
+    "facilityUsage7d": 1,
+    "guidelineUsage30d": 6,
+    "guidelineUsage7d": 6
+  },
+  "feature_usage": [
+    {
+      "feature": "abbreviations",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "ai",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "conversations",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "discovery",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "documents",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "downloads",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "drugs",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "facilities",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "guidelines",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "home",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "library",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "ministry_directory",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "more",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "notifications",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "outbreaks",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "profile",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "search",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "support",
+      "last7": 1,
+      "last30": 1
+    },
+    {
+      "feature": "tools",
+      "last7": 1,
+      "last30": 1
+    }
+  ]
+}
