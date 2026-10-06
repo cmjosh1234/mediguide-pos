@@ -48,6 +48,7 @@ help:
 	@echo release-minor    Calculate and prepare the next minor release
 	@echo release-major    Calculate and prepare the next major release
 	@echo release-check    Validate RELEASE_TAG metadata, Git state, and Compose
+	@echo release-notes    Generate service notes and versioned Play changelog
 	@echo migrate-up       Apply backend migrations
 	@echo migrate-down     Roll back backend migrations
 	@echo migrate-status   Show backend migration status
@@ -230,6 +231,10 @@ release-major:
 .PHONY: release-check
 release-check:
 	$(BASH) scripts/check-release-readiness.sh "$(RELEASE_TAG)"
+
+.PHONY: release-notes
+release-notes:
+	python3 scripts/generate-release-notes.py "$(RELEASE_TAG)"
 
 .PHONY: migrate-up
 migrate-up:

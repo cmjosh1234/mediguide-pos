@@ -1,0 +1,78 @@
+name: Update Google Play draft release notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published stable release whose existing draft needs notes
+        required: true
+        type: string
+      confirmation:
+        description: Enter the release tag again to confirm the notes update
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-production
+  cancel-in-progress: false
+
+jobs:
+  notes:
+    name: Update existing Google Play production draft notes
+    if: github.repository == 'mohuganda/mediguide-pos'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify published release and versioned notes
+        id: notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "${CONFIRMATION}" = "${RELEASE_TAG}"
+          git merge-base --is-ancestor "${RELEASE_TAG}" origin/main
+          gh release view "${RELEASE_TAG}" --json isDraft,isPrerelease --jq '(.isDraft == false) and (.isPrerelease == false)' | grep -qx true
+          python3 scripts/generate-release-notes.py "${RELEASE_TAG}" --check
+          build_number="$(jq -r '.mobile_build_number' "docs/releases/${RELEASE_TAG}/notes.json")"
+          echo "build_number=${build_number}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Ruby and Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: user_app
+
+      - name: Upload versioned changelog without rebuilding the bundle
+        working-directory: user_app
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_BASE64 }}
+          MOBILE_BUILD_NUMBER: ${{ steps.notes.outputs.build_number }}
+        run: |
+          set -euo pipefail
+          credential_file="${RUNNER_TEMP}/mediguide-play-notes.json"
+          trap 'rm -f "${credential_file}"' EXIT
+          test -n "${GOOGLE_PLAY_SERVICE_ACCOUNT_BASE64}"
+          printf '%s' "${GOOGLE_PLAY_SERVICE_ACCOUNT_BASE64}" | base64 --decode > "${credential_file}"
+          chmod 600 "${credential_file}"
+          jq -e . "${credential_file}" >/dev/null
+          export GOOGLE_PLAY_SERVICE_ACCOUNT_FILE="${credential_file}"
+          bundle exec fastlane android play_store_notes
+          {
+            echo "## Google Play release notes updated"
+            echo "Release: ${RELEASE_TAG}; build: ${MOBILE_BUILD_NUMBER}; track: production; status: draft."
+            echo
+            cat "fastlane/metadata/android/en-US/changelogs/${MOBILE_BUILD_NUMBER}.txt"
+          } >> "${GITHUB_STEP_SUMMARY}"

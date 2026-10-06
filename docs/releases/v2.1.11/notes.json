@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "release_tag": "v2.1.11",
+  "previous_tag": "v2.1.10",
+  "mobile_build_number": 64,
+  "services": {
+    "mobile": [
+      "Use clinical calculators and reference directories without signing in.",
+      "Read cleaner guideline text with improved paragraph alignment and fewer visible HTML fragments.",
+      "Improved guideline-reader layout with updated regression coverage."
+    ],
+    "api": [
+      "Added public routes for clinical calculators and reference directories.",
+      "Updated calculator handling and covered unauthenticated tools access with regression tests."
+    ],
+    "ai-worker": [
+      "No worker-specific behavior changes since v2.1.10; version synchronized to 2.1.11."
+    ],
+    "dashboard": [
+      "Updated frontend dependencies and aligned the dependency lockfile to restore CI checks.",
+      "Updated the dashboard container runtime configuration."
+    ],
+    "guidelines": [
+      "Improved Markdown paragraph presentation and text alignment in the public guideline reader."
+    ]
+  },
+  "operations": [
+    "Published immutable version 2.1.11 images for the API, AI worker, dashboard and guidelines portal.",
+    "Published signed Android APKs and AAB for mobile version 2.1.11+64.",
+    "Production deployment and public health checks passed. Google Play accepted build 64 as a production-track draft; public rollout remains separate."
+  ],
+  "play_store": "What’s new in MediGuide 2.1.11:\n- Use clinical calculators and reference tools without signing in.\n- Read cleaner guideline text with improved alignment and fewer HTML fragments.\n- Improved guideline-reader layout and stability."
+}

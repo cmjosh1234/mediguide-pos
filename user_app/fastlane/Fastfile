@@ -22,6 +22,11 @@ def release_notes
   explicit = ENV["RELEASE_NOTES"].to_s.strip
   return explicit unless explicit.empty?
 
+  root = ENV.fetch("MOBILE_PROJECT_ROOT", File.expand_path("..", __dir__))
+  version = File.read(File.join(root, "pubspec.yaml")).match(/^version:\s*([^+\s]+)\+/)&.captures&.first
+  notes = File.join(root, "..", "docs", "releases", "v#{version}", "mobile.md")
+  return File.read(notes).strip if mobile_flavor == "production" && File.file?(notes)
+
   tag = ENV.fetch("GITHUB_REF_NAME", "local build")
   revision = ENV.fetch("GITHUB_SHA", "unknown")[0, 12]
   "MediGuide #{tag} (#{revision})"
@@ -152,6 +157,9 @@ platform :android do
       require_environment!("GOOGLE_PLAY_SERVICE_ACCOUNT_FILE")
       UI.user_error!("Google Play uploads require the production flavor") unless mobile_flavor == "production"
       UI.user_error!("Unexpected Google Play package") unless ENV.fetch("ANDROID_PACKAGE_NAME", "com.mediguide.ug") == "com.mediguide.ug"
+      build = ENV.fetch("MOBILE_BUILD_NUMBER")
+      changelog = "fastlane/metadata/android/en-US/changelogs/#{build}.txt"
+      UI.user_error!("Missing versioned Play changelog") unless File.file?(changelog) && File.read(changelog).strip.length.between?(1, 500)
       # This lane creates a draft only; policy and device evidence are checked
       # separately before any later rollout or promotion.
       sh("python3", "tool/check_play_store.py")
@@ -167,7 +175,31 @@ platform :android do
         track: "production",
         release_status: "draft",
         skip_upload_metadata: true,
-        skip_upload_changelogs: true,
+        skip_upload_changelogs: false,
+        skip_upload_images: true,
+        skip_upload_screenshots: true
+      )
+    end
+  end
+
+  desc "Update release notes for an existing Google Play production draft"
+  lane :play_store_notes do
+    within_mobile_project do
+      require_environment!("GOOGLE_PLAY_SERVICE_ACCOUNT_FILE", "MOBILE_BUILD_NUMBER")
+      build = ENV.fetch("MOBILE_BUILD_NUMBER")
+      UI.user_error!("Invalid Play build number") unless build.match?(/\A[1-9][0-9]*\z/)
+      notes = "fastlane/metadata/android/en-US/changelogs/#{build}.txt"
+      UI.user_error!("Missing versioned Play changelog") unless File.file?(notes) && File.read(notes).strip.length.between?(1, 500)
+      upload_to_play_store(
+        json_key: ENV.fetch("GOOGLE_PLAY_SERVICE_ACCOUNT_FILE"),
+        package_name: "com.mediguide.ug",
+        track: "production",
+        version_code: build.to_i,
+        release_status: "draft",
+        skip_upload_aab: true,
+        skip_upload_apk: true,
+        skip_upload_metadata: true,
+        skip_upload_changelogs: false,
         skip_upload_images: true,
         skip_upload_screenshots: true
       )

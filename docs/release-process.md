@@ -298,7 +298,11 @@ make release-prepare RELEASE_TAG=v2.0.17 MOBILE_BUILD_NUMBER=43
    Re-running the first command for the same SemVer preserves its current
    Flutter build number, making preparation idempotent. Review and commit all
    generated version changes together.
-2. Update user-facing release notes and any migration or operational notes.
+2. Review the generated `docs/releases/vX.Y.Z/notes.json` for all five services,
+   rewrite commit subjects into user-facing changes, and add migration or
+   operational notes. Run `make release-notes RELEASE_TAG=vX.Y.Z` after editing.
+   Commit the source, generated Markdown and version-code Play changelog with
+   the synchronized metadata. See [release notes](releases/README.md).
 3. Run the metadata-only drift check before committing:
 
 ```bash

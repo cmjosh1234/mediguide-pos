@@ -227,6 +227,7 @@ jobs:
       - name: Restore trusted release automation
         env:
           RELEASE_AUTOMATION_SHA: ${{ github.sha }}
+          MOBILE_BUILD_NUMBER: ${{ needs.metadata.outputs.build_number }}
         run: |
           set -euo pipefail
           # Keep the application source immutable at the release tag while
@@ -234,6 +235,8 @@ jobs:
           git fetch origin "${RELEASE_AUTOMATION_SHA}" --depth=1
           git show "${RELEASE_AUTOMATION_SHA}:user_app/fastlane/Fastfile" > fastlane/Fastfile
           git show "${RELEASE_AUTOMATION_SHA}:user_app/tool/check_play_store.py" > tool/check_play_store.py
+          git show "${RELEASE_AUTOMATION_SHA}:user_app/fastlane/metadata/android/en-US/changelogs/${MOBILE_BUILD_NUMBER}.txt" \
+            > "fastlane/metadata/android/en-US/changelogs/${MOBILE_BUILD_NUMBER}.txt"
 
       - name: Set up Java
         uses: actions/setup-java@v5

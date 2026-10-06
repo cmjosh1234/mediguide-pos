@@ -1,0 +1,4 @@
+What’s new in MediGuide 2.1.11:
+- Use clinical calculators and reference tools without signing in.
+- Read cleaner guideline text with improved alignment and fewer HTML fragments.
+- Improved guideline-reader layout and stability.

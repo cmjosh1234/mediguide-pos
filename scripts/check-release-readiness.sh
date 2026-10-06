@@ -81,6 +81,7 @@ if [[ -n "${duplicate_migration_versions}" ]]; then
 fi
 
 echo "Release metadata is consistent: ${release_tag} / mobile ${mobile_version} / all services ${platform_version}."
+python3 "${repository_root}/scripts/generate-release-notes.py" "${release_tag}" --check
 
 if [[ "${mode}" == "--metadata-only" ]]; then
   exit 0

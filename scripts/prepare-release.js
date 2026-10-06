@@ -8,6 +8,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { execFileSync } = require("child_process");
 
 const root = path.resolve(__dirname, "..");
 const args = process.argv.slice(2);
@@ -157,6 +158,10 @@ write(
     "version: " + version + "+" + nextBuildNumber,
   ),
 );
+
+execFileSync("python3", [path.join(root, "scripts/generate-release-notes.py"), "v" + version], {
+  stdio: "inherit",
+});
 
 process.stdout.write(
   "Release metadata synchronized: v" +

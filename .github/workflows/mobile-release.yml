@@ -613,12 +613,19 @@ jobs:
             "Signed iOS distribution and optional web/macOS verification artifacts are separate, explicitly selected workflows." \
             "Use the release manifest for immutable GHCR image references and verify every download with SHA256SUMS." \
             > dist/ARTIFACT-NOTES.md
+          python3 scripts/generate-release-notes.py "${RELEASE_TAG}" --check
+          cp "docs/releases/${RELEASE_TAG}/release-notes.md" dist/RELEASE-NOTES.md
+          for service in mobile api ai-worker dashboard guidelines; do
+            cp "docs/releases/${RELEASE_TAG}/${service}.md" "dist/${service}-release-notes.md"
+          done
+          cp "docs/releases/${RELEASE_TAG}/play-store.txt" dist/PLAY-STORE-NOTES.txt
+          cat dist/RELEASE-NOTES.md dist/ARTIFACT-NOTES.md > release-body.md
           (cd dist && sha256sum * > SHA256SUMS)
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
-          body_path: dist/ARTIFACT-NOTES.md
+          body_path: release-body.md
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: dist/*
