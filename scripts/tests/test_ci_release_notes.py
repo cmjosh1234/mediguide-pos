@@ -2,7 +2,9 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -96,6 +98,41 @@ class ReleaseNotesTest(unittest.TestCase):
         self.generate()
         self.generate(check=True)
         self.assertTrue((self.root / "user_app/fastlane/metadata/android/en-US/changelogs/11.txt").exists())
+
+    @unittest.skipUnless(shutil.which("ruby"), "Ruby is required to execute Fastlane lane checks")
+    def test_play_notes_lane_resolves_metadata_from_fastlane_working_directory(self):
+        self.generate()
+        self.write("user_app/key.json", "{}")
+        code = r'''
+require "json"
+$lanes = {}
+def opt_out_usage; end
+def default_platform(*); end
+def desc(*); end
+def platform(name); $platform = name; yield; end
+def lane(name, &block); $lanes[[$platform, name]] = block; end
+def private_lane(name, &block); lane(name, &block); end
+def upload_to_play_store(**options)
+  raise "Metadata directory unresolved" unless File.directory?(options[:metadata_path])
+  puts JSON.generate(options)
+end
+module UI
+  def self.user_error!(message); raise message; end
+end
+load ARGV[0]
+$lanes[[:android, :play_store_notes]].call
+'''
+        root = self.root / "user_app"
+        env = {**os.environ, "MOBILE_PROJECT_ROOT": str(root), "MOBILE_BUILD_NUMBER": "11",
+               "GOOGLE_PLAY_SERVICE_ACCOUNT_FILE": str(root / "key.json")}
+        result = subprocess.check_output(["ruby", "-e", code, str(ROOT / "user_app/fastlane/Fastfile")],
+                                         cwd=root / "fastlane", env=env, text=True)
+        options = json.loads(result)
+        self.assertEqual((root / "fastlane/metadata/android").resolve(), Path(options["metadata_path"]).resolve())
+        self.assertEqual(11, options["version_code"])
+        self.assertTrue(options["skip_upload_aab"])
+        self.assertTrue(options["skip_upload_apk"])
+        self.assertFalse(options["skip_upload_changelogs"])
 
 
 if __name__ == "__main__":
