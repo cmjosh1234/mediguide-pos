@@ -1,6 +1,6 @@
 {
   "name": "dashboard",
-  "version": "2.1.10",
+  "version": "2.1.11",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -97,7 +97,5 @@
     "sharp": "^0.35.4",
     "tinymce": "^8.8.2",
     "source-map-js": "1.2.2"
-
   }
-
 }

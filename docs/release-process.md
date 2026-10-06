@@ -1,5 +1,19 @@
 # MediGuide platform release process
 
+## v2.1.11 release cut — 6 October 2026
+
+- Synchronizes the API, AI worker, dashboard, public guidelines portal and
+  mobile application to 2.1.11; the checked-in mobile build is 2.1.11+64.
+- Makes public clinical tools and reference directories available without
+  authentication and updates mobile tools to use the public API routes.
+- Cleans up HTML remnants in mobile Markdown, improves paragraph alignment
+  and guideline-reader presentation, and refreshes reader regression coverage.
+- Updates dashboard dependencies, container runtime configuration and CI
+  dependency alignment to restore successful platform checks.
+- The stable tag publishes signed Android APK/AAB artifacts and immutable
+  container images, then runs the protected production deployment workflow.
+  Tester distribution and store submission remain separate workflows.
+
 ## v2.1.8 corrective release — 27 September 2026
 
 - Synchronizes the API, AI worker, dashboard, public guidelines portal and
