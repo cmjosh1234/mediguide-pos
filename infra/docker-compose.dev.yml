@@ -24,6 +24,9 @@ services:
 
   dashboard:
     image: "${DASHBOARD_DEV_IMAGE:-mediguide-dashboard:development}"
+    # Named dependency volumes survive image rebuilds. Sync them with the
+    # bind-mounted lockfile before starting Next.js.
+    command: ["sh", "-c", "bun install --frozen-lockfile && exec bun run dev"]
     build:
       context: ../dashboard
       dockerfile: Dockerfile.dev
