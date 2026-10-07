@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "release_tag": "v2.1.14",
+  "previous_tag": "v2.1.13",
+  "mobile_build_number": 67,
+  "services": {
+    "mobile": [
+      "No service-specific changes since v2.1.13."
+    ],
+    "api": [
+      "No service-specific changes since v2.1.13."
+    ],
+    "ai-worker": [
+      "No service-specific changes since v2.1.13."
+    ],
+    "dashboard": [
+      "No service-specific changes since v2.1.13."
+    ],
+    "guidelines": [
+      "No service-specific changes since v2.1.13."
+    ]
+  },
+  "operations": [
+    "fix: support same-domain production asset routing",
+    "fix: publish production MinIO API on all interfaces",
+    "docs: clarify upstream routing for a separate Nginx server",
+    "Bootstrap MinIO API port 9000 before public storage health validation and application-stack replacement."
+  ],
+  "play_store": "- No service-specific changes since v2.1.13."
+}

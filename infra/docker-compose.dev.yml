@@ -18,7 +18,7 @@ services:
       - "${DEV_DATA_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PUBLIC_PORT:-5433}:5432"
 
   minio:
-    ports:
+    ports: !override
       - "${DEV_DATA_BIND_ADDRESS:-127.0.0.1}:${MINIO_PUBLIC_PORT:-9000}:9000"
       - "${DEV_DATA_BIND_ADDRESS:-127.0.0.1}:${MINIO_CONSOLE_PUBLIC_PORT:-9001}:9001"
 

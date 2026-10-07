@@ -1,9 +1,11 @@
 import ast
+import io
 import importlib.util
 from pathlib import Path
 import re
 import tempfile
 import unittest
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -71,9 +73,31 @@ class ProductionEnvironmentToolsTest(unittest.TestCase):
             path.write_text(f"SMTP_PASSWORD=opaque-fixture\nS3_PUBLIC_ENDPOINT={endpoint}\nS3_PUBLIC_SSL={ssl}\n")
             return checker.storage_url(path)
 
+    def test_deployment_bootstraps_minio_before_public_health_and_stack_replacement(self):
+        script = (ROOT / "infra/deploy-production.sh").read_text()
+        bootstrap = script.index('up --no-build -d --no-deps --wait --wait-timeout 120 minio')
+        network_check = script.index('"${production_env}" --check-network')
+        replacement = script.index('down --remove-orphans')
+        self.assertLess(script.index('config --quiet'), bootstrap)
+        self.assertLess(script.index('Using immutable release images preloaded'), bootstrap)
+        self.assertLess(bootstrap, network_check)
+        self.assertLess(network_check, replacement)
+
     def test_validates_https_browser_facing_storage(self):
         self.assertEqual(self.check("assets.example.org"), "https://assets.example.org")
         self.assertEqual(self.check("assets.example.org:9443"), "https://assets.example.org:9443")
+
+    def test_health_rejects_spa_fallback_errors_and_redirects(self):
+        base = "https://mediguide.example.org"
+        for status, url, body in [(200, base + "/minio/health/live", b"<html>website</html>"),
+                                  (502, base + "/minio/health/live", b""),
+                                  (200, base + "/", b""),
+                                  (200, "https://other.example.org/minio/health/live", b"")]:
+            response = SimpleNamespace(status=status, url=url, read=io.BytesIO(body).read)
+            with self.subTest(status=status, url=url), self.assertRaises(ValueError):
+                checker.validate_health_response(base, response)
+        response = SimpleNamespace(status=200, url=base + "/minio/health/live", read=io.BytesIO(b"").read)
+        checker.validate_health_response(base, response)
 
     def test_rejects_internal_endpoints_path_prefixes_and_credentials(self):
         for endpoint in ["", "minio:9000", "localhost:9000", "127.0.0.1:9000", "10.1.2.3:9000", "storage.internal", "https://assets.example.org", "assets.example.org/storage", "name:opaque-fixture@assets.example.org", "assets.example.org?token=opaque-fixture"]:

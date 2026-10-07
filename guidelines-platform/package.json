@@ -1,7 +1,7 @@
 {
   "name": "guidelines-platform",
   "private": true,
-  "version": "2.1.13",
+  "version": "2.1.14",
   "type": "module",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

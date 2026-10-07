@@ -14,6 +14,7 @@ EXPECTED_PORTS = {
     "api": {"published": 8080, "target": 8080},
     "dashboard": {"published": 3000, "target": 3000},
     "guidelines": {"published": 5000, "target": 8080},
+    "minio": {"published": 9000, "target": 9000},
 }
 
 
@@ -53,11 +54,12 @@ def main() -> int:
             continue
 
         port = ports[0]
-        if port.get("host_ip") != "0.0.0.0":
-            errors.append(
-                f"{service_name} must bind to 0.0.0.0, found {port.get('host_ip')!r}"
-            )
         expected = EXPECTED_PORTS[service_name]
+        expected_host = expected.get("host_ip", "0.0.0.0")
+        if port.get("host_ip") != expected_host:
+            errors.append(
+                f"{service_name} must bind to {expected_host}, found {port.get('host_ip')!r}"
+            )
         if str(port.get("published")) != str(expected["published"]):
             errors.append(
                 f"{service_name} publishes {port.get('published')!r}, expected "
@@ -78,8 +80,8 @@ def main() -> int:
         return 1
 
     print(
-        "Production publishes API, dashboard, and guidelines on all interfaces; "
-        "data and worker services remain internal."
+        "Production publishes API, dashboard, guidelines, and MinIO API on all interfaces; "
+        "the MinIO console and other data and worker services remain internal."
     )
     return 0
 

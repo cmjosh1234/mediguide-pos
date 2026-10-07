@@ -107,8 +107,8 @@ if [[ "${dashboard_public_url%/}" != "${public_site_url%/}/admin/login" ]]; then
   exit 1
 fi
 
-# Fail before replacing the healthy stack when browser asset routing is missing.
-python3 "${infra_dir}/check-public-storage.py" "${production_env}" --check-network
+# Validate the public endpoint format before changing any containers.
+python3 "${infra_dir}/check-public-storage.py" "${production_env}"
 
 deployment_failure_diagnostics() {
   exit_code=$?
@@ -144,6 +144,12 @@ if [[ "${MEDIGUIDE_IMAGES_PRELOADED:-0}" != "1" ]]; then
 else
   echo "Using immutable release images preloaded and verified by the deployment workflow."
 fi
+
+# Bootstrap the published S3 API port for a remote Nginx server before
+# checking its route. Leave the application stack running if routing fails.
+echo "Applying MinIO API port mapping and waiting for storage health."
+"${compose[@]}" up --no-build -d --no-deps --wait --wait-timeout 120 minio
+python3 "${infra_dir}/check-public-storage.py" "${production_env}" --check-network
 
 echo "Removing existing MediGuide containers while preserving named volumes."
 "${compose[@]}" down --remove-orphans --timeout 60

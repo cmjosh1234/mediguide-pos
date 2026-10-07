@@ -24,6 +24,9 @@ services:
       MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:-mediguide123}"
       MINIO_API_CORS_ALLOW_ORIGIN: "${MINIO_API_CORS_ALLOW_ORIGIN:-*}"
     restart: unless-stopped
+    # Publish the S3 API on all interfaces; the console remains internal.
+    ports:
+      - "0.0.0.0:9000:9000"
     volumes:
       - minio_data:/data
     healthcheck:

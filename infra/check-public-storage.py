@@ -53,13 +53,22 @@ def main() -> None:
         base = storage_url(args.file)
         if args.check_network:
             with urlopen(base + "/minio/health/live", timeout=15) as response:
-                if response.status != 200 or urlsplit(response.url).scheme != "https" or urlsplit(response.url).netloc != urlsplit(base).netloc:
-                    raise ValueError("Public storage health must return 200 without redirecting to another host")
+                validate_health_response(base, response)
     except (ValueError, OSError) as error:
         # Network exceptions may contain URLs; do not print their content.
         reason = str(error) if isinstance(error, ValueError) else "Public storage is unreachable; check DNS, TLS and the S3 API reverse proxy"
         parser.exit(1, reason + "\n")
     print("Public storage configuration valid" + ("; HTTPS S3 API health passed" if args.check_network else ""))
+
+
+def validate_health_response(base, response) -> None:
+    expected_url = base + "/minio/health/live"
+    if response.status != 200 or response.url != expected_url:
+        raise ValueError("Public storage health must return 200 at the original HTTPS URL")
+    # MinIO's live endpoint has an empty body. A SPA fallback may return HTML
+    # with status 200 when the health route is missing from the reverse proxy.
+    if response.read(1):
+        raise ValueError("Public storage health returned content instead of an empty MinIO health response; check the Nginx route")
 
 
 if __name__ == "__main__":
