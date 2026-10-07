@@ -107,6 +107,9 @@ if [[ "${dashboard_public_url%/}" != "${public_site_url%/}/admin/login" ]]; then
   exit 1
 fi
 
+# Fail before replacing the healthy stack when browser asset routing is missing.
+python3 "${infra_dir}/check-public-storage.py" "${production_env}" --check-network
+
 deployment_failure_diagnostics() {
   exit_code=$?
   trap - ERR

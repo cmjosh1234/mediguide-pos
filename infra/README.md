@@ -258,6 +258,59 @@ dashboard, and `/api` for the backend. Start from
 image must be built with `NEXT_PUBLIC_DASHBOARD_BASE_PATH=/admin`, and Nginx
 must preserve—not strip—the `/admin` prefix.
 
+### Browser-visible object storage
+
+Private assets are returned as presigned S3 URLs. Production needs a separate
+public HTTPS S3 API endpoint, for example `assets.mediguide.health.go.ug`.
+Create DNS and TLS for that hostname and route it to MinIO API port 9000.
+The reverse proxy must reach the internal Compose network and preserve the
+original Host header, object path and signed query string. The MinIO console
+on port 9001 is a different service. Do not prepend `/storage` or `/admin` to
+S3 object paths and do not rewrite URLs after they have been signed.
+
+Set `S3_PUBLIC_ENDPOINT` to the hostname only and `S3_PUBLIC_SSL=true`.
+`MINIO_API_CORS_ALLOW_ORIGIN` must match the browser origin. The production
+base Compose file does not publish MinIO on the host; a host-installed proxy
+needs a private upstream connection, while a container proxy can share the
+Compose network. Setting DNS or the env hostname alone does not create that
+proxy connection.
+
+Validate the configuration and public DNS/TLS/API health without displaying
+credentials:
+
+```bash
+python3 infra/check-public-storage.py infra/production.env --check-network
+```
+
+The production deployment script runs this check before replacing the stack.
+A missing endpoint or an unreachable public storage API stops deployment.
+After a server-side env change, recreate the API with the same Compose and
+release env files, then reopen the asset library to generate fresh URLs:
+
+```bash
+docker compose --env-file infra/production.env --env-file infra/release.env \
+  -f infra/docker-compose.yml up -d --no-deps --force-recreate api
+```
+
+The deployment bundle is recreated from the `PRODUCTION_ENV_FILE` GitHub
+secret. To manage storage routing independently of credential values, set the
+non-secret production GitHub variables `S3_PUBLIC_ENDPOINT` and optionally
+`S3_PUBLIC_SSL` (defaults to `true`). Empty variables retain the protected env
+bundle's storage settings. Deploying an older immutable release still uses
+that release's workflow/scripts, so it will not include newer overrides.
+
+To organize a populated private env file without printing, evaluating or
+changing effective credential values, run:
+
+```bash
+python3 infra/organize-env.py infra/production.env --private
+```
+
+The organizer keeps the last assignment for duplicate keys, groups settings
+by responsibility, restricts the private file to mode 600, and verifies that
+all effective values are preserved. Templates and development env files can
+be organized without `--private`.
+
 | Public route | Published listener | Service |
 |---|---|---|
 | `/` | `0.0.0.0:5000` | Guidelines UI |

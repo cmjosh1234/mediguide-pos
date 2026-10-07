@@ -124,6 +124,8 @@ jobs:
           PUBLIC_SITE_URL: ${{ vars.PUBLIC_SITE_URL }}
           PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
           DASHBOARD_PUBLIC_URL: ${{ vars.DASHBOARD_PUBLIC_URL }}
+          S3_PUBLIC_ENDPOINT: ${{ vars.S3_PUBLIC_ENDPOINT }}
+          S3_PUBLIC_SSL: ${{ vars.S3_PUBLIC_SSL }}
         run: |
           set -euo pipefail
           umask 077
@@ -150,6 +152,16 @@ jobs:
             printf 'DASHBOARD_BASE_PATH=/admin\n'
             printf 'ALLOWED_ORIGINS=%s\n' "${PUBLIC_SITE_URL%/}"
           } >> infra/production.env
+
+          # Public storage routing can be updated independently of credential secrets.
+          # Empty variables retain the endpoint supplied in the protected env bundle.
+          if [ -n "${S3_PUBLIC_ENDPOINT}" ]; then
+            printf 'S3_PUBLIC_ENDPOINT=%s\n' "${S3_PUBLIC_ENDPOINT}" >> infra/production.env
+            printf 'S3_PUBLIC_SSL=%s\n' "${S3_PUBLIC_SSL:-true}" >> infra/production.env
+          fi
+          printf 'MINIO_API_CORS_ALLOW_ORIGIN=%s\n' "${PUBLIC_SITE_URL%/}" >> infra/production.env
+          python3 infra/organize-env.py infra/production.env --private
+          python3 infra/check-public-storage.py infra/production.env
 
           # Firebase Admin is optional, but a malformed non-empty credential
           # makes both the API and notification worker fail during startup.
