@@ -19,7 +19,7 @@ func outbreakNotificationTestService(t *testing.T) NotificationService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = db.AutoMigrate(&models.Outbreak{}, &models.SituationReport{}, &models.NotificationTemplate{}, &models.NotificationTemplateVersion{}, &models.NotificationCampaign{}, &models.AuditLog{}); err != nil {
+	if err = db.AutoMigrate(&models.Outbreak{}, &models.SituationReport{}, &models.SituationReportAttachment{}, &models.NotificationTemplate{}, &models.NotificationTemplateVersion{}, &models.NotificationCampaign{}, &models.AuditLog{}); err != nil {
 		t.Fatal(err)
 	}
 	for _, value := range []struct{ key, action, idVariable string }{

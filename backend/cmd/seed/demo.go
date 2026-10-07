@@ -605,10 +605,12 @@ func seedDemoOutbreaks(ctx context.Context, database *gorm.DB, store storage.Obj
 			return err
 		}
 	}
+	// The report links WHO's file API; iris.who.int/bitstreams/…/download is a
+	// web page that only plain HTTP clients are redirected from to the PDF.
 	if err := upsertByID(database, "situation_reports", map[string]any{
 		"id": demoID("situation-report", "who-bvd-11-2026-07-26"), "outbreak_id": ebolaID, "title": "Bundibugyo virus disease weekly external situation report 11",
 		"geographic_area": "Democratic Republic of the Congo and Uganda", "summary": "WHO's weekly external situation report with data as of 26 July 2026. It documents continued transmission in the Democratic Republic of the Congo and continuing regional preparedness needs.",
-		"source_organization": "WHO Regional Office for Africa", "publication_date": reportDate, "status": "published", "published_at": reportDate, "approved_at": reportDate, "effective_at": reportDate, "data_as_of": reportDate, "last_verified_at": reportDate, "source_reference": "WHO weekly external situation report 11", "source_url": "https://www.who.int/emergencies/situations", "report_asset_url": "https://iris.who.int/bitstreams/e5023872-6b1c-446e-992d-7c92810d730a/download",
+		"source_organization": "WHO Regional Office for Africa", "publication_date": reportDate, "status": "published", "published_at": reportDate, "approved_at": reportDate, "effective_at": reportDate, "data_as_of": reportDate, "last_verified_at": reportDate, "source_reference": "WHO weekly external situation report 11", "source_url": "https://www.who.int/emergencies/situations", "report_asset_url": "https://iris.who.int/server/api/core/bitstreams/e5023872-6b1c-446e-992d-7c92810d730a/content",
 		"key_highlights": mustJSON(`["No new cases were reported outside the Democratic Republic of the Congo during the reporting period","Regional cross-border spread risk remained high","Sustained surveillance and preparedness remained necessary"]`),
 		"metrics":        mustJSON(`[{"key":"uganda_confirmed","label":"Confirmed cases in Uganda","value":"20","numeric_value":20,"unit":"cases","as_of":"2026-07-26T12:00:00Z","source_reference":"WHO situation report 11","sort_order":1},{"key":"uganda_deaths","label":"Deaths in Uganda","value":"2","numeric_value":2,"unit":"deaths","as_of":"2026-07-26T12:00:00Z","source_reference":"WHO situation report 11","sort_order":2},{"key":"contacts_followed","label":"Contacts followed up","value":"836","numeric_value":836,"unit":"contacts","as_of":"2026-07-26T12:00:00Z","source_reference":"WHO situation report 11","sort_order":3}]`),
 	}); err != nil {

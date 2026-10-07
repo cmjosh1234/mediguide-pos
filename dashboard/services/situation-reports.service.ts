@@ -6,6 +6,8 @@ export {
   situationReportsService,
   type SituationReportInput,
   type SituationReportRecord,
+  type SituationReportAttachmentRecord,
+  type SituationReportAttachmentInput,
   type OutbreakAuditRecord,
   type OutbreakListQuery as SituationReportListQuery,
 } from "./outbreaks.service";

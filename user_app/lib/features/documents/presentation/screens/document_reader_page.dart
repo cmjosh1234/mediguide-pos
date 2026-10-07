@@ -50,6 +50,23 @@ bool isSupportedDocumentSource(String value) {
   return uri.scheme == 'https' || uri.scheme == 'http' || uri.scheme == 'file';
 }
 
+/// Thrown when a link returns something other than a PDF, such as a web page
+/// in front of the file, which the PDF viewer can't render.
+final class NotAPdfException implements Exception {
+  const NotAPdfException();
+}
+
+/// Whether [file] is a PDF. The `%PDF-` header may follow up to 1024 bytes of
+/// leading data.
+Future<bool> isPdfFile(File file) async {
+  final stream = file.openRead(0, 1024);
+  final head = <int>[];
+  await for (final chunk in stream) {
+    head.addAll(chunk);
+  }
+  return String.fromCharCodes(head).contains('%PDF-');
+}
+
 class DocumentReaderPage extends StatefulWidget {
   const DocumentReaderPage({super.key, required this.args});
 
@@ -153,9 +170,13 @@ class _DocumentReaderPageState extends State<DocumentReaderPage> {
       path.join(directory.path, 'mediguide-pdf-$cacheKey.pdf'),
     );
 
-    // Already cached.
+    // Already cached. A file that isn't a PDF (for example a web page saved
+    // by an earlier version) is downloaded again.
     if (await target.exists() && await target.length() > 0) {
-      return target.path;
+      if (await isPdfFile(target)) {
+        return target.path;
+      }
+      await target.delete();
     }
 
     final partial = File('${target.path}.part');
@@ -193,6 +214,10 @@ class _DocumentReaderPageState extends State<DocumentReaderPage> {
 
       if (!await partial.exists() || await partial.length() == 0) {
         throw const FormatException('The downloaded PDF is empty.');
+      }
+
+      if (!await isPdfFile(partial)) {
+        throw const NotAPdfException();
       }
 
       await partial.rename(target.path);
@@ -261,9 +286,12 @@ class _DocumentReaderPageState extends State<DocumentReaderPage> {
 
                 if (snapshot.hasError) {
                   return _DocumentError(
-                    message:
-                        'The PDF could not be loaded. '
-                        'Check your connection or open the original document.',
+                    message: snapshot.error is NotAPdfException
+                        ? 'This link opens a web page rather than a PDF, so it '
+                              'can\'t be shown here. Open the original document '
+                              'instead.'
+                        : 'The PDF could not be loaded. '
+                              'Check your connection or open the original document.',
                     onRetry: _retry,
                     onOpenOriginal: _openOriginal,
                   );

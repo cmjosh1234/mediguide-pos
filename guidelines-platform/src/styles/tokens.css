@@ -23,6 +23,7 @@
   --color-muted: var(--muted-foreground);
   --color-soft: var(--muted);
   --color-surface: var(--background);
+  --color-surface-raised: var(--card);
   --color-line: var(--border);
   --color-green-900: var(--primary);
   --color-green-800: var(--primary);

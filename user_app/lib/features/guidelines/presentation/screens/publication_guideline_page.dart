@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:user_app/app/providers/app_providers.dart';
 import 'package:user_app/app/router/route_names.dart';
@@ -48,6 +49,7 @@ part '../widgets/publication_guideline_page_bottom_icon_action.dart';
 part '../widgets/publication_guideline_page_reader_bottom_action.dart';
 part '../widgets/publication_guideline_page_overview.dart';
 part '../widgets/publication_guideline_page_original_document_reader.dart';
+part '../widgets/publication_guideline_page_linked_document.dart';
 part '../widgets/publication_guideline_page_section_header_delegate.dart';
 
 class PublicationGuidelinePage extends ConsumerStatefulWidget {
@@ -233,6 +235,15 @@ class _PublicationGuidelinePageState
           },
         ),
         data: (value) {
+          if (value.publication.opensWebsite) {
+            return _LinkedDocumentView(
+              publication: value.publication,
+              onOpen: () {
+                _openWebsite(context, value.publication.externalUrl);
+              },
+            );
+          }
+
           if (widget.readerOnly) {
             return _content(context, value);
           }
@@ -244,7 +255,10 @@ class _PublicationGuidelinePageState
       // =====================================================================
       // BOTTOM ACTION BAR
       // =====================================================================
-      bottomNavigationBar: content.valueOrNull == null
+      // A link has nothing to read or download; its view opens the website.
+      bottomNavigationBar:
+          content.valueOrNull == null ||
+              content.requireValue.publication.opensWebsite
           ? null
           : _ReaderActionBar(
               isBookmarked: progress?.isBookmarked == true,
@@ -854,6 +868,20 @@ class _PublicationGuidelinePageState
   // ===========================================================================
 
   Future<void> _openOriginal(BuildContext context) async {
+    final publication =
+        (ref
+                    .read(publicationGuidelineProvider(widget.guidelineId))
+                    .valueOrNull ??
+                ref
+                    .read(
+                      publicationGuidelineSummaryProvider(widget.guidelineId),
+                    )
+                    .valueOrNull)
+            ?.publication;
+    if (publication != null && publication.opensWebsite) {
+      await _openWebsite(context, publication.externalUrl);
+      return;
+    }
     try {
       final asset = await ref.read(
         guidelineOriginalDocumentProvider(widget.guidelineId).future,
@@ -888,6 +916,27 @@ class _PublicationGuidelinePageState
         'The original document could not be opened. '
         'Check your connection and try again.',
       );
+    }
+  }
+
+  Future<void> _openWebsite(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || uri.scheme != 'https') {
+      AppMessage.warning(context, 'This link is unavailable.');
+      return;
+    }
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && context.mounted) {
+        AppMessage.error(context, 'The website could not be opened.');
+      }
+    } catch (_) {
+      if (context.mounted) {
+        AppMessage.error(context, 'The website could not be opened.');
+      }
     }
   }
 

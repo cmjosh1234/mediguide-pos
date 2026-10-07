@@ -26,6 +26,7 @@ import {
   countItems,
   dateLabel,
   flattenPillars,
+  metricValueLabel,
   uniqueResources,
 } from "./discovery-utils";
 
@@ -130,7 +131,9 @@ export function DiseaseDetailPage() {
   return (
     <section className="page-shell discovery-page">
       {state.offline && <OfflineNotice />}
-      <Link to="/diseases">← Disease directory</Link>
+      <Link className="discovery-back" to="/diseases">
+        ← Disease directory
+      </Link>
       <span className="eyebrow">Disease</span>
       <h1>{disease.name}</h1>
       <p>{disease.description}</p>
@@ -204,12 +207,16 @@ export function HubPage() {
   const allItems = flattenPillars(hub.pillars ?? []).flatMap(
     (pillar) => pillar.items,
   );
-  const featured = allItems
-    .filter((item) => item.featured && item.resource)
-    .map((item) => item.resource!);
-  const updates = allItems
-    .filter((item) => item.resource)
-    .map((item) => item.resource!)
+  // A resource can be placed in several pillars, so each list is de-duplicated
+  // to avoid showing the same card more than once.
+  const featured = uniqueResources(
+    allItems
+      .filter((item) => item.featured && item.resource)
+      .map((item) => item.resource!),
+  );
+  const updates = uniqueResources(
+    allItems.filter((item) => item.resource).map((item) => item.resource!),
+  )
     .sort(
       (a, b) =>
         Date.parse(b.publication_date ?? "") -
@@ -243,15 +250,25 @@ export function HubPage() {
           <p>{hub.outbreak.geographic_area}</p>
           <small>Verified {dateLabel(hub.outbreak.last_verified_at)}</small>
           <div className="metrics-grid">
-            {(hub.outbreak.metrics ?? []).map((metric, index) => (
-              <div key={index}>
-                {Object.entries(metric).map(([key, value]) => (
-                  <span key={key}>
-                    <b>{String(value)}</b> {key.replaceAll("_", " ")}
+            {[...(hub.outbreak.metrics ?? [])]
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map((metric) => (
+                <div className="metric-tile" key={metric.key}>
+                  <span className="metric-label">{metric.label}</span>
+                  <strong className="metric-value">
+                    {metricValueLabel(metric)}
+                    {metric.unit && <small> {metric.unit}</small>}
+                  </strong>
+                  <span className="metric-source">
+                    {[
+                      metric.source_reference,
+                      metric.as_of && `as of ${dateLabel(metric.as_of)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </span>
-                ))}
-              </div>
-            ))}
+                </div>
+              ))}
           </div>
         </article>
       )}
@@ -351,7 +368,9 @@ export function PillarPage() {
   return (
     <section className="page-shell discovery-page">
       {state.offline && <OfflineNotice />}
-      <Link to={`/hubs/${state.value.slug}`}>← {state.value.name}</Link>
+      <Link className="discovery-back" to={`/hubs/${state.value.slug}`}>
+        ← {state.value.name}
+      </Link>
       <span className="eyebrow">Hub section</span>
       <h1>{pillar.name}</h1>
       <p>{pillar.description}</p>

@@ -40,7 +40,7 @@ func publicOutbreakTestRouter(t *testing.T) (*gin.Engine, *gorm.DB) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.Disease{}, &models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}); err != nil {
+	if err := db.AutoMigrate(&models.Disease{}, &models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}, &models.SituationReportAttachment{}); err != nil {
 		t.Fatal(err)
 	}
 	handler := OutbreakHandler{Service: services.OutbreakService{DB: db}}

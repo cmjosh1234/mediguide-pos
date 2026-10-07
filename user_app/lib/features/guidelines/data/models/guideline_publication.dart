@@ -29,6 +29,23 @@ abstract class PublicationCategory with _$PublicationCategory {
       _$PublicationCategoryFromJson(json);
 }
 
+/// How a library document is published: as extracted content, as its
+/// uploaded file, or as a link to an external website.
+@freezed
+abstract class PublicDocumentKind with _$PublicDocumentKind {
+  const factory PublicDocumentKind({
+    @Default('') String slug,
+    @Default('') String name,
+    @JsonKey(name: 'publish_as_uploaded')
+    @Default(false)
+    bool publishAsUploaded,
+    @JsonKey(name: 'publish_as_link') @Default(false) bool publishAsLink,
+  }) = _PublicDocumentKind;
+
+  factory PublicDocumentKind.fromJson(Map<String, dynamic> json) =>
+      _$PublicDocumentKindFromJson(json);
+}
+
 @freezed
 abstract class GuidelinePublication with _$GuidelinePublication {
   const factory GuidelinePublication({
@@ -49,10 +66,20 @@ abstract class GuidelinePublication with _$GuidelinePublication {
     String intendedPopulation,
     @JsonKey(name: 'healthcare_level') @Default('') String healthcareLevel,
     @Default(<PublicationCategory>[]) List<PublicationCategory> categories,
+    @JsonKey(name: 'document_kind') PublicDocumentKind? documentKind,
+    // The https link a document published as a link opens.
+    @JsonKey(name: 'external_url') @Default('') String externalUrl,
   }) = _GuidelinePublication;
 
   factory GuidelinePublication.fromJson(Map<String, dynamic> json) =>
       _$GuidelinePublicationFromJson(json);
+}
+
+extension GuidelinePublicationLink on GuidelinePublication {
+  /// Whether this document is a link to an external website rather than
+  /// content to read in the app.
+  bool get opensWebsite =>
+      documentKind?.publishAsLink == true && externalUrl.trim().isNotEmpty;
 }
 
 @freezed

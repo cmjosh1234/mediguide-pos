@@ -10,8 +10,10 @@ final class GuidelinePublicationRepository {
   GuidelinePublicationRepository(this._api, this._cache);
 
   static const _publicationType = 'guideline_publication';
-  static const _contentType = 'guideline_publication_content';
-  static const _contentIndexType = 'guideline_publication_content_index';
+  // Versioned with the cached publication's shape: v2 added the document kind
+  // and external link, which content cached before can't supply.
+  static const _contentType = 'guideline_publication_content_v2';
+  static const _contentIndexType = 'guideline_publication_content_index_v2';
   static const _ttl = Duration(hours: 24);
 
   final BackendApiService _api;
@@ -477,6 +479,10 @@ GuidelinePublication _publicationFromContract(Map<String, dynamic> json) {
     categories: _maps(
       json['categories'],
     ).map(PublicationCategory.fromJson).toList(growable: false),
+    documentKind: json['document_kind'] is Map
+        ? PublicDocumentKind.fromJson(_map(json['document_kind']))
+        : null,
+    externalUrl: dto.externalUrl ?? '',
   );
 }
 

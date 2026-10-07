@@ -353,3 +353,8 @@
 .uploaded-document-meta { margin-bottom: .5rem !important; }
 .uploaded-document-frame { width: 100%; height: min(80vh, 1100px); background: var(--color-soft); border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
 .uploaded-document-status { padding: 2rem; color: var(--color-muted); font-size: .85rem; text-align: center; border: 1px dashed var(--color-line); border-radius: var(--radius-sm); }
+.linked-document { display: flex; gap: 1rem; align-items: flex-start; max-width: 720px; padding: 1.5rem; background: var(--color-surface-raised, #fff); border: 1px solid var(--color-line); border-radius: var(--radius-md); }
+.linked-document h2 { margin: 0; color: var(--color-ink); font-size: 1.1rem; }
+.linked-document p { margin: .35rem 0 1rem; color: var(--color-muted); font-size: .9rem; line-height: 1.55; }
+.linked-document .linked-document-host { margin: .15rem 0 .75rem; color: var(--color-ink); font-weight: 700; }
+.linked-document-icon { display: grid; width: 2.75rem; height: 2.75rem; flex: 0 0 auto; place-items: center; color: var(--color-green-700); background: color-mix(in oklab, var(--color-green-700) 10%, transparent); border-radius: .75rem; }

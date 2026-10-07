@@ -17,6 +17,7 @@ import (
 var ErrOutbreakInvalid = errors.New("invalid outbreak query")
 var ErrOutbreakConflict = errors.New("outbreak content changed; reload and retry")
 var ErrOutbreakImmutable = errors.New("published outbreak content must be corrected, not edited")
+var ErrOutbreakForbidden = errors.New("deleting a published or withdrawn outbreak needs permission to withdraw outbreaks")
 
 type OutbreakService struct {
 	DB                   *gorm.DB
@@ -117,6 +118,25 @@ type PublicSituationReport struct {
 	LastVerifiedAt     *time.Time       `json:"last_verified_at,omitempty"`
 	KeyHighlights      []string         `json:"key_highlights"`
 	Metrics            []OutbreakMetric `json:"metrics"`
+	// Attachments are the report's published guideline-library documents.
+	Attachments []PublicSituationReportAttachment `json:"attachments"`
+}
+
+// PublicSituationReportAttachment is a document attached to a report. Its
+// fields match PublicOutbreakResource, so clients open it the same way.
+type PublicSituationReportAttachment struct {
+	ID                  uuid.UUID `json:"id"`
+	Title               string    `json:"title"`
+	Description         string    `json:"description"`
+	IssuingOrganization string    `json:"issuing_organization"`
+	DocumentKind        string    `json:"document_kind"`
+	ResourceType        string    `json:"resource_type"`
+	TargetType          string    `json:"target_type"`
+	TargetURL           string    `json:"target_url"`
+	URL                 string    `json:"url"`
+	SortOrder           int       `json:"sort_order"`
+	ReaderCapability    string    `json:"reader_capability"`
+	DownloadCapability  bool      `json:"download_capability"`
 }
 
 func (s OutbreakService) List(in OutbreakQuery) (*PageResult[PublicOutbreak], error) {
@@ -417,7 +437,7 @@ func (s OutbreakService) publicOutbreakResource(row models.OutbreakResource, par
 
 func (s OutbreakService) ListReports(in SituationReportQuery) (*PageResult[PublicSituationReport], error) {
 	page := in.Page.Normalize(20, 100)
-	query := s.DB.Model(&models.SituationReport{}).Where("situation_reports.status = ? AND situation_reports.published_at IS NOT NULL AND situation_reports.published_at <= ? AND situation_reports.withdrawn_at IS NULL", "published", time.Now()).Where("situation_reports.outbreak_id IS NULL OR EXISTS (SELECT 1 FROM outbreaks o WHERE o.id = situation_reports.outbreak_id AND o.deleted_at IS NULL AND o.withdrawn_at IS NULL AND o.published_at IS NOT NULL AND o.published_at <= ? AND o.status IN ?)", time.Now(), []string{"published", "active", "monitoring", "contained", "closed"})
+	query := s.DB.Model(&models.SituationReport{}).Where("situation_reports.status = ? AND situation_reports.published_at IS NOT NULL AND situation_reports.published_at <= ? AND situation_reports.withdrawn_at IS NULL", "published", time.Now()).Where("(situation_reports.outbreak_id IS NULL AND situation_reports.standalone_allowed) OR EXISTS (SELECT 1 FROM outbreaks o WHERE o.id = situation_reports.outbreak_id AND o.deleted_at IS NULL AND o.withdrawn_at IS NULL AND o.published_at IS NOT NULL AND o.published_at <= ? AND o.status IN ?)", time.Now(), []string{"published", "active", "monitoring", "contained", "closed"})
 	if in.OutbreakID != nil {
 		query = query.Where("situation_reports.outbreak_id = ?", *in.OutbreakID)
 	}
@@ -471,7 +491,59 @@ func (s OutbreakService) ListReports(in SituationReportQuery) (*PageResult[Publi
 	for i := range rows {
 		items[i] = publicSituationReport(rows[i])
 	}
+	if err := s.withAttachments(items); err != nil {
+		return nil, err
+	}
 	return NewPageResult(items, page, total), nil
+}
+
+// withAttachments adds each report's attachments whose documents are still
+// public. A report without its own uploaded PDF links its first attached file
+// as report_asset_url, which app versions without attachment support open as
+// the full report.
+func (s OutbreakService) withAttachments(items []PublicSituationReport) error {
+	if len(items) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(items))
+	for i := range items {
+		ids[i] = items[i].ID
+		items[i].Attachments = []PublicSituationReportAttachment{}
+	}
+	var rows []models.SituationReportAttachment
+	if err := s.DB.Where("situation_report_id IN ?", ids).Order("sort_order, id").Find(&rows).Error; err != nil {
+		return err
+	}
+	attached := map[uuid.UUID][]PublicSituationReportAttachment{}
+	firstFile := map[uuid.UUID]uuid.UUID{}
+	for _, row := range rows {
+		documentID, ok := guidelineDocumentID(row.URL)
+		if !ok {
+			continue
+		}
+		document, err := (PublicGuidelineService{DB: s.DB}).Get(context.Background(), documentID)
+		if err != nil {
+			continue
+		}
+		attached[row.SituationReportID] = append(attached[row.SituationReportID], PublicSituationReportAttachment{
+			ID: row.ID, Title: row.Title, Description: row.Description, IssuingOrganization: row.IssuingOrganization,
+			DocumentKind: row.DocumentKind, ResourceType: "guideline", TargetType: "guideline", TargetURL: row.URL, URL: row.URL,
+			SortOrder: row.SortOrder, ReaderCapability: "in_app_reader",
+		})
+		hasFile := document.DocumentKind == nil || !document.DocumentKind.PublishAsLink
+		if _, seen := firstFile[row.SituationReportID]; !seen && hasFile {
+			firstFile[row.SituationReportID] = documentID
+		}
+	}
+	for i := range items {
+		if list := attached[items[i].ID]; list != nil {
+			items[i].Attachments = list
+		}
+		if documentID, ok := firstFile[items[i].ID]; ok && items[i].ReportAssetURL == "" {
+			items[i].ReportAssetURL = "/api/public/guidelines/" + documentID.String() + "/original/download"
+		}
+	}
+	return nil
 }
 
 func (s OutbreakService) GetReport(id uuid.UUID) (*PublicSituationReport, error) {
@@ -483,9 +555,14 @@ func (s OutbreakService) GetReport(id uuid.UUID) (*PublicSituationReport, error)
 		if _, err := s.Get(*item.OutbreakID); err != nil {
 			return nil, gorm.ErrRecordNotFound
 		}
+	} else if !item.StandaloneAllowed {
+		return nil, gorm.ErrRecordNotFound
 	}
-	result := publicSituationReport(item)
-	return &result, nil
+	items := []PublicSituationReport{publicSituationReport(item)}
+	if err := s.withAttachments(items); err != nil {
+		return nil, err
+	}
+	return &items[0], nil
 }
 
 func (s OutbreakService) PresignReportAsset(ctx context.Context, id uuid.UUID) (*url.URL, error) {
@@ -499,8 +576,10 @@ func (s OutbreakService) PresignReportAsset(ctx context.Context, id uuid.UUID) (
 	if report.ReportAssetID == nil {
 		return nil, gorm.ErrRecordNotFound
 	}
+	// Looked up by ID alone: a correction keeps the PDF uploaded to the report
+	// it corrects, and only the server ever sets report_asset_id.
 	var asset models.SituationReportAsset
-	if err := s.DB.First(&asset, "id = ? AND situation_report_id = ?", *report.ReportAssetID, id).Error; err != nil {
+	if err := s.DB.First(&asset, "id = ?", *report.ReportAssetID).Error; err != nil {
 		return nil, err
 	}
 	return s.Store.PresignGet(ctx, asset.StorageKey, 10*time.Minute)
@@ -514,7 +593,7 @@ func publicSituationReport(row models.SituationReport) PublicSituationReport {
 	if row.ReportAssetID != nil {
 		assetURL = "/api/public/situation-reports/" + row.ID.String() + "/asset"
 	}
-	return PublicSituationReport{row.ID, row.OutbreakID, row.RegionID, row.DistrictID, row.Title, row.GeographicArea, row.Summary, row.SourceOrganization, row.PublicationDate, row.PublishedAt, assetURL, row.ReportAssetID, row.SourceURL, row.SourceReference, row.EffectiveAt, row.DataAsOf, row.LastVerifiedAt, decodeHighlights(row.KeyHighlights), decodeMetrics(row.Metrics)}
+	return PublicSituationReport{ID: row.ID, OutbreakID: row.OutbreakID, RegionID: row.RegionID, DistrictID: row.DistrictID, Title: row.Title, GeographicArea: row.GeographicArea, Summary: row.Summary, SourceOrganization: row.SourceOrganization, PublicationDate: row.PublicationDate, PublishedAt: row.PublishedAt, ReportAssetURL: assetURL, ReportAssetID: row.ReportAssetID, SourceURL: row.SourceURL, SourceReference: row.SourceReference, EffectiveAt: row.EffectiveAt, DataAsOf: row.DataAsOf, LastVerifiedAt: row.LastVerifiedAt, KeyHighlights: decodeHighlights(row.KeyHighlights), Metrics: decodeMetrics(row.Metrics), Attachments: []PublicSituationReportAttachment{}}
 }
 
 func validOutbreakValue(value string, allowed ...string) bool {

@@ -1226,7 +1226,27 @@ class _SituationReportView extends StatelessWidget {
             ],
           ),
         ],
-        if (report.reportAssetUrl.trim().isNotEmpty) ...[
+        if (report.attachments.isNotEmpty) ...[
+          AppSpacing.gapLg,
+
+          const SectionHeader(
+            title: 'Report documents',
+            subtitle: 'Published with this report',
+            icon: LucideIcons.paperclip,
+          ),
+
+          AppSpacing.gapSm,
+
+          for (final attachment in report.attachments)
+            _ResourceTile(
+              title: attachment.title,
+              type: attachment.description,
+              onTap: () {
+                _openOutbreakResource(context, attachment);
+              },
+            ),
+        ] else if (report.reportAssetUrl.trim().isNotEmpty) ...[
+          // Reports from before attachments carry a single uploaded PDF.
           AppSpacing.gapMd,
           OutlinedButton.icon(
             onPressed: () => context.push(

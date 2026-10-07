@@ -24,7 +24,7 @@ func classificationTestDB(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(
 		&models.GuidelineCategory{}, &models.GuidelineDocument{}, &models.GuidelineVersion{},
 		&models.Disease{}, &models.ContentDiseaseAssignment{}, &models.GuidelineContentBlock{},
-		&models.Outbreak{}, &models.OutbreakResource{}, &models.SituationReport{},
+		&models.Outbreak{}, &models.OutbreakResource{}, &models.SituationReport{}, &models.SituationReportAttachment{},
 		&models.Calculator{}, &models.CalculatorVersion{}, &models.Drug{},
 	); err != nil {
 		t.Fatal(err)

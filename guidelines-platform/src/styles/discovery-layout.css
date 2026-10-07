@@ -1,15 +1,8 @@
-.disease-hierarchy {
-  align-items: start;
-}
-
-.disease-children {
-  display: grid;
-  gap: 0.7rem;
-  margin: 0.7rem 0 0 1.2rem;
-}
-
-.disease-children .discovery-card {
-  box-shadow: none;
+/* Wider, fixed-width columns and stretched rows keep every disease card the
+   same size, so the directory reads as an ordered index. */
+.discovery-grid.disease-hierarchy {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  align-items: stretch;
 }
 
 .search-filter-panel {

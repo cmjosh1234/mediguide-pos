@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:user_app/core/constants/app_spacing.dart';
+import 'package:user_app/core/utils/date_utils.dart';
 import 'package:user_app/features/outbreaks/data/models/outbreak_models.dart';
 
 class OutbreakMetricGrid extends StatelessWidget {
@@ -118,8 +120,14 @@ class OutbreakMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final value = metricDisplayValue(metric);
+    final unit = metric.unit.trim();
+    final provenance = metricProvenance(metric);
     return Semantics(
-      label: '${metric.label}: ${metric.value} ${metric.unit}',
+      label: [
+        '${metric.label}: $value $unit'.trim(),
+        if (provenance.isNotEmpty) provenance,
+      ].join('. '),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
@@ -132,7 +140,7 @@ class OutbreakMetricCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${metric.value}${metric.unit.trim().isEmpty ? '' : ' ${metric.unit}'}',
+              unit.isEmpty ? value : '$value $unit',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(
@@ -146,9 +154,30 @@ class OutbreakMetricCard extends StatelessWidget {
                 context,
               ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
             ),
+            if (provenance.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                provenance,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 }
+
+// Categorical metrics carry only a text value, so the numeric value is
+// preferred when present and the text value is the fallback (as on the web).
+String metricDisplayValue(OutbreakMetric metric) => metric.numericValue == null
+    ? metric.value
+    : NumberFormat.decimalPattern().format(metric.numericValue);
+
+String metricProvenance(OutbreakMetric metric) => [
+  metric.sourceReference.trim(),
+  if (metric.asOf != null)
+    'as of ${AppDateUtils.formatDate(metric.asOf!.toLocal())}',
+].where((part) => part.isNotEmpty).join(' · ');

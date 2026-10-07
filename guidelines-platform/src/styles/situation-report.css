@@ -1,0 +1,53 @@
+/* Situation report page. The metric tiles are restyled for a plain page; on
+   the hub they sit on the red outbreak banner. */
+.situation-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.situation-report-actions .button:not(.button-primary) {
+  color: inherit;
+  background: var(--color-surface-raised, #fff);
+  border-color: var(--color-line);
+}
+
+.situation-report-metrics .metric-tile {
+  color: inherit;
+  background: var(--color-surface-raised, #fff);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+}
+
+.situation-report-metrics .metric-label,
+.situation-report-metrics .metric-source {
+  color: var(--color-muted);
+  opacity: 1;
+}
+
+.situation-report-highlights {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 900px;
+  margin: 1.25rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.situation-report-highlights li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.9rem 1rem;
+  line-height: 1.55;
+  background: var(--color-surface-raised, #fff);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+}
+
+.situation-report-highlights svg {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  color: var(--color-green-700);
+}

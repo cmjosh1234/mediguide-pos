@@ -16,6 +16,8 @@ export type PublicGuideline = {
   has_original_document?: boolean;
   /** Kinds published as uploaded (for example forms) are shown as their original file. */
   document_kind?: PublicDocumentKind | null;
+  /** The https link a document of a kind published as a link opens. */
+  external_url?: string;
 };
 
 export type PublicDocumentKind = {
@@ -273,7 +275,11 @@ export type PublicHub = {
   audience?: string; published_at?: string; diseases: DiscoveryFacet[]; pillars?: PublicPillar[];
   outbreak?: { id: string; title: string; status: string; disease_type?: string; geographic_area?: string;
     summary?: string; source_organization?: string; data_as_of?: string; last_verified_at?: string;
-    metrics?: Array<Record<string, unknown>> };
+    metrics?: PublicOutbreakMetric[] };
+};
+export type PublicOutbreakMetric = {
+  key: string; label: string; value?: string; numeric_value?: number; unit?: string;
+  as_of?: string; source_reference?: string; sort_order: number;
 };
 export type PublicDiseaseSummary = DiscoveryFacet & {
   parent_id?: string; short_name?: string; description?: string; icon?: string; color?: string; sort_order: number;
@@ -818,6 +824,26 @@ export function listPublicHubs(diseaseSlug = "", signal?: AbortSignal) {
 
 export function getPublicHub(slug: string, signal?: AbortSignal) {
   return requestDiscovery<PublicHub>(`hub:${slug}`, publicUrl(`/hubs/${encodeURIComponent(slug)}`), signal);
+}
+
+/** A published guideline-library document attached to a situation report. */
+export type PublicSituationReportAttachment = {
+  id: string; title: string; description?: string; issuing_organization?: string;
+  document_kind?: string; url: string; sort_order: number;
+};
+
+export type PublicSituationReport = {
+  id: string; outbreak_id?: string; title: string; summary?: string; geographic_area?: string;
+  source_organization?: string; source_reference?: string; source_url?: string;
+  publication_date?: string; published_at?: string; effective_at?: string; data_as_of?: string;
+  last_verified_at?: string; key_highlights?: string[]; metrics?: PublicOutbreakMetric[];
+  attachments?: PublicSituationReportAttachment[];
+  /** A single PDF, set on reports from before attachments. */
+  report_asset_url?: string;
+};
+
+export function getPublicSituationReport(id: string, signal?: AbortSignal) {
+  return requestDiscovery<PublicSituationReport>(`situation-report:${id}`, publicUrl(`/situation-reports/${encodeURIComponent(id)}`), signal);
 }
 
 export async function searchPublicContent(queryText: string, filters: PublicSearchFilters = {}, signal?: AbortSignal) {

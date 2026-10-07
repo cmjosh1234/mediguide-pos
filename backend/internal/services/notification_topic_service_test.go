@@ -75,9 +75,14 @@ func TestPublishingAnOutbreakAlertsTopicSubscribersOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	publishOutbreakForTest(t, service, corrected.ID, corrected.LockVersion, "active")
+	if _, err := service.TransitionOutbreak(author, corrected.ID, "submit", TransitionInput{LockVersion: corrected.LockVersion}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.TransitionOutbreak(OutbreakActor{ID: uuid.New()}, corrected.ID, "approve", TransitionInput{LockVersion: corrected.LockVersion + 1}); err != nil {
+		t.Fatal(err)
+	}
 	if jobs := topicJobsForTest(t, service.DB); len(jobs) != 1 {
-		t.Fatalf("a republished correction alerted subscribers again: %d jobs", len(jobs))
+		t.Fatalf("an applied correction alerted subscribers again: %d jobs", len(jobs))
 	}
 }
 

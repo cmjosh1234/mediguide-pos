@@ -1,4 +1,5 @@
 import {
+  type PublicOutbreakMetric,
   type PublicPillar,
   type PublicResource,
 } from "../../api/public-guidelines";
@@ -42,6 +43,14 @@ export function dateLabel(value?: string) {
   return Number.isNaN(date.valueOf())
     ? value
     : new Intl.DateTimeFormat("en-UG", { dateStyle: "medium" }).format(date);
+}
+
+// Categorical metrics carry only a text value, so the numeric value is
+// preferred when present and the text value is the fallback.
+export function metricValueLabel(metric: PublicOutbreakMetric) {
+  return typeof metric.numeric_value === "number"
+    ? new Intl.NumberFormat("en-UG").format(metric.numeric_value)
+    : (metric.value ?? "");
 }
 
 // The backend sanitises outbreak Markdown with an HTML policy that

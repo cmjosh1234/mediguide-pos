@@ -13610,6 +13610,8 @@ final class ServicesOutbreakAdminDTO {
         .toList(growable: false);
   }
 
+  String? get openCorrectionId => value['open_correction_id']?.toString();
+
   String? get publishedAt => value['published_at']?.toString();
 
   String? get regionId => value['region_id']?.toString();
@@ -13657,7 +13659,11 @@ final class ServicesOutbreakAuditDTO {
 
   String? get action => value['action']?.toString();
 
+  String? get actorEmail => value['actor_email']?.toString();
+
   String? get actorId => value['actor_id']?.toString();
+
+  String? get actorName => value['actor_name']?.toString();
 
   String? get createdAt => value['created_at']?.toString();
 
@@ -13667,7 +13673,50 @@ final class ServicesOutbreakAuditDTO {
 
   String? get id => value['id']?.toString();
 
+  Map<String, dynamic> get labels => _jsonMap(value['labels']);
+
   Map<String, dynamic> get metadata => _jsonMap(value['metadata']);
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesOutbreakDeleteInput {
+  ServicesOutbreakDeleteInput(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesOutbreakDeleteInput.fromJson(Map<String, dynamic> json) =>
+      ServicesOutbreakDeleteInput(json);
+
+  static const schemaName = 'services.OutbreakDeleteInput';
+  final Map<String, dynamic> value;
+
+  String? get reason => value['reason']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesOutbreakDeleteResult {
+  ServicesOutbreakDeleteResult(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesOutbreakDeleteResult.fromJson(Map<String, dynamic> json) =>
+      ServicesOutbreakDeleteResult(json);
+
+  static const schemaName = 'services.OutbreakDeleteResult';
+  final Map<String, dynamic> value;
+
+  int? get cancelledAlerts => (value['cancelled_alerts'] as num?)?.toInt();
+
+  int? get deletedCorrections =>
+      (value['deleted_corrections'] as num?)?.toInt();
+
+  int? get deletedResources => (value['deleted_resources'] as num?)?.toInt();
+
+  int? get deletedUpdates => (value['deleted_updates'] as num?)?.toInt();
+
+  int? get unlinkedHubs => (value['unlinked_hubs'] as num?)?.toInt();
+
+  int? get unlinkedReports => (value['unlinked_reports'] as num?)?.toInt();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }
@@ -16112,6 +16161,18 @@ final class ServicesPublicSituationReport {
   static const schemaName = 'services.PublicSituationReport';
   final Map<String, dynamic> value;
 
+  List<ServicesPublicSituationReportAttachment> get attachments {
+    final raw = value['attachments'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map(
+          (item) =>
+              ServicesPublicSituationReportAttachment.fromJson(_jsonMap(item)),
+        )
+        .toList(growable: false);
+  }
+
   String? get dataAsOf => value['data_as_of']?.toString();
 
   String? get districtId => value['district_id']?.toString();
@@ -16160,6 +16221,44 @@ final class ServicesPublicSituationReport {
   String? get summary => value['summary']?.toString();
 
   String? get title => value['title']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesPublicSituationReportAttachment {
+  ServicesPublicSituationReportAttachment(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesPublicSituationReportAttachment.fromJson(
+    Map<String, dynamic> json,
+  ) => ServicesPublicSituationReportAttachment(json);
+
+  static const schemaName = 'services.PublicSituationReportAttachment';
+  final Map<String, dynamic> value;
+
+  String? get description => value['description']?.toString();
+
+  String? get documentKind => value['document_kind']?.toString();
+
+  bool? get downloadCapability => value['download_capability'] as bool?;
+
+  String? get id => value['id']?.toString();
+
+  String? get issuingOrganization => value['issuing_organization']?.toString();
+
+  String? get readerCapability => value['reader_capability']?.toString();
+
+  String? get resourceType => value['resource_type']?.toString();
+
+  int? get sortOrder => (value['sort_order'] as num?)?.toInt();
+
+  String? get targetType => value['target_type']?.toString();
+
+  String? get targetUrl => value['target_url']?.toString();
+
+  String? get title => value['title']?.toString();
+
+  String? get url => value['url']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }
@@ -16655,6 +16754,8 @@ final class ServicesSituationReportAdminDTO {
         .toList(growable: false);
   }
 
+  String? get openCorrectionId => value['open_correction_id']?.toString();
+
   String? get outbreakId => value['outbreak_id']?.toString();
 
   String? get publicationDate => value['publication_date']?.toString();
@@ -16681,6 +16782,10 @@ final class ServicesSituationReportAdminDTO {
 
   String? get status => value['status']?.toString();
 
+  String? get submittedAt => value['submitted_at']?.toString();
+
+  String? get submittedBy => value['submitted_by']?.toString();
+
   String? get summary => value['summary']?.toString();
 
   String? get supersedesId => value['supersedes_id']?.toString();
@@ -16696,29 +16801,66 @@ final class ServicesSituationReportAdminDTO {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
-final class ServicesSituationReportAssetDTO {
-  ServicesSituationReportAssetDTO(Map<String, dynamic> value)
+final class ServicesSituationReportAttachmentDTO {
+  ServicesSituationReportAttachmentDTO(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
 
-  factory ServicesSituationReportAssetDTO.fromJson(Map<String, dynamic> json) =>
-      ServicesSituationReportAssetDTO(json);
+  factory ServicesSituationReportAttachmentDTO.fromJson(
+    Map<String, dynamic> json,
+  ) => ServicesSituationReportAttachmentDTO(json);
 
-  static const schemaName = 'services.SituationReportAssetDTO';
+  static const schemaName = 'services.SituationReportAttachmentDTO';
   final Map<String, dynamic> value;
-
-  String? get checksumSha256 => value['checksum_sha256']?.toString();
-
-  String? get contentType => value['content_type']?.toString();
 
   String? get createdAt => value['created_at']?.toString();
 
-  String? get fileName => value['file_name']?.toString();
+  String? get description => value['description']?.toString();
+
+  String? get documentKind => value['document_kind']?.toString();
 
   String? get id => value['id']?.toString();
 
+  String? get issuingOrganization => value['issuing_organization']?.toString();
+
+  int? get lockVersion => (value['lock_version'] as num?)?.toInt();
+
   String? get situationReportId => value['situation_report_id']?.toString();
 
-  int? get sizeBytes => (value['size_bytes'] as num?)?.toInt();
+  int? get sortOrder => (value['sort_order'] as num?)?.toInt();
+
+  String? get title => value['title']?.toString();
+
+  String? get updatedAt => value['updated_at']?.toString();
+
+  String? get url => value['url']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesSituationReportAttachmentInput {
+  ServicesSituationReportAttachmentInput(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesSituationReportAttachmentInput.fromJson(
+    Map<String, dynamic> json,
+  ) => ServicesSituationReportAttachmentInput(json);
+
+  static const schemaName = 'services.SituationReportAttachmentInput';
+  final Map<String, dynamic> value;
+
+  String? get description => value['description']?.toString();
+
+  String? get documentKind => value['document_kind']?.toString();
+
+  String? get issuingOrganization => value['issuing_organization']?.toString();
+
+  int? get lockVersion => (value['lock_version'] as num?)?.toInt();
+
+  int? get sortOrder => (value['sort_order'] as num?)?.toInt();
+
+  String? get title => value['title']?.toString();
+
+  String? get url => value['url']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }

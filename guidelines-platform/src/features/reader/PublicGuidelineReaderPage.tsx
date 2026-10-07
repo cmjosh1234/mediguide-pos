@@ -42,6 +42,7 @@ import {
   StructuredTable,
 } from "./components/GuidelineBlockRenderer";
 import { EmptyReviewedSection } from "./components/EmptyReviewedSection";
+import { LinkedDocumentReader } from "./components/LinkedDocumentReader";
 import { UploadedDocumentReader } from "./components/UploadedDocumentReader";
 import { SectionBookGuidelineReader } from "./components/SectionBookGuidelineReader";
 import { reviewedDescendants } from "./components/empty-reviewed-section";
@@ -190,6 +191,10 @@ export function PublicGuidelineReaderPage() {
   }
 
   const { data } = state;
+  // A link has no content of its own; it opens an external website.
+  if (data.guideline.document_kind?.publish_as_link) {
+    return <LinkedDocumentReader guideline={data.guideline} />;
+  }
   // Forms and similar kinds are published as their uploaded file, not as chapters.
   if (data.guideline.document_kind?.publish_as_uploaded) {
     return <UploadedDocumentReader key={data.guideline.id} guideline={data.guideline} />;

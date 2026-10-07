@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"mediguide/internal/httpx"
+	"mediguide/internal/security"
 	"mediguide/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -14,8 +15,7 @@ import (
 )
 
 type OutbreakAdminHandler struct {
-	Service     services.OutbreakAdminService
-	MaxUploadMB int64
+	Service services.OutbreakAdminService
 }
 
 func outbreakActor(c *gin.Context) services.OutbreakActor {
@@ -60,6 +60,9 @@ func (h OutbreakAdminHandler) result(c *gin.Context, status int, value any, err 
 	}
 	var validation *services.OutbreakValidationError
 	switch {
+	case errors.As(err, &validation) && len(validation.Fields) > 0:
+		// The fields let the dashboard highlight what to fix.
+		httpx.ErrorWithMeta(c, http.StatusBadRequest, validation.Message, gin.H{"fields": validation.Fields})
 	case errors.As(err, &validation):
 		// A specific, administrator-facing reason (for example which field to fix).
 		httpx.Error(c, http.StatusBadRequest, validation.Message)
@@ -69,6 +72,8 @@ func (h OutbreakAdminHandler) result(c *gin.Context, status int, value any, err 
 		httpx.Error(c, http.StatusConflict, err.Error())
 	case errors.Is(err, services.ErrOutbreakImmutable):
 		httpx.Error(c, http.StatusConflict, err.Error())
+	case errors.Is(err, services.ErrOutbreakForbidden):
+		httpx.Error(c, http.StatusForbidden, err.Error())
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		httpx.Error(c, http.StatusNotFound, "outbreak content not found")
 	default:
@@ -178,11 +183,13 @@ func (h OutbreakAdminHandler) UpdateMetrics(c *gin.Context) {
 }
 
 // DeleteOutbreak godoc
-// @Summary Soft-delete an unpublished outbreak
+// @Summary Soft-delete an outbreak
+// @Description Deletes the outbreak with its updates, resources, open corrections and unsent alerts. Situation reports and content hubs linked to it are kept and unlinked; each report stays as visible as it was. Deleting anything beyond a draft or a submission in review also needs outbreak.withdraw.
 // @Tags outbreak-administration
 // @Security BearerAuth
 // @Param lock_version query int true "Optimistic lock version"
-// @Success 204
+// @Param payload body services.OutbreakDeleteInput true "Reason for deleting"
+// @Success 200 {object} services.OutbreakDeleteResult
 // @Router /api/v2/outbreaks/{id} [delete]
 func (h OutbreakAdminHandler) DeleteOutbreak(c *gin.Context) {
 	id, ok := outbreakAdminID(c, "id")
@@ -193,16 +200,19 @@ func (h OutbreakAdminHandler) DeleteOutbreak(c *gin.Context) {
 	if !ok {
 		return
 	}
-	e := h.Service.DeleteOutbreak(outbreakActor(c), id, lock)
-	if e == nil {
-		c.Status(204)
+	var in services.OutbreakDeleteInput
+	if c.ShouldBindJSON(&in) != nil {
+		httpx.Error(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	h.result(c, 0, nil, e)
+	canWithdraw := security.HasPerm(supportClaims(c), "outbreak.withdraw")
+	v, e := h.Service.DeleteOutbreak(outbreakActor(c), id, lock, in, canWithdraw)
+	h.result(c, 200, v, e)
 }
 
 // TransitionOutbreak godoc
 // @Summary Submit, approve, publish, or withdraw an outbreak
+// @Description Approving a correction applies its core metadata and source to the live outbreak, removes the correction and returns the live outbreak. Corrections are never published.
 // @Tags outbreak-administration
 // @Security BearerAuth
 // @Param payload body services.TransitionInput true "Transition"
@@ -227,7 +237,8 @@ func (h OutbreakAdminHandler) TransitionOutbreak(action string) gin.HandlerFunc 
 }
 
 // CorrectOutbreak godoc
-// @Summary Create a correction draft that supersedes a published outbreak
+// @Summary Create a correction draft of a published outbreak's core metadata and source
+// @Description Only one correction of an outbreak can be open at a time.
 // @Tags outbreak-administration
 // @Security BearerAuth
 // @Param payload body services.TransitionInput true "Correction reason and lock version"
@@ -684,32 +695,105 @@ func (h OutbreakAdminHandler) CorrectReport(c *gin.Context) {
 	h.result(c, 201, v, e)
 }
 
-// UploadReportAsset godoc
-// @Summary Upload a managed PDF asset for a situation report draft
+// UpdateReportMetrics godoc
+// @Summary Save an unpublished situation report's metrics
 // @Tags situation-report-administration
 // @Security BearerAuth
-// @Accept multipart/form-data
-// @Param file formData file true "PDF report"
-// @Success 201 {object} services.SituationReportAssetDTO
-// @Router /api/v2/situation-reports/{id}/asset [post]
-func (h OutbreakAdminHandler) UploadReportAsset(c *gin.Context) {
+// @Param payload body services.OutbreakMetricsInput true "Report metrics"
+// @Success 200 {object} services.SituationReportAdminDTO
+// @Router /api/v2/situation-reports/{id}/metrics [patch]
+func (h OutbreakAdminHandler) UpdateReportMetrics(c *gin.Context) {
 	id, ok := outbreakAdminID(c, "id")
 	if !ok {
 		return
 	}
-	max := h.MaxUploadMB
-	if max <= 0 {
-		max = 25
-	}
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, max<<20)
-	file, header, err := c.Request.FormFile("file")
-	if err != nil {
-		httpx.Error(c, 400, "valid PDF file is required")
+	var in services.OutbreakMetricsInput
+	if c.ShouldBindJSON(&in) != nil {
+		httpx.Error(c, 400, "invalid request body")
 		return
 	}
-	defer file.Close()
-	v, e := h.Service.UploadReportAsset(c.Request.Context(), outbreakActor(c), id, file, header, max<<20)
+	v, e := h.Service.UpdateReportMetrics(outbreakActor(c), id, in)
+	h.result(c, 200, v, e)
+}
+
+// ListReportAttachments godoc
+// @Summary List the guideline-library documents attached to a situation report
+// @Tags situation-report-administration
+// @Security BearerAuth
+// @Success 200 {array} services.SituationReportAttachmentDTO
+// @Router /api/v2/situation-reports/{id}/attachments [get]
+func (h OutbreakAdminHandler) ListReportAttachments(c *gin.Context) {
+	id, ok := outbreakAdminID(c, "id")
+	if !ok {
+		return
+	}
+	v, e := h.Service.ListReportAttachments(id)
+	h.result(c, 200, v, e)
+}
+
+// CreateReportAttachment godoc
+// @Summary Attach a published guideline-library document to an unpublished situation report
+// @Tags situation-report-administration
+// @Security BearerAuth
+// @Param payload body services.SituationReportAttachmentInput true "Attachment"
+// @Success 201 {object} services.SituationReportAttachmentDTO
+// @Router /api/v2/situation-reports/{id}/attachments [post]
+func (h OutbreakAdminHandler) CreateReportAttachment(c *gin.Context) {
+	id, ok := outbreakAdminID(c, "id")
+	if !ok {
+		return
+	}
+	var in services.SituationReportAttachmentInput
+	if c.ShouldBindJSON(&in) != nil {
+		httpx.Error(c, 400, "invalid request body")
+		return
+	}
+	v, e := h.Service.CreateReportAttachment(outbreakActor(c), id, in)
 	h.result(c, 201, v, e)
+}
+
+// UpdateReportAttachment godoc
+// @Summary Update an attachment of an unpublished situation report
+// @Tags situation-report-administration
+// @Security BearerAuth
+// @Param payload body services.SituationReportAttachmentInput true "Attachment changes"
+// @Success 200 {object} services.SituationReportAttachmentDTO
+// @Router /api/v2/situation-reports/{id}/attachments/{attachmentId} [patch]
+func (h OutbreakAdminHandler) UpdateReportAttachment(c *gin.Context) {
+	id, attachment, ok := twoOutbreakIDs(c, "attachmentId")
+	if !ok {
+		return
+	}
+	var in services.SituationReportAttachmentInput
+	if c.ShouldBindJSON(&in) != nil {
+		httpx.Error(c, 400, "invalid request body")
+		return
+	}
+	v, e := h.Service.UpdateReportAttachment(outbreakActor(c), id, attachment, in)
+	h.result(c, 200, v, e)
+}
+
+// DeleteReportAttachment godoc
+// @Summary Remove an attachment from an unpublished situation report
+// @Tags situation-report-administration
+// @Security BearerAuth
+// @Success 204
+// @Router /api/v2/situation-reports/{id}/attachments/{attachmentId} [delete]
+func (h OutbreakAdminHandler) DeleteReportAttachment(c *gin.Context) {
+	id, attachment, ok := twoOutbreakIDs(c, "attachmentId")
+	if !ok {
+		return
+	}
+	lock, ok := outbreakLock(c)
+	if !ok {
+		return
+	}
+	e := h.Service.DeleteReportAttachment(outbreakActor(c), id, attachment, lock)
+	if e == nil {
+		c.Status(204)
+		return
+	}
+	h.result(c, 0, nil, e)
 }
 
 // ListAudit godoc
