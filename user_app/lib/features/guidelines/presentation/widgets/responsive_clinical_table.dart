@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:user_app/core/constants/app_dimensions.dart';
 import 'package:user_app/core/constants/app_spacing.dart';
+import 'package:user_app/core/widgets/empty_state.dart';
 import 'package:user_app/features/guidelines/data/models/guideline_publication.dart';
 import 'package:user_app/shared/widgets/app_markdown_body.dart';
 
@@ -28,8 +29,12 @@ class ResponsiveClinicalTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final columns = payload.columns;
 
-    if (columns.isEmpty) {
-      return const Text('This table has no columns.');
+    if (columns.isEmpty || payload.rows.isEmpty) {
+      return EmptyState.noData(
+        title: 'No table content available',
+        description:
+            'This table does not contain any reviewed rows to display.',
+      );
     }
 
     return Column(

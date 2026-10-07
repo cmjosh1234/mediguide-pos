@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { LucideIcon } from "lucide-react"
+import { FolderOpen, LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -18,19 +18,19 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  icon: Icon,
+  icon: Icon = FolderOpen,
   title,
   description,
   action,
   className
 }: EmptyStateProps) {
   return (
-    <div className={cn(
+    <div role="status" aria-live="polite" className={cn(
       "flex flex-col items-center justify-center py-12 px-4 text-center",
       className
     )}>
       {Icon && (
-        <Icon className="h-12 w-12 text-muted-foreground/60 mb-4" />
+        <Icon aria-hidden="true" className="h-12 w-12 text-muted-foreground/60 mb-4" />
       )}
       <h3 className="text-lg font-semibold text-foreground mb-2">
         {title}

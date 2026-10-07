@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Archive, Pencil, Plus, Save, X } from "lucide-react";
+import { Archive, Pencil, Plus, Save, X, Activity, SearchX } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,15 +40,26 @@ export default function DiseasesPage() {
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [form, setForm] = React.useState(empty);
   const [busy, setBusy] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState("");
+  const requestVersion = React.useRef(0);
 
   const load = React.useCallback(async () => {
+    const request = ++requestVersion.current;
+    setLoading(true);
+    setError("");
     try {
-      setRows((await diseaseService.list(search)).items || []);
+      const page = await diseaseService.list(search);
+      if (request === requestVersion.current) setRows(page.items || []);
     } catch (error) {
+      if (request !== requestVersion.current) return;
+      setError(error instanceof Error ? error.message : "Unable to load diseases.");
       showToast.error(
         "Diseases unavailable",
         error instanceof Error ? error.message : "Try again.",
       );
+    } finally {
+      if (request === requestVersion.current) setLoading(false);
     }
   }, [search]);
   React.useEffect(() => {
@@ -130,7 +142,13 @@ export default function DiseasesPage() {
         ) : null}
       </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {rows.map((row) => (
+        {loading ? <p role="status" className="col-span-full py-12 text-center text-muted-foreground">Loading diseases…</p> : error ? <div role="alert" className="col-span-full rounded-md border p-6"><p>{error}</p><Button className="mt-3" variant="outline" onClick={() => void load()}>Try again</Button></div> : rows.length === 0 ? <EmptyState
+          className="col-span-full"
+          icon={search.trim() ? SearchX : Activity}
+          title={search.trim() ? "No matching diseases" : "No diseases yet"}
+          description={search.trim() ? "Try another name, alias or code, or clear your search." : "Diseases and clinical conditions will appear here once they have been added."}
+          action={search.trim() ? { label: "Clear search", onClick: () => setSearch("") } : canManage ? { label: "New disease", onClick: () => edit() } : { label: "Refresh", onClick: () => void load() }}
+        /> : rows.map((row) => (
           <Card key={row.id}>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">{row.name}</CardTitle>

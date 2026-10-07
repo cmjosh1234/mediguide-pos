@@ -17,6 +17,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { ChartCard } from "@/components/dashboard/chart-card"
+import { EmptyState } from "@/components/ui/empty-state"
 import type { OverviewData } from "@/types/overview"
 
 type SeriesProps = {
@@ -32,6 +33,10 @@ export function OverviewSeriesChart({ users, drugs, facilities }: SeriesProps) {
     drugs: drugs[index]?.total ?? 0,
     facilities: facilities[index]?.total ?? 0,
   }))
+
+  if (data.length === 0) {
+    return <ChartCard title="30-Day Activity"><EmptyState title="No activity data yet" description="Daily activity will appear here when records are available." /></ChartCard>
+  }
 
   return (
     <ChartCard title="30-Day Activity">
@@ -158,7 +163,7 @@ export function OverviewEngagementChart({ engagement }: EngagementProps) {
 export function OverviewFeatureUsageChart({ data }: { data: NonNullable<OverviewData["featureUsage"]> }) {
   return (
     <ChartCard title="App feature visits (7d vs 30d)">
-      {data.length === 0 ? <p className="p-4 text-sm text-muted-foreground">Feature visits will appear after signed-in users open app sections.</p> : (
+      {data.length === 0 ? <EmptyState title="No feature visits yet" description="Feature visits will appear after signed-in users open app sections." /> : (
         <ChartContainer className="w-full" style={{ height: Math.max(260, data.length * 36) }} config={{
           last7: { label: "Last 7 days", color: "var(--chart-4)" },
           last30: { label: "Last 30 days", color: "var(--chart-5)" },

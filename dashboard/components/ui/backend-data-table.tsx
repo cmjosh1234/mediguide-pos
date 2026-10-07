@@ -14,7 +14,8 @@ import {
   useReactTable,
   RowSelectionState,
 } from "@tanstack/react-table"
-import { Loader2, RefreshCw, AlertCircle } from "lucide-react"
+import { Loader2, RefreshCw, AlertCircle, SearchX } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 
 import {
   Table,
@@ -32,6 +33,7 @@ import { DataTableRowActions } from "@/components/ui/datatable-row-actions"
 import { useBackendTable } from "@/hooks/use-backend-table"
 import {
   BaseRecord,
+  AdvancedFilter,
   BackendDataTableProps,
   ExportFormat,
 } from "@/types/data-table"
@@ -197,6 +199,17 @@ export function BackendDataTable<TData extends BaseRecord = BaseRecord>({
   )
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [globalFilter, setGlobalFilter] = React.useState("")
+  const [advancedFilterCount, setAdvancedFilterCount] = React.useState(0)
+  const [toolbarRevision, setToolbarRevision] = React.useState(0)
+  const hasFilters = Boolean(globalFilter.trim() || columnFilters.length || advancedFilterCount)
+  const handleGlobalFilter = React.useCallback((value: string) => {
+    setGlobalFilter(value)
+    void updateGlobalFilter(value)
+  }, [updateGlobalFilter])
+  const handleAdvancedFilters = React.useCallback((filters: AdvancedFilter[]) => {
+    setAdvancedFilterCount(filters.length)
+    void updateAdvancedFilters(filters)
+  }, [updateAdvancedFilters])
 
   React.useEffect(() => {
     setColumnVisibility((prev) => ({ ...defaultColumnVisibility, ...prev }))
@@ -279,6 +292,7 @@ export function BackendDataTable<TData extends BaseRecord = BaseRecord>({
     <div className="space-y-4">
       {/* Simplified Toolbar */}
       <DataTableToolbar
+        key={toolbarRevision}
         table={table}
         title={uiConfig.title}
         description={uiConfig.description}
@@ -291,8 +305,8 @@ export function BackendDataTable<TData extends BaseRecord = BaseRecord>({
         importFormats={uiConfig.importable ? DEFAULT_CONFIG.importFormats : []}
         onRefresh={refresh}
         onExport={uiConfig.exportable ? handleExport : undefined}
-        onAdvancedFilter={updateAdvancedFilters}
-        onGlobalFilterChange={updateGlobalFilter}
+        onAdvancedFilter={handleAdvancedFilters}
+        onGlobalFilterChange={handleGlobalFilter}
         loading={loading.initial || loading.table || loading.refresh || loading.pagination}
       />
 
@@ -332,7 +346,7 @@ export function BackendDataTable<TData extends BaseRecord = BaseRecord>({
               </tbody>
             )}
             <TableBody>
-              {loading.initial ? (
+              {loading.initial || (data.length === 0 && (loading.table || loading.refresh || loading.pagination)) ? (
                 <TableRow>
                   <TableCell
                     colSpan={enhancedColumns.length}
@@ -371,9 +385,20 @@ export function BackendDataTable<TData extends BaseRecord = BaseRecord>({
                     colSpan={enhancedColumns.length}
                     className="h-24 text-center"
                   >
-                    <div className="text-muted-foreground">
-                      No {collection} found.
-                    </div>
+                    <EmptyState
+                      icon={hasFilters ? SearchX : undefined}
+                      title={hasFilters ? "No matching results" : `No ${collection.replaceAll("_", " ")} yet`}
+                      description={hasFilters ? "Try another search or clear your filters to see all records." : "Records will appear here once they have been added."}
+                      action={hasFilters ? {
+                        label: "Clear filters",
+                        onClick: () => {
+                          table.resetColumnFilters()
+                          handleGlobalFilter("")
+                          handleAdvancedFilters([])
+                          setToolbarRevision((value) => value + 1)
+                        },
+                      } : { label: "Refresh", onClick: () => void refresh() }}
+                    />
                   </TableCell>
                 </TableRow>
               )}

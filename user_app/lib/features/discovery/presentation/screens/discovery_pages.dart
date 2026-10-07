@@ -278,13 +278,19 @@ class _DiseaseDetailPageState extends ConsumerState<DiseaseDetailPage> {
               if (ref.watch(diseaseHubsEnabledProvider)) ...[
                 const SectionHeading('Content hubs'),
                 if (disease.hubs.isEmpty)
-                  const Text('No dedicated hub is currently published.')
+                  const EmptyState(
+                    'Published hubs for this condition will appear here.',
+                    title: 'No content hubs yet',
+                  )
                 else
                   ...disease.hubs.map((hub) => HubTile(hub)),
               ],
               const SectionHeading('Approved resources'),
               if (disease.resources.isEmpty)
-                const Text('No public resources are currently available.')
+                const EmptyState(
+                  'Approved resources for this condition will appear here.',
+                  title: 'No resources yet',
+                )
               else
                 ...disease.resources.map((item) => ResourceTile(item)),
             ],
@@ -435,7 +441,12 @@ class _ContentHubPageState extends ConsumerState<ContentHubPage> {
                     ).map(ResourceTile.new),
                   ],
             ...hubResources(hub).isEmpty
-                ? const <Widget>[]
+                ? const <Widget>[
+                    EmptyState(
+                      'Published resources will appear here when they are available.',
+                      title: 'No resources yet',
+                    ),
+                  ]
                 : <Widget>[
                     const SectionHeading('Latest updates'),
                     ...hubResources(hub).take(5).map(ResourceTile.new),
@@ -460,6 +471,7 @@ class ContentPillarPage extends ConsumerStatefulWidget {
 
 class _ContentPillarPageState extends ConsumerState<ContentPillarPage> {
   String query = '', kind = '';
+  final searchController = TextEditingController();
   late Future<DiscoveryValue<DiscoveryHub>> request;
 
   @override
@@ -470,6 +482,12 @@ class _ContentPillarPageState extends ConsumerState<ContentPillarPage> {
 
   void reload() =>
       request = ref.read(discoveryRepositoryProvider).hub(widget.hubSlug);
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -525,7 +543,7 @@ class _ContentPillarPageState extends ConsumerState<ContentPillarPage> {
               (item) =>
                   (kind.isEmpty || item.contentType == kind) &&
                   '${item.title} ${item.description}'.toLowerCase().contains(
-                    query.toLowerCase(),
+                    query.trim().toLowerCase(),
                   ),
             )
             .toList();
@@ -564,6 +582,7 @@ class _ContentPillarPageState extends ConsumerState<ContentPillarPage> {
             ],
             const SizedBox(height: 16),
             TextField(
+              controller: searchController,
               decoration: const InputDecoration(
                 prefixIcon: Icon(LucideIcons.search),
                 hintText: 'Search this section',
@@ -572,6 +591,7 @@ class _ContentPillarPageState extends ConsumerState<ContentPillarPage> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
+              key: ValueKey(kind),
               initialValue: kind,
               decoration: const InputDecoration(labelText: 'Content type'),
               items: [
@@ -589,7 +609,32 @@ class _ContentPillarPageState extends ConsumerState<ContentPillarPage> {
               onChanged: (value) => setState(() => kind = value ?? ''),
             ),
             Text('${shown.length} public resources'),
-            ...shown.map((item) => ResourceTile(item)),
+            if (shown.isEmpty)
+              EmptyState(
+                query.trim().isNotEmpty || kind.isNotEmpty
+                    ? 'Try another search or clear your filters to see all resources.'
+                    : 'Published resources for this section will appear here.',
+                title: query.trim().isNotEmpty || kind.isNotEmpty
+                    ? 'No matching resources'
+                    : 'No resources yet',
+                isSearch: query.trim().isNotEmpty || kind.isNotEmpty,
+                actionLabel: query.trim().isNotEmpty || kind.isNotEmpty
+                    ? 'Clear filters'
+                    : 'Refresh',
+                onAction: () {
+                  if (query.trim().isNotEmpty || kind.isNotEmpty) {
+                    searchController.clear();
+                    setState(() {
+                      query = '';
+                      kind = '';
+                    });
+                  } else {
+                    setState(reload);
+                  }
+                },
+              )
+            else
+              ...shown.map((item) => ResourceTile(item)),
           ],
         );
       },

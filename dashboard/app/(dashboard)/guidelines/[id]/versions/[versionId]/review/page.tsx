@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/ui/empty-state";
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
@@ -1218,6 +1219,7 @@ function OutlinePanel({
         aria-label="Guideline sections"
         className="min-h-0 flex-1 space-y-0.5 overflow-auto p-2"
       >
+        {sections.length === 0 && <EmptyState title="No sections yet" description="Sections will appear here after guideline content has been extracted or added." />}
         {sections.map((section) => {
           const counts = reviewCounts.get(section.id);
           const selected = section.id === selectedSectionId;

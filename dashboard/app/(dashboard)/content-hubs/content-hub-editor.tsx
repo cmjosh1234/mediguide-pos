@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { hasBackendPermission } from "@/lib/backend-client";
@@ -493,6 +494,7 @@ function PillarEditor({
           Add
         </Button>
       </div>
+      {workspace.pillars.length === 0 && <EmptyState title="No sections yet" description="Add a pillar above to organize the resources in this hub." />}
       {workspace.pillars.map((pillar, index) => (
         <PillarRow
           key={pillar.id}
@@ -647,6 +649,9 @@ function ResourceAssignment({
   const [type, setType] = React.useState("guideline");
   const [search, setSearch] = React.useState("");
   const [results, setResults] = React.useState<AssignableResource[]>([]);
+  const [searchLoading, setSearchLoading] = React.useState(true);
+  const [searchError, setSearchError] = React.useState("");
+  const [searchRevision, setSearchRevision] = React.useState(0);
   const [target, setTarget] = React.useState("");
   const [startsAt, setStartsAt] = React.useState("");
   const [endsAt, setEndsAt] = React.useState("");
@@ -655,20 +660,26 @@ function ResourceAssignment({
     if (!pillarId && workspace.pillars[0]) setPillarId(workspace.pillars[0].id);
   }, [pillarId, workspace.pillars]);
   React.useEffect(() => {
+    let cancelled = false;
     if (["internal_route", "approved_external_url"].includes(type)) {
       setResults([]);
+      setSearchLoading(false);
+      setSearchError("");
       return;
     }
     const timer = setTimeout(() => {
+      setSearchLoading(true);
+      setSearchError("");
       void contentHubService
         .searchResources(type, search, workspace.hub.outbreaks?.[0]?.id || "")
-        .then((page) => setResults(page.items || []))
-        .catch((error) =>
-          showToast.error("Resource search failed", actionable(error)),
-        );
+        .then((page) => { if (!cancelled) setResults(page.items || []) })
+        .catch((error) => {
+          if (!cancelled) setSearchError(actionable(error));
+        })
+        .finally(() => { if (!cancelled) setSearchLoading(false) });
     }, 250);
-    return () => clearTimeout(timer);
-  }, [type, search, workspace.hub.outbreaks]);
+    return () => { cancelled = true; clearTimeout(timer) };
+  }, [type, search, searchRevision, workspace.hub.outbreaks]);
   async function add(resource?: AssignableResource) {
     if (!pillarId) return;
     try {
@@ -760,7 +771,7 @@ function ResourceAssignment({
           <select
             className="h-10 rounded-md border bg-background px-3"
             value={type}
-            onChange={(event) => setType(event.target.value)}
+            onChange={(event) => { setSearchLoading(true); setSearchError(""); setType(event.target.value) }}
           >
             {itemTypes.map((value) => (
               <option key={value}>{value}</option>
@@ -768,7 +779,7 @@ function ResourceAssignment({
           </select>
           <Input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => { setSearchLoading(true); setSearchError(""); setSearch(event.target.value) }}
             placeholder="Search assignable resources"
             disabled={["internal_route", "approved_external_url"].includes(
               type,
@@ -807,7 +818,8 @@ function ResourceAssignment({
             </Button>
           ) : null}
         </div>
-        {results.length ? (
+        {!["internal_route", "approved_external_url"].includes(type) && (searchLoading ? <p role="status" className="py-6 text-center text-sm text-muted-foreground">Searching resources…</p> : searchError ? <div role="alert" className="rounded-md border p-4"><p>{searchError}</p><Button className="mt-3" variant="outline" onClick={() => { setSearchLoading(true); setSearchRevision((value) => value + 1) }}>Try again</Button></div> : results.length === 0 ? <EmptyState title="No matching resources" description="Try another search or choose a different content type. Only assignable resources appear here." /> : null)}
+        {!searchLoading && !searchError && results.length ? (
           <div className="max-h-64 space-y-2 overflow-auto rounded-md border p-2">
             {results.map((value) => (
               <div
@@ -832,6 +844,7 @@ function ResourceAssignment({
           </div>
         ) : null}
         <div className="space-y-2">
+          {!selected ? <EmptyState title="Choose a section" description="Add a pillar in the sections tab, then select it above to assign resources." /> : selected.items.length === 0 ? <EmptyState title="No assigned resources yet" description="Search for an approved resource above and choose Assign to add it to this section." /> : null}
           {(selected?.items || []).map((item, index) => (
             <div
               key={item.id}
@@ -958,6 +971,7 @@ function HubPreview({ workspace }: { workspace: ContentHubWorkspace }) {
                       : "grid gap-3 md:grid-cols-4"
                   }
                 >
+                  {roots.length === 0 && <EmptyState className="col-span-full" title="No sections to preview" description="Add a pillar to see how this hub will appear to readers." />}
                   {roots.map((value) => (
                     <div
                       key={value.id}

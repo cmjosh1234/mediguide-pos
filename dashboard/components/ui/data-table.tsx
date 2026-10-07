@@ -13,7 +13,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, Search } from "lucide-react"
+import { ChevronDown, Search, SearchX } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -157,7 +158,12 @@ export function DataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  <EmptyState
+                    icon={columnFilters.length ? SearchX : undefined}
+                    title={columnFilters.length ? "No matching results" : "No records yet"}
+                    description={columnFilters.length ? "Try another search or clear your filters." : "Records will appear here once they have been added."}
+                    action={columnFilters.length ? { label: "Clear filters", onClick: () => table.resetColumnFilters() } : undefined}
+                  />
                 </TableCell>
               </TableRow>
             )}

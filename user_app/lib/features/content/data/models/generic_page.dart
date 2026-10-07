@@ -122,8 +122,27 @@ class GenericPage {
 
   /// Check if page has any content to display
   bool get hasContent {
-    return content != null && content!.isNotEmpty;
+    if (content == null || content!.isEmpty) return false;
+    if (isStringContent) return _hasVisibleContent(stringContent);
+    if (isKeyValueContent) {
+      return sections.any((section) => _hasVisibleContent(section.content));
+    }
+    return false;
   }
+}
+
+bool _hasVisibleContent(String value) {
+  if (RegExp(
+    r'<(?:img|svg|video|audio|iframe)\b',
+    caseSensitive: false,
+  ).hasMatch(value)) {
+    return true;
+  }
+  return value
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll(RegExp(r'&(?:nbsp|#160|#xA0);', caseSensitive: false), ' ')
+      .trim()
+      .isNotEmpty;
 }
 
 /// Represents a section in key-value structured content

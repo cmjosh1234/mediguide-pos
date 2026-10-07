@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:user_app/app/router/app_router.dart';
 import 'package:user_app/core/utils/app_message.dart';
 import 'package:user_app/core/widgets/app_skeleton.dart';
+import 'package:user_app/core/widgets/empty_state.dart' as states;
 import 'package:user_app/features/discovery/data/models/discovery_models.dart';
 
 class HubTile extends StatelessWidget {
@@ -202,15 +203,28 @@ class ErrorState extends StatelessWidget {
 }
 
 class EmptyState extends StatelessWidget {
-  const EmptyState(this.message, {super.key});
+  const EmptyState(
+    this.message, {
+    super.key,
+    this.title = 'Nothing to show yet',
+    this.actionLabel,
+    this.onAction,
+    this.isSearch = false,
+  });
   final String message;
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final bool isSearch;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Text(message, textAlign: TextAlign.center),
-    ),
+  Widget build(BuildContext context) => states.EmptyState(
+    icon: isSearch ? LucideIcons.searchX : LucideIcons.folderOpen,
+    title: title,
+    description: message,
+    actionLabel: actionLabel,
+    onAction: onAction,
+    actionIcon: isSearch ? LucideIcons.filterX : LucideIcons.refreshCw,
   );
 }
 
