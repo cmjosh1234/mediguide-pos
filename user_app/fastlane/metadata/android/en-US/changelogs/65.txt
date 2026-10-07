@@ -1,0 +1,5 @@
+What’s new in MediGuide 2.1.12:
+- Browse content hubs and conditions with clearer, compact layouts.
+- Read situation reports with clearer indicators and summaries.
+- Improved clinical tool inputs and calculator headers.
+- Helpful empty states and recovery actions.
