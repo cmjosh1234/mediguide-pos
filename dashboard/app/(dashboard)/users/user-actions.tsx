@@ -55,12 +55,22 @@ export const createUserRowActions = (navigate: (path: string) => void): RowActio
   },
   {
     id: "send-verification",
-    label: "Mark as Verified",
+    label: "Approve Account",
     icon: Mail,
     onClick: async (user) => {
-      await sendVerificationEmail(user)
+      await approveUserAccount(user)
     },
     disabled: (user) => user.verified,
+  },
+  {
+    id: "resend-email-verification",
+    label: "Resend Email Verification",
+    icon: Mail,
+    disabled: user => Boolean(user.email_verified),
+    onClick: async user => {
+      await usersService.requestEmailVerification(user.email)
+      showToast.info("Verification Requested", "If verification is needed, a link will be emailed. Check Account Analytics for delivery status.")
+    },
   },
   {
     id: "archive",
@@ -119,14 +129,14 @@ export const userBulkActions: BulkAction<UserType>[] = [
   },
   {
     id: "bulk-send-verification",
-    label: "Mark Selected as Verified",
+    label: "Approve Selected Accounts",
     icon: Mail,
     variant: "outline",
     onClick: async (users) => {
-      await bulkSendVerificationEmails(users)
+      await bulkApproveUserAccounts(users)
     },
     disabled: (users) => users.every(user => user.verified),
-    description: "Administratively verify the selected user accounts",
+    description: "Administratively approve the selected user accounts",
   },
   {
     id: "bulk-export",
@@ -167,7 +177,7 @@ async function resetUserPassword(user: UserType): Promise<void> {
     } else {
       showToast.info(
         "Reset Requested",
-        "No email provider is configured. The request was accepted, but no message was sent."
+        "If this account is eligible, password reset instructions will be emailed. Check the inbox and spam folder."
       )
     }
   } catch (error) {
@@ -177,17 +187,17 @@ async function resetUserPassword(user: UserType): Promise<void> {
   }
 }
 
-async function sendVerificationEmail(user: UserType): Promise<void> {
+async function approveUserAccount(user: UserType): Promise<void> {
   try {
     await usersService.verify(user.id)
     
     showToast.success(
-      "User Verified",
-      `${user.name} has been marked as verified`
+      "Account Approved",
+      `${user.name} has been approved by an administrator`
     )
   } catch (error) {
-	const message = error instanceof Error ? error.message : 'Failed to verify user'
-	showToast.error("Verification Failed", message)
+	const message = error instanceof Error ? error.message : 'Failed to approve account'
+	showToast.error("Approval Failed", message)
     throw error
   }
 }
@@ -275,11 +285,11 @@ async function exportUsers(users: UserType[]): Promise<void> {
   }
 }
 
-async function bulkSendVerificationEmails(users: UserType[]): Promise<void> {
+async function bulkApproveUserAccounts(users: UserType[]): Promise<void> {
   const unverifiedUsers = users.filter(user => !user.verified)
   
   if (unverifiedUsers.length === 0) {
-    showToast.info("No Action Needed", "All selected users are already verified")
+    showToast.info("No Action Needed", "All selected users are already approved")
     return
   }
   
@@ -298,15 +308,15 @@ async function bulkSendVerificationEmails(users: UserType[]): Promise<void> {
 
   if (successCount > 0) {
     showToast.success(
-      "Users Verified",
-      `Successfully verified ${successCount} user${successCount === 1 ? '' : 's'}`
+      "Accounts Approved",
+      `Successfully approved ${successCount} user${successCount === 1 ? '' : 's'}`
     )
   }
   
   if (errorCount > 0) {
     showToast.error(
-      "Some Verifications Failed",
-      `${errorCount} user${errorCount === 1 ? '' : 's'} could not be verified`
+      "Some Approvals Failed",
+      `${errorCount} user${errorCount === 1 ? '' : 's'} could not be approved`
     )
   }
 
@@ -322,7 +332,8 @@ function convertUsersToCSV(users: UserType[]): string {
     'Role',
     'Status', 
     'City',
-    'Verified',
+    'Account Approved',
+    'Email Verified',
     'Created',
     'Updated'
   ]
@@ -334,6 +345,7 @@ function convertUsersToCSV(users: UserType[]): string {
     user.status,
     user.city || '',
     user.verified ? 'Yes' : 'No',
+    user.email_verified ? 'Yes' : 'No',
     user.created,
     user.updated || ''
   ])

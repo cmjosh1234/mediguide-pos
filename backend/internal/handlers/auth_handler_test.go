@@ -22,7 +22,7 @@ func TestAuthHandlerLoginUsesV2Contract(t *testing.T) {
 	if _, err := handler.Service.Register(services.RegisterInput{
 		Name:     "Admin",
 		Email:    "admin@mediguide.local",
-		Password: "secret",
+		Password: "Secret123",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestAuthHandlerLoginUsesV2Contract(t *testing.T) {
 	request := httptest.NewRequest(
 		http.MethodPost,
 		"/api/v2/auth/login",
-		strings.NewReader(`{"email":"admin@mediguide.local","password":"secret"}`),
+		strings.NewReader(`{"email":"admin@mediguide.local","password":"Secret123"}`),
 	)
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
@@ -153,7 +153,7 @@ func TestAuthHandlerEmailVerificationUsesNeutralTypedContract(t *testing.T) {
 	if err := handler.Service.DB.First(user, "id = ?", user.ID).Error; err != nil {
 		t.Fatal(err)
 	}
-	if !user.Verified {
+	if !user.EmailVerified {
 		t.Fatal("expected confirmation endpoint to verify the user")
 	}
 }
@@ -165,12 +165,10 @@ func testAuthHandler(t *testing.T) AuthHandler {
 		t.Fatal(err)
 	}
 	if err := database.AutoMigrate(
-		&models.User{},
+		&models.User{}, &models.AccountEmailDelivery{}, &models.AccountActionToken{}, &models.AuditLog{},
 		&models.Role{},
 		&models.Permission{},
 		&models.AuthSession{},
-		&models.AccountActionToken{},
-		&models.AuditLog{},
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -184,4 +182,47 @@ func testAuthHandler(t *testing.T) AuthHandler {
 			JWTRefreshTTLMinutes: 60,
 		},
 	}}
+}
+
+func TestAccountLifecycleAnalyticsAggregatesWithoutAccountDetails(t *testing.T) {
+	h := testAuthHandler(t)
+	user, err := h.Service.Register(services.RegisterInput{Name: "Private", Email: "private@example.test", Password: "Password8"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := gin.New()
+	r.GET("/analytics/accounts", h.AccountLifecycle)
+	response := httptest.NewRecorder()
+	r.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/analytics/accounts?days=30", nil))
+	if response.Code != 200 {
+		t.Fatalf("%d %s", response.Code, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), user.Email) || strings.Contains(response.Body.String(), user.ID.String()) {
+		t.Fatal("analytics leaked account identifiers")
+	}
+	var envelope struct {
+		Data struct {
+			Events     []AccountLifecycleEventCount `json:"events"`
+			EmailQueue []AccountEmailStatusCount    `json:"email_queue"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, event := range envelope.Data.Events {
+		if event.Event == "user.account_created" && event.Count == 1 {
+			found = true
+		}
+	}
+	if !found || len(envelope.Data.EmailQueue) != 1 {
+		t.Fatalf("missing lifecycle counts: %s", response.Body.String())
+	}
+	for _, days := range []string{"0", "91", "oops"} {
+		result := httptest.NewRecorder()
+		r.ServeHTTP(result, httptest.NewRequest(http.MethodGet, "/analytics/accounts?days="+days, nil))
+		if result.Code != 400 {
+			t.Fatalf("invalid days accepted: %s", days)
+		}
+	}
 }

@@ -102,6 +102,12 @@ const data: { navMain: NavItem[] } = {
 
     },
     {
+      title: "Account Analytics",
+      url: "/analytics/accounts",
+      icon: BarChart3,
+      backendPermissions: ["analytics.read", "admin.all"],
+    },
+    {
       title: "Clinical Guidelines",
       url: "#",
       icon: FileText,

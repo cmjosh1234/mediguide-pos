@@ -102,6 +102,30 @@ class ProfilePage extends ConsumerWidget {
           // PROFILE
           // ===============================================================
           _ProfileHeaderCard(onEditProfile: () => _openEditProfile(ref)),
+          if (auth?.user != null) ...[
+            AppSpacing.gapMd,
+            Card(
+              child: ListTile(
+                leading: Icon(
+                  auth!.user!.emailVerified
+                      ? Icons.verified_outlined
+                      : Icons.mark_email_unread_outlined,
+                ),
+                title: Text(
+                  auth.user!.emailVerified
+                      ? 'Email verified'
+                      : 'Verify your email',
+                ),
+                subtitle: Text(
+                  auth.user!.emailVerified
+                      ? 'Email ownership confirmed'
+                      : 'Confirm your email or request a new verification link',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => AppNavigator.push(AppRoutes.verifyEmail),
+              ),
+            ),
+          ],
 
           AppSpacing.xl.gap,
 

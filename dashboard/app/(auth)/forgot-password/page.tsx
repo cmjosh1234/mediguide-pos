@@ -15,7 +15,6 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
-  const [deliveryAccepted, setDeliveryAccepted] = useState(false)
   const [developmentToken, setDevelopmentToken] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,7 +24,6 @@ export default function ForgotPasswordPage() {
 
     try {
       const result = await usersService.requestPasswordReset(email)
-      setDeliveryAccepted(result.delivery_accepted)
       setDevelopmentToken(result.development_token || "")
       setSuccess(true)
     } catch (error: unknown) {
@@ -45,16 +43,14 @@ export default function ForgotPasswordPage() {
           </div>
           <CardTitle className="text-2xl">Request Accepted</CardTitle>
           <CardDescription>
-            If the account exists, a reset token has been prepared
+            If the account exists, you will receive password reset instructions
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
             <Mail className="h-4 w-4" />
             <AlertDescription>
-              {deliveryAccepted
-                ? <>The email provider accepted reset instructions for <strong>{email}</strong>.</>
-                : "Email delivery is not configured, so no reset message was sent. Contact an administrator."}
+              If this account is eligible, reset instructions will be emailed. Check your inbox and spam folder.
             </AlertDescription>
           </Alert>
           {developmentToken && (
@@ -67,7 +63,7 @@ export default function ForgotPasswordPage() {
           <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
             <p className="font-medium mb-2">Didn&apos;t receive an email?</p>
             <ul className="space-y-1 text-xs">
-              <li>• Confirm an outbound email provider is configured</li>
+              <li>• Check your spam folder and try again after a few minutes</li>
               <li>• Requests never reveal whether an account exists</li>
               <li>• The link will expire in 1 hour</li>
             </ul>

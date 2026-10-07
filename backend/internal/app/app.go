@@ -16,6 +16,7 @@ import (
 	"mediguide/internal/middleware"
 	"mediguide/internal/observability"
 	"mediguide/internal/redisx"
+	"mediguide/internal/services"
 	"mediguide/internal/storage"
 
 	"github.com/gin-contrib/cors"
@@ -178,7 +179,7 @@ func New(cfg config.Config) (*App, error) {
 			privateNoStore,
 			rateLimiter.Limit(middleware.Policy("password-reset-confirm-ip", 10, 15*time.Minute, 0), middleware.IPIdentity),
 			rateLimiter.Limit(middleware.Policy("password-reset-confirm-token", 5, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("token")), wired.authH.ConfirmPasswordReset)
-		v2.POST("/auth/email-verification/request", privateNoStore, rateLimiter.Limit(middleware.Policy("email-verification-request", 5, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("email")), wired.authH.RequestEmailVerification)
+		v2.POST("/auth/email-verification/request", privateNoStore, rateLimiter.Limit(middleware.Policy("email-verification-ip", 5, 15*time.Minute, 0), middleware.IPIdentity), rateLimiter.Limit(middleware.Policy("email-verification-request", 5, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("email")), wired.authH.RequestEmailVerification)
 		v2.POST("/auth/email-verification/confirm", privateNoStore, rateLimiter.Limit(middleware.Policy("email-verification-confirm", 10, 15*time.Minute, 0), middleware.IPAndJSONFieldIdentity("token")), wired.authH.ConfirmEmailVerification)
 		protected := v2.Group("")
 		protected.Use(
@@ -217,6 +218,8 @@ func New(cfg config.Config) (*App, error) {
 
 		registerDiscoveryRoutes(protected, rateLimiter, wired.searchH, wired.ragH, wired.protocolH)
 
+		protected.GET("/analytics/accounts", middleware.RequireAnyPermission("admin.all", "analytics.read"), wired.authH.AccountLifecycle)
+
 		registerProfileRoutes(protected, rateLimiter, wired.referenceH, wired.contentReferenceH, wired.progressUsageH, wired.guidelineLibraryH, wired.conversationH)
 
 		registerFacilitiesRoutes(protected, wired.facilityH)
@@ -225,6 +228,24 @@ func New(cfg config.Config) (*App, error) {
 
 	}
 	uploadContext, stopUploads := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		service := services.AuthService{DB: database, Cfg: cfg, Mailer: emailSender}
+		for {
+			ctx, cancel := context.WithTimeout(uploadContext, 25*time.Second)
+			if err := service.DrainAccountEmails(ctx); err != nil && uploadContext.Err() == nil {
+				log.Error().Err(err).Msg("account email queue maintenance failed")
+			}
+			cancel()
+			select {
+			case <-uploadContext.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+
 	if wired.guidelineH.DirectUploads {
 		go func() {
 			ticker := time.NewTicker(30 * time.Second)

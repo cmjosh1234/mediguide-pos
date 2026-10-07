@@ -9,6 +9,8 @@ abstract final class AppRoutes {
   static const String register = '/register';
   static const String onboarding = '/onboarding';
   static const String forgotPassword = '/forgot-password';
+  static const String resetPassword = '/reset-password';
+  static const String verifyEmail = '/verify-email';
 
   // Main navigation
   static const String main = '/main';
@@ -87,6 +89,8 @@ abstract final class AppRoutes {
     register,
     onboarding,
     forgotPassword,
+    resetPassword,
+    verifyEmail,
     main,
     home,
     search,

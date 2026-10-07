@@ -306,6 +306,30 @@ changing effective credential values, run:
 python3 infra/organize-env.py infra/production.env --private
 ```
 
+After template updates, add absent settings without replacing existing values:
+
+```bash
+python3 infra/organize-env.py infra/production.env \
+  --defaults-from infra/production.env.example --private
+```
+
+Use the template for the same environment. Existing assignments, including
+explicitly empty values and credentials, take precedence. New credential fields
+still need real values through the protected deployment configuration. For a new
+deployment, replace example public hostnames with the deployment's actual hosts.
+
+`ACCOUNT_ACTION_URL` is the dashboard base URL (ending in `/admin`, without
+`/login`); password reset and email verification paths are appended to it.
+`S3_PRESIGN_MINUTES` controls asset URL lifetime, and `MAX_UPLOAD_MB` controls
+the API upload limit. The standalone AI worker uses `MAX_UPLOAD_BYTES` instead;
+its limit is expressed in bytes. Infrastructure env files share one schema;
+standalone backend and worker templates contain their own runtime settings.
+
+For production account emails, use `MAIL_DRIVER=resend`, a verified `MAIL_FROM`,
+and a private `RESEND_API_KEY`. Compose passes the key only to the backend API.
+SMTP settings remain available for `MAIL_DRIVER=smtp`. See the
+[Resend setup and delivery checks](../docs/account-lifecycle.md#resend-production-configuration).
+
 The organizer keeps the last assignment for duplicate keys, groups settings
 by responsibility, restricts the private file to mode 600, and verifies that
 all effective values are preserved. Templates and development env files can

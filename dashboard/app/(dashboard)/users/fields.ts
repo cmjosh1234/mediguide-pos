@@ -26,7 +26,7 @@ export const createUsersAvailableFields = (): FieldOption[] => [
   // Settings & Status
   { label: "Status", value: "status", type: "select" },
   { label: "Preferred Language", value: "preferredLanguage", type: "select" },
-  { label: "Verified", value: "verified", type: "boolean" },
+  { label: "Account Approved", value: "verified", type: "boolean" },
   { label: "Email Visibility", value: "emailVisibility", type: "boolean" },
   
   // Timestamps

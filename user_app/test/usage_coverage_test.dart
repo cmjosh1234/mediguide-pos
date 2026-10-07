@@ -159,6 +159,8 @@ void main() {
           '/register',
           '/onboarding',
           '/forgot-password',
+          '/reset-password',
+          '/verify-email',
         ].contains(route)) {
           continue;
         }
@@ -169,6 +171,14 @@ void main() {
         'guidelines',
       );
       expect(usageFeatureForLocation('/chats/private-id'), 'conversations');
+      expect(
+        usageFeatureForLocation('/reset-password?token=private-token'),
+        isNull,
+      );
+      expect(
+        usageFeatureForLocation('/verify-email?token=private-token'),
+        isNull,
+      );
       expect(
         usageFeatureForLocation('/outbreak-hub/private-id/sections/another-id'),
         'outbreaks',

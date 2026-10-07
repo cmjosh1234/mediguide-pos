@@ -72,7 +72,9 @@
 			</array>
 		</dict>
 	</dict>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<key>CFBundleURLTypes</key>
+    <array><dict><key>CFBundleURLName</key><string>account</string><key>CFBundleURLSchemes</key><array><string>mediguide</string></array></dict></array>
+    <key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
 	<array>

@@ -6,6 +6,8 @@ import { Edit, Mail, Phone, MapPin, Building2, Shield, Globe, Clock, FileText } 
 
 import { PageHeader } from "@/components/ui/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -185,7 +187,8 @@ export default function MyProfilePage() {
                 <p className="flex items-center space-x-2 mt-1">
                   <Mail className="h-4 w-4" />
                   <span>{user.email}</span>
-                  {user.verified && <Badge variant="secondary">Verified</Badge>}
+                  {user.verified && <Badge variant="secondary">Account approved</Badge>}
+                  {user.email_verified ? <Badge variant="secondary">Email verified</Badge> : <Button asChild variant="outline" size="sm"><Link href="/verify-email">Verify email</Link></Button>}
                 </p>
               </div>
               {user.phone && (

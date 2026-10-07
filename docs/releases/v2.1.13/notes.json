@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "release_tag": "v2.1.13",
+  "previous_tag": "v2.1.12",
+  "mobile_build_number": 66,
+  "services": {
+    "mobile": [
+      "Improve account verification and password-reset handling."
+    ],
+    "api": [
+      "Track account creation, verification and password reset with a durable email queue.",
+      "Add Resend email delivery with bounded requests, private errors and idempotent retries."
+    ],
+    "ai-worker": [
+      "Document and align standalone runtime environment settings."
+    ],
+    "dashboard": [
+      "Complete verification and password-reset flows and account lifecycle analytics."
+    ],
+    "guidelines": [
+      "Resolve dashboard login URLs without duplicating the /admin/login path."
+    ]
+  },
+  "operations": [
+    "Align environment schemas, preserve populated credentials and support Resend production configuration.",
+    "Validate public storage routing before replacing the production stack."
+  ],
+  "play_store": "Improved account verification and password reset."
+}

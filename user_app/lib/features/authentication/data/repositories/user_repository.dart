@@ -2,7 +2,8 @@ import 'package:user_app/core/network/api_client.dart';
 import 'package:user_app/features/authentication/data/models/user.dart';
 
 final class UserRepository {
-  UserRepository(this._api);
+  UserRepository(this._api, {this.recordMetric});
+  final Future<void> Function(String)? recordMetric;
 
   final BackendApiService _api;
 
@@ -36,49 +37,68 @@ final class UserRepository {
     );
   }
 
-  Future<Map<String, dynamic>> requestPasswordReset(String email) async {
-    final response = await _api.requestJson(
-      '/api/v2/auth/password-reset/request',
-      method: 'POST',
-      body: {'email': email},
-      includeAuth: false,
-    );
-    return _data(response);
+  Future<Map<String, dynamic>> _accountAction(
+    String path,
+    String event,
+    Map<String, dynamic> body,
+  ) async {
+    Future<void> record(String suffix) async {
+      try {
+        await recordMetric?.call('${event}_$suffix');
+      } catch (_) {
+        /* Telemetry never blocks account access. */
+      }
+    }
+
+    await record('attempt');
+    try {
+      final response = await _api.requestJson(
+        path,
+        method: 'POST',
+        body: body,
+        includeAuth: false,
+      );
+      await record('success');
+      return _data(response);
+    } catch (_) {
+      await record('failed');
+      rethrow;
+    }
   }
 
+  Future<Map<String, dynamic>> requestPasswordReset(String email) =>
+      _accountAction(
+        '/api/v2/auth/password-reset/request',
+        'password_reset_request',
+        {'email': email.trim()},
+      );
   Future<void> confirmPasswordReset({
     required String token,
     required String password,
     required String passwordConfirm,
   }) async {
-    await _api.requestJson(
+    await _accountAction(
       '/api/v2/auth/password-reset/confirm',
-      method: 'POST',
-      body: {
+      'password_reset_confirm',
+      {
         'token': token,
         'password': password,
         'password_confirm': passwordConfirm,
       },
-      includeAuth: false,
     );
   }
 
-  Future<Map<String, dynamic>> requestEmailVerification(String email) async {
-    final response = await _api.requestJson(
-      '/api/v2/auth/email-verification/request',
-      method: 'POST',
-      body: {'email': email},
-      includeAuth: false,
-    );
-    return _data(response);
-  }
-
+  Future<Map<String, dynamic>> requestEmailVerification(String email) =>
+      _accountAction(
+        '/api/v2/auth/email-verification/request',
+        'email_verification_request',
+        {'email': email.trim()},
+      );
   Future<void> confirmEmailVerification(String token) async {
-    await _api.requestJson(
+    await _accountAction(
       '/api/v2/auth/email-verification/confirm',
-      method: 'POST',
-      body: {'token': token},
-      includeAuth: false,
+      'email_verification_confirm',
+      {'token': token},
     );
   }
 

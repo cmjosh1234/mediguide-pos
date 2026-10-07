@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -20,7 +21,10 @@ var (
 	ErrRoleAssigned       = errors.New("role is assigned to users")
 )
 
-type UserService struct{ DB *gorm.DB }
+type UserService struct {
+	DB   *gorm.DB
+	Auth *AuthService
+}
 
 type UserListInput struct {
 	Page   PageInput
@@ -157,7 +161,7 @@ func (s UserService) GetUser(id uuid.UUID) (*UserView, error) {
 }
 
 func (s UserService) CreateUser(in UserCreateInput) (*UserView, error) {
-	if strings.TrimSpace(in.Name) == "" || !validEmail(in.Email) || len(in.Password) < 8 || !validUserStatus(defaultStatus(in.Status)) {
+	if strings.TrimSpace(in.Name) == "" || !validEmail(in.Email) || !validAccountPassword(in.Password) || !validUserStatus(defaultStatus(in.Status)) {
 		return nil, ErrUserInvalidPayload
 	}
 	hash, err := security.HashPassword(in.Password)
@@ -173,7 +177,16 @@ func (s UserService) CreateUser(in UserCreateInput) (*UserView, error) {
 		if err := tx.Create(&user).Error; err != nil {
 			return err
 		}
-		return assignRole(tx, user.ID, roleID)
+		if err := assignRole(tx, user.ID, roleID); err != nil {
+			return err
+		}
+		if err := accountLifecycleAudit(tx, user.ID, "account_created"); err != nil {
+			return err
+		}
+		if s.Auth != nil {
+			return s.Auth.queueVerificationForUser(tx, user)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -191,6 +204,14 @@ func (s UserService) UpdateUser(id uuid.UUID, in UserUpdateInput) (*UserView, er
 		return nil, err
 	}
 	err = s.DB.Transaction(func(tx *gorm.DB) error {
+		var current models.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND deleted_at IS NULL", id).First(&current).Error; err != nil {
+			return err
+		}
+		emailChanged := in.Email != nil && updates["email"] != current.Email
+		if emailChanged {
+			updates["email_verified"] = false
+		}
 		if len(updates) > 0 {
 			result := tx.Model(&models.User{}).Where("id = ? AND deleted_at IS NULL", id).Updates(updates)
 			if result.Error != nil {
@@ -200,7 +221,39 @@ func (s UserService) UpdateUser(id uuid.UUID, in UserUpdateInput) (*UserView, er
 				return gorm.ErrRecordNotFound
 			}
 		}
-		return assignRole(tx, id, roleID)
+		if err := assignRole(tx, id, roleID); err != nil {
+			return err
+		}
+		if in.Password != nil {
+			if err := tx.Where("user_id = ? AND purpose = ? AND consumed_at IS NULL", id, "password_reset").Delete(&models.AccountActionToken{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&models.AuthSession{}).Where("user_id = ? AND revoked_at IS NULL", id).Update("revoked_at", time.Now().UTC()).Error; err != nil {
+				return err
+			}
+		}
+		if in.Verified != nil && *in.Verified != current.Verified {
+			event := "approval_revoked"
+			if *in.Verified {
+				event = "verified"
+			}
+			if err := accountLifecycleAudit(tx, id, event); err != nil {
+				return err
+			}
+		}
+		if emailChanged {
+			if err := tx.Where("user_id = ? AND consumed_at IS NULL", id).Delete(&models.AccountActionToken{}).Error; err != nil {
+				return err
+			}
+			if err := accountLifecycleAudit(tx, id, "email_changed"); err != nil {
+				return err
+			}
+			if s.Auth != nil {
+				current.Email = updates["email"].(string)
+				return s.Auth.queueVerificationForUser(tx, current)
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -248,6 +301,13 @@ func (s UserService) DeleteUser(id uuid.UUID) error {
 
 func (s UserService) VerifyUser(id, actorID uuid.UUID, ipAddress string) (*UserView, error) {
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		var current models.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND deleted_at IS NULL", id).First(&current).Error; err != nil {
+			return err
+		}
+		if current.Verified {
+			return nil
+		}
 		result := tx.Model(&models.User{}).
 			Where("id = ? AND deleted_at IS NULL", id).
 			Updates(map[string]any{"verified": true, "updated_at": time.Now().UTC()})
@@ -466,7 +526,7 @@ func userUpdates(in UserUpdateInput) (map[string]any, error) {
 		updates["specialization_json"] = *in.Specialization
 	}
 	if in.Password != nil {
-		if len(*in.Password) < 8 {
+		if !validAccountPassword(*in.Password) {
 			return nil, ErrUserInvalidPayload
 		}
 		hash, err := security.HashPassword(*in.Password)
@@ -498,8 +558,8 @@ func userOrder(sortField, direction string) (string, bool) {
 }
 
 func validEmail(value string) bool {
-	_, err := mail.ParseAddress(strings.TrimSpace(value))
-	return err == nil && strings.Contains(value, "@")
+	address, err := mail.ParseAddress(strings.TrimSpace(value))
+	return err == nil && address.Address == strings.TrimSpace(value) && strings.Contains(value, "@")
 }
 
 func validUserStatus(value string) bool {

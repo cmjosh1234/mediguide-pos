@@ -194,7 +194,8 @@ export default function UserProfilePage() {
                 <p className="flex items-center space-x-2 mt-1">
                   <Mail className="h-4 w-4" />
                   <span>{user.email}</span>
-                  {user.verified && <Badge variant="secondary">Verified</Badge>}
+                  {user.email_verified && <Badge variant="secondary">Email verified</Badge>}
+                  {user.verified && <Badge variant="secondary">Account approved</Badge>}
                 </p>
               </div>
               <div>

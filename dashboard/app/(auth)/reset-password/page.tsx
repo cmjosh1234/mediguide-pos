@@ -1,5 +1,7 @@
 'use client'
 
+import { getBackendClient } from "@/lib/backend-client"
+
 import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -57,6 +59,12 @@ function ResetPasswordForm() {
       return
     }
 
+    if (new TextEncoder().encode(formData.password).length > 72) {
+      setError("Password is too long")
+      setIsLoading(false)
+      return
+    }
+
     if (formData.password.length < 8 || !/[A-Za-z]/.test(formData.password) || !/\d/.test(formData.password)) {
       setError("Password must be at least 8 characters and include a letter and number")
       setIsLoading(false)
@@ -70,6 +78,7 @@ function ResetPasswordForm() {
         formData.confirmPassword
       )
       
+      getBackendClient().authStore.clear()
       setSuccess(true)
       setTimeout(() => {
         router.push("/login")
@@ -109,6 +118,7 @@ function ResetPasswordForm() {
             This password reset link is invalid or has expired
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -182,6 +192,8 @@ function ResetPasswordForm() {
           Choose a strong password to secure your account
         </CardDescription>
       </CardHeader>
+        {formData.token && <div className="px-6 pb-4"><Button asChild variant="outline" className="w-full"><a href={`mediguide://account/reset-password?token=${encodeURIComponent(formData.token)}`}>Open in MediGuide app</a></Button></div>}
+
       
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">

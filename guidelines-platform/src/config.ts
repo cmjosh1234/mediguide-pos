@@ -18,7 +18,9 @@ export function normalizeDashboardBaseUrl(
   value: string | undefined,
   fallback = defaultMediguidePosUrl,
 ) {
-  const baseUrl = normalizeBaseUrl(value, fallback);
+  // Deployment configuration may point directly to the dashboard login page.
+  // Convert it to the dashboard base before callers append an auth route.
+  const baseUrl = normalizeBaseUrl(value, fallback).replace(/\/login$/, "");
   return baseUrl.endsWith("/admin") ? baseUrl : `${baseUrl}/admin`;
 }
 

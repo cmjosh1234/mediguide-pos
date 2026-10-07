@@ -372,6 +372,35 @@ definitions:
     - confirm
     - current_password
     type: object
+  handlers.AccountEmailStatusCount:
+    properties:
+      count:
+        type: integer
+      status:
+        type: string
+    type: object
+  handlers.AccountLifecycleEventCount:
+    properties:
+      count:
+        type: integer
+      event:
+        type: string
+    type: object
+  handlers.AccountLifecycleResponse:
+    properties:
+      email_delivery_semantics:
+        type: string
+      email_queue:
+        items:
+          $ref: '#/definitions/handlers.AccountEmailStatusCount'
+        type: array
+      events:
+        items:
+          $ref: '#/definitions/handlers.AccountLifecycleEventCount'
+        type: array
+      since:
+        type: string
+    type: object
   handlers.AskEnvelope:
     properties:
       data:
@@ -2323,6 +2352,8 @@ definitions:
         type: string
       password:
         example: Admin123!
+        type: string
+      password_confirm:
         type: string
       phone:
         example: "+256700000001"
@@ -4505,6 +4536,8 @@ definitions:
         type: string
       email:
         type: string
+      email_verified:
+        type: boolean
       facility_id:
         type: string
       id:
@@ -9579,6 +9612,8 @@ definitions:
         type: string
       email:
         type: string
+      email_verified:
+        type: boolean
       facility_id:
         type: string
       id:
@@ -9640,8 +9675,42 @@ info:
     name: Proprietary
   termsOfService: https://mediguide.local/terms
   title: MediGuide Backend API
-  version: 2.1.12
+  version: 2.1.13
 paths:
+  /analytics/accounts:
+    get:
+      parameters:
+      - description: Lookback in days (1–90, default 30)
+        in: query
+        name: days
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.AccountLifecycleResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - BearerAuth: []
+      summary: Account lifecycle analytics
+      tags:
+      - analytics
   /api/public/abbreviations:
     get:
       responses:

@@ -114,6 +114,7 @@ class AuthController extends _$AuthController {
 
     state = AsyncData(AuthState.authenticating(user: previous?.user));
 
+    await _recordAccountMetric('sign_up_attempt');
     try {
       final user = await _api.register(
         email: email,
@@ -128,11 +129,27 @@ class AuthController extends _$AuthController {
 
       _invalidateUserScopedProviders();
 
+      await _recordAccountMetric('sign_up');
       return true;
     } catch (error, stackTrace) {
+      await _recordAccountMetric(
+        error is AccountCreatedSignInRequired
+            ? 'account_created_login_failed'
+            : 'sign_up_failed',
+      );
       state = AsyncData(AuthState.failure(error, user: previous?.user));
 
       Error.throwWithStackTrace(error, stackTrace);
+    }
+  }
+
+  Future<void> _recordAccountMetric(String event) async {
+    try {
+      await ref.read(firebaseServiceProvider).recordOperationalEvent(event, {
+        'method': 'password',
+      });
+    } catch (_) {
+      /* Firebase may be disabled. */
     }
   }
 

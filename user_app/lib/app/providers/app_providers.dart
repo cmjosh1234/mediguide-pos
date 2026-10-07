@@ -164,7 +164,18 @@ final ttlResponseCacheProvider = Provider<TtlResponseCache>(
 );
 
 final userRepositoryProvider = Provider<UserRepository>(
-  (ref) => UserRepository(ref.watch(backendApiServiceProvider)),
+  (ref) => UserRepository(
+    ref.watch(backendApiServiceProvider),
+    recordMetric: (event) async {
+      try {
+        await ref.read(firebaseServiceProvider).recordOperationalEvent(event, {
+          'surface': 'mobile',
+        });
+      } catch (_) {
+        /* Firebase may be disabled. */
+      }
+    },
+  ),
 );
 
 final calculatorRepositoryProvider = Provider<CalculatorRepository>(

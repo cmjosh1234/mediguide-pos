@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:user_app/core/network/api_client.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -98,6 +100,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     if (password.isEmpty) {
       return 'Password is required';
+    }
+
+    if (utf8.encode(password).length > 72) {
+      return 'Password is too long';
     }
 
     if (password.length < 8) {
@@ -205,9 +211,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
       TextInput.finishAutofillContext();
 
-      final destination = AppRoutes.safeDestination(_redirect);
+      final destination = AppRoutes.verifyEmail;
 
       AppNavigator.go(destination);
+    } on AccountCreatedSignInRequired {
+      if (!mounted) return;
+      AppMessage.info(
+        context,
+        'Your account was created. Sign in to continue and verify your email.',
+      );
+      AppNavigator.go(AppRoutes.login);
     } catch (_) {
       if (!mounted) {
         return;

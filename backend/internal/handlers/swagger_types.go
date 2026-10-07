@@ -11,6 +11,7 @@ import (
 )
 
 type RegisterRequest struct {
+	PasswordConfirm   string   `json:"password_confirm,omitempty"`
 	Name              string   `json:"name" example:"Admin User"`
 	Email             string   `json:"email" example:"admin@mediguide.local"`
 	Password          string   `json:"password" example:"Admin123!"`

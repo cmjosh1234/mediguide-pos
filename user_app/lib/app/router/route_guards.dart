@@ -16,6 +16,11 @@ String? appRouteGuard(Ref ref, GoRouterState state) {
   final matchedLocation = state.matchedLocation;
   final publicRoute = AppRoutes.isPublic(location);
 
+  // Account-action links must survive first-run onboarding and sign-in redirects.
+  if (matchedLocation == AppRoutes.resetPassword ||
+      matchedLocation == AppRoutes.verifyEmail) {
+    return null;
+  }
   if (!PreferenceUtils.containsKey(SharedPreferencesKeys.notFirstTime) &&
       matchedLocation != AppRoutes.onboarding) {
     return '${AppRoutes.onboarding}?redirect=${Uri.encodeComponent(location)}';

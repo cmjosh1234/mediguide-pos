@@ -1,14 +1,11 @@
 package services
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -20,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type AuthService struct {
@@ -76,6 +74,9 @@ func (s AuthService) RequestPasswordReset(email string) (*AccountActionResult, e
 	result := &AccountActionResult{Accepted: true, DeliveryAccepted: false}
 	var user models.User
 	if err := s.DB.Where("lower(email) = ? AND deleted_at IS NULL", strings.ToLower(strings.TrimSpace(email))).First(&user).Error; err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
 		return result, nil
 	}
 	raw, err := generateRefreshToken()
@@ -84,21 +85,31 @@ func (s AuthService) RequestPasswordReset(email string) (*AccountActionResult, e
 	}
 	token := models.AccountActionToken{
 		UserID: user.ID, Purpose: "password_reset", TokenHash: hashRefreshToken(raw),
-		ExpiresAt: time.Now().Add(time.Hour),
+		ExpiresAt: time.Now().UTC().Add(time.Hour),
 	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
+		var locked models.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND email = ? AND deleted_at IS NULL", user.ID, user.Email).First(&locked).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("user_id = ? AND purpose = ? AND consumed_at IS NULL", user.ID, "password_reset").
 			Delete(&models.AccountActionToken{}).Error; err != nil {
 			return err
 		}
-		return tx.Create(&token).Error
+		if err := tx.Create(&token).Error; err != nil {
+			return err
+		}
+		if err := s.queueAccountEmail(tx, token, raw); err != nil {
+			return err
+		}
+		return accountLifecycleAudit(tx, token.UserID, token.Purpose+"_requested")
 	}); err != nil {
 		return nil, err
 	}
 	if s.Cfg.AppEnv == "development" {
 		result.DevelopmentToken = raw
 	}
-	s.sendAccountEmail(user.Email, "Reset your MediGuide password", "reset-password", raw)
+	s.processAccountEmail(token.ID)
 	return result, nil
 }
 
@@ -106,9 +117,12 @@ func (s AuthService) RequestEmailVerification(email string) (*AccountActionResul
 	result := &AccountActionResult{Accepted: true, DeliveryAccepted: false}
 	var user models.User
 	if err := s.DB.Where("lower(email) = ? AND deleted_at IS NULL", strings.ToLower(strings.TrimSpace(email))).First(&user).Error; err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
 		return result, nil
 	}
-	if user.Verified {
+	if user.EmailVerified {
 		return result, nil
 	}
 	raw, err := generateRefreshToken()
@@ -117,21 +131,31 @@ func (s AuthService) RequestEmailVerification(email string) (*AccountActionResul
 	}
 	token := models.AccountActionToken{
 		UserID: user.ID, Purpose: "email_verification", TokenHash: hashRefreshToken(raw),
-		ExpiresAt: time.Now().Add(24 * time.Hour),
+		ExpiresAt: time.Now().UTC().Add(24 * time.Hour),
 	}
 	if err := s.DB.Transaction(func(tx *gorm.DB) error {
+		var locked models.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND email = ? AND deleted_at IS NULL", user.ID, user.Email).First(&locked).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("user_id = ? AND purpose = ? AND consumed_at IS NULL", user.ID, "email_verification").
 			Delete(&models.AccountActionToken{}).Error; err != nil {
 			return err
 		}
-		return tx.Create(&token).Error
+		if err := tx.Create(&token).Error; err != nil {
+			return err
+		}
+		if err := s.queueAccountEmail(tx, token, raw); err != nil {
+			return err
+		}
+		return accountLifecycleAudit(tx, token.UserID, token.Purpose+"_requested")
 	}); err != nil {
 		return nil, err
 	}
 	if s.Cfg.AppEnv == "development" {
 		result.DevelopmentToken = raw
 	}
-	s.sendAccountEmail(user.Email, "Verify your MediGuide email", "verify-email", raw)
+	s.processAccountEmail(token.ID)
 	return result, nil
 }
 
@@ -139,7 +163,7 @@ func (s AuthService) ConfirmEmailVerification(rawToken string) error {
 	if strings.TrimSpace(rawToken) == "" {
 		return errors.New("invalid or expired verification token")
 	}
-	now := time.Now()
+	now := time.Now().UTC()
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		var token models.AccountActionToken
 		if err := tx.Where(
@@ -148,33 +172,28 @@ func (s AuthService) ConfirmEmailVerification(rawToken string) error {
 		).First(&token).Error; err != nil {
 			return errors.New("invalid or expired verification token")
 		}
+		var user models.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND deleted_at IS NULL", token.UserID).First(&user).Error; err != nil {
+			return errors.New("invalid or expired account token")
+		}
 		result := tx.Model(&models.AccountActionToken{}).
 			Where("id = ? AND consumed_at IS NULL", token.ID).
 			Update("consumed_at", now)
 		if result.Error != nil || result.RowsAffected != 1 {
 			return errors.New("invalid or expired verification token")
 		}
-		if err := tx.Model(&models.User{}).Where("id = ? AND deleted_at IS NULL", token.UserID).
-			Updates(map[string]any{"verified": true, "updated_at": now}).Error; err != nil {
-			return err
+		updated := tx.Model(&models.User{}).Where("id = ? AND deleted_at IS NULL", token.UserID).
+			Updates(map[string]any{"email_verified": true, "updated_at": now})
+		if updated.Error != nil {
+			return updated.Error
+		}
+		if updated.RowsAffected != 1 {
+			return errors.New("invalid or expired verification token")
 		}
 		return tx.Create(&models.AuditLog{
 			ActorID: token.UserID.String(), Action: "user.email_verified",
 			EntityType: "user", EntityID: token.UserID.String(), MetadataJSON: "{}",
 		}).Error
-	})
-}
-
-func (s AuthService) sendAccountEmail(to, subject, path, token string) {
-	if s.Mailer == nil {
-		return
-	}
-	base := strings.TrimRight(strings.TrimSpace(s.Cfg.PublicAppURL), "/")
-	link := fmt.Sprintf("%s/%s?token=%s", base, path, url.QueryEscape(token))
-	// The public response intentionally does not expose this provider outcome.
-	_ = s.Mailer.Send(context.Background(), mailer.Message{
-		To: to, Subject: subject,
-		Text: fmt.Sprintf("Open this link to continue: %s\n\nIf you did not request this action, ignore this message.", link),
 	})
 }
 
@@ -186,7 +205,7 @@ func (s AuthService) ConfirmPasswordReset(rawToken, password string) error {
 	if err != nil {
 		return err
 	}
-	now := time.Now()
+	now := time.Now().UTC()
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		var token models.AccountActionToken
 		if err := tx.Where(
@@ -195,19 +214,30 @@ func (s AuthService) ConfirmPasswordReset(rawToken, password string) error {
 		).First(&token).Error; err != nil {
 			return errors.New("invalid or expired reset token")
 		}
+		var user models.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND deleted_at IS NULL", token.UserID).First(&user).Error; err != nil {
+			return errors.New("invalid or expired account token")
+		}
 		result := tx.Model(&models.AccountActionToken{}).
 			Where("id = ? AND consumed_at IS NULL", token.ID).
 			Update("consumed_at", now)
 		if result.Error != nil || result.RowsAffected != 1 {
 			return errors.New("invalid or expired reset token")
 		}
-		if err := tx.Model(&models.User{}).Where("id = ?", token.UserID).
-			Updates(map[string]any{"password_hash": hash, "updated_at": now}).Error; err != nil {
+		updated := tx.Model(&models.User{}).Where("id = ? AND deleted_at IS NULL", token.UserID).
+			Updates(map[string]any{"password_hash": hash, "updated_at": now})
+		if updated.Error != nil {
+			return updated.Error
+		}
+		if updated.RowsAffected != 1 {
+			return errors.New("invalid or expired reset token")
+		}
+		if err := tx.Model(&models.AuthSession{}).
+			Where("user_id = ? AND revoked_at IS NULL", token.UserID).
+			Update("revoked_at", now).Error; err != nil {
 			return err
 		}
-		return tx.Model(&models.AuthSession{}).
-			Where("user_id = ? AND revoked_at IS NULL", token.UserID).
-			Update("revoked_at", now).Error
+		return accountLifecycleAudit(tx, token.UserID, "password_reset_completed")
 	})
 }
 
@@ -239,7 +269,7 @@ func (s AuthService) ChangePassword(userID uuid.UUID, currentSessionID, currentP
 }
 
 func validAccountPassword(password string) bool {
-	if len(password) < 8 {
+	if len(password) < 8 || len(password) > 72 {
 		return false
 	}
 	var hasLetter, hasNumber bool
@@ -255,6 +285,9 @@ func validAccountPassword(password string) bool {
 }
 
 func (s AuthService) Register(in RegisterInput) (*models.User, error) {
+	if strings.TrimSpace(in.Name) == "" || !validEmail(in.Email) || !validAccountPassword(in.Password) {
+		return nil, errors.New("a name, valid email, and password of at least 8 characters with a letter and number are required")
+	}
 	hash, err := security.HashPassword(in.Password)
 	if err != nil {
 		return nil, err
@@ -283,9 +316,32 @@ func (s AuthService) Register(in RegisterInput) (*models.User, error) {
 		Verified:          false,
 		Status:            "active",
 	}
-	if err := s.DB.Create(&u).Error; err != nil {
-		return nil, err
+	var verificationToken models.AccountActionToken
+	err = s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&u).Error; err != nil {
+			return err
+		}
+		if err := accountLifecycleAudit(tx, u.ID, "account_created"); err != nil {
+			return err
+		}
+		raw, err := generateRefreshToken()
+		if err != nil {
+			return err
+		}
+		verificationToken = models.AccountActionToken{UserID: u.ID, Purpose: "email_verification", TokenHash: hashRefreshToken(raw), ExpiresAt: time.Now().UTC().Add(24 * time.Hour)}
+		if err := tx.Create(&verificationToken).Error; err != nil {
+			return err
+		}
+		if err := s.queueAccountEmail(tx, verificationToken, raw); err != nil {
+			return err
+		}
+		return accountLifecycleAudit(tx, u.ID, "email_verification_requested")
+	})
+	if err != nil {
+		return nil, errors.New("unable to create account; check your details or sign in if you already have an account")
 	}
+	s.processAccountEmail(verificationToken.ID)
+
 	return &u, nil
 }
 
@@ -335,7 +391,7 @@ func (s AuthService) Refresh(refreshToken string, meta RequestMetadata) (*LoginR
 		return nil, errors.New("invalid refresh token")
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	if session.RevokedAt != nil || session.ExpiresAt.Before(now) {
 		return nil, errors.New("refresh token expired")
 	}
@@ -385,7 +441,7 @@ func (s AuthService) Logout(sessionID string) error {
 		return errors.New("invalid session")
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	return s.DB.Model(&models.AuthSession{}).
 		Where("id = ? AND revoked_at IS NULL", sid).
 		Updates(map[string]any{"revoked_at": &now, "updated_at": now}).Error
@@ -399,7 +455,7 @@ func (s AuthService) IsSessionActive(sessionID string) bool {
 
 	var count int64
 	err = s.DB.Model(&models.AuthSession{}).
-		Where("id = ? AND revoked_at IS NULL AND expires_at > ?", sid, time.Now()).
+		Where("id = ? AND revoked_at IS NULL AND expires_at > ?", sid, time.Now().UTC()).
 		Count(&count).Error
 	return err == nil && count > 0
 }
@@ -410,7 +466,7 @@ func (s AuthService) createLoginResult(u *models.User, meta RequestMetadata) (*L
 		return nil, err
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	refreshExpiry := now.Add(time.Duration(s.Cfg.JWTRefreshTTLMinutes) * time.Minute)
 	session := models.AuthSession{
 		UserID:           u.ID,
@@ -465,7 +521,7 @@ func (s AuthService) generateAccessToken(u *models.User, sessionID uuid.UUID) (s
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	return tok, time.Now().Add(time.Duration(s.Cfg.JWTTTLMinutes) * time.Minute), nil
+	return tok, time.Now().UTC().Add(time.Duration(s.Cfg.JWTTTLMinutes) * time.Minute), nil
 }
 
 func (s AuthService) Me(id uuid.UUID) (*models.User, error) {

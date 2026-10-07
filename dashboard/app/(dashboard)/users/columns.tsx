@@ -460,7 +460,7 @@ export const createColumns = (roleOptions: RoleOption[] = []): ExtendedColumnDef
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
-        title="Verified"
+        title="Account Approved"
         canSort={true}
         canFilter={true}
         filterType="boolean"
@@ -470,11 +470,23 @@ export const createColumns = (roleOptions: RoleOption[] = []): ExtendedColumnDef
       const verified = row.original.verified
       return (
         <Badge variant={verified ? 'default' : 'secondary'}>
-          {verified ? 'Verified' : 'Unverified'}
+          {verified ? 'Approved' : 'Not approved'}
         </Badge>
       )
     },
     enableSorting: true,
+  },
+
+  {
+    accessorKey: "email_verified",
+    header: "Email Verified",
+    cell: ({ row }) => (
+      <Badge variant={row.original.email_verified ? 'default' : 'secondary'}>
+        {row.original.email_verified ? 'Verified' : 'Unverified'}
+      </Badge>
+    ),
+    enableSorting: false,
+    enableColumnFilter: false,
   },
 
   {

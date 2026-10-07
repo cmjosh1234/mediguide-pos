@@ -30,7 +30,7 @@ func TestPasswordResetIsHashedSingleUseAndRevokesSessions(t *testing.T) {
 	service, user := testPasswordResetService(t)
 	session := models.AuthSession{
 		UserID: user.ID, RefreshTokenHash: uuid.NewString(),
-		ExpiresAt: time.Now().Add(time.Hour),
+		ExpiresAt: time.Now().UTC().Add(time.Hour),
 	}
 	if err := service.DB.Create(&session).Error; err != nil {
 		t.Fatal(err)
@@ -77,7 +77,7 @@ func TestPasswordResetRejectsExpiredAndWeakCredentials(t *testing.T) {
 	raw := "expired-reset-token"
 	token := models.AccountActionToken{
 		UserID: user.ID, Purpose: "password_reset", TokenHash: hashRefreshToken(raw),
-		ExpiresAt: time.Now().Add(-time.Minute),
+		ExpiresAt: time.Now().UTC().Add(-time.Minute),
 	}
 	if err := service.DB.Create(&token).Error; err != nil {
 		t.Fatal(err)
@@ -137,7 +137,7 @@ func TestEmailVerificationIsHashedSingleUseAndAudited(t *testing.T) {
 	if err := service.DB.First(&user, "id = ?", user.ID).Error; err != nil {
 		t.Fatal(err)
 	}
-	if !user.Verified {
+	if !user.EmailVerified {
 		t.Fatal("expected user to be verified")
 	}
 	var audit models.AuditLog
@@ -164,7 +164,7 @@ func TestEmailVerificationRejectsExpiredToken(t *testing.T) {
 	raw := "expired-verification-token"
 	if err := service.DB.Create(&models.AccountActionToken{
 		UserID: user.ID, Purpose: "email_verification", TokenHash: hashRefreshToken(raw),
-		ExpiresAt: time.Now().Add(-time.Minute),
+		ExpiresAt: time.Now().UTC().Add(-time.Minute),
 	}).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -175,8 +175,8 @@ func TestEmailVerificationRejectsExpiredToken(t *testing.T) {
 
 func TestChangePasswordChecksCurrentPasswordAndRevokesOtherSessions(t *testing.T) {
 	service, user := testPasswordResetService(t)
-	current := models.AuthSession{UserID: user.ID, RefreshTokenHash: uuid.NewString(), ExpiresAt: time.Now().Add(time.Hour)}
-	other := models.AuthSession{UserID: user.ID, RefreshTokenHash: uuid.NewString(), ExpiresAt: time.Now().Add(time.Hour)}
+	current := models.AuthSession{UserID: user.ID, RefreshTokenHash: uuid.NewString(), ExpiresAt: time.Now().UTC().Add(time.Hour)}
+	other := models.AuthSession{UserID: user.ID, RefreshTokenHash: uuid.NewString(), ExpiresAt: time.Now().UTC().Add(time.Hour)}
 	if err := service.DB.Create(&current).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func testPasswordResetService(t *testing.T) (AuthService, models.User) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := database.AutoMigrate(&models.User{}, &models.AccountActionToken{}, &models.AuthSession{}, &models.AuditLog{}); err != nil {
+	if err := database.AutoMigrate(&models.User{}, &models.AccountEmailDelivery{}, &models.AccountActionToken{}, &models.AuditLog{}, &models.AuthSession{}); err != nil {
 		t.Fatal(err)
 	}
 	hash, err := security.HashPassword("OriginalPassword8")

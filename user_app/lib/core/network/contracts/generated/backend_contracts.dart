@@ -707,6 +707,80 @@ final class HandlersAccountDeletionRequest {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class HandlersAccountEmailStatusCount {
+  HandlersAccountEmailStatusCount(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersAccountEmailStatusCount.fromJson(Map<String, dynamic> json) =>
+      HandlersAccountEmailStatusCount(json);
+
+  static const schemaName = 'handlers.AccountEmailStatusCount';
+  final Map<String, dynamic> value;
+
+  int? get count => (value['count'] as num?)?.toInt();
+
+  String? get status => value['status']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class HandlersAccountLifecycleEventCount {
+  HandlersAccountLifecycleEventCount(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersAccountLifecycleEventCount.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersAccountLifecycleEventCount(json);
+
+  static const schemaName = 'handlers.AccountLifecycleEventCount';
+  final Map<String, dynamic> value;
+
+  int? get count => (value['count'] as num?)?.toInt();
+
+  String? get event => value['event']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class HandlersAccountLifecycleResponse {
+  HandlersAccountLifecycleResponse(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersAccountLifecycleResponse.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersAccountLifecycleResponse(json);
+
+  static const schemaName = 'handlers.AccountLifecycleResponse';
+  final Map<String, dynamic> value;
+
+  String? get emailDeliverySemantics =>
+      value['email_delivery_semantics']?.toString();
+
+  List<HandlersAccountEmailStatusCount> get emailQueue {
+    final raw = value['email_queue'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => HandlersAccountEmailStatusCount.fromJson(_jsonMap(item)))
+        .toList(growable: false);
+  }
+
+  List<HandlersAccountLifecycleEventCount> get events {
+    final raw = value['events'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map(
+          (item) => HandlersAccountLifecycleEventCount.fromJson(_jsonMap(item)),
+        )
+        .toList(growable: false);
+  }
+
+  String? get since => value['since']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class HandlersAskEnvelope {
   HandlersAskEnvelope(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -5412,6 +5486,8 @@ final class HandlersRegisterRequest {
 
   String? get password => value['password']?.toString();
 
+  String? get passwordConfirm => value['password_confirm']?.toString();
+
   String? get phone => value['phone']?.toString();
 
   String? get postalCode => value['postal_code']?.toString();
@@ -8686,6 +8762,8 @@ final class ModelsUser {
   String? get department => value['department']?.toString();
 
   String? get email => value['email']?.toString();
+
+  bool? get emailVerified => value['email_verified'] as bool?;
 
   String? get facilityId => value['facility_id']?.toString();
 
@@ -17207,6 +17285,8 @@ final class ServicesUserView {
   String? get department => value['department']?.toString();
 
   String? get email => value['email']?.toString();
+
+  bool? get emailVerified => value['email_verified'] as bool?;
 
   String? get facilityId => value['facility_id']?.toString();
 

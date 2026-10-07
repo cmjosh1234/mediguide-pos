@@ -1124,7 +1124,7 @@ export type SubcountiesResponse<Texpand = unknown> = Required<SubcountiesRecord>
 export type SupportTicketRepliesResponse<Texpand = unknown> = Required<SupportTicketRepliesRecord> & BaseSystemFields<Texpand>
 export type SupportTicketsResponse<Texpand = unknown> = Required<SupportTicketsRecord> & BaseSystemFields<Texpand>
 export type TherapeuticCategoriesResponse<Texpand = unknown> = Required<TherapeuticCategoriesRecord> & BaseSystemFields<Texpand>
-export type UsersResponse<Texpand = unknown> = Required<UsersRecord> & AuthSystemFields<Texpand>
+export type UsersResponse<Texpand = unknown> = Required<UsersRecord> & AuthSystemFields<Texpand> & { email_verified?: boolean }
 
 // Types containing all Records and Responses, useful for creating typing helper functions
 

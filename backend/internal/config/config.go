@@ -9,26 +9,26 @@ import (
 )
 
 type Config struct {
-	AppName                string
-	AppEnv                 string
-	Port                   string
-	LegacyClinicalToolsDir string
-	DatabaseURL            string
-	JWTSecret              string
-	JWTIssuer              string
-	JWTTTLMinutes          int
-	JWTRefreshTTLMinutes   int
-	StorageDriver          string
-	S3Endpoint             string
-	S3PublicEndpoint       string
-	S3PublicSSL            bool
-	GuidelineDirectUploads bool
-	S3AccessKey            string
-	S3SecretKey            string
-	S3Bucket               string
-	S3UseSSL               bool
-	S3PresignMinutes       int
-	MaxUploadMB            int64
+	AppName                   string
+	AppEnv                    string
+	Port                      string
+	LegacyClinicalToolsDir    string
+	DatabaseURL               string
+	JWTSecret                 string
+	JWTIssuer                 string
+	JWTTTLMinutes             int
+	JWTRefreshTTLMinutes      int
+	StorageDriver             string
+	S3Endpoint                string
+	S3PublicEndpoint          string
+	S3PublicSSL               bool
+	GuidelineDirectUploads    bool
+	S3AccessKey               string
+	S3SecretKey               string
+	S3Bucket                  string
+	S3UseSSL                  bool
+	S3PresignMinutes          int
+	MaxUploadMB               int64
 	AIRAGProvider             string
 	AIWorkerGRPCAddr          string
 	AIWorkerTimeoutSecs       int
@@ -39,8 +39,10 @@ type Config struct {
 	// Comma-separated list of allowed CORS origins (use "*" for local dev only).
 	AllowedOrigins                  string
 	PublicAppURL                    string
+	AccountActionURL                string
 	MailDriver                      string
 	MailFrom                        string
+	ResendAPIKey                    string
 	SMTPHost                        string
 	SMTPPort                        int
 	SMTPUsername                    string
@@ -89,17 +91,19 @@ func Load() Config {
 		S3Bucket:                        get("S3_BUCKET", "mediguide"),
 		S3UseSSL:                        getBool("S3_USE_SSL", false),
 		S3PresignMinutes:                getInt("S3_PRESIGN_MINUTES", 60),
-			MaxUploadMB:                     int64(getInt("MAX_UPLOAD_MB", 100)),
-			AIRAGProvider:                    get("AI_RAG_PROVIDER", "local"),
-			AIWorkerGRPCAddr:                 get("AI_WORKER_GRPC_ADDR", ""),
-			AIWorkerTimeoutSecs:              getInt("AI_WORKER_TIMEOUT_SECONDS", 120),
-			AIWorkerGRPCRetries:              getInt("AI_WORKER_GRPC_RETRIES", 1),
-			AIWorkerHealthTimeoutSecs:        getInt("AI_WORKER_GRPC_HEALTH_TIMEOUT_SECONDS", 2),
+		MaxUploadMB:                     int64(getInt("MAX_UPLOAD_MB", 100)),
+		AIRAGProvider:                   get("AI_RAG_PROVIDER", "local"),
+		AIWorkerGRPCAddr:                get("AI_WORKER_GRPC_ADDR", ""),
+		AIWorkerTimeoutSecs:             getInt("AI_WORKER_TIMEOUT_SECONDS", 120),
+		AIWorkerGRPCRetries:             getInt("AI_WORKER_GRPC_RETRIES", 1),
+		AIWorkerHealthTimeoutSecs:       getInt("AI_WORKER_GRPC_HEALTH_TIMEOUT_SECONDS", 2),
 		AIWorkerSecret:                  get("AI_WORKER_SECRET", ""),
 		AllowedOrigins:                  get("ALLOWED_ORIGINS", "http://localhost:3000,*"), // Adjust for production domains
 		PublicAppURL:                    get("PUBLIC_APP_URL", "http://localhost:3000"),
+		AccountActionURL:                get("ACCOUNT_ACTION_URL", ""),
 		MailDriver:                      get("MAIL_DRIVER", "disabled"),
 		MailFrom:                        get("MAIL_FROM", ""),
+		ResendAPIKey:                    get("RESEND_API_KEY", ""),
 		SMTPHost:                        get("SMTP_HOST", ""),
 		SMTPPort:                        getInt("SMTP_PORT", 587),
 		SMTPUsername:                    get("SMTP_USERNAME", ""),

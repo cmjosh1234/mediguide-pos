@@ -22,6 +22,65 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/analytics/accounts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Account lifecycle analytics",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Lookback in days (1–90, default 30)",
+                        "name": "days",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httpx.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.AccountLifecycleResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/public/abbreviations": {
             "get": {
                 "tags": [
@@ -18707,6 +18766,51 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.AccountEmailStatusCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.AccountLifecycleEventCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "event": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.AccountLifecycleResponse": {
+            "type": "object",
+            "properties": {
+                "email_delivery_semantics": {
+                    "type": "string"
+                },
+                "email_queue": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.AccountEmailStatusCount"
+                    }
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.AccountLifecycleEventCount"
+                    }
+                },
+                "since": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.AskEnvelope": {
             "type": "object",
             "properties": {
@@ -21666,6 +21770,9 @@ const docTemplate = `{
                 "password": {
                     "type": "string",
                     "example": "Admin123!"
+                },
+                "password_confirm": {
+                    "type": "string"
                 },
                 "phone": {
                     "type": "string",
@@ -24919,6 +25026,9 @@ const docTemplate = `{
                 },
                 "email": {
                     "type": "string"
+                },
+                "email_verified": {
+                    "type": "boolean"
                 },
                 "facility_id": {
                     "type": "string"
@@ -32622,6 +32732,9 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
+                "email_verified": {
+                    "type": "boolean"
+                },
                 "facility_id": {
                     "type": "string"
                 },
@@ -32714,7 +32827,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "2.1.12",
+	Version:          "2.1.13",
 	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},

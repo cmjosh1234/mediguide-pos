@@ -14,6 +14,7 @@ abstract class User with _$User {
     @Default('') String email,
     @JsonKey(name: 'email_visibility') @Default(false) bool emailVisibility,
     @Default(false) bool verified,
+    @JsonKey(name: 'email_verified') @Default(false) bool emailVerified,
     @Default('') String phone,
     @JsonKey(name: 'alternative_phone') @Default('') String alternativePhone,
     @Default('') String address,

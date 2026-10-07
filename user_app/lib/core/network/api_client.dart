@@ -11,6 +11,12 @@ import 'package:user_app/shared/models/models.dart';
 
 export 'api_exception.dart';
 
+class AccountCreatedSignInRequired implements Exception {
+  const AccountCreatedSignInRequired();
+  @override
+  String toString() => 'Your account was created. Please sign in to continue.';
+}
+
 class BackendApiService {
   BackendApiService({
     Dio? dio,
@@ -69,9 +75,13 @@ class BackendApiService {
     required String passwordConfirm,
     Map<String, dynamic>? additionalData,
   }) async {
+    if (password != passwordConfirm) {
+      throw ArgumentError('Passwords do not match');
+    }
     final payload = _normalizeOutgoingPayload({
       'email': email,
       'password': password,
+      'password_confirm': passwordConfirm,
       ...?additionalData,
     });
 
@@ -87,7 +97,11 @@ class BackendApiService {
       includeAuth: false,
     );
 
-    return login(email: email, password: password);
+    try {
+      return await login(email: email, password: password);
+    } catch (_) {
+      throw const AccountCreatedSignInRequired();
+    }
   }
 
   Future<User> login({

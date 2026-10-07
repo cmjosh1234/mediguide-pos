@@ -48,6 +48,14 @@ func TestVerifyUserPersistsAuditEvent(t *testing.T) {
 	if err := database.Where("entity_id = ? AND action = ?", user.ID.String(), "user.verified").First(&audit).Error; err != nil {
 		t.Fatal(err)
 	}
+	if _, err := (UserService{DB: database}).VerifyUser(user.ID, actorID, "127.0.0.1"); err != nil {
+		t.Fatal(err)
+	}
+	var count int64
+	database.Model(&models.AuditLog{}).Where("entity_id = ? AND action = ?", user.ID.String(), "user.verified").Count(&count)
+	if count != 1 {
+		t.Fatal("repeated approval inflated lifecycle counts")
+	}
 	if audit.ActorID != actorID.String() || audit.IPAddress != "127.0.0.1" {
 		t.Fatalf("unexpected verification audit event: %#v", audit)
 	}

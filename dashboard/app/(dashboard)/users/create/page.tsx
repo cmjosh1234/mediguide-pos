@@ -30,7 +30,7 @@ const createUserSchemaFn = (validateRole: (key: string) => boolean) => z.object(
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(1, "Phone number is required").regex(/^[+]?[0-9\s\-\(\)]{7,20}$/, "Invalid phone format"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").regex(/[A-Za-z]/, "Include a letter").regex(/[0-9]/, "Include a number").refine(value => new TextEncoder().encode(value).length <= 72, "Password is too long"),
   passwordConfirm: z.string(),
   role: z.string().min(1, "Role is required").refine(validateRole, { message: "Invalid role selected" }),
   status: z.nativeEnum(UsersStatusOptions),

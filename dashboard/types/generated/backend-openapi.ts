@@ -204,6 +204,23 @@ export interface HandlersAccountDeletionRequest {
   current_password: string;
 }
 
+export interface HandlersAccountEmailStatusCount {
+  count?: number;
+  status?: string;
+}
+
+export interface HandlersAccountLifecycleEventCount {
+  count?: number;
+  event?: string;
+}
+
+export interface HandlersAccountLifecycleResponse {
+  email_delivery_semantics?: string;
+  email_queue?: HandlersAccountEmailStatusCount[];
+  events?: HandlersAccountLifecycleEventCount[];
+  since?: string;
+}
+
 export interface HandlersAskEnvelope {
   data?: ServicesAskResponse;
   /** @example true */
@@ -1491,6 +1508,7 @@ export interface HandlersRegisterRequest {
   organization?: string;
   /** @example "Admin123!" */
   password?: string;
+  password_confirm?: string;
   /** @example "+256700000001" */
   phone?: string;
   /** @example "256" */
@@ -2715,6 +2733,7 @@ export interface ModelsUser {
   created_at?: string;
   department?: string;
   email?: string;
+  email_verified?: boolean;
   facility_id?: string;
   id?: string;
   is_active?: boolean;
@@ -5463,6 +5482,7 @@ export interface ServicesUserView {
   created_at?: string;
   department?: string;
   email?: string;
+  email_verified?: boolean;
   facility_id?: string;
   id?: string;
   is_active?: boolean;

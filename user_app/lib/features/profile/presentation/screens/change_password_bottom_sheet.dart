@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:user_app/core/config/app_keys.dart';
@@ -211,6 +212,17 @@ class _ChangePasswordBottomSheetState
                         8,
                         errorText: AppTranslationKey.passwordMinLength.tr,
                       ),
+                      (value) {
+                        final password = value ?? '';
+                        if (utf8.encode(password).length > 72) {
+                          return 'Password is too long';
+                        }
+                        if (!RegExp('[A-Za-z]').hasMatch(password) ||
+                            !RegExp('[0-9]').hasMatch(password)) {
+                          return 'Include a letter and number';
+                        }
+                        return null;
+                      },
                       _validateNewPasswordDifferent,
                     ]),
                     textInputAction: TextInputAction.next,

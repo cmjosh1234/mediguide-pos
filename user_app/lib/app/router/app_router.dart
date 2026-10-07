@@ -14,6 +14,7 @@ import 'package:user_app/features/authentication/presentation/screens/forgot_pas
 import 'package:user_app/features/authentication/presentation/screens/login_page.dart';
 import 'package:user_app/features/authentication/presentation/screens/onboarding_page.dart';
 import 'package:user_app/features/authentication/presentation/screens/register_page.dart';
+import 'package:user_app/features/authentication/presentation/screens/account_action_page.dart';
 
 import 'package:user_app/features/abbreviations/presentation/screens/abbreviations_page.dart';
 import 'package:user_app/features/ai_assistant/presentation/screens/ai_assistant_page.dart';
@@ -78,6 +79,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.forgotPassword,
         builder: (_, _) => const ForgotPasswordPage(),
+      ),
+
+      GoRoute(
+        path: AppRoutes.resetPassword,
+        builder: (_, state) => AccountActionPage(
+          verification: false,
+          token: state.uri.queryParameters['token'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.verifyEmail,
+        builder: (_, state) => AccountActionPage(
+          verification: true,
+          token: state.uri.queryParameters['token'] ?? '',
+        ),
       ),
 
       GoRoute(

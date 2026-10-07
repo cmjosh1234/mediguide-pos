@@ -1,6 +1,7 @@
 *.md
 !docs/guideline-collections.md
 !docs/release-process.md
+!docs/account-lifecycle.md
 !docs/releases/**/*.md
 !README.md
 !**/README.md

@@ -1,5 +1,7 @@
+import ast
 import importlib.util
 from pathlib import Path
+import re
 import tempfile
 import unittest
 
@@ -18,6 +20,38 @@ checker = load("check_public_storage", "check-public-storage.py")
 
 
 class ProductionEnvironmentToolsTest(unittest.TestCase):
+    def test_fills_missing_keys_without_overwriting_existing_credentials_or_blanks(self):
+        source = b'JWT_SECRET="private $value=#"\nSMTP_PASSWORD=\n'
+        defaults = b'JWT_SECRET=template-placeholder\nSMTP_PASSWORD=template-placeholder\nACCOUNT_ACTION_URL=https://example.test/admin\n'
+        result = organizer.assignments(organizer.organize(source, defaults))
+        self.assertEqual(result["JWT_SECRET"], b'"private $value=#"')
+        self.assertEqual(result["SMTP_PASSWORD"], b"")
+        self.assertEqual(result["ACCOUNT_ACTION_URL"], b"https://example.test/admin")
+
+    def test_backend_template_covers_runtime_configuration(self):
+        source = (ROOT / "backend/internal/config/config.go").read_text()
+        keys = organizer.assignments((ROOT / "backend/.env.example").read_bytes())
+        for key in re.findall(r'\bget(?:Int|Bool|CSV|CSVWithFallback)?\("([A-Z][A-Z0-9_]*)"', source):
+            self.assertIn(key, keys, f"Backend template is missing {key}")
+        for aliases in re.findall(r'get(?:Int)?Any\(\[\]string\{([^}]+)\}', source):
+            self.assertTrue(set(re.findall(r'"([A-Z][A-Z0-9_]*)"', aliases)) & keys.keys())
+
+    def test_worker_template_covers_pydantic_settings(self):
+        source = ast.parse((ROOT / "ai-worker/app/core/config.py").read_text())
+        settings = next(node for node in source.body if isinstance(node, ast.ClassDef) and node.name == "Settings")
+        keys = organizer.assignments((ROOT / "ai-worker/.env.example").read_bytes())
+        for field in settings.body:
+            if not isinstance(field, ast.AnnAssign) or field.target.id == "model_config":
+                continue
+            choices = {field.target.id.upper()}
+            if isinstance(field.value, ast.Call):
+                alias = next((arg.value for arg in field.value.keywords if arg.arg == "validation_alias"), None)
+                if isinstance(alias, ast.Constant):
+                    choices = {alias.value}
+                elif isinstance(alias, ast.Call):
+                    choices = {arg.value for arg in alias.args}
+            self.assertTrue(choices & keys.keys(), f"Worker template is missing one of {sorted(choices)}")
+
     def test_preserves_opaque_credential_bytes_and_effective_duplicate_values(self):
         source = b'JWT_SECRET="opaque $value=#=\\n"\nSMTP_PASSWORD=opaque=credential\nS3_PUBLIC_SSL=false\nS3_PUBLIC_SSL=true\n'
         result = organizer.organize(source)

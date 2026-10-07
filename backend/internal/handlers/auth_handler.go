@@ -30,6 +30,10 @@ func (h AuthHandler) Register(c *gin.Context) {
 		httpx.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
+	if req.PasswordConfirm != "" && req.Password != req.PasswordConfirm {
+		httpx.Error(c, http.StatusBadRequest, "passwords do not match")
+		return
+	}
 	u, err := h.Service.Register(services.RegisterInput{
 		Name:              req.Name,
 		Email:             req.Email,

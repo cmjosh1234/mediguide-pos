@@ -24,6 +24,7 @@ type User struct {
 	Notes             *string    `json:"notes,omitempty"`
 	Specialization    StringList `gorm:"type:jsonb;column:specialization_json" json:"specialization,omitempty" swaggertype:"array,string"`
 	Avatar            *string    `json:"avatar,omitempty"`
+	EmailVerified     bool       `gorm:"default:false" json:"email_verified"`
 	Verified          bool       `gorm:"default:false" json:"verified"`
 	Status            string     `json:"status"`
 	Roles             []Role     `gorm:"many2many:user_roles;" json:"roles,omitempty"`
