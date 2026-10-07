@@ -44,26 +44,23 @@ class _UseCalculatorPageState extends ConsumerState<UseCalculatorPage> {
   Widget build(BuildContext context) {
     final provider = useCalculatorControllerProvider(_request);
     final asyncState = ref.watch(provider);
-    final calculator = asyncState.valueOrNull?.calculator;
+    final calculator =
+        asyncState.valueOrNull?.calculator ?? _request.calculator;
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: AppSpacing.md,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              calculator?.name ?? 'Clinical Tool',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (calculator != null)
-              Text(
-                'Reviewed JSON schema',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-          ],
+        titleSpacing: AppSpacing.sm,
+        toolbarHeight: calculator == null
+            ? kToolbarHeight
+            : _CalculatorContextBar.height(context, calculator),
+        title: calculator == null
+            ? const Text('Clinical tool')
+            : _CalculatorContextBar(calculator: calculator),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(
+            height: 1,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
         actions: [
           IconButton(
@@ -84,17 +81,10 @@ class _UseCalculatorPageState extends ConsumerState<UseCalculatorPage> {
               'A clinically reviewed JSON-schema version has not been published for this tool, or its cached schema is unavailable.',
           onRetry: () => ref.invalidate(provider),
         ),
-        data: (state) => Column(
-          children: [
-            _CalculatorContextBar(calculator: state.calculator),
-            Expanded(
-              child: NativeClinicalTool(
-                definition: state.definition.definition,
-                initialValues: state.responses,
-                onChanged: ref.read(provider.notifier).saveResponses,
-              ),
-            ),
-          ],
+        data: (state) => NativeClinicalTool(
+          definition: state.definition.definition,
+          initialValues: state.responses,
+          onChanged: ref.read(provider.notifier).saveResponses,
         ),
       ),
     );

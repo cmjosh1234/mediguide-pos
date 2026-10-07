@@ -7,76 +7,316 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:user_app/app/router/app_router.dart';
 import 'package:user_app/core/utils/app_message.dart';
 import 'package:user_app/core/widgets/app_skeleton.dart';
+import 'package:user_app/core/widgets/app_error_view.dart';
 import 'package:user_app/core/widgets/empty_state.dart' as states;
 import 'package:user_app/features/discovery/data/models/discovery_models.dart';
+import 'package:user_app/features/discovery/presentation/widgets/discovery_detail_widgets.dart';
+import 'package:user_app/features/outbreaks/data/models/outbreak_models.dart';
+import 'package:user_app/features/outbreaks/presentation/widgets/outbreak_metrics.dart';
+import 'package:intl/intl.dart';
 
 class HubTile extends StatelessWidget {
   const HubTile(this.hub, {super.key});
   final DiscoveryHub hub;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: ListTile(
-      leading: const Icon(LucideIcons.layoutGrid),
-      title: Text(hub.name),
-      subtitle: Text(
-        [
-          if (hub.diseases.isNotEmpty)
-            hub.diseases.map((disease) => disease.name).join(', '),
-          if (hub.outbreak != null) 'Outbreak response',
-          hub.description,
-        ].where((value) => value.isNotEmpty).join(' · '),
-        maxLines: 3,
-        overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final outbreak = hub.outbreak != null;
+    final topic = hub.diseases.map((disease) => disease.name).join(', ');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: colors.outlineVariant),
+        ),
+        child: InkWell(
+          onTap: () => context.push(AppRoutes.hub(hub.slug)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: outbreak
+                        ? colors.tertiaryContainer
+                        : colors.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    outbreak ? LucideIcons.shieldPlus : LucideIcons.bookOpen,
+                    color: outbreak
+                        ? colors.onTertiaryContainer
+                        : colors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hub.name,
+                        style: text.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (topic.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          topic,
+                          style: text.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: outbreak
+                              ? colors.tertiaryContainer
+                              : colors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          outbreak ? 'Outbreak response' : 'Clinical resources',
+                          style: text.labelSmall?.copyWith(
+                            color: outbreak
+                                ? colors.onTertiaryContainer
+                                : colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  LucideIcons.chevronRight,
+                  color: colors.onSurfaceVariant,
+                  size: 18,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      trailing: const Icon(LucideIcons.chevronRight),
-      onTap: () => context.push(AppRoutes.hub(hub.slug)),
-    ),
-  );
+    );
+  }
+}
+
+class _DiscoveryTopicTile extends StatelessWidget {
+  const _DiscoveryTopicTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String title, subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colors.outlineVariant),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        minVerticalPadding: 10,
+        horizontalTitleGap: 12,
+        leading: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: colors.primary, size: 19),
+        ),
+        title: Text(
+          title,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        subtitle: subtitle.isEmpty
+            ? null
+            : Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  subtitle,
+                  maxLines: MediaQuery.textScalerOf(context).scale(14) > 20
+                      ? null
+                      : 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+        trailing: Icon(
+          LucideIcons.chevronRight,
+          color: colors.onSurfaceVariant,
+          size: 20,
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
 }
 
 class ResourceTile extends StatelessWidget {
   const ResourceTile(this.resource, {super.key});
   final DiscoveryResource resource;
 
+  void open(BuildContext context) {
+    if (resource.contentType == 'approved_external_url') {
+      unawaited(_openApprovedExternalResource(context, resource));
+      return;
+    }
+    final route = mobileRoute(resource);
+    if (route == null) {
+      AppMessage.info(
+        context,
+        'A reader for this resource is not available yet.',
+      );
+      return;
+    }
+    context.push(route);
+  }
+
   @override
-  Widget build(BuildContext context) => Card(
-    child: ListTile(
-      leading: const Icon(LucideIcons.fileText),
-      title: Text(resource.title),
-      subtitle: Text(
-        [
-          resource.contentType.replaceAll('_', ' '),
-          resource.source,
-          if (resource.version.isNotEmpty) 'Version ${resource.version}',
-          if (resource.publicationDate.isNotEmpty)
-            'Published ${shortDate(resource.publicationDate)}',
-          if (resource.effectiveAt.isNotEmpty)
-            'Effective ${shortDate(resource.effectiveAt)}',
-          if (resource.reviewAt.isNotEmpty)
-            'Review ${shortDate(resource.reviewAt)}',
-          if (resource.expiresAt.isNotEmpty)
-            'Expires ${shortDate(resource.expiresAt)}',
-          if (resource.provenance.isNotEmpty) 'Source: ${resource.provenance}',
-        ].where((value) => value.isNotEmpty).join(' · '),
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final details = [
+      if (resource.version.isNotEmpty) 'Version ${resource.version}',
+      if (resource.effectiveAt.isNotEmpty)
+        'Effective ${_readableDate(resource.effectiveAt)}',
+      if (resource.reviewAt.isNotEmpty)
+        'Review due ${_readableDate(resource.reviewAt)}',
+      if (resource.expiresAt.isNotEmpty)
+        'Expires ${_readableDate(resource.expiresAt)}',
+      if (resource.provenance.isNotEmpty) 'Source: ${resource.provenance}',
+    ];
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colors.outlineVariant),
       ),
-      onTap: () {
-        if (resource.contentType == 'approved_external_url') {
-          unawaited(_openApprovedExternalResource(context, resource));
-          return;
-        }
-        final route = mobileRoute(resource);
-        if (route == null) {
-          AppMessage.info(
-            context,
-            'A reader for this resource is not available yet.',
-          );
-          return;
-        }
-        context.push(route);
-      },
-    ),
-  );
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => open(context),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        LucideIcons.fileText,
+                        size: 18,
+                        color: colors.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          resourceTypeLabel(resource.contentType),
+                          style: text.labelMedium?.copyWith(
+                            color: colors.primary,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        resource.contentType == 'approved_external_url'
+                            ? LucideIcons.externalLink
+                            : LucideIcons.chevronRight,
+                        size: 18,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    resource.title,
+                    style: text.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (resource.source.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      resource.source,
+                      style: text.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (resource.publicationDate.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Published ${_readableDate(resource.publicationDate)}',
+                      style: text.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (details.isNotEmpty)
+            ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+              title: Text('Source and review details', style: text.bodySmall),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final detail in details)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(
+                      detail,
+                      style: text.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+String _readableDate(String value) {
+  final date = DateTime.tryParse(value);
+  return date == null ? value : DateFormat('d MMM y').format(date);
 }
 
 Future<void> _openApprovedExternalResource(
@@ -119,43 +359,66 @@ class OutbreakBanner extends StatelessWidget {
   final Map<String, dynamic> value;
 
   @override
-  Widget build(BuildContext context) => Card(
-    color: Theme.of(context).colorScheme.errorContainer,
-    child: Padding(
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final metrics = (value['metrics'] as List? ?? const [])
+        .whereType<Map>()
+        .where((metric) => '${metric['label'] ?? ''}'.trim().isNotEmpty)
+        .map(
+          (metric) => OutbreakMetric(
+            label: '${metric['label']}',
+            value: '${metric['value'] ?? metric['numeric_value'] ?? ''}',
+            unit: '${metric['unit'] ?? ''}',
+          ),
+        )
+        .toList();
+    final status = '${value['status'] ?? ''}'.replaceAll('_', ' ');
+    return Container(
       padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.errorContainer.withValues(alpha: .35),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.outlineVariant),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'ACTIVE OUTBREAK · ${value['status'] ?? ''}',
-            style: const TextStyle(fontWeight: FontWeight.w800),
+          Row(
+            children: [
+              Icon(LucideIcons.siren, size: 18, color: colors.error),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  status == 'active' ? 'Active outbreak' : 'Outbreak update',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(color: colors.error),
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 8),
           Text(
             '${value['title'] ?? ''}',
-            style: Theme.of(context).textTheme.titleLarge,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
-          Text('${value['geographic_area'] ?? ''}'),
-          if (value['metrics'] is List)
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: (value['metrics'] as List)
-                  .whereType<Map>()
-                  .expand(
-                    (metric) => metric.entries.map(
-                      (entry) => Chip(
-                        label: Text(
-                          '${entry.value} ${entry.key.toString().replaceAll('_', ' ')}',
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
+          if ('${value['geographic_area'] ?? ''}'.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${value['geographic_area']}',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
+          ],
+          if (metrics.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            OutbreakMetricGrid(metrics: metrics, compact: true),
+          ],
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 class SectionHeading extends StatelessWidget {
@@ -169,7 +432,7 @@ class SectionHeading extends StatelessWidget {
       text,
       style: Theme.of(
         context,
-      ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
     ),
   );
 }
@@ -179,15 +442,17 @@ class DiscoverySkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AppShimmer(
-    child: ListView(
-      padding: const EdgeInsets.all(16),
-      children: const [
-        AppSkeleton(height: 44),
-        SizedBox(height: 16),
-        AppSkeleton(height: 120),
-        SizedBox(height: 12),
-        AppSkeleton(height: 120),
-      ],
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        children: const [
+          AppSkeleton(height: 44),
+          SizedBox(height: 16),
+          AppSkeleton(height: 120),
+          SizedBox(height: 12),
+          AppSkeleton(height: 120),
+        ],
+      ),
     ),
   );
 }
@@ -197,8 +462,10 @@ class ErrorState extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: FilledButton(onPressed: onRetry, child: const Text('Try again')),
+  Widget build(BuildContext context) => AppErrorView(
+    error: 'Unable to load this content.',
+    message: 'Check your connection and try again.',
+    onRetry: onRetry,
   );
 }
 
@@ -252,20 +519,11 @@ List<Widget> diseaseTiles(
     for (final disease in rows) ...[
       Padding(
         padding: EdgeInsets.only(left: depth * 18.0),
-        child: Card(
-          child: ListTile(
-            leading: const Icon(LucideIcons.activity),
-            title: Text(disease.name),
-            subtitle: disease.description.isEmpty
-                ? null
-                : Text(
-                    disease.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-            trailing: const Icon(LucideIcons.chevronRight),
-            onTap: () => context.push(AppRoutes.disease(disease.slug)),
-          ),
+        child: _DiscoveryTopicTile(
+          icon: LucideIcons.activity,
+          title: disease.name,
+          subtitle: disease.description,
+          onTap: () => context.push(AppRoutes.disease(disease.slug)),
         ),
       ),
       ...diseaseTiles(

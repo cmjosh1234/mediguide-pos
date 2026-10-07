@@ -23,7 +23,7 @@ final class DebugToolsOverlay extends ConsumerStatefulWidget {
 }
 
 final class _DebugToolsOverlayState extends ConsumerState<DebugToolsOverlay> {
-  Offset? _position;
+  double? _top;
   String _version = '';
 
   @override
@@ -39,37 +39,38 @@ final class _DebugToolsOverlayState extends ConsumerState<DebugToolsOverlay> {
   @override
   Widget build(BuildContext context) {
     if (!AppConfig.current.debugToolsEnabled) return widget.child;
+    if (MediaQuery.viewInsetsOf(context).bottom > 0) return widget.child;
     return LayoutBuilder(
       builder: (context, constraints) {
         const badgeWidth = 96.0;
         const badgeHeight = 58.0;
-        final safeTop = MediaQuery.paddingOf(context).top + 8;
-        final safeBottom = MediaQuery.paddingOf(context).bottom + 8;
-        final initial = Offset(
-          constraints.maxWidth - badgeWidth - 4,
-          (constraints.maxHeight - badgeHeight) * .48,
+        final safeTop = (MediaQuery.paddingOf(context).top + 8).clamp(
+          0.0,
+          (constraints.maxHeight - badgeHeight).clamp(0.0, double.infinity),
         );
-        final current = _position ?? initial;
-        final position = Offset(
-          current.dx.clamp(4, constraints.maxWidth - badgeWidth - 4),
-          current.dy.clamp(
-            safeTop,
-            constraints.maxHeight - badgeHeight - safeBottom,
-          ),
+        final safeBottom = MediaQuery.paddingOf(context).bottom + 8;
+        final maxTop = (constraints.maxHeight - badgeHeight - safeBottom).clamp(
+          safeTop,
+          double.infinity,
+        );
+        final top = (_top ?? (constraints.maxHeight - badgeHeight) * .48).clamp(
+          safeTop,
+          maxTop,
         );
         return Stack(
           fit: StackFit.expand,
           children: [
             widget.child,
             Positioned(
-              left: position.dx,
-              top: position.dy,
+              right: 4,
+              top: top,
               width: badgeWidth,
+              key: const ValueKey('debug-tools-badge'),
               height: badgeHeight,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onPanUpdate: (details) => setState(() {
-                  _position = position + details.delta;
+                onVerticalDragUpdate: (details) => setState(() {
+                  _top = (top + details.delta.dy).clamp(safeTop, maxTop);
                 }),
                 onTap: () => _showDebugTools(context),
                 child: Material(

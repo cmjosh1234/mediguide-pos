@@ -75,6 +75,52 @@ void main() {
     expect(find.text('Network Inspector'), findsOneWidget);
   });
 
+  testWidgets(
+    'red badge stays on the right and only moves vertically within safe bounds',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: Size(390, 844),
+              padding: EdgeInsets.only(top: 44, bottom: 34),
+            ),
+            child: DebugToolsOverlay(
+              child: Scaffold(body: Text('Application')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final badge = find.byKey(const ValueKey('debug-tools-badge'));
+      final initial = tester.getRect(badge);
+      expect(initial.right, 386);
+      final material = tester.widget<Material>(
+        find.descendant(of: badge, matching: find.byType(Material)),
+      );
+      expect(material.color, const Color(0xffef3838));
+      await tester.drag(badge, const Offset(-100, 120));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(badge).right, initial.right);
+      expect(tester.getRect(badge).top, greaterThan(initial.top));
+      await tester.drag(badge, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(badge).top, 52);
+      await tester.drag(badge, const Offset(0, 2000));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(badge).bottom, 802);
+      await tester.drag(badge, const Offset(-180, 0));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(badge).right, initial.right);
+      expect(tester.getRect(badge).bottom, 802);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('production never renders the debug badge', (tester) async {
     AppConfig.configure(Flavor.production, debugToolsEnabled: true);
     await tester.pumpWidget(

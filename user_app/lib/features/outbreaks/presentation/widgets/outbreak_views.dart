@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 
 import 'package:user_app/app/router/route_names.dart';
 import 'package:user_app/app/providers/app_providers.dart';
@@ -1179,91 +1180,91 @@ class _SituationReportView extends StatelessWidget {
       children: [
         _FreshnessBanner(metadata: content.cache),
         if (content.cache.isOffline || content.cache.isStale) AppSpacing.gapSm,
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: colors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colors.outlineVariant),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const ClinicalIconTile(icon: LucideIcons.fileChartColumn),
-
-                  AppSpacing.hGapMd,
-
-                  Expanded(
-                    child: Text(
-                      report.title,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ],
-              ),
-
-              AppSpacing.gapMd,
-
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  if (report.geographicArea.trim().isNotEmpty)
-                    _MetaChip(
-                      icon: LucideIcons.mapPin,
-                      label: report.geographicArea,
-                    ),
-
-                  if (report.publicationDate != null)
-                    _MetaChip(
-                      icon: LucideIcons.calendarDays,
-                      label: _date(context, report.publicationDate),
-                    ),
-
-                  if (report.sourceOrganization.trim().isNotEmpty)
-                    _MetaChip(
-                      icon: LucideIcons.landmark,
-                      label: report.sourceOrganization,
-                    ),
-                ],
-              ),
-
-              if (report.summary.trim().isNotEmpty) ...[
-                AppSpacing.gapMd,
-
-                Text(
-                  report.summary,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(height: 1.5),
-                ),
-              ],
-            ],
+        Text(
+          report.title,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            height: 1.25,
           ),
         ),
-
+        AppSpacing.gapMd,
+        if (report.publicationDate != null)
+          Text(
+            'Published ${DateFormat('d MMM y').format(report.publicationDate!)}',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+          ),
+        if (report.sourceOrganization.trim().isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            report.sourceOrganization,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+          ),
+        ],
+        if (report.geographicArea.trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                LucideIcons.mapPin,
+                size: 16,
+                color: colors.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  report.geographicArea,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (report.reportAssetUrl.trim().isNotEmpty) ...[
+          AppSpacing.gapMd,
+          OutlinedButton.icon(
+            onPressed: () => context.push(
+              AppRoutes.documentReader,
+              extra: DocumentReaderArgs(
+                title: report.title,
+                source: report.reportAssetUrl,
+              ),
+            ),
+            icon: const Icon(LucideIcons.fileText, size: 18),
+            label: const Text('Read full report'),
+          ),
+        ],
         if (report.metrics.isNotEmpty) ...[
           AppSpacing.gapLg,
 
-          const SectionHeader(
-            title: 'Key indicators',
-            icon: LucideIcons.chartNoAxesColumn,
+          Text(
+            'Key indicators',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
-
           AppSpacing.gapSm,
-
-          OutbreakMetricGrid(metrics: report.metrics),
+          OutbreakMetricGrid(metrics: report.metrics, compact: true),
+        ],
+        if (report.summary.trim().isNotEmpty) ...[
+          AppSpacing.gapLg,
+          _ReportSummary(summary: report.summary),
         ],
 
         if (report.keyHighlights.isNotEmpty) ...[
           AppSpacing.gapLg,
 
-          const SectionHeader(
-            title: 'Key highlights',
-            icon: LucideIcons.listChecks,
+          Text(
+            'Key highlights',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
 
           AppSpacing.gapSm,
@@ -1271,30 +1272,43 @@ class _SituationReportView extends StatelessWidget {
           for (final highlight in report.keyHighlights)
             _HighlightTile(text: highlight),
         ],
-
-        if (report.reportAssetUrl.trim().isNotEmpty) ...[
-          AppSpacing.gapLg,
-
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () {
-                context.push(
-                  AppRoutes.documentReader,
-                  extra: DocumentReaderArgs(
-                    title: report.title,
-                    source: report.reportAssetUrl,
-                  ),
-                );
-              },
-              icon: const Icon(LucideIcons.fileDown),
-              label: const Text('View full report'),
-            ),
-          ),
-        ],
       ],
     );
   }
+}
+
+class _ReportSummary extends StatefulWidget {
+  const _ReportSummary({required this.summary});
+  final String summary;
+  @override
+  State<_ReportSummary> createState() => _ReportSummaryState();
+}
+
+class _ReportSummaryState extends State<_ReportSummary> {
+  bool expanded = false;
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Summary',
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        widget.summary,
+        maxLines: expanded ? null : 3,
+        overflow: expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+      ),
+      TextButton(
+        onPressed: () => setState(() => expanded = !expanded),
+        child: Text(expanded ? 'Show less' : 'Read summary'),
+      ),
+    ],
+  );
 }
 
 // ===========================================================================
@@ -1382,55 +1396,6 @@ class _StatusChip extends StatelessWidget {
 
 // ===========================================================================
 // META CHIP
-// ===========================================================================
-
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: (MediaQuery.sizeOf(context).width - AppSpacing.xl * 2).clamp(
-          120,
-          360,
-        ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: colors.onSurfaceVariant),
-            const SizedBox(width: 5),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ===========================================================================
-// EMPTY
 // ===========================================================================
 
 class _PublicEmptyState extends StatelessWidget {

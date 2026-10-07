@@ -48,6 +48,8 @@ void main() {
       const MaterialApp(home: Scaffold(body: ResourceTile(resource))),
     );
 
+    await tester.tap(find.text('Source and review details'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('WHO publication catalogue'), findsOneWidget);
     await tester.tap(find.text('WHO technical guidance'));
     await tester.pumpAndSettle();
