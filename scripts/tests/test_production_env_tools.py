@@ -19,9 +19,35 @@ def load(name, filename):
 
 organizer = load("organize_env", "organize-env.py")
 checker = load("check_public_storage", "check-public-storage.py")
+production = load("check_production_env", "check-production-env.py")
 
 
 class ProductionEnvironmentToolsTest(unittest.TestCase):
+    def test_production_requires_complete_mapping_and_mail_credentials(self):
+        source = (ROOT / "infra/production.env.example").read_bytes()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "production.env"
+            path.write_bytes(source.replace(b"RESEND_API_KEY=\n", b"RESEND_API_KEY=private-fixture\n"))
+            production.validate(path, ROOT / "infra/docker-compose.yml")
+            path.write_bytes(path.read_bytes().replace(b"RESEND_API_KEY=private-fixture", b"RESEND_API_KEY="))
+            with self.assertRaisesRegex(ValueError, "RESEND_API_KEY"):
+                production.validate(path, ROOT / "infra/docker-compose.yml")
+            path.write_bytes(path.read_bytes().replace(b"CACHE_ENABLED=true\n", b""))
+            with self.assertRaisesRegex(ValueError, "CACHE_ENABLED"):
+                production.validate(path, ROOT / "infra/docker-compose.yml")
+
+    def test_runtime_environment_comparison_reports_names_only(self):
+        config = {"services": {"api": {"environment": {"JWT_SECRET": "private-fixture", "HTTP_PORT": "8080"}}}}
+        containers = [{"Config": {"Labels": {"com.docker.compose.service": "api"}, "Env": ["JWT_SECRET=private-fixture", "HTTP_PORT=8080", "PATH=/bin"]}}]
+        self.assertEqual(production.compare(config, containers), 2)
+        containers[0]["Config"]["Env"][0] = "JWT_SECRET=wrong-private-fixture"
+        with self.assertRaises(ValueError) as context:
+            production.compare(config, containers)
+        self.assertIn("JWT_SECRET", str(context.exception))
+        self.assertNotIn("private-fixture", str(context.exception))
+        with self.assertRaisesRegex(ValueError, "container missing"):
+            production.compare(config, [])
+
     def test_fills_missing_keys_without_overwriting_existing_credentials_or_blanks(self):
         source = b'JWT_SECRET="private $value=#"\nSMTP_PASSWORD=\n'
         defaults = b'JWT_SECRET=template-placeholder\nSMTP_PASSWORD=template-placeholder\nACCOUNT_ACTION_URL=https://example.test/admin\n'

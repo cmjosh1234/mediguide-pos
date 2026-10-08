@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "release_tag": "v2.1.15",
+  "previous_tag": "v2.1.14",
+  "mobile_build_number": 68,
+  "services": {
+    "mobile": [
+      "View outbreak situation report attachments and corrected outbreak details."
+    ],
+    "api": [
+      "Support situation report attachments and outbreak corrections."
+    ],
+    "ai-worker": [
+      "No service-specific changes since v2.1.14."
+    ],
+    "dashboard": [
+      "Manage outbreak corrections and situation report attachments.",
+      "Update Next.js to the patched 16.3.8 release."
+    ],
+    "guidelines": [
+      "Display updated outbreak details and situation report attachments."
+    ]
+  },
+  "operations": [
+    "Validate production environment coverage and required email credentials before deployment.",
+    "Verify configured environment values against every running production container without printing secrets."
+  ],
+  "play_store": "- View outbreak situation report attachments and corrected outbreak details."
+}

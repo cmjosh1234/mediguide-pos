@@ -9777,7 +9777,7 @@ info:
     name: Proprietary
   termsOfService: https://mediguide.local/terms
   title: MediGuide Backend API
-  version: 2.1.14
+  version: 2.1.15
 paths:
   /analytics/accounts:
     get:

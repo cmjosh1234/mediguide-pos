@@ -21,6 +21,11 @@ on:
         description: Optional full Git SHA; defaults to the tag commit
         required: false
         type: string
+      skip_public_storage_check:
+        description: Operator override to skip only the public MinIO network check
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -161,6 +166,7 @@ jobs:
           fi
           printf 'MINIO_API_CORS_ALLOW_ORIGIN=%s\n' "${PUBLIC_SITE_URL%/}" >> infra/production.env
           python3 infra/organize-env.py infra/production.env --private
+          python3 infra/check-production-env.py infra/production.env
           python3 infra/check-public-storage.py infra/production.env
 
           # Firebase Admin is optional, but a malformed non-empty credential
@@ -270,6 +276,7 @@ jobs:
 
       - name: Copy infra and deploy immutable images
         env:
+          SKIP_PUBLIC_STORAGE_CHECK: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_public_storage_check || false }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -321,13 +328,18 @@ jobs:
 
           ssh "${ssh_options[@]}" "${target}" bash -s -- \
             "${DEPLOY_PATH}" "${remote_stage}" "${RELEASE_VERSION}" \
-            "${RELEASE_REVISION}" "${GHCR_OWNER}" <<'REMOTE'
+            "${RELEASE_REVISION}" "${GHCR_OWNER}" "${SKIP_PUBLIC_STORAGE_CHECK}" <<'REMOTE'
           set -Eeuo pipefail
           deploy_path="$1"
           remote_stage="$2"
           release_version="$3"
           release_revision="$4"
           ghcr_owner="$5"
+          skip_public_storage_check="$6"
+          [[ "${skip_public_storage_check}" == true || "${skip_public_storage_check}" == false ]] || {
+            echo "Invalid public storage check override." >&2
+            exit 1
+          }
 
           [[ "${deploy_path}" =~ ^/[A-Za-z0-9._/-]+$ ]] || { echo "Unsafe deployment path." >&2; exit 1; }
           [[ "${deploy_path}" != "/" && "${deploy_path}" != *"/../"* && "${deploy_path}" != *"/.." && "${deploy_path}" != *"/./"* && "${deploy_path}" != *"/." ]] || {
@@ -408,6 +420,21 @@ jobs:
             ' "${deploy_script}" > "${compatible_script}"
             chmod 700 "${compatible_script}"
             deploy_script_name="deploy-production-preloaded.sh"
+          fi
+
+          if [ "${skip_public_storage_check}" = true ]; then
+            # Published tags remain immutable. Make a temporary deployment
+            # script that omits exactly the network probe requested by the
+            # operator; retain storage format and every other health check.
+            override_script="${extracted}/infra/deploy-production-storage-override.sh"
+            awk '
+              $0 == "python3 \"${infra_dir}/check-public-storage.py\" \"${production_env}\" --check-network" { removed++; next }
+              { print }
+              END { if (removed != 1) exit 1 }
+            ' "${extracted}/infra/${deploy_script_name}" > "${override_script}"
+            chmod 700 "${override_script}"
+            deploy_script_name="deploy-production-storage-override.sh"
+            echo "Operator override: skipping the public MinIO network probe for this deployment only."
           fi
 
           previous="${deploy_path}/infra.previous"
