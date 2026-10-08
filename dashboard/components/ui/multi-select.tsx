@@ -33,6 +33,9 @@ interface MultiSelectProps {
   className?: string
   disabled?: boolean
   maxSelections?: number
+  /** Placed on the trigger, so a label or error can point at it. */
+  id?: string
+  invalid?: boolean
 }
 
 export function MultiSelect({
@@ -43,6 +46,8 @@ export function MultiSelect({
   className,
   disabled = false,
   maxSelections,
+  id,
+  invalid,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -69,9 +74,11 @@ export function MultiSelect({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
+            id={id}
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            aria-invalid={invalid || undefined}
             className={cn(
               "w-full justify-between",
               !value.length && "text-muted-foreground"

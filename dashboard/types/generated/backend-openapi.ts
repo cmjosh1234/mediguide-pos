@@ -4314,6 +4314,11 @@ export interface ServicesOutbreakAdminDTO {
   last_verified_at?: string;
   lock_version?: number;
   metrics?: ServicesOutbreakMetric[];
+  /**
+   * OpenCorrectionID is the correction of this outbreak that is still in
+   * draft or review, if any. Only set when a single outbreak is fetched.
+   */
+  open_correction_id?: string;
   published_at?: string;
   region_id?: string;
   reviewed_at?: string;
@@ -4334,12 +4339,32 @@ export interface ServicesOutbreakAdminDTO {
 
 export interface ServicesOutbreakAuditDTO {
   action?: string;
+  actor_email?: string;
   actor_id?: string;
+  actor_name?: string;
   created_at?: string;
   entity_id?: string;
   entity_type?: string;
   id?: string;
+  /**
+   * Labels names the people and records the metadata refers to by ID, such
+   * as who wrote an applied correction or the districts it switched between.
+   */
+  labels?: Record<string, string>;
   metadata?: Record<string, any>;
+}
+
+export interface ServicesOutbreakDeleteInput {
+  reason?: string;
+}
+
+export interface ServicesOutbreakDeleteResult {
+  cancelled_alerts?: number;
+  deleted_corrections?: number;
+  deleted_resources?: number;
+  deleted_updates?: number;
+  unlinked_hubs?: number;
+  unlinked_reports?: number;
 }
 
 export interface ServicesOutbreakInput {
@@ -5097,6 +5122,8 @@ export interface ServicesPublicOutbreakUpdate {
 }
 
 export interface ServicesPublicSituationReport {
+  /** Attachments are the report's published guideline-library documents. */
+  attachments?: ServicesPublicSituationReportAttachment[];
   data_as_of?: string;
   district_id?: string;
   effective_at?: string;
@@ -5116,6 +5143,21 @@ export interface ServicesPublicSituationReport {
   source_url?: string;
   summary?: string;
   title?: string;
+}
+
+export interface ServicesPublicSituationReportAttachment {
+  description?: string;
+  document_kind?: string;
+  download_capability?: boolean;
+  id?: string;
+  issuing_organization?: string;
+  reader_capability?: string;
+  resource_type?: string;
+  sort_order?: number;
+  target_type?: string;
+  target_url?: string;
+  title?: string;
+  url?: string;
 }
 
 export interface ServicesReadingProgressInput {
@@ -5251,6 +5293,11 @@ export interface ServicesSituationReportAdminDTO {
   last_verified_at?: string;
   lock_version?: number;
   metrics?: ServicesOutbreakMetric[];
+  /**
+   * OpenCorrectionID is the correction of this report that is still in
+   * draft or review, if any. Only set when a single report is fetched.
+   */
+  open_correction_id?: string;
   outbreak_id?: string;
   publication_date?: string;
   published_at?: string;
@@ -5264,6 +5311,8 @@ export interface ServicesSituationReportAdminDTO {
   source_url?: string;
   standalone_allowed?: boolean;
   status?: string;
+  submitted_at?: string;
+  submitted_by?: string;
   summary?: string;
   supersedes_id?: string;
   title?: string;
@@ -5272,14 +5321,28 @@ export interface ServicesSituationReportAdminDTO {
   withdrawn_at?: string;
 }
 
-export interface ServicesSituationReportAssetDTO {
-  checksum_sha256?: string;
-  content_type?: string;
+export interface ServicesSituationReportAttachmentDTO {
   created_at?: string;
-  file_name?: string;
+  description?: string;
+  document_kind?: string;
   id?: string;
+  issuing_organization?: string;
+  lock_version?: number;
   situation_report_id?: string;
-  size_bytes?: number;
+  sort_order?: number;
+  title?: string;
+  updated_at?: string;
+  url?: string;
+}
+
+export interface ServicesSituationReportAttachmentInput {
+  description?: string;
+  document_kind?: string;
+  issuing_organization?: string;
+  lock_version?: number;
+  sort_order?: number;
+  title?: string;
+  url?: string;
 }
 
 export interface ServicesSituationReportInput {

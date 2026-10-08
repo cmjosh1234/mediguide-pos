@@ -206,7 +206,7 @@ func (s SearchService) PublicSearchContextFiltered(ctx context.Context, q string
 	reportQuery := s.DB.WithContext(ctx).Table("situation_reports").
 		Select("CAST(id AS TEXT) AS id, title, summary AS snippet, source_organization AS source_name, status, last_verified_at, publication_date AS sort_date").
 		Where("deleted_at IS NULL AND status = ? AND published_at IS NOT NULL AND published_at <= ? AND withdrawn_at IS NULL", "published", time.Now()).
-		Where("outbreak_id IS NULL OR EXISTS (SELECT 1 FROM outbreaks o WHERE o.id = situation_reports.outbreak_id AND o.deleted_at IS NULL AND o.withdrawn_at IS NULL AND o.published_at IS NOT NULL AND o.published_at <= ? AND o.status IN ?)", time.Now(), []string{"published", "active", "monitoring", "contained", "closed"}).
+		Where("(outbreak_id IS NULL AND standalone_allowed) OR EXISTS (SELECT 1 FROM outbreaks o WHERE o.id = situation_reports.outbreak_id AND o.deleted_at IS NULL AND o.withdrawn_at IS NULL AND o.published_at IS NOT NULL AND o.published_at <= ? AND o.status IN ?)", time.Now(), []string{"published", "active", "monitoring", "contained", "closed"}).
 		Where("lower(title) LIKE ? OR lower(summary) LIKE ? OR lower(geographic_area) LIKE ? OR lower(source_organization) LIKE ? OR lower(source_reference) LIKE ? OR lower(CAST(key_highlights AS TEXT)) LIKE ?", pattern, pattern, pattern, pattern, pattern, pattern)
 	if diseaseID != nil {
 		reportQuery = reportQuery.Where(`EXISTS (SELECT 1 FROM content_disease_assignments cda

@@ -5,15 +5,16 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:user_app/app/router/app_router.dart';
+import 'package:user_app/core/constants/app_spacing.dart';
 import 'package:user_app/core/utils/app_message.dart';
+import 'package:user_app/core/utils/date_utils.dart';
 import 'package:user_app/core/widgets/app_skeleton.dart';
 import 'package:user_app/core/widgets/app_error_view.dart';
 import 'package:user_app/core/widgets/empty_state.dart' as states;
 import 'package:user_app/features/discovery/data/models/discovery_models.dart';
-import 'package:user_app/features/discovery/presentation/widgets/discovery_detail_widgets.dart';
+import 'package:user_app/features/discovery/presentation/widgets/resource_kind.dart';
 import 'package:user_app/features/outbreaks/data/models/outbreak_models.dart';
 import 'package:user_app/features/outbreaks/presentation/widgets/outbreak_metrics.dart';
-import 'package:intl/intl.dart';
 
 class HubTile extends StatelessWidget {
   const HubTile(this.hub, {super.key});
@@ -188,8 +189,161 @@ class ResourceTile extends StatelessWidget {
   const ResourceTile(this.resource, {super.key});
   final DiscoveryResource resource;
 
-  void open(BuildContext context) {
-    if (resource.contentType == 'approved_external_url') {
+  bool get _external => resource.contentType == 'approved_external_url';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final kind = resourceKindOf(resource.contentType);
+    final tint = kind.foreground(colors);
+    final routable = _external
+        ? resource.route.isNotEmpty
+        : mobileRoute(resource) != null;
+    final dates = [
+      ('Published', resource.publicationDate),
+      ('Effective', resource.effectiveAt),
+      ('Next review', resource.reviewAt),
+      ('Expires', resource.expiresAt),
+    ].where((entry) => entry.$2.isNotEmpty).toList();
+    final hasMeta =
+        resource.source.isNotEmpty ||
+        resource.provenance.isNotEmpty ||
+        dates.isNotEmpty;
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: colors.onSurfaceVariant,
+    );
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _open(context),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: kind.background(colors),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(kind.icon, size: 18, color: tint),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      kind.label,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: tint,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (resource.version.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: colors.outlineVariant),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        RegExp(r'^\d').hasMatch(resource.version)
+                            ? 'v${resource.version}'
+                            : resource.version,
+                        style: muted?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                resource.title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (resource.description.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  resource.description,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              if (hasMeta) ...[
+                const SizedBox(height: 12),
+                Divider(
+                  height: 1,
+                  color: Color.alphaBlend(
+                    tint.withValues(alpha: 0.18),
+                    colors.outlineVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (resource.source.isNotEmpty)
+                  Text(
+                    resource.source,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                if (resource.provenance.isNotEmpty)
+                  Text(resource.provenance, style: muted),
+                if (dates.isNotEmpty) const SizedBox(height: AppSpacing.xs),
+                for (final (term, value) in dates)
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: '$term ', style: muted),
+                        TextSpan(
+                          text: resourceDate(value),
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+              if (routable) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      kind.action,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: tint,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (_external) ...[
+                      const SizedBox(width: AppSpacing.xs),
+                      Icon(LucideIcons.externalLink, size: 14, color: tint),
+                    ],
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _open(BuildContext context) {
+    if (_external) {
       unawaited(_openApprovedExternalResource(context, resource));
       return;
     }
@@ -203,120 +357,13 @@ class ResourceTile extends StatelessWidget {
     }
     context.push(route);
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-    final details = [
-      if (resource.version.isNotEmpty) 'Version ${resource.version}',
-      if (resource.effectiveAt.isNotEmpty)
-        'Effective ${_readableDate(resource.effectiveAt)}',
-      if (resource.reviewAt.isNotEmpty)
-        'Review due ${_readableDate(resource.reviewAt)}',
-      if (resource.expiresAt.isNotEmpty)
-        'Expires ${_readableDate(resource.expiresAt)}',
-      if (resource.provenance.isNotEmpty) 'Source: ${resource.provenance}',
-    ];
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            onTap: () => open(context),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        LucideIcons.fileText,
-                        size: 18,
-                        color: colors.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          resourceTypeLabel(resource.contentType),
-                          style: text.labelMedium?.copyWith(
-                            color: colors.primary,
-                          ),
-                        ),
-                      ),
-                      Icon(
-                        resource.contentType == 'approved_external_url'
-                            ? LucideIcons.externalLink
-                            : LucideIcons.chevronRight,
-                        size: 18,
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    resource.title,
-                    style: text.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (resource.source.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      resource.source,
-                      style: text.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                  if (resource.publicationDate.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Published ${_readableDate(resource.publicationDate)}',
-                      style: text.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          if (details.isNotEmpty)
-            ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-              title: Text('Source and review details', style: text.bodySmall),
-              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              expandedCrossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final detail in details)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Text(
-                      detail,
-                      style: text.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
 }
 
-String _readableDate(String value) {
-  final date = DateTime.tryParse(value);
-  return date == null ? value : DateFormat('d MMM y').format(date);
+// Publication dates are calendar dates sent as UTC midnight, so they are
+// formatted without converting to local time (which could shift the day).
+String resourceDate(String value) {
+  final parsed = DateTime.tryParse(value);
+  return parsed == null ? shortDate(value) : AppDateUtils.formatDate(parsed);
 }
 
 Future<void> _openApprovedExternalResource(
@@ -361,17 +408,8 @@ class OutbreakBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final metrics = (value['metrics'] as List? ?? const [])
-        .whereType<Map>()
-        .where((metric) => '${metric['label'] ?? ''}'.trim().isNotEmpty)
-        .map(
-          (metric) => OutbreakMetric(
-            label: '${metric['label']}',
-            value: '${metric['value'] ?? metric['numeric_value'] ?? ''}',
-            unit: '${metric['unit'] ?? ''}',
-          ),
-        )
-        .toList();
+    final metrics = hubOutbreakMetrics(value['metrics']);
+    final verifiedAt = DateTime.tryParse('${value['last_verified_at'] ?? ''}');
     final status = '${value['status'] ?? ''}'.replaceAll('_', ' ');
     return Container(
       padding: const EdgeInsets.all(16),
@@ -411,14 +449,46 @@ class OutbreakBanner extends StatelessWidget {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
+          if (verifiedAt != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Verified ${AppDateUtils.formatDate(verifiedAt.toLocal())}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           if (metrics.isNotEmpty) ...[
             const SizedBox(height: 12),
-            OutbreakMetricGrid(metrics: metrics, compact: true),
+            OutbreakMetricGrid(metrics: metrics),
           ],
         ],
       ),
     );
   }
+}
+
+// Hub payloads carry outbreak metrics as loosely typed maps (and may come from
+// the offline cache), so each field is read leniently rather than through the
+// strict generated OutbreakMetric.fromJson, which throws on unexpected types.
+List<OutbreakMetric> hubOutbreakMetrics(Object? raw) {
+  final metrics = (raw is List ? raw : const []).whereType<Map>().map((item) {
+    final key = '${item['key'] ?? ''}';
+    final label = '${item['label'] ?? ''}'.trim();
+    final numeric = item['numeric_value'];
+    return OutbreakMetric(
+      key: key,
+      label: label.isEmpty ? key.replaceAll('_', ' ') : label,
+      value: '${item['value'] ?? ''}'.trim(),
+      unit: '${item['unit'] ?? ''}',
+      numericValue: numeric is num ? numeric.toDouble() : null,
+      asOf: DateTime.tryParse('${item['as_of'] ?? ''}'),
+      sourceReference: '${item['source_reference'] ?? ''}',
+      sortOrder: item['sort_order'] is num
+          ? (item['sort_order'] as num).toInt()
+          : 0,
+    );
+  }).toList();
+  metrics.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  return metrics;
 }
 
 class SectionHeading extends StatelessWidget {

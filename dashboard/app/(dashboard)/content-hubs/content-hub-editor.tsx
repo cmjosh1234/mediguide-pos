@@ -87,11 +87,14 @@ export function ContentHubEditor({ id }: { id?: string }) {
         contentHubService.templates(),
       ]);
       setDiseases(diseasePage.items || []);
+      // Hubs present the live outbreak, never a correction of it.
       setOutbreaks(
-        (outbreakPage.items || []).map((value) => ({
-          id: value.id!,
-          title: value.title || "Untitled outbreak",
-        })),
+        (outbreakPage.items || [])
+          .filter((value) => !value.supersedes_id)
+          .map((value) => ({
+            id: value.id!,
+            title: value.title || "Untitled outbreak",
+          })),
       );
       setTemplates(templateRows || []);
       if (id) {

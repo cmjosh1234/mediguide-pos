@@ -76,6 +76,10 @@ func (s ContentHubService) ConfigureOutbreakHub(actor ContentHubActor, outbreakI
 	if err := s.DB.Where("id = ? AND deleted_at IS NULL", outbreakID).First(&outbreak).Error; err != nil {
 		return nil, err
 	}
+	// Hubs belong to the live outbreak; a correction is removed once applied.
+	if outbreak.SupersedesID != nil {
+		return nil, ErrContentHubInvalid
+	}
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		name = strings.TrimSpace(outbreak.Title) + " Response Hub"

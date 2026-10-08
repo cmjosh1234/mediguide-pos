@@ -18,7 +18,7 @@ func outbreakAdminTestService(t *testing.T) OutbreakAdminService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.AuditLog{}, &models.Region{}, &models.HealthSubRegion{}, &models.District{}, &models.Disease{}, &models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}, &models.SituationReportAsset{}, &models.NotificationTopicJob{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.AuditLog{}, &models.Region{}, &models.HealthSubRegion{}, &models.District{}, &models.Disease{}, &models.Outbreak{}, &models.OutbreakUpdate{}, &models.OutbreakResource{}, &models.SituationReport{}, &models.SituationReportAttachment{}, &models.SituationReportAsset{}, &models.NotificationTopicJob{}, &models.ContentHub{}, &models.ContentHubOutbreak{}, &models.ContentDiseaseAssignment{}); err != nil {
 		t.Fatal(err)
 	}
 	seedDocumentKinds(t, db)
@@ -208,6 +208,178 @@ func TestOutbreakLifecycleRequiresIndependentReviewerAndOptimisticLock(t *testin
 	var auditCount int64
 	if err := service.DB.Model(&models.AuditLog{}).Where("entity_type = ?", "outbreak").Count(&auditCount).Error; err != nil || auditCount < 5 {
 		t.Fatalf("audit count=%d err=%v", auditCount, err)
+	}
+}
+
+func TestOutbreakValidationNamesTheFieldsToFix(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	now := time.Now().UTC().Add(-time.Hour)
+	fieldsOf := func(err error) map[string]string {
+		t.Helper()
+		var validation *OutbreakValidationError
+		if !errors.As(err, &validation) {
+			t.Fatalf("expected a validation error, got %v", err)
+		}
+		fields := map[string]string{}
+		for _, field := range validation.Fields {
+			fields[field.Field] = field.Message
+		}
+		return fields
+	}
+
+	input := validOutbreakDraftInput(now)
+	// Only Effective at (still "now") falls before the new start date.
+	input.StartDate = ptr(now.Add(30 * time.Minute))
+	input.LastUpdate = ptr(now.Add(50 * time.Minute))
+	input.DataAsOf = ptr(now.Add(50 * time.Minute))
+	_, err := service.CreateOutbreak(OutbreakActor{ID: uuid.New()}, input)
+	if fields := fieldsOf(err); len(fields) != 2 || fields["effective_at"] != "Effective at can't be earlier than the start date." || fields["start_date"] == "" {
+		t.Fatalf("date order error should name effective_at and start_date: %#v", fields)
+	}
+
+	input = validOutbreakDraftInput(now)
+	input.GeographicArea, input.SourceReference = ptr(""), ptr("")
+	item, err := service.CreateOutbreak(OutbreakActor{ID: uuid.New()}, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.TransitionOutbreak(OutbreakActor{ID: uuid.New()}, item.ID, "submit", TransitionInput{LockVersion: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.TransitionOutbreak(OutbreakActor{ID: uuid.New()}, item.ID, "approve", TransitionInput{LockVersion: 2}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = service.TransitionOutbreak(OutbreakActor{ID: uuid.New()}, item.ID, "publish", TransitionInput{LockVersion: 3})
+	if fields := fieldsOf(err); len(fields) != 2 || fields["geographic_area"] != "Geographic coverage is needed to publish." || fields["source_reference"] != "Source reference is needed to publish." {
+		t.Fatalf("each missing field should get its own reason: %#v", fields)
+	}
+}
+
+func TestApprovedOutbreakCorrectionOverwritesOnlyCoreFieldsOfLiveOutbreak(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	now := time.Now().UTC().Add(-time.Hour)
+	author, corrector, reviewer := OutbreakActor{ID: uuid.New()}, OutbreakActor{ID: uuid.New()}, OutbreakActor{ID: uuid.New()}
+	item, err := service.CreateOutbreak(author, validOutbreakDraftInput(now))
+	if err != nil {
+		t.Fatal(err)
+	}
+	live := publishOutbreakForTest(t, service, item.ID, 1, "monitoring")
+	update, err := service.CreateUpdate(author, item.ID, ChildContentInput{Title: ptr("Week 1 update")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	correction, err := service.CorrectOutbreak(corrector, item.ID, TransitionInput{LockVersion: live.LockVersion, Reason: "Wrong source reference"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CorrectOutbreak(corrector, item.ID, TransitionInput{LockVersion: live.LockVersion, Reason: "Another fix"}); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("second open correction allowed: %v", err)
+	}
+	if got, err := service.GetOutbreak(item.ID); err != nil || got.OpenCorrectionID == nil || *got.OpenCorrectionID != correction.ID {
+		t.Fatalf("open correction not reported on the live outbreak: %#v %v", got, err)
+	}
+	if _, err := service.UpdateMetrics(corrector, correction.ID, OutbreakMetricsInput{Metrics: []OutbreakMetric{}, LockVersion: &correction.LockVersion}); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("metrics changed on a correction: %v", err)
+	}
+	if _, err := service.CreateUpdate(corrector, correction.ID, ChildContentInput{Title: ptr("Misplaced update")}); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("update added to a correction: %v", err)
+	}
+
+	metric := OutbreakMetric{Key: "confirmed_cases", Label: "Confirmed cases", Value: "20", Unit: "cases", AsOf: now, SourceReference: "WHO report 11", SortOrder: 1}
+	staleMetrics := []OutbreakMetric{metric}
+	edited, err := service.UpdateOutbreak(corrector, correction.ID, OutbreakInput{Title: ptr("Ebola virus disease response"), SourceReference: ptr("MOH-2026-02"), Metrics: &staleMetrics, LockVersion: &correction.LockVersion})
+	if err != nil || len(edited.Metrics) != 0 {
+		t.Fatalf("correction edit: %#v %v", edited, err)
+	}
+	if _, err := service.TransitionOutbreak(corrector, correction.ID, "submit", TransitionInput{LockVersion: edited.LockVersion}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Metrics keep moving on the live outbreak while the correction is in review.
+	current, err := service.GetOutbreak(item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metric.Value = "25"
+	if _, err := service.UpdateMetrics(author, item.ID, OutbreakMetricsInput{Metrics: []OutbreakMetric{metric}, LockVersion: &current.LockVersion}); err != nil {
+		t.Fatal(err)
+	}
+
+	inReview := TransitionInput{LockVersion: edited.LockVersion + 1}
+	if _, err := service.TransitionOutbreak(corrector, correction.ID, "approve", inReview); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("corrector approved their own correction: %v", err)
+	}
+	if _, err := service.TransitionOutbreak(reviewer, correction.ID, "publish", inReview); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("correction published on its own: %v", err)
+	}
+	applied, err := service.TransitionOutbreak(reviewer, correction.ID, "approve", inReview)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if applied.ID != item.ID || applied.Title != "Ebola virus disease response" || applied.SourceReference != "MOH-2026-02" {
+		t.Fatalf("correction not applied to the live outbreak: %#v", applied)
+	}
+	if applied.Status != "monitoring" || applied.PublishedAt == nil || !applied.PublishedAt.Equal(*live.PublishedAt) || applied.AuthorID == nil || *applied.AuthorID != author.ID || applied.OpenCorrectionID != nil {
+		t.Fatalf("live outbreak lost its own properties: %#v", applied)
+	}
+	if len(applied.Metrics) != 1 || applied.Metrics[0].Value != "25" {
+		t.Fatalf("metrics changed during review were overwritten: %#v", applied.Metrics)
+	}
+	if _, err := service.GetOutbreak(correction.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("applied correction still exists: %v", err)
+	}
+	if got, err := service.GetUpdate(item.ID, update.ID); err != nil || got.OutbreakID != item.ID {
+		t.Fatalf("update no longer on the live outbreak: %#v %v", got, err)
+	}
+
+	history, err := service.ListAudit("outbreak", item.ID, PageInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var entry *OutbreakAuditDTO
+	for i := range history.Items {
+		if history.Items[i].Action == "outbreak.correction_applied" {
+			entry = &history.Items[i]
+		}
+	}
+	if entry == nil || entry.ActorID != reviewer.ID.String() || entry.Metadata["reason"] != "Wrong source reference" {
+		t.Fatalf("correction not audited on the live outbreak: %#v", entry)
+	}
+	changes, _ := entry.Metadata["changes"].(map[string]any)
+	if _, ok := changes["title"]; !ok || len(changes) != 2 || changes["source_reference"] == nil {
+		t.Fatalf("audited changes should be exactly title and source_reference: %#v", changes)
+	}
+
+	// Once applied, the outbreak can be corrected again.
+	if _, err := service.CorrectOutbreak(corrector, item.ID, TransitionInput{LockVersion: applied.LockVersion, Reason: "Later fix"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOutbreakCorrectionIsNotAppliedToAWithdrawnOutbreak(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	author, corrector, reviewer := OutbreakActor{ID: uuid.New()}, OutbreakActor{ID: uuid.New()}, OutbreakActor{ID: uuid.New()}
+	item, err := service.CreateOutbreak(author, validOutbreakDraftInput(time.Now().UTC().Add(-time.Hour)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	live := publishOutbreakForTest(t, service, item.ID, 1, "active")
+	correction, err := service.CorrectOutbreak(corrector, item.ID, TransitionInput{LockVersion: live.LockVersion, Reason: "Fix the title"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.TransitionOutbreak(corrector, correction.ID, "submit", TransitionInput{LockVersion: correction.LockVersion}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.TransitionOutbreak(author, item.ID, "withdraw", TransitionInput{LockVersion: live.LockVersion, Reason: "Duplicate entry"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.TransitionOutbreak(reviewer, correction.ID, "approve", TransitionInput{LockVersion: correction.LockVersion + 1}); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("correction applied to a withdrawn outbreak: %v", err)
+	}
+	if got, err := service.GetOutbreak(correction.ID); err != nil || got.Status != "pending_review" {
+		t.Fatalf("refused correction should be left in review: %#v %v", got, err)
 	}
 }
 
@@ -502,6 +674,228 @@ func TestResourcesCanBeAddedUntilOutbreakIsClosedOrWithdrawn(t *testing.T) {
 		}
 		if !allowed && (err == nil || err.Error() != "Resources can't be added to an outbreak that is "+status+".") {
 			t.Fatalf("%s outbreak: expected the resource to be refused, got %v", status, err)
+		}
+	}
+}
+
+func linkedReportForTest(t *testing.T, db *gorm.DB, outbreakID uuid.UUID) models.SituationReport {
+	t.Helper()
+	past := time.Now().UTC().Add(-time.Hour)
+	report := models.SituationReport{OutbreakID: &outbreakID, Title: "Weekly situation report 1", Status: "published", PublicationDate: past, PublishedAt: &past, ApprovedAt: &past, LockVersion: 1}
+	if err := db.Create(&report).Error; err != nil {
+		t.Fatal(err)
+	}
+	return report
+}
+
+func TestDeletingOutbreakRemovesItsOwnContentAndKeepsLinkedContent(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	public := OutbreakService{DB: service.DB}
+	author, corrector := OutbreakActor{ID: uuid.New()}, OutbreakActor{ID: uuid.New()}
+	item, err := service.CreateOutbreak(author, validOutbreakDraftInput(time.Now().UTC().Add(-time.Hour)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	live := publishOutbreakForTest(t, service, item.ID, 1, "active")
+	update, err := service.CreateUpdate(author, item.ID, ChildContentInput{Title: ptr("Week 1 update")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.DB.Create(&models.OutbreakResource{OutbreakID: item.ID, Title: "Case definition", Status: "draft", LockVersion: 1}).Error; err != nil {
+		t.Fatal(err)
+	}
+	correction, err := service.CorrectOutbreak(corrector, item.ID, TransitionInput{LockVersion: live.LockVersion, Reason: "Fix the title"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A correction published on its own before corrections were applied in place.
+	past := time.Now().UTC().Add(-time.Hour)
+	legacy := models.Outbreak{Title: item.Title, Status: "active", PublishedAt: &past, SupersedesID: &item.ID, LockVersion: 1}
+	if err := service.DB.Create(&legacy).Error; err != nil {
+		t.Fatal(err)
+	}
+	report := linkedReportForTest(t, service.DB, item.ID)
+	hub := models.ContentHub{Name: "Ebola", Slug: "ebola", Status: models.ContentHubStatusActive, LockVersion: 1}
+	if err := service.DB.Create(&hub).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := service.DB.Create(&models.ContentHubOutbreak{ContentHubID: hub.ID, OutbreakID: item.ID}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := public.GetReport(report.ID); err != nil {
+		t.Fatalf("report should be public under its live outbreak: %v", err)
+	}
+
+	current, err := service.GetOutbreak(item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reason := OutbreakDeleteInput{Reason: "Entered twice"}
+	if _, err := service.DeleteOutbreak(author, item.ID, current.LockVersion, OutbreakDeleteInput{Reason: "  "}, true); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("deleted without a reason: %v", err)
+	}
+	if _, err := service.DeleteOutbreak(author, item.ID, current.LockVersion, reason, false); !errors.Is(err, ErrOutbreakForbidden) {
+		t.Fatalf("live outbreak deleted without the withdraw permission: %v", err)
+	}
+	if _, err := service.DeleteOutbreak(author, item.ID, current.LockVersion-1, reason, true); !errors.Is(err, ErrOutbreakConflict) {
+		t.Fatalf("deleted with a stale lock version: %v", err)
+	}
+	result, err := service.DeleteOutbreak(author, item.ID, current.LockVersion, reason, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := OutbreakDeleteResult{DeletedUpdates: 1, DeletedResources: 1, DeletedCorrections: 1, CancelledAlerts: 1, UnlinkedReports: 1, UnlinkedHubs: 1}
+	if *result != want {
+		t.Fatalf("delete result = %#v, want %#v", *result, want)
+	}
+
+	for name, id := range map[string]uuid.UUID{"outbreak": item.ID, "open correction": correction.ID} {
+		if _, err := service.GetOutbreak(id); !errors.Is(err, gorm.ErrRecordNotFound) {
+			t.Fatalf("%s still exists: %v", name, err)
+		}
+	}
+	if _, err := service.GetUpdate(item.ID, update.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("update still exists: %v", err)
+	}
+	if jobs := topicJobsForTest(t, service.DB); len(jobs) != 0 {
+		t.Fatalf("queued alert for the deleted outbreak was kept: %#v", jobs)
+	}
+	if got, err := service.GetOutbreak(legacy.ID); err != nil || got.SupersedesID != nil {
+		t.Fatalf("published correction should remain as an ordinary outbreak: %#v %v", got, err)
+	}
+
+	var kept models.SituationReport
+	if err := service.DB.First(&kept, "id = ?", report.ID).Error; err != nil {
+		t.Fatalf("linked report was deleted: %v", err)
+	}
+	if kept.OutbreakID != nil || !kept.StandaloneAllowed || kept.LockVersion != report.LockVersion+1 {
+		t.Fatalf("linked report not unlinked: %#v", kept)
+	}
+	if _, err := public.GetReport(report.ID); err != nil {
+		t.Fatalf("report that was public should stay public: %v", err)
+	}
+	var hubs, mappings int64
+	service.DB.Model(&models.ContentHub{}).Where("id = ?", hub.ID).Count(&hubs)
+	service.DB.Model(&models.ContentHubOutbreak{}).Where("outbreak_id = ?", item.ID).Count(&mappings)
+	if hubs != 1 || mappings != 0 {
+		t.Fatalf("hub should be kept and only unmapped: hubs=%d mappings=%d", hubs, mappings)
+	}
+
+	history, err := service.ListAudit("outbreak", item.ID, PageInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var audited bool
+	for _, entry := range history.Items {
+		audited = audited || (entry.Action == "outbreak.deleted" && entry.Metadata["reason"] == "Entered twice")
+	}
+	if !audited {
+		t.Fatalf("deletion not audited with its reason: %#v", history.Items)
+	}
+}
+
+func TestDeletingWithdrawnOutbreakKeepsItsReportsHidden(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	public := OutbreakService{DB: service.DB}
+	author := OutbreakActor{ID: uuid.New()}
+	item, err := service.CreateOutbreak(author, validOutbreakDraftInput(time.Now().UTC().Add(-time.Hour)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	live := publishOutbreakForTest(t, service, item.ID, 1, "active")
+	report := linkedReportForTest(t, service.DB, item.ID)
+	withdrawn, err := service.TransitionOutbreak(author, item.ID, "withdraw", TransitionInput{LockVersion: live.LockVersion, Reason: "Not confirmed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := public.GetReport(report.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("report public under a withdrawn outbreak: %v", err)
+	}
+	if _, err := service.DeleteOutbreak(author, item.ID, withdrawn.LockVersion, OutbreakDeleteInput{Reason: "Not confirmed"}, true); err != nil {
+		t.Fatal(err)
+	}
+	var kept models.SituationReport
+	if err := service.DB.First(&kept, "id = ?", report.ID).Error; err != nil || kept.OutbreakID != nil || kept.StandaloneAllowed {
+		t.Fatalf("report should be kept, unlinked and not standalone: %#v %v", kept, err)
+	}
+	if _, err := public.GetReport(report.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("deleting the outbreak published its hidden report: %v", err)
+	}
+	reports, err := public.ListReports(SituationReportQuery{})
+	if err != nil || len(reports.Items) != 0 {
+		t.Fatalf("hidden report listed publicly: %#v %v", reports, err)
+	}
+}
+
+func TestDraftOutbreakCanBeDeletedWithoutWithdrawPermission(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	author := OutbreakActor{ID: uuid.New()}
+	item, err := service.CreateOutbreak(author, validOutbreakDraftInput(time.Now().UTC().Add(-time.Hour)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.DeleteOutbreak(author, item.ID, item.LockVersion, OutbreakDeleteInput{Reason: "Started by mistake"}, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.GetOutbreak(item.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("draft still exists: %v", err)
+	}
+}
+
+func TestAuditHistoryNamesWhoActedAndWhatChanged(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	author := models.User{Name: "Amina Okello", Email: "amina@example.test", Status: "active"}
+	corrector := models.User{Name: "Brian Mugisha", Email: "brian@example.test", Status: "active"}
+	ebola := models.Disease{Name: "Ebola virus disease", Slug: "ebola", NormalizedName: "ebola virus disease", Status: models.DiseaseStatusActive}
+	marburg := models.Disease{Name: "Marburg virus disease", Slug: "marburg", NormalizedName: "marburg virus disease", Status: models.DiseaseStatusActive}
+	for _, row := range []any{&author, &corrector, &ebola, &marburg} {
+		if err := service.DB.Create(row).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	actor := OutbreakActor{ID: author.ID}
+	item, err := service.CreateOutbreak(actor, validOutbreakDraftInput(time.Now().UTC().Add(-time.Hour)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	live := publishOutbreakForTest(t, service, item.ID, 1, "active")
+	if _, err := service.TransitionOutbreak(actor, item.ID, "update_status", TransitionInput{LockVersion: live.LockVersion, OperationalStatus: "contained", Reason: "No new cases for 42 days"}); err != nil {
+		t.Fatal(err)
+	}
+	applied := map[string]any{"reason": "Wrong disease", "corrected_by": corrector.ID.String(), "changes": map[string]any{"disease_id": map[string]any{"from": ebola.ID.String(), "to": marburg.ID.String()}}}
+	if err := auditOutbreak(service.DB, actor, "outbreak.correction_applied", "outbreak", item.ID, applied); err != nil {
+		t.Fatal(err)
+	}
+	// People who have since been removed are still named in the history.
+	if err := service.DB.Delete(&author).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	history, err := service.ListAudit("outbreak", item.ID, PageInput{Page: 1, PerPage: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history.Items) != 2 || history.TotalItems <= 2 || history.TotalPages < 2 {
+		t.Fatalf("history not paged: %d items, %d total, %d pages", len(history.Items), history.TotalItems, history.TotalPages)
+	}
+	entries := map[string]OutbreakAuditDTO{}
+	for _, entry := range history.Items {
+		entries[entry.Action] = entry
+	}
+	status, correction := entries["outbreak.update_status"], entries["outbreak.correction_applied"]
+	if status.ActorName != "Amina Okello" || status.ActorEmail != "amina@example.test" {
+		t.Fatalf("status change doesn't name who made it: %#v", status)
+	}
+	if status.Metadata["from_status"] != "active" || status.Metadata["to_status"] != "contained" || status.Metadata["reason"] != "No new cases for 42 days" {
+		t.Fatalf("status change doesn't record what changed: %#v", status.Metadata)
+	}
+	want := map[string]string{corrector.ID.String(): "Brian Mugisha", ebola.ID.String(): "Ebola virus disease", marburg.ID.String(): "Marburg virus disease"}
+	if correction.ActorName != "Amina Okello" || len(correction.Labels) != len(want) {
+		t.Fatalf("applied correction labels = %#v (actor %q)", correction.Labels, correction.ActorName)
+	}
+	for id, name := range want {
+		if correction.Labels[id] != name {
+			t.Fatalf("label for %s = %q, want %q", id, correction.Labels[id], name)
 		}
 	}
 }

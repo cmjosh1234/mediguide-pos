@@ -4,6 +4,7 @@ import { getBackendClient } from "@/lib/backend-client";
 import type {
   ServicesChildContentInput,
   ServicesOutbreakAdminDTO,
+  ServicesOutbreakDeleteResult,
   ServicesOutbreakInput,
   ServicesOutbreakMetricsInput,
   ServicesOutbreakNotificationCampaignInput,
@@ -11,7 +12,8 @@ import type {
   ServicesOutbreakResourceAdminDTO,
   ServicesOutbreakUpdateAdminDTO,
   ServicesSituationReportAdminDTO,
-  ServicesSituationReportAssetDTO,
+  ServicesSituationReportAttachmentDTO,
+  ServicesSituationReportAttachmentInput,
   ServicesSituationReportInput,
   ServicesResourceCorrectionInput,
   ServicesTransitionInput,
@@ -23,12 +25,15 @@ export type OutbreakRecord = ServicesOutbreakAdminDTO;
 export type OutbreakUpdateRecord = ServicesOutbreakUpdateAdminDTO;
 export type OutbreakResourceRecord = ServicesOutbreakResourceAdminDTO;
 export type SituationReportRecord = ServicesSituationReportAdminDTO;
+export type SituationReportAttachmentRecord = ServicesSituationReportAttachmentDTO;
+export type SituationReportAttachmentInput = ServicesSituationReportAttachmentInput;
 export type OutbreakInput = ServicesOutbreakInput;
 export type OutbreakMetricsInput = ServicesOutbreakMetricsInput;
 export type SituationReportInput = ServicesSituationReportInput;
 export type ChildContentInput = ServicesChildContentInput;
 export type OutbreakCampaignInput = ServicesOutbreakNotificationCampaignInput;
 export type OutbreakMetric = ServicesOutbreakMetric;
+export type OutbreakDeleteResult = ServicesOutbreakDeleteResult;
 export type PublishedGuidelineRecord = ServicesPublicGuideline;
 
 export interface PagedResult<T> {
@@ -41,6 +46,10 @@ export interface PagedResult<T> {
 export interface OutbreakAuditRecord {
   id: string;
   actor_id: string;
+  actor_name?: string;
+  actor_email?: string;
+  /** Display names for the people and records the metadata refers to by ID. */
+  labels?: Record<string, string>;
   action: string;
   entity_type: string;
   entity_id: string;
@@ -97,6 +106,14 @@ export const outbreaksService = {
     return client().send<OutbreakRecord>(`/api/v2/outbreaks/${id}`, {
       method: "PATCH",
       body: JSON.stringify(input),
+    });
+  },
+  /** Deletes the outbreak with its own updates and resources; linked situation reports and content hubs are kept and unlinked. */
+  delete(id: string, lockVersion: number, reason: string) {
+    return client().send<OutbreakDeleteResult>(`/api/v2/outbreaks/${id}`, {
+      method: "DELETE",
+      query: { lock_version: lockVersion },
+      body: JSON.stringify({ reason }),
     });
   },
   updateMetrics(id: string, input: OutbreakMetricsInput) {
@@ -233,10 +250,10 @@ export const outbreaksService = {
       { method: "POST", body: JSON.stringify(input) },
     );
   },
-  audit(id: string) {
+  audit(id: string, page = 1, perPage = 20) {
     return client().send<PagedResult<OutbreakAuditRecord>>(
       `/api/v2/outbreaks/${id}/audit`,
-      { query: { page: 1, per_page: 100 } },
+      { query: { page, per_page: perPage } },
     );
   },
   addReviewComment(id: string, comment: string) {
@@ -293,12 +310,33 @@ export const situationReportsService = {
       input,
     ) as Promise<SituationReportRecord>;
   },
-  uploadAsset(id: string, file: File) {
-    const body = new FormData();
-    body.append("file", file);
-    return client().send<ServicesSituationReportAssetDTO>(
-      `/api/v2/situation-reports/${id}/asset`,
-      { method: "POST", body },
+  updateMetrics(id: string, input: OutbreakMetricsInput) {
+    return client().send<SituationReportRecord>(
+      `/api/v2/situation-reports/${id}/metrics`,
+      { method: "PATCH", body: JSON.stringify(input) },
+    );
+  },
+  listAttachments(id: string) {
+    return client().send<SituationReportAttachmentRecord[]>(
+      `/api/v2/situation-reports/${id}/attachments`,
+    );
+  },
+  createAttachment(id: string, input: SituationReportAttachmentInput) {
+    return client().send<SituationReportAttachmentRecord>(
+      `/api/v2/situation-reports/${id}/attachments`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
+  },
+  updateAttachment(id: string, attachmentId: string, input: SituationReportAttachmentInput) {
+    return client().send<SituationReportAttachmentRecord>(
+      `/api/v2/situation-reports/${id}/attachments/${attachmentId}`,
+      { method: "PATCH", body: JSON.stringify(input) },
+    );
+  },
+  removeAttachment(id: string, attachmentId: string, lockVersion: number) {
+    return client().send<void>(
+      `/api/v2/situation-reports/${id}/attachments/${attachmentId}`,
+      { method: "DELETE", query: { lock_version: lockVersion } },
     );
   },
   createCampaign(id: string, input: OutbreakCampaignInput) {
@@ -307,10 +345,10 @@ export const situationReportsService = {
       { method: "POST", body: JSON.stringify(input) },
     );
   },
-  audit(id: string) {
+  audit(id: string, page = 1, perPage = 20) {
     return client().send<PagedResult<OutbreakAuditRecord>>(
       `/api/v2/situation-reports/${id}/audit`,
-      { query: { page: 1, per_page: 50 } },
+      { query: { page, per_page: perPage } },
     );
   },
   addReviewComment(id: string, comment: string) {

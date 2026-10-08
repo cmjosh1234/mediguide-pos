@@ -45,6 +45,11 @@ const OutbreakDocumentPage = lazy(() =>
     default: module.OutbreakDocumentPage,
   })),
 );
+const SituationReportPage = lazy(() =>
+  import("./features/discovery/SituationReportPage").then((module) => ({
+    default: module.SituationReportPage,
+  })),
+);
 const SearchPage = lazy(() =>
   discovery().then((module) => ({ default: module.SearchPage })),
 );
@@ -65,6 +70,10 @@ export default function App() {
             element={<PillarPage />}
           />
           <Route path="search" element={<SearchPage />} />
+          <Route
+            path="situation-reports/:reportId"
+            element={<SituationReportPage />}
+          />
           <Route
             path="outbreaks/:outbreakId/documents/:documentId"
             element={<OutbreakDocumentPage />}

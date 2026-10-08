@@ -51,7 +51,11 @@ func registerOutbreakRoutes(protected *gin.RouterGroup, outbreakAdminH handlers.
 	protected.POST("/situation-reports/:id/publish", middleware.RequirePermission("situation_report.publish"), outbreakAdminH.TransitionReport("publish"))
 	protected.POST("/situation-reports/:id/withdraw", middleware.RequirePermission("situation_report.withdraw"), outbreakAdminH.TransitionReport("withdraw"))
 	protected.POST("/situation-reports/:id/correct", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.CorrectReport)
-	protected.POST("/situation-reports/:id/asset", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.UploadReportAsset)
+	protected.PATCH("/situation-reports/:id/metrics", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.UpdateReportMetrics)
+	protected.GET("/situation-reports/:id/attachments", middleware.RequirePermission("situation_report.read"), outbreakAdminH.ListReportAttachments)
+	protected.POST("/situation-reports/:id/attachments", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.CreateReportAttachment)
+	protected.PATCH("/situation-reports/:id/attachments/:attachmentId", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.UpdateReportAttachment)
+	protected.DELETE("/situation-reports/:id/attachments/:attachmentId", middleware.RequirePermission("situation_report.manage"), outbreakAdminH.DeleteReportAttachment)
 	protected.GET("/situation-reports/:id/audit", middleware.RequirePermission("situation_report.read"), outbreakAdminH.ListAudit("situation_report"))
 	protected.POST("/situation-reports/:id/review-comments", middleware.RequirePermission("situation_report.review"), outbreakAdminH.AddReviewComment("situation_report"))
 }

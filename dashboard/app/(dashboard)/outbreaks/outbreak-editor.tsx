@@ -9,7 +9,6 @@ import {
   ExternalLink,
   FolderKanban,
   Loader2,
-  Plus,
   Save,
   ShieldCheck,
 } from "lucide-react";
@@ -17,26 +16,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { apiUrl, getCurrentUser } from "@/lib/backend-client";
 import { showToast } from "@/lib/toast";
 import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { healthFacilitiesService } from "@/services/health-facilities.service";
 import {
   outbreaksService,
-  type OutbreakAuditRecord,
   type OutbreakRecord,
   type OutbreakResourceRecord,
   type OutbreakUpdateRecord,
@@ -60,115 +49,34 @@ import {
   type ResourceDraft,
 } from "./resource-fields";
 import { DEFAULT_PAGE_SIZE, PaginationControls, usePagination } from "./list-pagination";
-
-type MetricDraft = {
-  key: string;
-  label: string;
-  value: string;
-  numeric_value?: number;
-  unit: string;
-  as_of: string;
-  source_reference: string;
-  sort_order: number;
-  _localId: string;
-};
-
-function newMetricId() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
-}
-
-const emptyMetric = (): MetricDraft => ({
-  key: "",
-  label: "",
-  value: "",
-  unit: "",
-  as_of: new Date().toISOString(),
-  source_reference: "",
-  sort_order: 1,
-  _localId: newMetricId(),
-});
-
-// Metrics loaded from or just saved to the backend get a fresh _localId to key
-// their rows by.
-function withLocalIds(metrics: MetricDraft[]): MetricDraft[] {
-  return metrics.map((metric) => ({ ...metric, _localId: newMetricId() }));
-}
-
-function stripLocalIds(metrics: MetricDraft[]) {
-  return metrics.map(({ key, label, value, numeric_value, unit, as_of, source_reference, sort_order }) => ({
-    key,
-    label,
-    value,
-    numeric_value,
-    unit,
-    as_of,
-    source_reference,
-    sort_order,
-  }));
-}
+import { MetricsCard, stripLocalIds, withLocalIds, type MetricDraft } from "./metrics-card";
+import { AuditHistory } from "./audit-history";
+import {
+  CORRECTION_STEPS,
+  errorFields,
+  Field,
+  SelectField,
+  UnsavedChanges,
+  WORKFLOW_STEPS,
+  WorkflowSteps,
+  workflowStage,
+} from "./editor-ui";
 
 type Problem = { id: string; label: string; message: string };
 
-// Mirrors the backend rules that reject a draft save (outbreak_validation.go).
-const METRIC_KEY_PATTERN = /^[a-z][a-z0-9_]{1,63}$/;
-
-// Derives a metric key from its label ("Confirmed cases (demo)" becomes
-// confirmed_cases_demo), adding a numeric suffix if another metric uses it.
-function metricKeyFromLabel(label: string, existing: MetricDraft[]) {
-  const base = label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^[^a-z]+|_+$/g, "")
-    .slice(0, 60)
-    .replace(/_+$/, "");
-  if (!base) return "";
-  const taken = new Set(existing.map((metric) => metric.key));
-  let key = base;
-  for (let suffix = 2; taken.has(key); suffix++) key = `${base}_${suffix}`;
-  return key;
-}
+// Core form fields' element ids, keyed by the backend's JSON field name.
+const fieldId = (key: string) => `outbreak-${key}`;
 
 function findProblems(form: { title: string; disease_id: string }): Problem[] {
   const problems: Problem[] = [];
   const title = form.title.trim();
   if (!title) {
-    problems.push({ id: "outbreak-title", label: "Title", message: "Title is required." });
+    problems.push({ id: fieldId("title"), label: "Title", message: "Title is required." });
   } else if (title.length > 240) {
-    problems.push({ id: "outbreak-title", label: "Title", message: "Title must be 240 characters or fewer." });
+    problems.push({ id: fieldId("title"), label: "Title", message: "Title must be 240 characters or fewer." });
   }
   if (!form.disease_id) {
-    problems.push({ id: "outbreak-disease", label: "Disease", message: "Disease is required." });
-  }
-  return problems;
-}
-
-function findMetricProblems(metric: MetricDraft, existing: MetricDraft[]): Problem[] {
-  const problems: Problem[] = [];
-  const key = metric.key.trim().toLowerCase();
-  if (!key) {
-    problems.push({ id: "metric-key", label: "Key", message: "Key is required." });
-  } else if (!METRIC_KEY_PATTERN.test(key)) {
-    problems.push({
-      id: "metric-key",
-      label: "Key",
-      message: "Key must be lowercase letters, numbers or underscores, starting with a letter.",
-    });
-  } else if (existing.some((other) => other.key === key)) {
-    problems.push({ id: "metric-key", label: "Key", message: "Another metric already uses this key." });
-  }
-  if (!metric.label.trim()) {
-    problems.push({ id: "metric-label", label: "Label", message: "Label is required." });
-  }
-  if (!metric.value.trim()) {
-    problems.push({ id: "metric-value", label: "Value", message: "Value is required." });
-  }
-  if (!metric.source_reference.trim()) {
-    problems.push({ id: "metric-source_reference", label: "Source", message: "Source is required." });
-  }
-  if (!metric.as_of) {
-    problems.push({ id: "metric-as_of", label: "As of", message: "The 'as of' date is required." });
+    problems.push({ id: fieldId("disease_id"), label: "Disease", message: "Disease is required." });
   }
   return problems;
 }
@@ -179,22 +87,19 @@ function findUpdateProblems(draft: { title: string }): Problem[] {
     : [{ id: "update-title", label: "Title", message: "Title is required." }];
 }
 
-const WORKFLOW_STEPS = ["Draft", "In review", "Approved", "Published"];
-
-// -1 means withdrawn (outside the forward path).
-function workflowStage(status?: string, approvedAt?: string) {
-  if (!status || status === "draft") return 0;
-  if (status === "pending_review") return approvedAt ? 2 : 1;
-  if (status === "withdrawn") return -1;
-  return 3;
-}
 
 function statusLabel(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function workflowHint(status?: string, approvedAt?: string) {
-  switch (workflowStage(status, approvedAt)) {
+function workflowHint(status?: string, approvedAt?: string, correction = false) {
+  const stage = workflowStage(status, approvedAt);
+  if (correction) {
+    return stage === 0
+      ? "Change the core metadata and source below and save the draft, then submit it for review."
+      : "Waiting for a reviewer. Approving applies these changes to the live outbreak.";
+  }
+  switch (stage) {
     case 0:
       return "Fill in the details below and save the draft, then submit it for review.";
     case 1:
@@ -202,58 +107,21 @@ function workflowHint(status?: string, approvedAt?: string) {
     case 2:
       return "Approved. Publish it to make it public.";
     case 3:
-      return "Live on the public API. To change it, create a correction.";
+      return "Live on the public API. To change its core metadata and source, create a correction.";
     default:
       return "Withdrawn. This outbreak is no longer public.";
   }
 }
 
-function WorkflowSteps({ stage }: { stage: number }) {
-  if (stage < 0) return <Badge variant="destructive">Withdrawn</Badge>;
-  return (
-    <ol className="flex items-center gap-2 text-sm">
-      {WORKFLOW_STEPS.map((step, index) => {
-        const done = index < stage || stage === WORKFLOW_STEPS.length - 1;
-        const current = index === stage && !done;
-        return (
-          <li key={step} className="flex items-center gap-2">
-            <span
-              className={cn(
-                "flex h-6 w-6 items-center justify-center rounded-full border text-xs font-medium",
-                done && "border-primary bg-primary text-primary-foreground",
-                current && "border-primary text-primary ring-2 ring-primary/30",
-                !done && !current && "text-muted-foreground",
-              )}
-              aria-hidden="true"
-            >
-              {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : index + 1}
-            </span>
-            <span
-              className={cn(
-                current ? "font-medium" : "text-muted-foreground",
-              )}
-              aria-current={current ? "step" : undefined}
-            >
-              {step}
-            </span>
-            {index < WORKFLOW_STEPS.length - 1 ? (
-              <span className="h-px w-6 bg-border" aria-hidden="true" />
-            ) : null}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
 export function OutbreakEditor({ id }: { id?: string }) {
   const router = useRouter();
   const [item, setItem] = React.useState<OutbreakRecord | null>(null);
+  // The live outbreak, when this record is a correction of it.
+  const [original, setOriginal] = React.useState<OutbreakRecord | null>(null);
   const [updates, setUpdates] = React.useState<OutbreakUpdateRecord[]>([]);
   const [resources, setResources] = React.useState<OutbreakResourceRecord[]>(
     [],
   );
-  const [audit, setAudit] = React.useState<OutbreakAuditRecord[]>([]);
   const [reports, setReports] = React.useState<SituationReportRecord[]>([]);
   const [guidelines, setGuidelines] = React.useState<
     PublishedGuidelineRecord[]
@@ -263,18 +131,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
   const [diseases, setDiseases] = React.useState<
     Array<{ id: string; name: string; parent_name?: string; color?: string }>
   >([]);
-  const [reviewComment, setReviewComment] = React.useState("");
   const [metrics, setMetrics] = React.useState<MetricDraft[]>([]);
-  const metricEntries = React.useMemo(
-    () => metrics.map((metric, index) => ({ metric, index })),
-    [metrics],
-  );
-  const metricPages = usePagination(metricEntries, DEFAULT_PAGE_SIZE);
-  // The metric being added in the "+ Metric" dialog; null while it's closed.
-  const [metricDraft, setMetricDraft] = React.useState<MetricDraft | null>(null);
-  const [metricAttempted, setMetricAttempted] = React.useState(false);
-  // The key follows the label until it's edited by hand.
-  const [metricKeyEdited, setMetricKeyEdited] = React.useState(false);
   const [updateDraft, setUpdateDraft] = React.useState({
     title: "",
     summary: "",
@@ -299,6 +156,8 @@ export function OutbreakEditor({ id }: { id?: string }) {
     last_verified_at: "",
     change_summary: "",
   });
+  // The form as last loaded or saved, to tell when there are unsaved changes.
+  const [savedForm, setSavedForm] = React.useState(form);
   const [loading, setLoading] = React.useState(Boolean(id));
   const [saving, setSaving] = React.useState(false);
   const [savingMetrics, setSavingMetrics] = React.useState(false);
@@ -313,14 +172,12 @@ export function OutbreakEditor({ id }: { id?: string }) {
         record,
         updatePage,
         resourcePage,
-        auditPage,
         reportPage,
         guidelinePage,
       ] = await Promise.all([
         outbreaksService.get(id),
         outbreaksService.listUpdates(id),
         outbreaksService.listResources(id),
-        outbreaksService.audit(id),
         situationReportsService.list({
           outbreak_id: id,
           page: 1,
@@ -329,14 +186,18 @@ export function OutbreakEditor({ id }: { id?: string }) {
         outbreaksService.listPublishedGuidelines(),
       ]);
       setItem(record);
+      setOriginal(
+        record.supersedes_id
+          ? await outbreaksService.get(record.supersedes_id).catch(() => null)
+          : null,
+      );
       setUpdates(updatePage.items || []);
       setResources(resourcePage.items || []);
-      setAudit(auditPage.items || []);
       setReports(reportPage.items || []);
       setGuidelines(guidelinePage.items || []);
       const loadedMetrics = withLocalIds((record.metrics || []) as MetricDraft[]);
       setMetrics(loadedMetrics);
-      setForm({
+      const loaded = {
         title: record.title || "",
         disease_id: record.disease_id || "",
         geographic_area: record.geographic_area || "",
@@ -353,7 +214,9 @@ export function OutbreakEditor({ id }: { id?: string }) {
         data_as_of: toLocal(record.data_as_of),
         last_verified_at: toLocal(record.last_verified_at),
         change_summary: "",
-      });
+      };
+      setForm(loaded);
+      setSavedForm(loaded);
     } catch (value) {
       setError(
         value instanceof Error
@@ -392,8 +255,20 @@ export function OutbreakEditor({ id }: { id?: string }) {
       .catch(() => setDistricts([]));
   }, [form.region_id]);
 
+  // Errors the backend returned for specific fields, keyed by element id.
+  const [serverErrors, setServerErrors] = React.useState<Record<string, string>>({});
+
   function field(name: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [name]: value }));
+    // Editing a field clears its error, and the same error on the other fields
+    // that rule named (such as the other of two dates out of order).
+    setServerErrors((current) => {
+      const message = current[fieldId(name)];
+      if (!message) return current;
+      return Object.fromEntries(
+        Object.entries(current).filter(([, other]) => other !== message),
+      );
+    });
   }
   const immutable =
     item?.status === "published" ||
@@ -402,6 +277,9 @@ export function OutbreakEditor({ id }: { id?: string }) {
     item?.status === "contained" ||
     item?.status === "closed" ||
     item?.status === "withdrawn";
+  // A correction only changes core metadata and source; everything else stays
+  // on the live outbreak it is applied to.
+  const isCorrection = Boolean(item?.supersedes_id);
 
   // Problems are always computed, but only shown once a save has been attempted,
   // so the form isn't covered in errors before the user has typed anything.
@@ -412,15 +290,12 @@ export function OutbreakEditor({ id }: { id?: string }) {
   );
   const visibleProblems = attempted ? problems : [];
   const errorFor = (id: string) =>
-    visibleProblems.find((problem) => problem.id === id)?.message;
-  const metricProblems = React.useMemo(
-    () => (metricDraft ? findMetricProblems(metricDraft, metrics) : []),
-    [metricDraft, metrics],
-  );
-  const metricError = (id: string) =>
-    metricAttempted
-      ? metricProblems.find((problem) => problem.id === id)?.message
-      : undefined;
+    visibleProblems.find((problem) => problem.id === id)?.message ??
+    serverErrors[id];
+  const fieldProps = (key: keyof typeof form) => ({
+    id: fieldId(key),
+    error: errorFor(fieldId(key)),
+  });
 
   function focusField(id: string) {
     // Wait for the field to render before focusing it.
@@ -430,6 +305,16 @@ export function OutbreakEditor({ id }: { id?: string }) {
       element.scrollIntoView({ block: "center", behavior: "smooth" });
       element.focus({ preventScroll: true });
     }, 0);
+  }
+
+  // Highlights the fields a failed save or workflow step names, replacing any
+  // earlier highlights, and moves to the first one.
+  function showServerErrors(value: unknown) {
+    const fields = errorFields(value);
+    setServerErrors(
+      Object.fromEntries(fields.map(({ field, message }) => [fieldId(field), message])),
+    );
+    if (fields.length > 0) focusField(fieldId(fields[0].field));
   }
 
   const [updateAttempted, setUpdateAttempted] = React.useState(false);
@@ -489,6 +374,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
       return;
     }
     setSaving(true);
+    const sent = form;
     try {
       const payload = {
         ...form,
@@ -501,12 +387,13 @@ export function OutbreakEditor({ id }: { id?: string }) {
         effective_at: iso(form.effective_at),
         data_as_of: iso(form.data_as_of),
         last_verified_at: iso(form.last_verified_at),
-        metrics: stripLocalIds(metrics),
+        ...(isCorrection ? {} : { metrics: stripLocalIds(metrics) }),
         ...(item ? { lock_version: item.lock_version } : {}),
       };
       const saved = item
         ? await outbreaksService.update(item.id!, payload)
         : await outbreaksService.create(payload);
+      setServerErrors({});
       showToast.success(
         "Outbreak saved",
         "The draft was saved without publishing it.",
@@ -516,20 +403,16 @@ export function OutbreakEditor({ id }: { id?: string }) {
         return;
       }
       setItem(saved);
+      setSavedForm(sent);
       setMetrics(withLocalIds((saved.metrics || []) as MetricDraft[]));
     } catch (value) {
+      showServerErrors(value);
       showToast.error("Unable to save", conflictMessage(value), {
         richColors: true,
       });
     } finally {
       setSaving(false);
     }
-  }
-
-  function openMetricDialog() {
-    setMetricAttempted(false);
-    setMetricKeyEdited(false);
-    setMetricDraft(emptyMetric());
   }
 
   // The backend only replaces the whole metric set, so adding or removing one
@@ -565,35 +448,6 @@ export function OutbreakEditor({ id }: { id?: string }) {
     }
   }
 
-  async function addMetric() {
-    if (!metricDraft) return;
-    if (metricProblems.length > 0) {
-      setMetricAttempted(true);
-      rejectIncomplete(metricProblems);
-      return;
-    }
-    const sortOrder = Math.max(0, ...metrics.map((metric) => metric.sort_order)) + 1;
-    const added = await persistMetrics(
-      [
-        ...metrics,
-        { ...metricDraft, key: metricDraft.key.trim().toLowerCase(), sort_order: sortOrder },
-      ],
-      { title: "Metric saved", message: `${metricDraft.label.trim()} was added.` },
-      "Unable to save metric",
-    );
-    if (added) setMetricDraft(null);
-  }
-
-  async function removeMetric(index: number) {
-    if (item && !window.confirm("Remove this metric? It will be deleted immediately."))
-      return;
-    await persistMetrics(
-      metrics.filter((_, position) => position !== index),
-      { title: "Metric removed", message: "The metric was deleted." },
-      "Unable to remove metric",
-    );
-  }
-
   async function workflow(
     action: "submit" | "approve" | "publish" | "withdraw" | "correct",
   ) {
@@ -603,7 +457,15 @@ export function OutbreakEditor({ id }: { id?: string }) {
         ? window.prompt(`Reason for ${action}`)?.trim()
         : "";
     if ((action === "withdraw" || action === "correct") && !reason) return;
-    if ( action === "approve" && !window.confirm("Approve this outbreak for publication?")) return;
+    if (
+      action === "approve" &&
+      !window.confirm(
+        isCorrection
+          ? "Apply this correction? The live outbreak's core metadata and source will be replaced with this version."
+          : "Approve this outbreak for publication?",
+      )
+    )
+      return;
     if (
       action === "publish" &&
       !window.confirm(
@@ -623,12 +485,41 @@ export function OutbreakEditor({ id }: { id?: string }) {
               lock_version: item.lock_version!,
               reason,
             });
+      // Approving a correction returns the live outbreak it was applied to.
+      if (action === "approve" && next.id !== item.id) {
+        showToast.success(
+          "Correction applied",
+          "The live outbreak now shows the corrected details.",
+        );
+        window.location.assign(withDashboardBasePath(`/outbreaks/${next.id}`));
+        return;
+      }
       setItem(next);
+      setServerErrors({});
       showToast.success("Workflow updated", `Outbreak is now ${next.status}.`);
       if (action === "correct")
         window.location.assign(withDashboardBasePath(`/outbreaks/${next.id}`));
     } catch (value) {
+      showServerErrors(value);
       showToast.error("Workflow failed", conflictMessage(value), {
+        richColors: true,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function discardCorrection() {
+    if (!item?.id || !item.supersedes_id) return;
+    if (!window.confirm("Discard this correction? The live outbreak stays as it is."))
+      return;
+    setSaving(true);
+    try {
+      await outbreaksService.remove(item.id, item.lock_version!);
+      showToast.success("Correction discarded", "The live outbreak is unchanged.");
+      window.location.assign(withDashboardBasePath(`/outbreaks/${item.supersedes_id}`));
+    } catch (value) {
+      showToast.error("Correction not discarded", conflictMessage(value), {
         richColors: true,
       });
     } finally {
@@ -725,22 +616,6 @@ export function OutbreakEditor({ id }: { id?: string }) {
     }
   }
 
-  async function addReviewComment() {
-    if (!item?.id || !reviewComment.trim()) return;
-    try {
-      await outbreaksService.addReviewComment(item.id, reviewComment);
-      setReviewComment("");
-      const history = await outbreaksService.audit(item.id);
-      setAudit(history.items || []);
-      showToast.success(
-        "Review comment added",
-        "The comment is recorded in audit history.",
-      );
-    } catch (value) {
-      showToast.error("Comment not added", conflictMessage(value));
-    }
-  }
-
   if (loading)
     return (
       <div className="py-20 text-center">
@@ -802,15 +677,22 @@ export function OutbreakEditor({ id }: { id?: string }) {
         .map(([label]) => label)
     : [];
   const inReview = item?.status === "pending_review";
+  // Workflow steps act on the saved record, so edits have to be saved first.
+  const dirty =
+    Boolean(item) &&
+    !immutable &&
+    (Object.keys(form) as Array<keyof typeof form>).some(
+      (key) => form[key] !== savedForm[key],
+    );
   const workflowNotices = [
     inReview && !item?.approved_at && isAuthor
-      ? "You created this outbreak, so a different reviewer has to approve it."
+      ? `You created this ${isCorrection ? "correction" : "outbreak"}, so a different reviewer has to approve it.`
       : null,
     inReview && item?.approved_at && publishBlockedByRole
       ? "Critical outbreaks must be published by someone other than the approver."
       : null,
     inReview && missingForPublish.length > 0
-      ? `Before it can be published, fill in and save: ${missingForPublish.join(", ")}.`
+      ? `Before it can be ${isCorrection ? "applied" : "published"}, fill in and save: ${missingForPublish.join(", ")}.`
       : null,
   ].filter((value): value is string => Boolean(value));
 
@@ -823,17 +705,31 @@ export function OutbreakEditor({ id }: { id?: string }) {
               {item ? item.title || "Untitled outbreak" : "New outbreak"}
             </h1>
             {item ? <Badge variant="outline">{item.status}</Badge> : null}
+            {isCorrection ? <Badge variant="secondary">Correction</Badge> : null}
           </div>
-          <p className="text-sm text-muted-foreground">
-            Draft, review, publish, correct and distribute verified outbreak
-            content.
-          </p>
+          {isCorrection ? (
+            <p className="text-sm text-muted-foreground">
+              Correction of{" "}
+              <Link
+                className="font-medium text-foreground underline"
+                href={`/outbreaks/${item?.supersedes_id}`}
+              >
+                {original?.title || "the live outbreak"}
+              </Link>
+              . Only core metadata and source can be changed.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Draft, review, publish, correct and distribute verified outbreak
+              content.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <Link href="/outbreaks">Back to list</Link>
           </Button>
-          {item ? (
+          {item && !isCorrection ? (
             <Button
               variant="outline"
               disabled={saving}
@@ -843,35 +739,45 @@ export function OutbreakEditor({ id }: { id?: string }) {
               Configure hub
             </Button>
           ) : null}
-          <Button disabled={saving || immutable} onClick={() => void save()}>
-            <Save className="mr-2 h-4 w-4" />
-            Save draft
-          </Button>
         </div>
       </div>
       {item ? (
         <Card>
           <CardHeader className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle>Publication workflow</CardTitle>
-              <Button variant="ghost" size="sm" asChild>
-                <a href={apiUrl(`/api/public/outbreaks/${item.id}`)} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Preview public API
-                </a>
-              </Button>
+              <CardTitle>{isCorrection ? "Correction workflow" : "Publication workflow"}</CardTitle>
+              {isCorrection ? null : (
+                <Button variant="ghost" size="sm" asChild>
+                  <a href={apiUrl(`/api/public/outbreaks/${item.id}`)} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Preview public API
+                  </a>
+                </Button>
+              )}
             </div>
             <WorkflowSteps
               stage={workflowStage(item.status, item.approved_at)}
+              steps={isCorrection ? CORRECTION_STEPS : WORKFLOW_STEPS}
             />
             <p className="text-sm text-muted-foreground">
-              {workflowHint(item.status, item.approved_at)}
+              {workflowHint(item.status, item.approved_at, isCorrection)}
             </p>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
+            {dirty ? (
+              <UnsavedChanges
+                message={`You have unsaved changes. ${
+                  isCorrection
+                    ? "Submitting and approving use"
+                    : "Submitting, approving and publishing use"
+                } the saved version, so save the draft first.`}
+                saving={saving}
+                onSave={() => void save()}
+              />
+            ) : null}
             <Button
               variant={item.status === "draft" ? "default" : "outline"}
-              disabled={saving || item.status !== "draft"}
+              disabled={saving || dirty || item.status !== "draft"}
               onClick={() => void workflow("submit")}
             >
               Submit for review
@@ -884,47 +790,69 @@ export function OutbreakEditor({ id }: { id?: string }) {
               }
               disabled={
                 saving ||
+                dirty ||
                 item.status !== "pending_review" ||
                 Boolean(item.approved_at) ||
-                isAuthor
+                isAuthor ||
+                (isCorrection && missingForPublish.length > 0)
               }
               onClick={() => void workflow("approve")}
             >
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              Approve
+              {isCorrection ? "Approve and apply" : "Approve"}
             </Button>
-            <Button
-              variant={
-                item.status === "pending_review" && item.approved_at
-                  ? "default"
-                  : "outline"
-              }
-              disabled={
-                saving ||
-                item.status !== "pending_review" ||
-                !item.approved_at ||
-                publishBlockedByRole ||
-                missingForPublish.length > 0
-              }
-              onClick={() => void workflow("publish")}
-            >
-              Publish
-            </Button>
+            {isCorrection ? null : (
+              <Button
+                variant={
+                  item.status === "pending_review" && item.approved_at
+                    ? "default"
+                    : "outline"
+                }
+                disabled={
+                  saving ||
+                  dirty ||
+                  item.status !== "pending_review" ||
+                  !item.approved_at ||
+                  publishBlockedByRole ||
+                  missingForPublish.length > 0
+                }
+                onClick={() => void workflow("publish")}
+              >
+                Publish
+              </Button>
+            )}
             <div className="ml-auto flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                disabled={saving || !immutable || item.status === "withdrawn"}
-                onClick={() => void workflow("correct")}
-              >
-                Create correction
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={saving || !isPublished}
-                onClick={() => void workflow("withdraw")}
-              >
-                Withdraw
-              </Button>
+              {isCorrection ? (
+                <Button
+                  variant="destructive"
+                  disabled={saving}
+                  onClick={() => void discardCorrection()}
+                >
+                  Discard correction
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    disabled={
+                      saving ||
+                      !immutable ||
+                      item.status === "withdrawn" ||
+                      Boolean(item.open_correction_id)
+                    }
+                    onClick={() => void workflow("correct")}
+                  >
+                    Create correction
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    disabled={saving || !isPublished}
+                    onClick={() => void workflow("withdraw")}
+                  >
+                    Withdraw
+                  </Button>
+                </>
+              )}
             </div>
             {canChangeStatus ? (
               <div className="flex w-full flex-wrap items-center gap-2 border-t pt-3">
@@ -971,8 +899,38 @@ export function OutbreakEditor({ id }: { id?: string }) {
         <div className="flex gap-3 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
           <ShieldCheck className="h-5 w-5" />
           <div>
-            <strong>Published content is immutable.</strong> Create a correction
-            to make changes.
+            <strong>Published content is immutable.</strong>{" "}
+            {item?.status === "withdrawn" ? (
+              "Withdrawn outbreaks can't be changed."
+            ) : item?.open_correction_id ? (
+              <>
+                A correction of its core metadata and source is in progress.{" "}
+                <Link
+                  className="font-medium underline"
+                  href={`/outbreaks/${item.open_correction_id}`}
+                >
+                  Open the correction
+                </Link>
+              </>
+            ) : (
+              "Create a correction to change its core metadata and source. Metrics, updates and resources can be changed below."
+            )}
+          </div>
+        </div>
+      ) : null}
+      {isCorrection ? (
+        <div className="flex gap-3 rounded-md border bg-muted/40 p-4 text-sm">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <div>
+            Metrics, updates, resources and situation reports aren&apos;t part
+            of a correction. Manage them on the{" "}
+            <Link
+              className="font-medium underline"
+              href={`/outbreaks/${item?.supersedes_id}`}
+            >
+              live outbreak
+            </Link>
+            .
           </div>
         </div>
       ) : null}
@@ -986,21 +944,22 @@ export function OutbreakEditor({ id }: { id?: string }) {
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <Field
-            id="outbreak-title"
+            {...fieldProps("title")}
             label="Title"
             required
-            error={errorFor("outbreak-title")}
             value={form.title}
             onChange={(value) => field("title", value)}
             disabled={immutable}
           />
           <div>
-            <Label htmlFor="outbreak-disease">
+            <Label htmlFor={fieldId("disease_id")}>
               Disease
               <RequiredMark />
               <span className="sr-only">(required)</span>
             </Label>
             <MultiSelect
+              id={fieldId("disease_id")}
+              invalid={Boolean(errorFor(fieldId("disease_id")))}
               className="mt-2"
               maxSelections={1}
               options={diseases.map((value) => ({
@@ -1013,16 +972,17 @@ export function OutbreakEditor({ id }: { id?: string }) {
               placeholder="Search diseases"
               disabled={immutable}
             />
-            {errorFor("outbreak-disease") ? (
+            {errorFor(fieldId("disease_id")) ? (
               <p
-                id="outbreak-disease-error"
+                id={`${fieldId("disease_id")}-error`}
                 className="mt-1 text-xs text-destructive"
               >
-                {errorFor("outbreak-disease")}
+                {errorFor(fieldId("disease_id"))}
               </p>
             ) : null}
           </div>
           <Field
+            {...fieldProps("geographic_area")}
             label="Geographic coverage"
             hint="needed to publish"
             value={form.geographic_area}
@@ -1030,6 +990,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
             disabled={immutable}
           />
           <SelectField
+            {...fieldProps("region_id")}
             label="Region"
             value={form.region_id}
             onChange={(value) => {
@@ -1044,6 +1005,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
             disabled={immutable}
           />
           <SelectField
+            {...fieldProps("district_id")}
             label="District"
             value={form.district_id}
             onChange={(value) => field("district_id", value)}
@@ -1055,6 +1017,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
             disabled={immutable}
           />
           <Field
+            {...fieldProps("source_organization")}
             label="Source organization"
             hint="needed to publish"
             value={form.source_organization}
@@ -1062,6 +1025,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
             disabled={immutable}
           />
           <Field
+            {...fieldProps("source_reference")}
             label="Source reference"
             hint="needed to publish"
             value={form.source_reference}
@@ -1069,6 +1033,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
             disabled={immutable}
           />
           <Field
+            {...fieldProps("source_url")}
             label="Source HTTPS URL"
             hint="approved domains only, e.g. who.int, health.go.ug"
             value={form.source_url}
@@ -1076,6 +1041,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
             disabled={immutable}
           />
           <Field
+            {...fieldProps("start_date")}
             label="Start date"
             type="datetime-local"
             value={form.start_date}
@@ -1083,6 +1049,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
             disabled={immutable}
           />
           <Field
+            {...fieldProps("last_update")}
             label="Last update"
             type="datetime-local"
             value={form.last_update}
@@ -1090,6 +1057,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
             disabled={immutable}
           />
           <Field
+            {...fieldProps("effective_at")}
             label="Effective at"
             hint="needed to publish"
             type="datetime-local"
@@ -1098,6 +1066,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
             disabled={immutable}
           />
           <Field
+            {...fieldProps("data_as_of")}
             label="Data as of"
             type="datetime-local"
             value={form.data_as_of}
@@ -1105,6 +1074,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
             disabled={immutable}
           />
           <Field
+            {...fieldProps("last_verified_at")}
             label="Last verified"
             hint="needed to publish"
             type="datetime-local"
@@ -1112,30 +1082,38 @@ export function OutbreakEditor({ id }: { id?: string }) {
             onChange={(value) => field("last_verified_at", value)}
             disabled={immutable}
           />
-          <div>
-            <Label>Visual tone</Label>
-            <select
-              className="mt-2 h-10 w-full rounded-md border bg-background px-3"
-              value={form.visual_tone}
-              disabled={immutable}
-              onChange={(event) => field("visual_tone", event.target.value)}
-            >
-              {["neutral", "info", "warning", "critical", "success"].map(
-                (value) => (
-                  <option key={value}>{value}</option>
-                ),
-              )}
-            </select>
-          </div>
+          <SelectField
+            {...fieldProps("visual_tone")}
+            label="Visual tone"
+            value={form.visual_tone}
+            onChange={(value) => field("visual_tone", value)}
+            options={["neutral", "info", "warning", "critical", "success"].map(
+              (value) => ({ id: value, name: value }),
+            )}
+            disabled={immutable}
+          />
           <div className="md:col-span-2">
-            <Label>Summary</Label>
+            <Label htmlFor={fieldId("summary")}>Summary</Label>
             <Textarea
+              id={fieldId("summary")}
               className="mt-2"
               rows={5}
               value={form.summary}
               onChange={(event) => field("summary", event.target.value)}
               disabled={immutable}
+              aria-invalid={Boolean(errorFor(fieldId("summary")))}
+              aria-describedby={
+                errorFor(fieldId("summary")) ? `${fieldId("summary")}-error` : undefined
+              }
             />
+            {errorFor(fieldId("summary")) ? (
+              <p
+                id={`${fieldId("summary")}-error`}
+                className="mt-1 text-xs text-destructive"
+              >
+                {errorFor(fieldId("summary"))}
+              </p>
+            ) : null}
           </div>
           <div className="md:col-span-2">
             <Label>Change summary</Label>
@@ -1147,180 +1125,41 @@ export function OutbreakEditor({ id }: { id?: string }) {
               disabled={immutable}
             />
           </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Metrics</CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={savingMetrics}
-              onClick={openMetricDialog}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Metric
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Metrics can be kept up to date at any time, even once the outbreak
-            is published. To change a metric, remove it and add it again.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {metrics.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No metrics added.</p>
-          ) : (
-            metricPages.visible.map(({ metric, index }) => (
-              <div
-                key={metric._localId}
-                className="flex items-start justify-between gap-4 rounded-md border p-3"
-              >
-                <div className="min-w-0 space-y-1">
-                  <p className="font-medium">
-                    {metric.label}{" "}
-                    <span className="font-mono text-xs font-normal text-muted-foreground">
-                      {metric.key}
-                    </span>
-                  </p>
-                  <p className="text-sm">
-                    {metric.value}
-                    {metric.unit ? ` ${metric.unit}` : ""}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {metric.source_reference}
-                    {metric.as_of
-                      ? ` · as of ${new Date(metric.as_of).toLocaleString()}`
-                      : ""}
-                  </p>
-                </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={savingMetrics}
-                  onClick={() => void removeMetric(index)}
-                >
-                  Remove
-                </Button>
-              </div>
-            ))
-          )}
-          <PaginationControls pagination={metricPages} label="Metrics" />
-        </CardContent>
-      </Card>
-      <Dialog
-        open={Boolean(metricDraft)}
-        onOpenChange={(open) => {
-          if (!open && !savingMetrics) setMetricDraft(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add metric</DialogTitle>
-            <DialogDescription>
-              {item
-                ? "The metric is saved as soon as you add it. Once the outbreak is published, adding a metric notifies everyone subscribed to outbreak alerts."
-                : "The metric is saved with the outbreak."}
-            </DialogDescription>
-          </DialogHeader>
-          {metricDraft ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <ChildField id="metric-label" label="Label" required error={metricError("metric-label")}>
-                <Input
-                  id="metric-label"
-                  aria-required
-                  aria-invalid={Boolean(metricError("metric-label"))}
-                  placeholder="Confirmed cases"
-                  value={metricDraft.label}
-                  onChange={(event) => updateMetricDraft("label", event.target.value)}
-                  autoFocus
-                />
-              </ChildField>
-              <ChildField id="metric-key" label="Key" required error={metricError("metric-key")}>
-                <Input
-                  id="metric-key"
-                  className="font-mono"
-                  aria-required
-                  aria-invalid={Boolean(metricError("metric-key"))}
-                  placeholder="Generated from the label"
-                  value={metricDraft.key}
-                  onChange={(event) => {
-                    // Clearing the key hands it back to the label.
-                    setMetricKeyEdited(event.target.value !== "");
-                    updateMetricDraft("key", event.target.value);
-                  }}
-                />
-              </ChildField>
-              <ChildField id="metric-value" label="Value" required error={metricError("metric-value")}>
-                <Input
-                  id="metric-value"
-                  aria-required
-                  aria-invalid={Boolean(metricError("metric-value"))}
-                  placeholder="20"
-                  value={metricDraft.value}
-                  onChange={(event) => updateMetricDraft("value", event.target.value)}
-                />
-              </ChildField>
-              <ChildField id="metric-unit" label="Unit">
-                <Input
-                  id="metric-unit"
-                  placeholder="cases"
-                  value={metricDraft.unit}
-                  onChange={(event) => updateMetricDraft("unit", event.target.value)}
-                />
-              </ChildField>
-              <ChildField
-                id="metric-source_reference"
-                label="Source"
-                required
-                error={metricError("metric-source_reference")}
-              >
-                <Input
-                  id="metric-source_reference"
-                  aria-required
-                  aria-invalid={Boolean(metricError("metric-source_reference"))}
-                  placeholder="WHO situation report 11"
-                  value={metricDraft.source_reference}
-                  onChange={(event) =>
-                    updateMetricDraft("source_reference", event.target.value)
-                  }
-                />
-              </ChildField>
-              <ChildField id="metric-as_of" label="As of" required error={metricError("metric-as_of")}>
-                <Input
-                  id="metric-as_of"
-                  type="datetime-local"
-                  aria-required
-                  aria-invalid={Boolean(metricError("metric-as_of"))}
-                  value={toLocal(metricDraft.as_of)}
-                  onChange={(event) =>
-                    updateMetricDraft("as_of", iso(event.target.value) || "")
-                  }
-                />
-              </ChildField>
-            </div>
+          {dirty ? (
+            <UnsavedChanges
+              className="md:col-span-2"
+              message="You have unsaved changes."
+              saving={saving}
+              onSave={() => void save()}
+            />
           ) : null}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={savingMetrics}
-              onClick={() => setMetricDraft(null)}
-            >
-              Cancel
-            </Button>
-            <Button disabled={savingMetrics} onClick={() => void addMetric()}>
-              {savingMetrics ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
-              {item ? "Save metric" : "Add metric"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {item ? (
+        </CardContent>
+      </Card>
+      {isCorrection ? null : (
+        <MetricsCard
+          metrics={metrics}
+          saving={savingMetrics}
+          onPersist={persistMetrics}
+          description="Metrics can be kept up to date at any time, even once the outbreak is published. To change a metric, remove it and add it again."
+          dialogDescription={
+            item
+              ? "The metric is saved as soon as you add it. Once the outbreak is published, adding a metric notifies everyone subscribed to outbreak alerts."
+              : "The metric is saved with the outbreak."
+          }
+          saveLabel={item ? "Save metric" : "Add metric"}
+          confirmRemoval={Boolean(item)}
+        />
+      )}
+      {/* A saved outbreak offers Save draft beside its unsaved changes; a new one is saved from the end of the form. */}
+      {item ? null : (
+        <div className="flex justify-end">
+          <Button disabled={saving} onClick={() => void save()}>
+            <Save className="mr-2 h-4 w-4" />
+            Save draft
+          </Button>
+        </div>
+      )}
+      {item && !isCorrection ? (
         <>
           <Card>
             <CardHeader>
@@ -1441,42 +1280,10 @@ export function OutbreakEditor({ id }: { id?: string }) {
               />
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Review and audit history</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Textarea
-                  maxLength={4000}
-                  value={reviewComment}
-                  onChange={(event) => setReviewComment(event.target.value)}
-                  placeholder="Add an auditable reviewer comment"
-                />
-                <Button
-                  variant="outline"
-                  disabled={!reviewComment.trim()}
-                  onClick={() => void addReviewComment()}
-                >
-                  Add comment
-                </Button>
-              </div>
-              <ChildRows
-                items={audit.map((value) => ({
-                  id: value.id,
-                  title: value.action,
-                  status: new Date(value.created_at).toLocaleString(),
-                  detail:
-                    typeof value.metadata?.comment === "string"
-                      ? value.metadata.comment
-                      : `Actor ${value.actor_id}`,
-                }))}
-                empty="No audit events recorded."
-                label="Audit history"
-              />
-            </CardContent>
-          </Card>
         </>
+      ) : null}
+      {item ? (
+        <AuditHistory entity="outbreak" id={item.id!} refreshKey={item.lock_version} />
       ) : null}
       {item &&
       ["published", "active", "monitoring", "contained", "closed"].includes(
@@ -1496,16 +1303,7 @@ export function OutbreakEditor({ id }: { id?: string }) {
     </div>
   );
 
-  function updateMetricDraft(key: keyof MetricDraft, value: string) {
-    setMetricDraft((current) => {
-      if (!current) return current;
-      const next = { ...current, [key]: value };
-      if (key === "label" && !metricKeyEdited) {
-        next.key = metricKeyFromLabel(value, metrics);
-      }
-      return next;
-    });
-  }
+
 }
 
 function ChildField({
@@ -1542,99 +1340,6 @@ function ChildField({
   );
 }
 
-function Field({
-  id,
-  label,
-  value,
-  onChange,
-  type = "text",
-  required,
-  hint,
-  error,
-  disabled,
-}: {
-  id?: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-  required?: boolean;
-  hint?: string;
-  error?: string;
-  disabled?: boolean;
-}) {
-  return (
-    <div>
-      <Label htmlFor={id}>
-        {label}
-        {required ? (
-          <>
-            <RequiredMark />
-            <span className="sr-only">(required)</span>
-          </>
-        ) : null}
-        {hint ? (
-          <span className="text-xs font-normal text-muted-foreground">
-            ({hint})
-          </span>
-        ) : null}
-      </Label>
-      <Input
-        id={id}
-        className="mt-2"
-        type={type}
-        value={value}
-        required={required}
-        disabled={disabled}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error && id ? `${id}-error` : undefined}
-        onChange={(event) => onChange(event.target.value)}
-      />
-      {error ? (
-        <p
-          id={id ? `${id}-error` : undefined}
-          className="mt-1 text-xs text-destructive"
-        >
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-  empty,
-  disabled,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: Array<{ id: string; name: string }>;
-  empty: string;
-  disabled?: boolean;
-}) {
-  return (
-    <div>
-      <Label>{label}</Label>
-      <select
-        className="mt-2 h-10 w-full rounded-md border bg-background px-3"
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        <option value="">{empty}</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
 function ChildRows({
   items,
   empty,

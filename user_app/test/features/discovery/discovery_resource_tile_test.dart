@@ -48,9 +48,9 @@ void main() {
       const MaterialApp(home: Scaffold(body: ResourceTile(resource))),
     );
 
-    await tester.tap(find.text('Source and review details'));
-    await tester.pumpAndSettle();
     expect(find.textContaining('WHO publication catalogue'), findsOneWidget);
+    expect(find.text('External resource'), findsOneWidget);
+    expect(find.text('Visit website'), findsOneWidget);
     await tester.tap(find.text('WHO technical guidance'));
     await tester.pumpAndSettle();
     expect(find.text('Open external resource?'), findsOneWidget);
@@ -59,5 +59,56 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(find.text('Open external resource?'), findsNothing);
+  });
+
+  testWidgets('guidelines show their type, issuer, dates and action', (
+    tester,
+  ) async {
+    const resource = DiscoveryResource(
+      id: 'ebola-guideline',
+      contentType: 'guideline',
+      title: 'Ebola and Marburg Disease Preparedness',
+      description: 'Recognition, isolation and safe initial management.',
+      route: '/guidelines/ebola',
+      source: 'Ministry of Health Uganda',
+      version: '2.0',
+      publicationDate: '2026-05-28T00:00:00Z',
+      reviewAt: '2027-05-28T00:00:00Z',
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: ResourceTile(resource))),
+    );
+
+    expect(find.text('Guideline'), findsOneWidget);
+    expect(find.text('v2.0'), findsOneWidget);
+    expect(find.text('Ministry of Health Uganda'), findsOneWidget);
+    expect(
+      find.text('Published 28 May 2026', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Next review 28 May 2027', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.text('Read guideline'), findsOneWidget);
+    expect(find.textContaining(' · '), findsNothing);
+  });
+
+  testWidgets('unknown types fall back to a readable label without an action', (
+    tester,
+  ) async {
+    const resource = DiscoveryResource(
+      id: 'field-guide',
+      contentType: 'field_guide',
+      title: 'Community field guide',
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: ResourceTile(resource))),
+    );
+
+    expect(find.text('Field guide'), findsOneWidget);
+    expect(find.text('Open'), findsNothing);
   });
 }

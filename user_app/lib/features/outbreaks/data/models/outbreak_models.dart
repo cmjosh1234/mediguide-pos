@@ -63,7 +63,8 @@ abstract class PublicOutbreakUpdate with _$PublicOutbreakUpdate {
 abstract class PublicOutbreakResource with _$PublicOutbreakResource {
   const factory PublicOutbreakResource({
     required String id,
-    @JsonKey(name: 'outbreak_id') required String outbreakId,
+    // Empty for a situation report's attachments, which share this shape.
+    @JsonKey(name: 'outbreak_id') @Default('') String outbreakId,
     @JsonKey(name: 'outbreak_title') @Default('') String outbreakTitle,
     @Default('') String title,
     @Default('') String description,
@@ -110,6 +111,9 @@ abstract class PublicSituationReport with _$PublicSituationReport {
     @Default(<String>[])
     List<String> keyHighlights,
     @Default(<OutbreakMetric>[]) List<OutbreakMetric> metrics,
+    // Published guideline-library documents attached to the report.
+    @Default(<PublicOutbreakResource>[])
+    List<PublicOutbreakResource> attachments,
   }) = _PublicSituationReport;
   factory PublicSituationReport.fromJson(Map<String, dynamic> json) =>
       _$PublicSituationReportFromJson(json);

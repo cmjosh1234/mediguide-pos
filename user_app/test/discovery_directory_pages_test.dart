@@ -378,10 +378,7 @@ void main() {
       expect(find.byType(ContentPillarPage), findsOneWidget);
       expect(find.byType(DropdownButtonFormField<String>), findsNothing);
       expect(find.text('Published 21 May 2026'), findsOneWidget);
-      expect(find.textContaining('Review due'), findsNothing);
-      await tester.tap(find.text('Source and review details'));
-      await tester.pumpAndSettle();
-      expect(find.text('Review due 21 May 2028'), findsOneWidget);
+      expect(find.text('Next review 21 May 2028'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

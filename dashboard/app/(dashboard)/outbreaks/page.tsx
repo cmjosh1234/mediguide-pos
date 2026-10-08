@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { AlertTriangle, Loader2, Plus, RefreshCw, Search } from "lucide-react"
+import { AlertTriangle, Loader2, Plus, RefreshCw, Search, Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui/page-header"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { outbreaksService, type OutbreakRecord } from "@/services/outbreaks.service"
 import { diseaseService } from "@/services/content-hubs.service"
+import { DeleteOutbreakDialog } from "./delete-outbreak-dialog"
 
 export default function OutbreaksPage() {
   const [items, setItems] = React.useState<OutbreakRecord[]>([])
@@ -27,6 +28,7 @@ export default function OutbreaksPage() {
   const [totalPages, setTotalPages] = React.useState(0)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
+  const [deleting, setDeleting] = React.useState<OutbreakRecord | null>(null)
 
   const load = React.useCallback(async () => {
     setLoading(true); setError("")
@@ -59,14 +61,15 @@ export default function OutbreaksPage() {
     </div>
     {error ? <div className="rounded-md border border-destructive/40 p-4 text-sm text-destructive" role="alert">{error}<Button variant="outline" size="sm" className="ml-3" onClick={() => void load()}>Retry</Button></div> : null}
     <div className="rounded-lg border">
-      <Table><TableHeader><TableRow><TableHead>Outbreak</TableHead><TableHead>Status</TableHead><TableHead>Area</TableHead><TableHead>Tone</TableHead><TableHead>Data as of</TableHead><TableHead>Last verified</TableHead><TableHead>Updated</TableHead></TableRow></TableHeader>
+      <Table><TableHeader><TableRow><TableHead>Outbreak</TableHead><TableHead>Status</TableHead><TableHead>Area</TableHead><TableHead>Tone</TableHead><TableHead>Data as of</TableHead><TableHead>Last verified</TableHead><TableHead>Updated</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
       <TableBody>
-        {loading ? <TableRow><TableCell colSpan={7} className="py-12 text-center"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading outbreaks…</TableCell></TableRow> : null}
-        {!loading && items.length === 0 ? <TableRow><TableCell colSpan={7} className="py-12 text-center text-muted-foreground"><AlertTriangle className="mx-auto mb-2 h-8 w-8" />No outbreaks match these filters.</TableCell></TableRow> : null}
-        {items.map(item => <TableRow key={item.id}><TableCell><Link className="font-medium hover:underline" href={`/outbreaks/${item.id}`}>{item.title || "Untitled"}</Link><div className="text-xs text-muted-foreground">{item.disease_name}</div></TableCell><TableCell><Badge variant={item.status === "withdrawn" ? "destructive" : "outline"}>{item.status}</Badge></TableCell><TableCell>{item.geographic_area}</TableCell><TableCell>{item.visual_tone}</TableCell><TableCell>{formatDate(item.data_as_of)}</TableCell><TableCell>{formatDate(item.last_verified_at)}</TableCell><TableCell>{formatDate(item.updated_at)}</TableCell></TableRow>)}
+        {loading ? <TableRow><TableCell colSpan={8} className="py-12 text-center"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading outbreaks…</TableCell></TableRow> : null}
+        {!loading && items.length === 0 ? <TableRow><TableCell colSpan={8} className="py-12 text-center text-muted-foreground"><AlertTriangle className="mx-auto mb-2 h-8 w-8" />No outbreaks match these filters.</TableCell></TableRow> : null}
+        {items.map(item => <TableRow key={item.id}><TableCell><Link className="font-medium hover:underline" href={`/outbreaks/${item.id}`}>{item.title || "Untitled"}</Link>{item.supersedes_id ? <Badge variant="secondary" className="ml-2">Correction</Badge> : null}<div className="text-xs text-muted-foreground">{item.disease_name}</div></TableCell><TableCell><Badge variant={item.status === "withdrawn" ? "destructive" : "outline"}>{item.status}</Badge></TableCell><TableCell>{item.geographic_area}</TableCell><TableCell>{item.visual_tone}</TableCell><TableCell>{formatDate(item.data_as_of)}</TableCell><TableCell>{formatDate(item.last_verified_at)}</TableCell><TableCell>{formatDate(item.updated_at)}</TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" aria-label={`Delete ${item.title || "untitled outbreak"}`} onClick={() => setDeleting(item)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>)}
       </TableBody></Table>
     </div>
     <div className="flex items-center justify-between text-sm"><span>Page {page}{totalPages ? ` of ${totalPages}` : ""}</span><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="h-4 w-4" /></Button><Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(value => value - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page >= totalPages || loading} onClick={() => setPage(value => value + 1)}>Next</Button></div></div>
+    <DeleteOutbreakDialog outbreak={deleting} onOpenChange={open => { if (!open) setDeleting(null) }} onDeleted={() => { if (items.length === 1 && page > 1) setPage(value => value - 1); else void load() }} />
   </div>
 }
 

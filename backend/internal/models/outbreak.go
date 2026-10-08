@@ -97,6 +97,8 @@ type SituationReport struct {
 	StandaloneAllowed  bool           `json:"standalone_allowed"`
 	AuthorID           *uuid.UUID     `gorm:"type:uuid;index" json:"author_id,omitempty"`
 	PublishedAt        *time.Time     `json:"published_at,omitempty"`
+	SubmittedBy        *uuid.UUID     `gorm:"type:uuid" json:"submitted_by,omitempty"`
+	SubmittedAt        *time.Time     `json:"submitted_at,omitempty"`
 	ReviewedBy         *uuid.UUID     `gorm:"type:uuid" json:"reviewed_by,omitempty"`
 	ReviewedAt         *time.Time     `json:"reviewed_at,omitempty"`
 	ApprovedBy         *uuid.UUID     `gorm:"type:uuid" json:"approved_by,omitempty"`
@@ -113,6 +115,21 @@ type SituationReport struct {
 	LockVersion        int            `gorm:"not null;default:1" json:"lock_version"`
 	KeyHighlights      datatypes.JSON `gorm:"type:jsonb" json:"key_highlights" swaggertype:"array,string"`
 	Metrics            datatypes.JSON `gorm:"type:jsonb" json:"metrics" swaggertype:"array,object"`
+}
+
+// SituationReportAttachment links a published guideline-library document to a
+// situation report. Attachments are reviewed and published with the report.
+type SituationReportAttachment struct {
+	Base
+	SituationReportID   uuid.UUID `gorm:"type:uuid;index" json:"situation_report_id"`
+	Title               string    `json:"title"`
+	Description         string    `json:"description"`
+	IssuingOrganization string    `json:"issuing_organization"`
+	DocumentKind        string    `json:"document_kind"`
+	// URL is /public/guidelines/{id}, as on guideline typed resources.
+	URL         string `json:"url"`
+	SortOrder   int    `json:"sort_order"`
+	LockVersion int    `gorm:"not null;default:1" json:"lock_version"`
 }
 
 type SituationReportAsset struct {

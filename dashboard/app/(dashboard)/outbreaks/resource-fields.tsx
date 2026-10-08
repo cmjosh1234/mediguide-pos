@@ -109,6 +109,7 @@ export function ResourceFields({
   errorFor,
   idPrefix = "resource",
   className = "grid items-end gap-2 md:grid-cols-2",
+  allowSituationReports = true,
 }: {
   draft: ResourceDraft;
   onChange: (update: (current: ResourceDraft) => ResourceDraft) => void;
@@ -117,6 +118,8 @@ export function ResourceFields({
   errorFor: (id: string) => string | undefined;
   idPrefix?: string;
   className?: string;
+  /** Offer published situation reports as a document type, as outbreaks do. */
+  allowSituationReports?: boolean;
 }) {
   const isReport = draft.document_type === SITUATION_REPORT_OPTION;
   const kindSlug = isReport ? "" : draft.document_type;
@@ -196,7 +199,9 @@ export function ResourceFields({
               {kind.name}
             </option>
           ))}
-          <option value={SITUATION_REPORT_OPTION}>{SITUATION_REPORT_TYPE.label}</option>
+          {allowSituationReports ? (
+            <option value={SITUATION_REPORT_OPTION}>{SITUATION_REPORT_TYPE.label}</option>
+          ) : null}
         </select>
         {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
       </Field>

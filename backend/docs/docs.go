@@ -14697,10 +14697,11 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Deletes the outbreak with its updates, resources, open corrections and unsent alerts. Situation reports and content hubs linked to it are kept and unlinked; each report stays as visible as it was. Deleting anything beyond a draft or a submission in review also needs outbreak.withdraw.",
                 "tags": [
                     "outbreak-administration"
                 ],
-                "summary": "Soft-delete an unpublished outbreak",
+                "summary": "Soft-delete an outbreak",
                 "parameters": [
                     {
                         "type": "integer",
@@ -14708,11 +14709,23 @@ const docTemplate = `{
                         "name": "lock_version",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "description": "Reason for deleting",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.OutbreakDeleteInput"
+                        }
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.OutbreakDeleteResult"
+                        }
                     }
                 }
             },
@@ -14754,6 +14767,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Approving a correction applies its core metadata and source to the live outbreak, removes the correction and returns the live outbreak. Corrections are never published.",
                 "tags": [
                     "outbreak-administration"
                 ],
@@ -14821,10 +14835,11 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Only one correction of an outbreak can be open at a time.",
                 "tags": [
                     "outbreak-administration"
                 ],
-                "summary": "Create a correction draft that supersedes a published outbreak",
+                "summary": "Create a correction draft of a published outbreak's core metadata and source",
                 "parameters": [
                     {
                         "description": "Correction reason and lock version",
@@ -14931,6 +14946,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Approving a correction applies its core metadata and source to the live outbreak, removes the correction and returns the live outbreak. Corrections are never published.",
                 "tags": [
                     "outbreak-administration"
                 ],
@@ -15271,6 +15287,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Approving a correction applies its core metadata and source to the live outbreak, removes the correction and returns the live outbreak. Corrections are never published.",
                 "tags": [
                     "outbreak-administration"
                 ],
@@ -15582,6 +15599,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Approving a correction applies its core metadata and source to the live outbreak, removes the correction and returns the live outbreak. Corrections are never published.",
                 "tags": [
                     "outbreak-administration"
                 ],
@@ -16992,34 +17010,103 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/situation-reports/{id}/asset": {
+        "/api/v2/situation-reports/{id}/attachments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "situation-report-administration"
+                ],
+                "summary": "List the guideline-library documents attached to a situation report",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/services.SituationReportAttachmentDTO"
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "consumes": [
-                    "multipart/form-data"
-                ],
                 "tags": [
                     "situation-report-administration"
                 ],
-                "summary": "Upload a managed PDF asset for a situation report draft",
+                "summary": "Attach a published guideline-library document to an unpublished situation report",
                 "parameters": [
                     {
-                        "type": "file",
-                        "description": "PDF report",
-                        "name": "file",
-                        "in": "formData",
-                        "required": true
+                        "description": "Attachment",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.SituationReportAttachmentInput"
+                        }
                     }
                 ],
                 "responses": {
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/services.SituationReportAssetDTO"
+                            "$ref": "#/definitions/services.SituationReportAttachmentDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/situation-reports/{id}/attachments/{attachmentId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "situation-report-administration"
+                ],
+                "summary": "Remove an attachment from an unpublished situation report",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "situation-report-administration"
+                ],
+                "summary": "Update an attachment of an unpublished situation report",
+                "parameters": [
+                    {
+                        "description": "Attachment changes",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.SituationReportAttachmentInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.SituationReportAttachmentDTO"
                         }
                     }
                 }
@@ -17071,6 +17158,38 @@ const docTemplate = `{
                 "responses": {
                     "201": {
                         "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/services.SituationReportAdminDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/situation-reports/{id}/metrics": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "situation-report-administration"
+                ],
+                "summary": "Save an unpublished situation report's metrics",
+                "parameters": [
+                    {
+                        "description": "Report metrics",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.OutbreakMetricsInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/services.SituationReportAdminDTO"
                         }
@@ -29460,6 +29579,10 @@ const docTemplate = `{
                         "$ref": "#/definitions/services.OutbreakMetric"
                     }
                 },
+                "open_correction_id": {
+                    "description": "OpenCorrectionID is the correction of this outbreak that is still in\ndraft or review, if any. Only set when a single outbreak is fetched.",
+                    "type": "string"
+                },
                 "published_at": {
                     "type": "string"
                 },
@@ -29516,7 +29639,13 @@ const docTemplate = `{
                 "action": {
                     "type": "string"
                 },
+                "actor_email": {
+                    "type": "string"
+                },
                 "actor_id": {
+                    "type": "string"
+                },
+                "actor_name": {
                     "type": "string"
                 },
                 "created_at": {
@@ -29531,9 +29660,47 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "labels": {
+                    "description": "Labels names the people and records the metadata refers to by ID, such\nas who wrote an applied correction or the districts it switched between.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "metadata": {
                     "type": "object",
                     "additionalProperties": {}
+                }
+            }
+        },
+        "services.OutbreakDeleteInput": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.OutbreakDeleteResult": {
+            "type": "object",
+            "properties": {
+                "cancelled_alerts": {
+                    "type": "integer"
+                },
+                "deleted_corrections": {
+                    "type": "integer"
+                },
+                "deleted_resources": {
+                    "type": "integer"
+                },
+                "deleted_updates": {
+                    "type": "integer"
+                },
+                "unlinked_hubs": {
+                    "type": "integer"
+                },
+                "unlinked_reports": {
+                    "type": "integer"
                 }
             }
         },
@@ -31656,6 +31823,13 @@ const docTemplate = `{
         "services.PublicSituationReport": {
             "type": "object",
             "properties": {
+                "attachments": {
+                    "description": "Attachments are the report's published guideline-library documents.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.PublicSituationReportAttachment"
+                    }
+                },
                 "data_as_of": {
                     "type": "string"
                 },
@@ -31717,6 +31891,47 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.PublicSituationReportAttachment": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "document_kind": {
+                    "type": "string"
+                },
+                "download_capability": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "issuing_organization": {
+                    "type": "string"
+                },
+                "reader_capability": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "target_type": {
+                    "type": "string"
+                },
+                "target_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "url": {
                     "type": "string"
                 }
             }
@@ -32110,6 +32325,10 @@ const docTemplate = `{
                         "$ref": "#/definitions/services.OutbreakMetric"
                     }
                 },
+                "open_correction_id": {
+                    "description": "OpenCorrectionID is the correction of this report that is still in\ndraft or review, if any. Only set when a single report is fetched.",
+                    "type": "string"
+                },
                 "outbreak_id": {
                     "type": "string"
                 },
@@ -32149,6 +32368,12 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
+                "submitted_at": {
+                    "type": "string"
+                },
+                "submitted_by": {
+                    "type": "string"
+                },
                 "summary": {
                     "type": "string"
                 },
@@ -32169,29 +32394,67 @@ const docTemplate = `{
                 }
             }
         },
-        "services.SituationReportAssetDTO": {
+        "services.SituationReportAttachmentDTO": {
             "type": "object",
             "properties": {
-                "checksum_sha256": {
-                    "type": "string"
-                },
-                "content_type": {
-                    "type": "string"
-                },
                 "created_at": {
                     "type": "string"
                 },
-                "file_name": {
+                "description": {
+                    "type": "string"
+                },
+                "document_kind": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
+                "issuing_organization": {
+                    "type": "string"
+                },
+                "lock_version": {
+                    "type": "integer"
+                },
                 "situation_report_id": {
                     "type": "string"
                 },
-                "size_bytes": {
+                "sort_order": {
                     "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.SituationReportAttachmentInput": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "document_kind": {
+                    "type": "string"
+                },
+                "issuing_organization": {
+                    "type": "string"
+                },
+                "lock_version": {
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },

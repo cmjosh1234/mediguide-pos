@@ -31,7 +31,7 @@ void main() {
           ),
         ),
       );
-      expect(find.text('36'), findsOneWidget);
+      expect(find.text('36 cases'), findsOneWidget);
       expect(find.text('Confirmed cases'), findsOneWidget);
       expect(find.textContaining('sort order'), findsNothing);
       expect(find.textContaining('numeric value'), findsNothing);

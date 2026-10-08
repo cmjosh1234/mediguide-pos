@@ -27,7 +27,7 @@ func TestPublicDiscoverySearchIncludesOnlyPublishedOutbreakContent(t *testing.T)
 			t.Fatal(err)
 		}
 	}
-	if err := database.AutoMigrate(&models.Outbreak{}, &models.SituationReport{}); err != nil {
+	if err := database.AutoMigrate(&models.Outbreak{}, &models.SituationReport{}, &models.SituationReportAttachment{}); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now().UTC()
@@ -41,7 +41,7 @@ func TestPublicDiscoverySearchIncludesOnlyPublishedOutbreakContent(t *testing.T)
 			t.Fatal(err)
 		}
 	}
-	report := models.SituationReport{Title: "Ebola situation report", Summary: "Field report", GeographicArea: "Kampala", SourceOrganization: "Ministry", SourceReference: "approved-keyword", PublicationDate: now, Status: "published", PublishedAt: &now, LastVerifiedAt: &verified}
+	report := models.SituationReport{Title: "Ebola situation report", Summary: "Field report", GeographicArea: "Kampala", SourceOrganization: "Ministry", SourceReference: "approved-keyword", PublicationDate: now, StandaloneAllowed: true, Status: "published", PublishedAt: &now, LastVerifiedAt: &verified}
 	if err := database.Create(&report).Error; err != nil {
 		t.Fatal(err)
 	}
