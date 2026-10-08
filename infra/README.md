@@ -466,6 +466,13 @@ make prod-pull
 
 ## Automated production deployment
 
+The deployment bundle is checked for every production Compose environment
+setting before transfer. Required credentials and the selected email provider's
+credentials must be populated. After startup, deployment compares every configured
+container environment value with the running containers, including workers and
+infrastructure services. Missing containers or mismatched settings fail the
+deployment; diagnostics print setting names without credential values.
+
 Every `v*` release tag deploys automatically only after the platform quality
 gate has passed, all four immutable GHCR images have been published, and their
 release tags have been verified. The same release can be redeployed through the

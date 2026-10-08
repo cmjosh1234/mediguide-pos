@@ -26,6 +26,8 @@ production_env="${infra_dir}/production.env"
 release_env="${infra_dir}/release.env"
 compose_file="${infra_dir}/docker-compose.yml"
 
+python3 "${infra_dir}/check-production-env.py" "${production_env}"
+
 if [[ ! -s "${production_env}" ]]; then
   echo "Missing production environment file: ${production_env}" >&2
   exit 1
@@ -178,6 +180,7 @@ echo "Applying database migrations."
 echo "Starting the complete MediGuide stack and waiting for health checks."
 "${compose[@]}" up --no-build -d --remove-orphans --wait --wait-timeout 600
 "${compose[@]}" ps
+python3 "${infra_dir}/check-production-env.py" "${production_env}" --runtime
 
 verify_public_route() {
   local label="$1"

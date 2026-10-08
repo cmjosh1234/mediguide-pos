@@ -1,0 +1,51 @@
+name: Production environment preflight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate protected production settings
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate production environment and public storage
+        env:
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+          AI_WORKER_SECRET: ${{ secrets.AI_WORKER_SECRET }}
+          PUBLIC_SITE_URL: ${{ vars.PUBLIC_SITE_URL }}
+          PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
+          DASHBOARD_PUBLIC_URL: ${{ vars.DASHBOARD_PUBLIC_URL }}
+          S3_PUBLIC_ENDPOINT: ${{ vars.S3_PUBLIC_ENDPOINT }}
+          S3_PUBLIC_SSL: ${{ vars.S3_PUBLIC_SSL }}
+        run: |
+          set -euo pipefail
+          umask 077
+          for name in PRODUCTION_ENV_FILE AI_WORKER_SECRET PUBLIC_SITE_URL PUBLIC_API_BASE_URL DASHBOARD_PUBLIC_URL; do
+            test -n "${!name}" || { echo "Missing protected setting: ${name}" >&2; exit 1; }
+          done
+          printf '%s\n' "${PRODUCTION_ENV_FILE}" > infra/production.env
+          {
+            printf '\nAI_WORKER_SECRET=%s\n' "${AI_WORKER_SECRET}"
+            printf 'AI_WORKER_GRPC_RETRIES=1\nAI_WORKER_GRPC_HEALTH_TIMEOUT_SECONDS=2\n'
+            printf 'PUBLIC_SITE_URL=%s\n' "${PUBLIC_SITE_URL%/}"
+            printf 'PUBLIC_API_BASE_URL=%s\n' "${PUBLIC_API_BASE_URL%/}"
+            printf 'DASHBOARD_PUBLIC_URL=%s\n' "${DASHBOARD_PUBLIC_URL%/}"
+            printf 'DASHBOARD_BASE_PATH=/admin\n'
+            printf 'ALLOWED_ORIGINS=%s\n' "${PUBLIC_SITE_URL%/}"
+            printf 'MINIO_API_CORS_ALLOW_ORIGIN=%s\n' "${PUBLIC_SITE_URL%/}"
+          } >> infra/production.env
+          if [ -n "${S3_PUBLIC_ENDPOINT}" ]; then
+            printf 'S3_PUBLIC_ENDPOINT=%s\nS3_PUBLIC_SSL=%s\n' "${S3_PUBLIC_ENDPOINT}" "${S3_PUBLIC_SSL:-true}" >> infra/production.env
+          fi
+          python3 infra/organize-env.py infra/production.env --private
+          python3 infra/check-production-env.py infra/production.env
+          python3 infra/check-public-storage.py infra/production.env --check-network
+      - name: Remove protected environment file
+        if: always()
+        run: rm -f infra/production.env

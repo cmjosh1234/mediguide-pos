@@ -161,6 +161,7 @@ jobs:
           fi
           printf 'MINIO_API_CORS_ALLOW_ORIGIN=%s\n' "${PUBLIC_SITE_URL%/}" >> infra/production.env
           python3 infra/organize-env.py infra/production.env --private
+          python3 infra/check-production-env.py infra/production.env
           python3 infra/check-public-storage.py infra/production.env
 
           # Firebase Admin is optional, but a malformed non-empty credential
