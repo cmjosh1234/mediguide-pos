@@ -17,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:user_app/core/config/app_config.dart';
 import 'package:user_app/core/config/firebase_config.dart';
 import 'package:user_app/core/network/api_client.dart';
+import 'package:user_app/core/services/firebase_error_handling.dart';
 import 'package:user_app/features/authentication/data/datasources/auth_remote_datasource.dart';
 
 const _installationKey = 'firebase_installation_id';
@@ -251,10 +252,18 @@ final class MediGuideFirebaseService {
 
       FlutterError.onError = (details) {
         FlutterError.presentError(details);
-        unawaited(crashlytics.recordFlutterFatalError(details));
+        unawaited(
+          reportCrashQuietly(
+            () => crashlytics.recordFlutterFatalError(details),
+          ),
+        );
       };
       PlatformDispatcher.instance.onError = (error, stack) {
-        unawaited(crashlytics.recordError(error, stack, fatal: true));
+        unawaited(
+          reportCrashQuietly(
+            () => crashlytics.recordError(error, stack, fatal: true),
+          ),
+        );
         return true;
       };
       _crashReportingEnabled = true;
@@ -333,11 +342,14 @@ final class MediGuideFirebaseService {
     } catch (error) {
       debugPrint('Remote Config fetch failed; defaults remain active: $error');
     }
-    _remoteConfigSubscription = config.onConfigUpdated.listen((_) async {
-      await config.activate();
-      _outbreakBannerStates.add(outbreakBannerEnabled);
-      await _syncPublicOutbreakTopic();
-    });
+    _remoteConfigSubscription = listenRemoteConfigUpdates(
+      config.onConfigUpdated,
+      onUpdate: () async {
+        await config.activate();
+        _outbreakBannerStates.add(outbreakBannerEnabled);
+        await _syncPublicOutbreakTopic();
+      },
+    );
   }
 
   Future<void> _initializeLocalNotifications() async {
