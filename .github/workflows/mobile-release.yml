@@ -292,7 +292,7 @@ jobs:
         run: >-
           flutter build apk --release
           --split-per-abi
-          --target-platform android-arm,android-arm64
+          --target-platform android-arm,android-arm64,android-x64
           --flavor production
           --target lib/main_production.dart
           --dart-define=MEDIGUIDE_API_BASE_URL="${MOBILE_API_BASE_URL}"
@@ -303,13 +303,23 @@ jobs:
       - name: Build release app bundle
         run: >-
           flutter build appbundle --release
-          --target-platform android-arm,android-arm64
+          --target-platform android-arm,android-arm64,android-x64
           --flavor production
           --target lib/main_production.dart
           --dart-define=MEDIGUIDE_API_BASE_URL="${MOBILE_API_BASE_URL}"
           --dart-define=MEDIGUIDE_FLAVOR=production
           --dart-define=MEDIGUIDE_DEBUG_TOOLS_ENABLED=false
           ${FIREBASE_BUILD_ARGS}
+
+      - name: Verify Android native architectures
+        run: |
+          set -euo pipefail
+          for abi in armeabi-v7a arm64-v8a x86_64; do
+            python3 ../scripts/check-android-abis.py --expected "$abi" \
+              "build/app/outputs/flutter-apk/app-${abi}-production-release.apk"
+          done
+          python3 ../scripts/check-android-abis.py --expected armeabi-v7a,arm64-v8a,x86_64 \
+            build/app/outputs/bundle/productionRelease/app-production-release.aab
 
       - name: Enforce Android artifact size budgets
         run: |
@@ -327,7 +337,7 @@ jobs:
               exit 1
             fi
           done
-          test "${apk_count}" -eq 2
+          test "${apk_count}" -eq 3
           aab="build/app/outputs/bundle/productionRelease/app-production-release.aab"
           aab_bytes="$(wc -c < "${aab}")"
           echo "$(basename "${aab}"): ${aab_bytes} bytes"
@@ -582,14 +592,16 @@ jobs:
 
           arm_apk="$(find release-artifacts -name 'app-armeabi-v7a-production-release.apk' -print -quit)"
           arm64_apk="$(find release-artifacts -name 'app-arm64-v8a-production-release.apk' -print -quit)"
+          x64_apk="$(find release-artifacts -name 'app-x86_64-production-release.apk' -print -quit)"
           aab="$(find release-artifacts -name app-production-release.aab -print -quit)"
           ios="$(find release-artifacts -name mediguide-ios-unsigned.zip -print -quit)"
           macos="$(find release-artifacts -name mediguide-macos.zip -print -quit)"
           web="$(find release-artifacts -type d -name 'mediguide-web-*' -print -quit)"
 
-          test -n "${arm_apk}" && test -n "${arm64_apk}" && test -n "${aab}"
+          test -n "${arm_apk}" && test -n "${arm64_apk}" && test -n "${x64_apk}" && test -n "${aab}"
           cp "${arm_apk}" "dist/mediguide-${mobile_artifact_version}-android-armeabi-v7a.apk"
           cp "${arm64_apk}" "dist/mediguide-${mobile_artifact_version}-android-arm64-v8a.apk"
+          cp "${x64_apk}" "dist/mediguide-${mobile_artifact_version}-android-x86_64.apk"
           cp "${aab}" "dist/mediguide-${mobile_artifact_version}-android.aab"
 
           printf '%s\n' \

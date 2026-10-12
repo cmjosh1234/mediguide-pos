@@ -8,7 +8,8 @@ the user's download size.
 Direct APK downloads must use one of the split release artifacts:
 
 - `*-android-arm64-v8a.apk` for almost all current Android phones;
-- `*-android-armeabi-v7a.apk` only for older 32-bit phones.
+- `*-android-armeabi-v7a.apk` only for older 32-bit phones;
+- `*-android-x86_64.apk` for x86_64 devices and emulators.
 
 Do not distribute a debug APK or universal APK as the normal production
 download. They contain debugging data or native libraries for multiple CPU
@@ -20,14 +21,14 @@ architectures and are substantially larger.
 cd user_app
 
 fvm flutter build apk --release --split-per-abi \
-  --target-platform android-arm,android-arm64 \
+  --target-platform android-arm,android-arm64,android-x64 \
   --flavor production \
   --target lib/main_production.dart \
   --dart-define=MEDIGUIDE_FLAVOR=production \
   --dart-define=MEDIGUIDE_DEBUG_TOOLS_ENABLED=false
 
 fvm flutter build appbundle --release \
-  --target-platform android-arm,android-arm64 \
+  --target-platform android-arm,android-arm64,android-x64 \
   --flavor production \
   --target lib/main_production.dart \
   --dart-define=MEDIGUIDE_FLAVOR=production \
@@ -37,6 +38,26 @@ fvm flutter build appbundle --release \
 The release workflow rejects an individual split APK above 45 MiB or an App
 Bundle above 70 MiB. Treat a budget failure as a regression: inspect newly
 added assets and native plugins before increasing the limit.
+
+## Native architecture checks
+
+The release workflow checks every packaged native library's ELF architecture
+and requires `libflutter.so` and `libapp.so` for every advertised ABI. The AAB
+must contain ARMv7, ARM64 and x86_64; each split APK must contain its named ABI.
+Run the same check on a local bundle:
+
+```bash
+python3 scripts/check-android-abis.py --expected armeabi-v7a,arm64-v8a,x86_64 \
+  user_app/build/app/outputs/bundle/productionRelease/app-production-release.aab
+```
+
+A launch error saying `EM_AARCH64 (183) instead of EM_X86_64 (62)` means an
+x86_64 process tried to load an ARM64 library. A device brand alone does not
+identify the process ABI. Check `adb shell getprop ro.product.cpu.abilist` and
+verify the installed APK/splits. Use Play's device-specific installation or the
+matching split APK. If a previous installation has a stale extracted library,
+reinstalling the correct package may help; uninstalling also removes local app
+data, so preserve any needed offline content first.
 
 ## Size investigation
 

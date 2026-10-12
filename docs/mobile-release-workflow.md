@@ -325,8 +325,9 @@ The tagged workflow performs these branches after the shared quality gate:
 ### Android artifacts
 
 - Builds signed production release APKs split by ABI.
-- Publishes ARM64 for current devices and ARMv7 for older 32-bit devices.
-- Builds an ARM-targeted Android App Bundle for Google Play.
+- Publishes ARM64, ARMv7 and x86_64 APKs for their matching devices.
+- Builds an Android App Bundle with all three Flutter-supported release ABIs.
+- Verifies native ELF architectures and Flutter engine/app libraries per ABI.
 - Rejects an APK above 45 MiB or AAB above 70 MiB.
 
 Use the ARM64 APK for most direct tester downloads. Upload the AAB—not an APK—to
@@ -368,7 +369,7 @@ The GitHub Release waits for Android and the complete immutable GHCR image set
 (one shared ten-minute image deadline). It does not wait for optional web/Apple
 or separately selected tester distribution. It contains:
 
-- versioned ARM64 and ARMv7 APKs;
+- versioned ARM64, ARMv7 and x86_64 APKs;
 - versioned AAB;
 - release manifest;
 - `SHA256SUMS`.
