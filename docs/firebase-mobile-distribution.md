@@ -262,6 +262,9 @@ are accepted only for the documented migration allowlist.
 
 ## Remote Config parameters
 
+For binary update behavior, tester alert setup, and Play/Firebase build
+separation, see [Mobile application updates](mobile-app-updates.md).
+
 Create and publish these parameters in every Firebase project:
 
 The complete production client template is checked in at

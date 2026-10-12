@@ -1,5 +1,6 @@
 import java.io.FileInputStream
 import java.util.Properties
+import java.util.Base64
 
 plugins {
     id("com.android.application")
@@ -13,6 +14,13 @@ plugins {
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 val hasReleaseSigning = keystorePropertiesFile.exists()
+
+// The self-updating Firebase SDK must never enter a Play Store artifact.
+val firebaseTesterBuild = (project.findProperty("dart-defines") as? String)
+    .orEmpty().split(",").filter { it.isNotBlank() }.any {
+        String(Base64.getDecoder().decode(it), Charsets.UTF_8) ==
+            "MEDIGUIDE_DISTRIBUTION_CHANNEL=firebase"
+    }
 
 if (hasReleaseSigning) {
     FileInputStream(keystorePropertiesFile).use(keystoreProperties::load)
@@ -34,6 +42,7 @@ android {
     }
 
     defaultConfig {
+        buildConfigField("boolean", "FIREBASE_TESTER_UPDATES", firebaseTesterBuild.toString())
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.mediguide.ug"
         // You can update the following values to match your application needs.
@@ -46,6 +55,7 @@ android {
     }
 
     flavorDimensions += "environment"
+    buildFeatures { buildConfig = true }
     productFlavors {
         create("development") {
             dimension = "environment"
@@ -91,5 +101,22 @@ flutter {
 }
 
 dependencies {
+    implementation("com.google.android.play:app-update:2.1.0")
+    implementation("com.google.firebase:firebase-appdistribution-api:16.0.0-beta21")
+    if (firebaseTesterBuild) {
+        implementation("com.google.firebase:firebase-appdistribution:16.0.0-beta21")
+    }
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+}
+
+// Catch accidental transitive inclusion as well as direct dependency mistakes.
+configurations.configureEach {
+    if (!firebaseTesterBuild && name.endsWith("RuntimeClasspath")) {
+        incoming.afterResolve {
+            check(resolutionResult.allComponents.none {
+                it.moduleVersion?.group == "com.google.firebase" &&
+                    it.moduleVersion?.name == "firebase-appdistribution"
+            }) { "Firebase self-update SDK is forbidden in Play builds" }
+        }
+    }
 }

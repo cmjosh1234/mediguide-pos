@@ -21,6 +21,7 @@ import 'package:user_app/features/home/presentation/screens/guest_home_page.dart
 import 'package:user_app/features/home/presentation/screens/home_page.dart';
 import 'package:user_app/features/outbreaks/presentation/providers/outbreak_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:user_app/features/settings/presentation/widgets/app_update_coordinator.dart';
 
 class MediGuideApp extends ConsumerWidget {
   const MediGuideApp({super.key});
@@ -108,15 +109,17 @@ class MediGuideApp extends ConsumerWidget {
         themeMode: themeMode,
         locale: AppTranslation.locale,
         debugShowCheckedModeBanner: false,
-        builder: (context, child) => DebugToolsOverlay(
-          child: ResponsiveBreakpoints.builder(
-            child: child!,
-            breakpoints: const [
-              Breakpoint(start: 0, end: 450, name: MOBILE),
-              Breakpoint(start: 451, end: 800, name: TABLET),
-              Breakpoint(start: 801, end: 1920, name: DESKTOP),
-              Breakpoint(start: 1921, end: double.infinity, name: '4K'),
-            ],
+        builder: (context, child) => AppUpdateCoordinator(
+          child: DebugToolsOverlay(
+            child: ResponsiveBreakpoints.builder(
+              child: child!,
+              breakpoints: const [
+                Breakpoint(start: 0, end: 450, name: MOBILE),
+                Breakpoint(start: 451, end: 800, name: TABLET),
+                Breakpoint(start: 801, end: 1920, name: DESKTOP),
+                Breakpoint(start: 1921, end: double.infinity, name: '4K'),
+              ],
+            ),
           ),
         ),
       ),

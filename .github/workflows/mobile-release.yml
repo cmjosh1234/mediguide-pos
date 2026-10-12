@@ -321,6 +321,7 @@ jobs:
           --target lib/main_production.dart
           --dart-define=MEDIGUIDE_API_BASE_URL="${MOBILE_API_BASE_URL}"
           --dart-define=MEDIGUIDE_FLAVOR=production
+          --dart-define=MEDIGUIDE_DISTRIBUTION_CHANNEL=play
           --dart-define=MEDIGUIDE_DEBUG_TOOLS_ENABLED=false
           ${FIREBASE_BUILD_ARGS}
 
@@ -332,6 +333,7 @@ jobs:
           --target lib/main_production.dart
           --dart-define=MEDIGUIDE_API_BASE_URL="${MOBILE_API_BASE_URL}"
           --dart-define=MEDIGUIDE_FLAVOR=production
+          --dart-define=MEDIGUIDE_DISTRIBUTION_CHANNEL=play
           --dart-define=MEDIGUIDE_DEBUG_TOOLS_ENABLED=false
           ${FIREBASE_BUILD_ARGS}
 
