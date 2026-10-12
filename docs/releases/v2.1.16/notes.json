@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "release_tag": "v2.1.16",
+  "previous_tag": "v2.1.15",
+  "mobile_build_number": 69,
+  "services": {
+    "mobile": [
+      "Keep cached/default Remote Config values active when network requests or real-time updates fail.",
+      "Contain Crashlytics reporting failures and include x86_64 alongside ARM Android release architectures."
+    ],
+    "api": [
+      "No service-specific changes since v2.1.15."
+    ],
+    "ai-worker": [
+      "No service-specific changes since v2.1.15."
+    ],
+    "dashboard": [
+      "No service-specific changes since v2.1.15."
+    ],
+    "guidelines": [
+      "Display smaller publication tiles and open the reader from the entire tile while preserving separate downloads."
+    ]
+  },
+  "operations": [
+    "Include all three Flutter-supported Android release architectures and verify native ELF libraries before distribution.",
+    "Provide a complete production Firebase Remote Config template aligned with the mobile app defaults.",
+    "Retain the explicit manual override for the public storage network probe."
+  ],
+  "play_store": "- Improved resilience when Remote Config cannot connect.\n- Prevented recursive crash reporting failures.\n- Added x86_64 support and native architecture checks for Android packages."
+}
