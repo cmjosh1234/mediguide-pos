@@ -264,6 +264,12 @@ are accepted only for the documented migration allowlist.
 
 Create and publish these parameters in every Firebase project:
 
+The complete production client template is checked in at
+[`firebase/remote-config.production.defaults.json`](../firebase/remote-config.production.defaults.json).
+It includes all 14 parameters below, with the same types and defaults as the
+Flutter app. The older `remote-config.disease-hubs.defaults.json` contains only
+the eight disease/hub rollout parameters.
+
 | Key | Type | Recommended default |
 |---|---|---|
 | `maintenance_mode` | Boolean | `false` |
@@ -293,6 +299,36 @@ API-driven outbreak layout, unified-search and RAG-context flags stay disabled
 until their production rollout is explicitly approved. In the dashboard,
 **Add rollout flags** adds missing keys without replacing existing parameter
 values. Always select **Validate** before publishing the template.
+
+### Apply the production template in Firebase Console
+
+1. Select the Firebase project used by the production build's
+   `FIREBASE_PROJECT_ID` (`mediguide/firebase-production.json`), then open
+   **Remote Config → Parameters** for the **client** template.
+2. Download the currently published template from the overflow menu as a
+   rollback copy. If it contains existing targeting conditions, parameter
+   groups, unrelated keys, or intentional overrides, retain them and add/update
+   the parameters above in that template. File publication replaces the whole
+   template; the checked-in baseline contains no targeting conditions.
+3. For a new template or an intentional reset to the documented baseline,
+   select **Publish from a file** in the overflow menu and choose
+   `firebase/remote-config.production.defaults.json`. For an existing template,
+   use the complete JSON with your retained settings from step 2 instead.
+4. Review the changes and validation result, then publish. Confirm all 14 keys
+   appear with the types and defaults listed above. Keep maintenance disabled
+   and the five staged rollout flags disabled unless enabling them is part of
+   an approved rollout.
+5. Open the production mobile app and verify the disease directory, public
+   hubs, AI assistant, outbreak banner, and notification features. The app
+   fetches at startup and listens for real-time updates; the production fetch
+   interval is one hour.
+
+`minimum_supported_version` is currently reserved: the app defines its default
+but does not enforce a minimum version from this parameter. API URLs and
+Firebase credentials remain build/server configuration, rather than Remote
+Config parameters.
+
+See Firebase's [client template publication guide](https://firebase.google.com/docs/remote-config/templates/client).
 
 ## Backend Firebase Admin setup
 

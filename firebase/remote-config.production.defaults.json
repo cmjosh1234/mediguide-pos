@@ -1,0 +1,102 @@
+{
+  "parameters": {
+    "api_driven_outbreak_pillars": {
+      "defaultValue": {
+        "value": "false"
+      },
+      "description": "Use API-configured outbreak pillars with legacy fallback",
+      "valueType": "BOOLEAN"
+    },
+    "disease_content_assignment": {
+      "defaultValue": {
+        "value": "false"
+      },
+      "description": "Enable disease-to-content assignment workflow",
+      "valueType": "BOOLEAN"
+    },
+    "disease_hubs_enabled": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "description": "Show disease-specific content hubs",
+      "valueType": "BOOLEAN"
+    },
+    "disease_taxonomy_enabled": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "description": "Show canonical disease discovery",
+      "valueType": "BOOLEAN"
+    },
+    "enable_ai_assistant": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "description": "Enable the clinical AI assistant",
+      "valueType": "BOOLEAN"
+    },
+    "enable_push_notifications": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "description": "Enable push notification features",
+      "valueType": "BOOLEAN"
+    },
+    "generic_hubs_enabled": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "description": "Show non-disease content hubs",
+      "valueType": "BOOLEAN"
+    },
+    "guideline_category_assignment": {
+      "defaultValue": {
+        "value": "false"
+      },
+      "description": "Enable guideline category assignment workflow",
+      "valueType": "BOOLEAN"
+    },
+    "maintenance_message": {
+      "defaultValue": {
+        "value": ""
+      },
+      "description": "Message displayed while maintenance mode is enabled",
+      "valueType": "STRING"
+    },
+    "maintenance_mode": {
+      "defaultValue": {
+        "value": "false"
+      },
+      "description": "Temporarily pause normal app access during maintenance",
+      "valueType": "BOOLEAN"
+    },
+    "minimum_supported_version": {
+      "defaultValue": {
+        "value": ""
+      },
+      "description": "Reserved minimum supported app version; currently not enforced by the app",
+      "valueType": "STRING"
+    },
+    "outbreak_banner_enabled": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "description": "Show the outbreak banner",
+      "valueType": "BOOLEAN"
+    },
+    "pillar_rag_metadata": {
+      "defaultValue": {
+        "value": "false"
+      },
+      "description": "Send pillar metadata to the approved-content RAG workflow",
+      "valueType": "BOOLEAN"
+    },
+    "unified_document_search": {
+      "defaultValue": {
+        "value": "false"
+      },
+      "description": "Include taxonomy, hubs, pillars and documents in unified search",
+      "valueType": "BOOLEAN"
+    }
+  }
+}
