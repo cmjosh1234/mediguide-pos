@@ -13,24 +13,23 @@ final class NotificationPreferencesState {
   const NotificationPreferencesState({
     required this.preferences,
     required this.devices,
+    this.devicesUnavailable = false,
   });
 
   final NotificationPreferences preferences;
   final List<NotificationDevice> devices;
+  final bool devicesUnavailable;
 }
 
-final class NotificationPreferencesController
+class NotificationPreferencesController
     extends AutoDisposeAsyncNotifier<NotificationPreferencesState> {
   @override
   Future<NotificationPreferencesState> build() => _load();
 
   Future<NotificationPreferencesState> _load() async {
     final repository = ref.read(notificationRepositoryProvider);
-    final results = await Future.wait<dynamic>([
-      repository.getPreferences(),
-      repository.listDevices(),
-    ]);
-    final preferences = results[0] as NotificationPreferences;
+    final preferences = await repository.getPreferences();
+    final (devices, unavailable) = await _loadDevices();
     await ref
         .read(firebaseServiceProvider)
         .setOutbreakTopicPreference(
@@ -39,8 +38,22 @@ final class NotificationPreferencesController
         );
     return NotificationPreferencesState(
       preferences: preferences,
-      devices: results[1] as List<NotificationDevice>,
+      devices: devices,
+      devicesUnavailable: unavailable,
     );
+  }
+
+  Future<(List<NotificationDevice>, bool)> _loadDevices({
+    List<NotificationDevice> fallback = const [],
+  }) async {
+    try {
+      return (
+        await ref.read(notificationRepositoryProvider).listDevices(),
+        false,
+      );
+    } catch (_) {
+      return (fallback, true);
+    }
   }
 
   Future<void> refresh() async {
@@ -60,9 +73,9 @@ final class NotificationPreferencesController
       final preferences = await ref
           .read(notificationRepositoryProvider)
           .updatePreferences(changes);
-      final devices = await ref
-          .read(notificationRepositoryProvider)
-          .listDevices();
+      final (devices, unavailable) = await _loadDevices(
+        fallback: current.devices,
+      );
       await ref
           .read(firebaseServiceProvider)
           .setOutbreakTopicPreference(
@@ -72,6 +85,7 @@ final class NotificationPreferencesController
       return NotificationPreferencesState(
         preferences: preferences,
         devices: devices,
+        devicesUnavailable: unavailable,
       );
     });
   }

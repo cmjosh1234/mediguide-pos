@@ -11,6 +11,10 @@ on:
       - "v*"
   workflow_dispatch:
     inputs:
+      release_tag:
+        description: Optional existing stable release tag to rebuild and publish with current tooling
+        required: false
+        type: string
       build_web:
         description: Build optional Flutter web artifact
         type: boolean
@@ -49,6 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.release_tag || github.ref }}
           fetch-depth: 0
       - name: Classify mobile and shared contract changes
         id: changes
@@ -69,6 +74,19 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+          fetch-depth: 0
+      - name: Verify selected immutable release
+        if: inputs.release_tag != ''
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "A stable release tag is required." >&2; exit 1; }
+          bash scripts/check-release-readiness.sh "$RELEASE_TAG" --metadata-only
+          git fetch origin main --no-tags
+          git merge-base --is-ancestor HEAD origin/main
       - name: Validate configuration without exposing secrets
         env:
           DESTINATION: android-artifacts
@@ -119,6 +137,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -132,9 +152,11 @@ jobs:
         run: flutter pub get
 
       - name: Verify release tag matches the mobile version
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         working-directory: ${{ github.workspace }}
-        run: bash scripts/check-release-readiness.sh "${GITHUB_REF_NAME}" --metadata-only
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: bash scripts/check-release-readiness.sh "${RELEASE_TAG}" --metadata-only
 
       - name: Verify generated backend contracts
         run: |
@@ -210,6 +232,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -292,30 +316,43 @@ jobs:
         run: >-
           flutter build apk --release
           --split-per-abi
-          --target-platform android-arm,android-arm64
+          --target-platform android-arm,android-arm64,android-x64
           --flavor production
           --target lib/main_production.dart
           --dart-define=MEDIGUIDE_API_BASE_URL="${MOBILE_API_BASE_URL}"
           --dart-define=MEDIGUIDE_FLAVOR=production
+          --dart-define=MEDIGUIDE_DISTRIBUTION_CHANNEL=play
           --dart-define=MEDIGUIDE_DEBUG_TOOLS_ENABLED=false
           ${FIREBASE_BUILD_ARGS}
 
       - name: Build release app bundle
         run: >-
           flutter build appbundle --release
-          --target-platform android-arm,android-arm64
+          --target-platform android-arm,android-arm64,android-x64
           --flavor production
           --target lib/main_production.dart
           --dart-define=MEDIGUIDE_API_BASE_URL="${MOBILE_API_BASE_URL}"
           --dart-define=MEDIGUIDE_FLAVOR=production
+          --dart-define=MEDIGUIDE_DISTRIBUTION_CHANNEL=play
           --dart-define=MEDIGUIDE_DEBUG_TOOLS_ENABLED=false
           ${FIREBASE_BUILD_ARGS}
+
+      - name: Verify Android native architectures
+        run: |
+          set -euo pipefail
+          for abi in armeabi-v7a arm64-v8a x86_64; do
+            python3 ../scripts/check-android-abis.py --expected "$abi" \
+              "build/app/outputs/flutter-apk/app-${abi}-production-release.apk"
+          done
+          python3 ../scripts/check-android-abis.py --expected armeabi-v7a,arm64-v8a,x86_64 \
+            build/app/outputs/bundle/productionRelease/app-production-release.aab
 
       - name: Enforce Android artifact size budgets
         run: |
           set -eu
           max_apk_bytes=$((45 * 1024 * 1024))
-          max_aab_bytes=$((70 * 1024 * 1024))
+          # Three release ABIs: v2.1.16 measured 82.5 MiB; keep per-device APKs capped.
+          max_aab_bytes=$((90 * 1024 * 1024))
           apk_count=0
           for artifact in build/app/outputs/flutter-apk/*production-release.apk; do
             test -f "${artifact}" || continue
@@ -327,12 +364,12 @@ jobs:
               exit 1
             fi
           done
-          test "${apk_count}" -eq 2
+          test "${apk_count}" -eq 3
           aab="build/app/outputs/bundle/productionRelease/app-production-release.aab"
           aab_bytes="$(wc -c < "${aab}")"
           echo "$(basename "${aab}"): ${aab_bytes} bytes"
           if [ "${aab_bytes}" -gt "${max_aab_bytes}" ]; then
-            echo "${aab} exceeds the 70 MiB upload budget." >&2
+            echo "${aab} exceeds the 90 MiB upload budget." >&2
             exit 1
           fi
 
@@ -364,6 +401,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -408,6 +447,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Cache CocoaPods downloads
         uses: actions/cache@v4
@@ -512,7 +553,7 @@ jobs:
 
   release:
     name: Publish GitHub release
-    if: github.repository == 'mohuganda/mediguide-pos' && startsWith(github.ref, 'refs/tags/v')
+    if: github.repository == 'mohuganda/mediguide-pos' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != ''))
     needs: android
     timeout-minutes: 20
     runs-on: ubuntu-latest
@@ -522,6 +563,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Log in to GHCR
         uses: docker/login-action@v4
@@ -533,7 +576,7 @@ jobs:
       - name: Wait for the complete GHCR release set
         env:
           GHCR_OWNER: ${{ github.repository_owner }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           set -eu
           owner="$(printf '%s' "${GHCR_OWNER}" | tr '[:upper:]' '[:lower:]')"
@@ -564,7 +607,7 @@ jobs:
 
       - name: Assemble release bundle and checksums
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
           REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           set -eu
@@ -582,14 +625,16 @@ jobs:
 
           arm_apk="$(find release-artifacts -name 'app-armeabi-v7a-production-release.apk' -print -quit)"
           arm64_apk="$(find release-artifacts -name 'app-arm64-v8a-production-release.apk' -print -quit)"
+          x64_apk="$(find release-artifacts -name 'app-x86_64-production-release.apk' -print -quit)"
           aab="$(find release-artifacts -name app-production-release.aab -print -quit)"
           ios="$(find release-artifacts -name mediguide-ios-unsigned.zip -print -quit)"
           macos="$(find release-artifacts -name mediguide-macos.zip -print -quit)"
           web="$(find release-artifacts -type d -name 'mediguide-web-*' -print -quit)"
 
-          test -n "${arm_apk}" && test -n "${arm64_apk}" && test -n "${aab}"
+          test -n "${arm_apk}" && test -n "${arm64_apk}" && test -n "${x64_apk}" && test -n "${aab}"
           cp "${arm_apk}" "dist/mediguide-${mobile_artifact_version}-android-armeabi-v7a.apk"
           cp "${arm64_apk}" "dist/mediguide-${mobile_artifact_version}-android-arm64-v8a.apk"
+          cp "${x64_apk}" "dist/mediguide-${mobile_artifact_version}-android-x86_64.apk"
           cp "${aab}" "dist/mediguide-${mobile_artifact_version}-android.aab"
 
           printf '%s\n' \
@@ -598,7 +643,7 @@ jobs:
             "mobile_version=${mobile_version}" \
             "mobile_build_number=${mobile_build_number}" \
             "mobile_full_version=${mobile_full_version}" \
-            "git_revision=${GITHUB_SHA}" \
+            "git_revision=$(git rev-parse HEAD)" \
             "api_image=ghcr.io/${owner}/mediguide-pos-api:${version}" \
             "ai_worker_image=ghcr.io/${owner}/mediguide-pos-ai-worker:${version}" \
             "dashboard_image=ghcr.io/${owner}/mediguide-pos-dashboard:${version}" \
@@ -625,7 +670,8 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
           generate_release_notes: true
           body_path: release-body.md
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(inputs.release_tag || github.ref_name, '-') }}
           files: dist/*

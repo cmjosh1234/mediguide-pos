@@ -9,6 +9,7 @@ export interface GuidelineNotificationCampaignInput extends Omit<
   ServicesGuidelineNotificationCampaignInput,
   "audience" | "priority" | "requested_channels"
 > {
+  change_summary?: string;
   audience: {
     all_eligible: boolean;
     user_ids?: string[];

@@ -1,0 +1,38 @@
+groups:
+  - name: mediguide-notifications
+    rules:
+      - alert: MediGuideNotificationWorkerUnavailable
+        expr: up{job="mediguide-notifications"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MediGuide notification worker cannot be reached"
+      - alert: MediGuideNotificationQueueDelayed
+        expr: mediguide_notification_oldest_due_seconds > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MediGuide notification delivery is delayed"
+      - alert: MediGuideNotificationDeliveryFailing
+        expr: mediguide_notification_failed_24h > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MediGuide has more than ten technical delivery failures in 24 hours"
+      - alert: MediGuideFirebaseMessagingUnavailable
+        expr: mediguide_notification_firebase_configured == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Firebase messaging credentials are unavailable"
+      - alert: MediGuideDeliveryExportStale
+        expr: mediguide_notification_delivery_import_enabled == 1 and (time() - mediguide_notification_delivery_import_last_success_seconds > 28800)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Firebase delivery export has not been imported successfully for eight hours"

@@ -40,27 +40,31 @@ class _QuietHoursCard extends ConsumerWidget {
               : null,
         ),
         ListTile(
-          enabled: preferences.quietHoursEnabled,
           leading: const Icon(LucideIcons.globe2),
-          title: const Text('Time zone'),
-          trailing: DropdownButton<String>(
-            value: _quietHourTimezones.contains(preferences.quietHoursTimezone)
-                ? preferences.quietHoursTimezone
-                : 'UTC',
-            underline: const SizedBox.shrink(),
+          title: const Text('Time zone for quiet hours and digest'),
+          subtitle: DropdownButtonFormField<String>(
+            key: ValueKey(preferences.quietHoursTimezone),
+            initialValue: preferences.quietHoursTimezone,
+            isExpanded: true,
             items: [
-              for (final timezone in _quietHourTimezones)
-                DropdownMenuItem(value: timezone, child: Text(timezone)),
+              for (final zone in {
+                ..._quietHourTimezones,
+                preferences.quietHoursTimezone,
+              })
+                DropdownMenuItem(
+                  value: zone,
+                  child: Text(
+                    zone,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
             ],
-            onChanged: preferences.quietHoursEnabled
-                ? (value) {
-                    if (value != null) {
-                      controller.updatePreferences({
-                        'quiet_hours_timezone': value,
-                      });
-                    }
-                  }
-                : null,
+            onChanged: (value) {
+              if (value != null) {
+                controller.updatePreferences({'quiet_hours_timezone': value});
+              }
+            },
           ),
         ),
       ],

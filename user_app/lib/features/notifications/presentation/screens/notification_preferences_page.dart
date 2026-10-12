@@ -19,6 +19,9 @@ part '../widgets/notification_preferences_page_preference_switch.dart';
 part '../widgets/notification_preferences_page_quiet_hours_card.dart';
 part '../widgets/notification_preferences_page_language_card.dart';
 part '../widgets/notification_preferences_page_devices_card.dart';
+part '../widgets/notification_preferences_page_interests_card.dart';
+part '../widgets/notification_preferences_page_digest_card.dart';
+part '../widgets/notification_preferences_page_status_card.dart';
 
 class NotificationPreferencesPage extends ConsumerWidget {
   const NotificationPreferencesPage({super.key});

@@ -1,15 +1,27 @@
 part of '../screens/publication_guideline_page.dart';
 
-class _Overview extends StatelessWidget {
+class _Overview extends ConsumerWidget {
   const _Overview({required this.content});
 
   final GuidelinePublicationContent content;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final publication = content.publication;
 
     final manifest = content.manifest;
+    final copies =
+        (ref.watch(guidelineDownloadsControllerProvider).valueOrNull ??
+                <OfflineDownload>[])
+            .where(
+              (item) =>
+                  item.guidelineId == publication.id &&
+                  item.localPath.isNotEmpty &&
+                  (item.status == OfflineDownloadStatus.ready ||
+                      item.status == OfflineDownloadStatus.updateAvailable),
+            );
+    final saved = copies.firstOrNull;
+    final outdated = saved != null && saved.version != manifest.version;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -34,6 +46,55 @@ class _Overview extends StatelessWidget {
             AppMarkdownBody(data: publication.description, compact: true),
           ],
 
+          if (saved != null)
+            Card(
+              child: ListTile(
+                leading: Icon(
+                  outdated
+                      ? Icons.system_update_alt
+                      : Icons.offline_pin_outlined,
+                ),
+                title: Text(
+                  outdated ? 'Update your saved copy' : 'Available offline',
+                ),
+                subtitle: Text(
+                  outdated
+                      ? 'Saved version ${saved.version} · current version ${manifest.version}'
+                      : 'Saved version ${saved.version}',
+                ),
+                trailing: outdated
+                    ? TextButton(
+                        child: const Text('Update'),
+                        onPressed: () async {
+                          try {
+                            await ref
+                                .read(
+                                  guidelineDownloadsControllerProvider.notifier,
+                                )
+                                .download(
+                                  content,
+                                  originalDocument:
+                                      saved.assetType == 'original_pdf',
+                                );
+                            if (context.mounted) {
+                              AppMessage.success(
+                                context,
+                                'Offline copy updated.',
+                              );
+                            }
+                          } catch (_) {
+                            if (context.mounted) {
+                              AppMessage.error(
+                                context,
+                                'Unable to update the saved copy. Check your connection.',
+                              );
+                            }
+                          }
+                        },
+                      )
+                    : null,
+              ),
+            ),
           AppSpacing.gapMd,
 
           Wrap(

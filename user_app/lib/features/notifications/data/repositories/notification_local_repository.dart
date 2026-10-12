@@ -15,6 +15,23 @@ final class NotificationLocalRepository {
 
   static const String _entityType = 'notification';
 
+  Future<void> setLastSynced({required String userId, required DateTime at}) =>
+      _localCacheService.put(
+        type: 'notification_sync',
+        id: 'inbox',
+        scope: _scope(userId),
+        data: {'at': at.toIso8601String()},
+      );
+
+  Future<DateTime?> lastSynced({required String userId}) async {
+    final row = await _localCacheService.get(
+      type: 'notification_sync',
+      id: 'inbox',
+      scope: _scope(userId),
+    );
+    return DateTime.tryParse(row?['at']?.toString() ?? '');
+  }
+
   // =========================================================
   // SCOPE
   // =========================================================
@@ -210,7 +227,12 @@ final class NotificationLocalRepository {
         .watch(type: _entityType, scope: _scope(userId))
         .map(
           (rows) => rows.where((row) {
-            return row['is_read'] != true && row['read'] != true;
+            final expiry = DateTime.tryParse(
+              row['expires_at']?.toString() ?? '',
+            );
+            return (expiry == null || expiry.isAfter(DateTime.now())) &&
+                row['is_read'] != true &&
+                row['read'] != true;
           }).length,
         )
         .distinct();
@@ -321,8 +343,12 @@ final class NotificationLocalRepository {
   // CLEAR USER NOTIFICATIONS
   // =========================================================
 
-  Future<void> clear({required String userId}) {
-    return _localCacheService.clearType(
+  Future<void> clear({required String userId}) async {
+    await _localCacheService.clearType(
+      type: 'notification_sync',
+      scope: _scope(userId),
+    );
+    await _localCacheService.clearType(
       type: _entityType,
       scope: _scope(userId),
     );
@@ -359,7 +385,11 @@ final class NotificationLocalRepository {
 
           for (final row in rows) {
             try {
-              notifications.add(MyNotification.fromJson(row));
+              final item = MyNotification.fromJson(row);
+              if (item.expiresAt == null ||
+                  item.expiresAt!.isAfter(DateTime.now())) {
+                notifications.add(item);
+              }
             } catch (_) {
               // Ignore malformed cached data.
             }
@@ -381,6 +411,11 @@ final class NotificationLocalRepository {
     required String priority,
     required bool? isRead,
   }) {
+    if (notification.expiresAt != null &&
+        !notification.expiresAt!.isAfter(DateTime.now())) {
+      return false;
+    }
+
     final json = notification.toJson();
 
     final normalizedType = type.trim().toLowerCase();

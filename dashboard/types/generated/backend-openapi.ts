@@ -2583,6 +2583,13 @@ export type ModelsNotificationActionTypeEnum =
   | "internal_route"
   | "approved_external_url";
 
+export interface ModelsNotificationInterests {
+  followed_guideline_ids?: string[];
+  followed_only?: boolean;
+  program_areas?: string[];
+  region_ids?: string[];
+}
+
 export interface ModelsOutbreak {
   approved_at?: string;
   approved_by?: string;
@@ -3753,6 +3760,7 @@ export interface ServicesGuidelineIndexInput {
 
 export interface ServicesGuidelineNotificationCampaignInput {
   audience?: ServicesNotificationAudienceDefinition;
+  change_summary?: string;
   idempotency_key?: string;
   priority?: string;
   requested_channels?: string[];
@@ -4208,8 +4216,10 @@ export interface ServicesNotificationPreferenceAggregates {
 
 export interface ServicesNotificationPreferences {
   clinical_content_updates?: boolean;
+  digest_time?: string;
   emergency_alerts?: boolean;
   in_app_enabled?: boolean;
+  interests?: ModelsNotificationInterests;
   outbreak_alerts?: boolean;
   preferred_language?: string;
   product_announcements?: boolean;
@@ -4219,14 +4229,17 @@ export interface ServicesNotificationPreferences {
   quiet_hours_start?: string;
   quiet_hours_timezone?: string;
   reminders?: boolean;
+  routine_digest?: boolean;
   system_notices?: boolean;
   updated_at?: string;
 }
 
 export interface ServicesNotificationPreferencesInput {
   clinical_content_updates?: boolean;
+  digest_time?: string;
   emergency_alerts?: boolean;
   in_app_enabled?: boolean;
+  interests?: ModelsNotificationInterests;
   outbreak_alerts?: boolean;
   preferred_language?: string;
   product_announcements?: boolean;
@@ -4236,6 +4249,7 @@ export interface ServicesNotificationPreferencesInput {
   quiet_hours_start?: string;
   quiet_hours_timezone?: string;
   reminders?: boolean;
+  routine_digest?: boolean;
   system_notices?: boolean;
 }
 

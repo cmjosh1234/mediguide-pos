@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/features/notifications/presentation/widgets/notification_inbox_status_card.dart';
+import 'package:user_app/features/notifications/presentation/widgets/notification_guideline_context.dart';
+import 'package:user_app/features/notifications/presentation/controllers/notification_sync.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
@@ -86,6 +89,7 @@ class NotificationsPage extends ConsumerWidget {
       // =====================================================================
       body: RefreshIndicator(
         onRefresh: () async {
+          await ref.read(notificationSyncProvider).sync(force: true);
           controller.refresh();
         },
         child: CustomScrollView(
@@ -106,6 +110,7 @@ class NotificationsPage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const NotificationInboxStatusCard(),
                     _NotificationBrowseCard(
                       hasActiveFilters: state.hasActiveFilters,
                       onOpenFilters: () {
@@ -183,11 +188,17 @@ class NotificationsPage extends ConsumerWidget {
                       // =====================================================
                       itemBuilder: (context, notification, index) {
                         return _NotificationCardShell(
-                          child: MyNotificationCard(
-                            notification: notification,
-                            onTap: () {
-                              _handleTap(context, notification, controller);
-                            },
+                          child: InkWell(
+                            onTap: () =>
+                                _handleTap(context, notification, controller),
+                            child: Column(
+                              children: [
+                                MyNotificationCard(notification: notification),
+                                NotificationGuidelineContext(
+                                  notification: notification,
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },

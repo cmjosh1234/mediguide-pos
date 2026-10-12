@@ -7,6 +7,8 @@ import 'helpers/test_local_store.dart';
 
 class FakeNotificationApi extends BackendApiService {
   bool offline = false;
+  bool mutationOffline = false;
+  bool emptyInbox = false;
   int? requestedPage;
   String? requestedSearch;
   String? markedReadId;
@@ -76,24 +78,27 @@ class FakeNotificationApi extends BackendApiService {
           'per_page': int.parse(query['per_page']!),
           'total_items': 1,
           'total_pages': 1,
-          'items': [
-            {
-              'id': 'notice-1',
-              'title': 'Maintenance',
-              'message': 'Tonight',
-              'type': 'warning',
-              'priority': 'high',
-              'action': {
-                'type': 'internal_route',
-                'route': '/tools',
-                'parameters': <String, String>{},
-              },
-              'is_read': false,
-            },
-          ],
+          'items': emptyInbox
+              ? []
+              : [
+                  {
+                    'id': 'notice-1',
+                    'title': 'Maintenance',
+                    'message': 'Tonight',
+                    'type': 'warning',
+                    'priority': 'high',
+                    'action': {
+                      'type': 'internal_route',
+                      'route': '/tools',
+                      'parameters': <String, String>{},
+                    },
+                    'is_read': false,
+                  },
+                ],
         },
       };
     }
+    if (mutationOffline) throw StateError('mutation offline');
     markedReadId = path.split('/')[4];
     statePaths.add(path);
     final isRead = path.endsWith('/read');
@@ -111,6 +116,86 @@ class FakeNotificationApi extends BackendApiService {
 }
 
 void main() {
+  test('expired cached alerts are not shown while offline', () async {
+    final store = TestLocalStore();
+    addTearDown(store.close);
+    final local = NotificationLocalRepository(store.cache);
+    await local.saveNotification(
+      userId: 'owner',
+      notification: MyNotification(
+        id: 'expired',
+        expiresAt: DateTime.now().subtract(const Duration(minutes: 1)),
+      ),
+    );
+    final repository = NotificationRepository(
+      FakeNotificationApi()..offline = true,
+      local,
+      userId: 'owner',
+    );
+    final result = await repository.list(page: 1, perPage: 10);
+    expect(result.items, isEmpty);
+  });
+
+  test(
+    'online responses preserve an unsynced local read change on screen',
+    () async {
+      final store = TestLocalStore();
+      addTearDown(store.close);
+      final api = FakeNotificationApi();
+      final repository = NotificationRepository(
+        api,
+        NotificationLocalRepository(store.cache),
+        userId: 'owner',
+      );
+      await repository.list(page: 1, perPage: 10);
+      api.mutationOffline = true;
+      await repository.markRead('notice-1');
+      final result = await repository.list(page: 1, perPage: 10);
+      expect(result.items.single.isRead, true);
+      expect(repository.status.value.offline, false);
+      expect(repository.status.value.lastSynced, isNotNull);
+    },
+  );
+  test('an empty synced inbox is a valid offline state', () async {
+    final store = TestLocalStore();
+    addTearDown(store.close);
+    final api = FakeNotificationApi()..emptyInbox = true;
+    final repository = NotificationRepository(
+      api,
+      NotificationLocalRepository(store.cache),
+      userId: 'owner',
+    );
+    await repository.list(page: 1, perPage: 10);
+    api.offline = true;
+    final result = await repository.list(page: 1, perPage: 10);
+    expect(result.items, isEmpty);
+    expect(repository.status.value.offline, true);
+    expect(repository.status.value.lastSynced, isNotNull);
+  });
+  test(
+    'offline pagination reports all cached matches and permits an empty final page',
+    () async {
+      final store = TestLocalStore();
+      addTearDown(store.close);
+      final api = FakeNotificationApi();
+      final local = NotificationLocalRepository(store.cache);
+      for (var i = 0; i < 12; i++) {
+        await local.saveNotification(
+          userId: 'owner',
+          notification: MyNotification(id: 'notice-$i', title: 'Saved'),
+        );
+      }
+      api.offline = true;
+      final repository = NotificationRepository(api, local, userId: 'owner');
+      final second = await repository.list(page: 2, perPage: 10);
+      expect(second.totalItems, 12);
+      expect(second.totalPages, 2);
+      expect(second.items.length, 2);
+      final third = await repository.list(page: 3, perPage: 10);
+      expect(third.items, isEmpty);
+    },
+  );
+
   test(
     'NotificationRepository maps typed pages to application models',
     () async {

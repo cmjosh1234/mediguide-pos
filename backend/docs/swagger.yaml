@@ -4269,6 +4269,23 @@ definitions:
         - approved_external_url
         type: string
     type: object
+  models.NotificationInterests:
+    properties:
+      followed_guideline_ids:
+        items:
+          type: string
+        type: array
+      followed_only:
+        type: boolean
+      program_areas:
+        items:
+          type: string
+        type: array
+      region_ids:
+        items:
+          type: string
+        type: array
+    type: object
   models.Outbreak:
     properties:
       approved_at:
@@ -6414,6 +6431,8 @@ definitions:
     properties:
       audience:
         $ref: '#/definitions/services.NotificationAudienceDefinition'
+      change_summary:
+        type: string
       idempotency_key:
         type: string
       priority:
@@ -7262,10 +7281,14 @@ definitions:
     properties:
       clinical_content_updates:
         type: boolean
+      digest_time:
+        type: string
       emergency_alerts:
         type: boolean
       in_app_enabled:
         type: boolean
+      interests:
+        $ref: '#/definitions/models.NotificationInterests'
       outbreak_alerts:
         type: boolean
       preferred_language:
@@ -7283,6 +7306,8 @@ definitions:
       quiet_hours_timezone:
         type: string
       reminders:
+        type: boolean
+      routine_digest:
         type: boolean
       system_notices:
         type: boolean
@@ -7293,10 +7318,14 @@ definitions:
     properties:
       clinical_content_updates:
         type: boolean
+      digest_time:
+        type: string
       emergency_alerts:
         type: boolean
       in_app_enabled:
         type: boolean
+      interests:
+        $ref: '#/definitions/models.NotificationInterests'
       outbreak_alerts:
         type: boolean
       preferred_language:
@@ -7314,6 +7343,8 @@ definitions:
       quiet_hours_timezone:
         type: string
       reminders:
+        type: boolean
+      routine_digest:
         type: boolean
       system_notices:
         type: boolean
@@ -9777,7 +9808,7 @@ info:
     name: Proprietary
   termsOfService: https://mediguide.local/terms
   title: MediGuide Backend API
-  version: 2.1.15
+  version: 2.1.17
 paths:
   /analytics/accounts:
     get:

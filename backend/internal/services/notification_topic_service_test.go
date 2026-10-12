@@ -8,7 +8,6 @@ import (
 	"mediguide/internal/models"
 
 	"github.com/google/uuid"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -245,54 +244,54 @@ func TestPublishingEditsAndResourcesAlertsTopicSubscribers(t *testing.T) {
 	}
 }
 
-func TestTopicWorkerRetriesThenDeliversAndDropsExpiredAlerts(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:"+uuid.NewString()+"?mode=memory&cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestOutbreakFanoutUsesInboxAndRetryingDeviceDelivery(t *testing.T) {
+	service := notificationTestService(t)
+	db := service.DB
 	if err := db.AutoMigrate(&models.NotificationTopicJob{}); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now().UTC()
-	mock := &firebaseMockMessenger{results: []firebaseMockResult{{err: mockFirebaseError("unavailable")}, {id: "messages/topic-1"}}}
-	worker := NotificationTopicService{DB: db, Firebase: &FirebaseService{DB: db, Project: "test-project", Messenger: mock}, WorkerID: "worker-1", Now: func() time.Time { return now }}
+	mock := &firebaseMockMessenger{results: []firebaseMockResult{{err: mockFirebaseError("unavailable")}, {id: "messages/device-1"}}}
+	firebase := &FirebaseService{DB: db, Project: "test-project", Messenger: mock}
+	worker := NotificationTopicService{DB: db, Firebase: firebase, WorkerID: "worker-1", Now: func() time.Time { return now }}
 	alert := outbreakTopicAlert{SourceType: "outbreak", SourceID: uuid.New(), OutbreakID: uuid.New(), Title: "Outbreak alert: Cholera", Body: "Boil drinking water."}
-	if err := enqueueOutbreakTopicAlertTx(db, alert, now); err != nil {
-		t.Fatal(err)
+	for i := 0; i < 2; i++ {
+		if err := enqueueOutbreakTopicAlertTx(db, alert, now); err != nil {
+			t.Fatal(err)
+		}
 	}
-	// Queuing the same publish twice must not send twice.
-	if err := enqueueOutbreakTopicAlertTx(db, alert, now); err != nil {
-		t.Fatal(err)
-	}
-
 	result, err := worker.ProcessBatch(t.Context())
-	if err != nil || result.Claimed != 1 || result.Retried != 1 {
-		t.Fatalf("first attempt: %#v %v", result, err)
+	if err != nil || result.Accepted != 1 || len(mock.messages) != 0 {
+		t.Fatalf("fanout sent a topic message: %#v %v", result, err)
 	}
-	if len(mock.messages) != 1 || mock.messages[0].Topic != PublicOutbreakTopic || mock.messages[0].Notification.Title != "Outbreak alert: Cholera" {
-		t.Fatalf("unexpected topic message: %#v", mock.messages)
+	var inbox []models.Notification
+	if err := db.Find(&inbox).Error; err != nil {
+		t.Fatal(err)
 	}
-	if result, _ := worker.ProcessBatch(t.Context()); result.Claimed != 0 {
-		t.Fatalf("retry ran before its backoff: %#v", result)
+	if len(inbox) != 1 || inbox[0].Title != alert.Title {
+		t.Fatalf("missing durable inbox: %#v", inbox)
 	}
-
+	now = now.Add(time.Second)
+	outbox := NotificationOutboxService{DB: db, Firebase: firebase, WorkerID: "delivery", MaxConcurrency: 1, Now: func() time.Time { return now }}
+	result, err = outbox.ProcessBatch(t.Context())
+	if err != nil || result.Retried != 1 || len(mock.messages) != 1 || mock.messages[0].Topic != "" {
+		t.Fatalf("device delivery: %#v %v", result, err)
+	}
 	now = now.Add(time.Hour)
-	result, err = worker.ProcessBatch(t.Context())
-	if err != nil || result.Accepted != 1 {
+	result, err = outbox.ProcessBatch(t.Context())
+	if err != nil || result.Accepted != 1 || len(mock.messages) != 2 {
 		t.Fatalf("retry: %#v %v", result, err)
 	}
-	jobs := topicJobsForTest(t, db)
-	if jobs[0].Status != "accepted" || jobs[0].ProviderMessageID == nil || *jobs[0].ProviderMessageID != "messages/topic-1" || jobs[0].AttemptCount != 2 {
-		t.Fatalf("unexpected accepted job: %#v", jobs[0])
+	if mock.messages[1].Data["notification_id"] != inbox[0].ID.String() || mock.messages[1].Data["delivery_id"] == "" {
+		t.Fatalf("missing inbox linkage: %#v", mock.messages[1].Data)
 	}
-
 	stale := outbreakTopicAlert{SourceType: "outbreak", SourceID: uuid.New(), OutbreakID: uuid.New(), Title: "Old alert"}
 	if err := enqueueOutbreakTopicAlertTx(db, stale, now.Add(-25*time.Hour)); err != nil {
 		t.Fatal(err)
 	}
 	result, err = worker.ProcessBatch(t.Context())
 	if err != nil || result.Failed != 1 || len(mock.messages) != 2 {
-		t.Fatalf("expired alert was sent: %#v %v messages=%d", result, err, len(mock.messages))
+		t.Fatalf("expired alert sent: %#v %v", result, err)
 	}
 }
 

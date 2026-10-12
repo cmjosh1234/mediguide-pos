@@ -219,7 +219,7 @@ export interface NotificationDeliveryAnalytics {
   to: string;
   items: NotificationDeliveryDailyMetric[];
   delivery_reporting: Record<string, string>;
-  big_query_export_note: string;
+  bigquery_export_note: string;
 }
 export interface NotificationOutboxJobDto {
   id: string;

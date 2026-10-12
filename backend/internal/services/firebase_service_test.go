@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"mediguide/internal/models"
 
@@ -192,7 +194,7 @@ func TestFirebaseMessageUsesExplicitPlatformPayloadAndProtectsPrivateContent(t *
 	if message.Android == nil || message.Android.Priority != "high" || message.Android.TTL == nil || *message.Android.TTL != 10*time.Minute || message.Android.Notification.ChannelID != "mediguide_emergency" {
 		t.Fatalf("unexpected Android payload: %#v", message.Android)
 	}
-	if message.APNS == nil || message.APNS.Headers["apns-priority"] != "10" || message.APNS.Payload.Aps.Badge == nil || message.Data["campaign_id"] != "campaign-1" {
+	if message.APNS == nil || message.APNS.Headers["apns-priority"] != "10" || message.APNS.Payload.Aps.Badge != nil || message.APNS.Headers["apns-expiration"] == "" || message.Data["campaign_id"] != "campaign-1" {
 		t.Fatalf("unexpected APNS/data payload: %#v %#v", message.APNS, message.Data)
 	}
 }
@@ -313,5 +315,23 @@ func TestFirebasePublicTopicsAreExplicitAndPublicOnly(t *testing.T) {
 	}
 	if outcome := service.DeliverPublicTopic(t.Context(), "public-outbreaks", payload, false); !outcome.Accepted {
 		t.Fatalf("public topic should be accepted: %#v", outcome)
+	}
+}
+
+func TestFirebasePushUsesCompactPreviewAndKeepsSummaryInInbox(t *testing.T) {
+	payload := NotificationDeliveryPayload{Title: strings.Repeat("A", 150), Body: strings.Repeat("B", 500), Priority: "normal", PublicContent: true,
+		Action: NotificationAction{Type: NotificationActionGuideline, Parameters: map[string]string{"version": "2.0", "change_summary": strings.Repeat("C", 500)}}}
+	message, err := firebaseMessage("token", payload, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if utf8.RuneCountInString(message.Notification.Title) > 120 || utf8.RuneCountInString(message.Notification.Body) > 240 {
+		t.Fatal("push preview was not bounded")
+	}
+	if strings.Contains(message.Data["action_parameters"], "change_summary") {
+		t.Fatal("display-only summary duplicated in FCM data")
+	}
+	if payload.Action.Parameters["change_summary"] == "" || len(payload.Body) != 500 {
+		t.Fatal("push preparation mutated the durable inbox content")
 	}
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:user_app/features/notifications/presentation/controllers/notification_preferences_controller.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -150,6 +151,8 @@ class _PublicationGuidelinePageState
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          if (ref.watch(authControllerProvider).valueOrNull?.user != null)
+            _FollowGuidelineButton(guidelineId: widget.guidelineId),
           IconButton(
             tooltip: 'Save to collection',
             onPressed: () => _saveToCollection(context),
@@ -1113,3 +1116,57 @@ class _PublicationGuidelinePageState
 // =============================================================================
 // MENU ACTIONS
 // =============================================================================
+
+class _FollowGuidelineButton extends ConsumerWidget {
+  const _FollowGuidelineButton({required this.guidelineId});
+  final String guidelineId;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(notificationPreferencesControllerProvider);
+    final preferences = state.valueOrNull?.preferences;
+    final following =
+        preferences?.followedGuidelineIds.contains(guidelineId) ?? false;
+    return IconButton(
+      tooltip: following
+          ? 'Unfollow guideline updates'
+          : 'Follow guideline updates',
+      icon: Icon(
+        following ? Icons.notifications_active : Icons.notifications_none,
+      ),
+      onPressed: preferences == null || state.isLoading
+          ? null
+          : () async {
+              final ids = preferences.followedGuidelineIds.toSet();
+              if (following) {
+                ids.remove(guidelineId);
+              } else {
+                ids.add(guidelineId);
+              }
+              await ref
+                  .read(notificationPreferencesControllerProvider.notifier)
+                  .updatePreferences({
+                    'interests': {
+                      ...preferences.interestsJson,
+                      'followed_guideline_ids': ids.toList(),
+                    },
+                  });
+              if (!context.mounted) return;
+              if (ref
+                  .read(notificationPreferencesControllerProvider)
+                  .hasError) {
+                AppMessage.error(
+                  context,
+                  'Unable to change followed guidelines. Try again when connected.',
+                );
+              } else {
+                AppMessage.success(
+                  context,
+                  following
+                      ? 'Guideline unfollowed.'
+                      : 'Following guideline updates. Notification category and channel preferences still apply.',
+                );
+              }
+            },
+    );
+  }
+}

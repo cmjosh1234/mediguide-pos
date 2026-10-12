@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/core/storage/local_cache_service.dart';
+import 'package:user_app/features/notifications/presentation/controllers/notification_preferences_controller.dart';
+import 'package:user_app/features/notifications/data/models/notification_preferences.dart';
 import 'package:flutter_gen_ai_chat_ui/flutter_gen_ai_chat_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -50,6 +53,16 @@ import 'helpers/test_local_store.dart';
 // to pin this to a July date, which changed from "9w ago" to "10w ago" and
 // caused unrelated home snapshots to fail.
 final _goldenLastReadAt = DateTime.now().subtract(const Duration(days: 63));
+
+final class _GoldenNotificationPreferencesController
+    extends NotificationPreferencesController {
+  @override
+  Future<NotificationPreferencesState> build() async =>
+      NotificationPreferencesState(
+        preferences: NotificationPreferences.fromJson(const {}),
+        devices: const [],
+      );
+}
 
 final class _GoldenAuthController extends AuthController {
   @override
@@ -331,6 +344,9 @@ final class _GoldenOutbreaksController extends PublicOutbreaksController {
 
 void main() {
   final commonOverrides = <Override>[
+    notificationPreferencesControllerProvider.overrideWith(
+      _GoldenNotificationPreferencesController.new,
+    ),
     authControllerProvider.overrideWith(_GoldenAuthController.new),
     homeControllerProvider.overrideWith(_GoldenHomeController.new),
     guidelineDownloadsControllerProvider.overrideWith(
@@ -506,6 +522,8 @@ void main() {
           ProviderScope(
             overrides: [
               ...commonOverrides,
+              backendApiServiceProvider.overrideWithValue(BackendApiService()),
+              localCacheServiceProvider.overrideWithValue(store.cache),
               usageRepositoryProvider.overrideWithValue(
                 UsageRepository(BackendApiService(), store.cache, () => null),
               ),

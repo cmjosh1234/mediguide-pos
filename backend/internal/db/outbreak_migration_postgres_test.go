@@ -48,7 +48,8 @@ func TestOutbreakAdministrationMigrationUpDownUp(t *testing.T) {
 	}
 	goose.SetTableName(schema + ".goose_db_version")
 	defer goose.SetTableName("goose_db_version")
-	if err := goose.Up(testDB, "../../migrations"); err != nil {
+	// Exercise rollback only below irreversible retirement migration 77.
+	if err := goose.UpTo(testDB, "../../migrations", 76); err != nil {
 		t.Fatal(err)
 	}
 	var chunkBlockIndexDefinition string
@@ -58,7 +59,14 @@ func TestOutbreakAdministrationMigrationUpDownUp(t *testing.T) {
 	if err := goose.DownTo(testDB, "../../migrations", 35); err != nil {
 		t.Fatal(err)
 	}
-	if err := goose.UpTo(testDB, "../../migrations", 53); err != nil {
+	if err := goose.Up(testDB, "../../migrations"); err != nil {
+		t.Fatal(err)
+	}
+	// Verify the new notification migration independently without crossing 77.
+	if err := goose.DownTo(testDB, "../../migrations", 81); err != nil {
+		t.Fatal(err)
+	}
+	if err := goose.Up(testDB, "../../migrations"); err != nil {
 		t.Fatal(err)
 	}
 	var count int

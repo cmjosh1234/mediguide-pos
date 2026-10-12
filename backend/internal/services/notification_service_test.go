@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ func notificationTestService(t *testing.T) NotificationService {
 		&models.NotificationTemplateVersion{}, &models.NotificationCampaign{}, &models.GuidelineDocument{}, &models.GuidelineVersion{},
 		&models.SupportTicket{}, &models.AuditLog{}, &models.User{}, &models.FirebaseDevice{},
 		&models.NotificationPreference{}, &models.NotificationCampaignRecipient{},
-		&models.NotificationPreferenceSettings{},
+		&models.NotificationPreferenceSettings{}, &models.NotificationDigest{}, &models.NotificationTopicJob{}, &models.Outbreak{}, &models.SituationReport{},
 		&models.NotificationOutboxJob{}, &models.NotificationDeliveryAttempt{},
 		&models.NotificationDelivery{}, &models.NotificationDeliveryEvent{},
 		&models.Role{}, &models.Region{}, &models.District{}, &models.FacilityLevel{}, &models.HealthFacility{},
@@ -74,7 +75,7 @@ func TestGuidelineCampaignRequiresPublishedCurrentVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	input := GuidelineNotificationCampaignInput{
-		Audience: NotificationAudienceDefinition{AllEligible: true}, Timezone: "UTC", Priority: "high",
+		Audience: NotificationAudienceDefinition{AllEligible: true}, Timezone: "UTC", Priority: "high", ChangeSummary: "Updated dosing recommendations.",
 		RequestedChannels: []string{"push", "in-app"}, IdempotencyKey: "guideline-update-test",
 	}
 	if _, err := service.CreateGuidelineCampaign(document.ID, input, author, "127.0.0.1"); err != ErrNotificationInvalid {
@@ -91,6 +92,26 @@ func TestGuidelineCampaignRequiresPublishedCurrentVersion(t *testing.T) {
 	if campaign.Status != "draft" || campaign.ActionSnapshot.Type != NotificationActionGuideline || campaign.ActionSnapshot.ResourceID == nil || *campaign.ActionSnapshot.ResourceID != document.ID.String() {
 		t.Fatalf("unexpected guideline campaign: %#v", campaign)
 	}
+	edited, err := service.SaveCampaign(&campaign.ID, NotificationCampaignInput{
+		Name: "Edited guideline notice", TemplateVersionID: *campaign.TemplateVersionID, Type: "update", Variables: campaign.Variables,
+		Audience: campaign.Audience, Timezone: "UTC", Priority: campaign.Priority, RequestedChannels: campaign.RequestedChannels,
+		IdempotencyKey: campaign.IdempotencyKey, LockVersion: campaign.LockVersion,
+	}, author, "127.0.0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if edited.ActionSnapshot.Parameters["version"] != "2.0" || edited.ActionSnapshot.Parameters["change_summary"] != input.ChangeSummary || !strings.Contains(edited.RenderedBody, input.ChangeSummary) {
+		t.Fatalf("draft edit lost guideline context: %#v", edited)
+	}
+	replay, err := service.CreateGuidelineCampaign(document.ID, input, author, "127.0.0.1")
+	if err != nil || replay.ID != campaign.ID {
+		t.Fatalf("source retry duplicated draft: %#v %v", replay, err)
+	}
+	input.ChangeSummary = "Different changes"
+	if _, err := service.CreateGuidelineCampaign(document.ID, input, author, "127.0.0.1"); err != ErrNotificationConflict {
+		t.Fatalf("different source snapshot reused idempotency key: %v", err)
+	}
+
 }
 
 func TestNotificationTypedActionDerivesResourceRoute(t *testing.T) {

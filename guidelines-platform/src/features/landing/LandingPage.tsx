@@ -421,7 +421,11 @@ export function BackendGuidelineCard({
           </div>
         </dl>
         <div className="card-actions">
-          <Link className="card-action card-action-read" to={readerUrl}>
+          <Link
+            className="card-action card-action-read"
+            to={readerUrl}
+            aria-label={`Read guideline: ${guideline.title}`}
+          >
             Read guideline <ArrowIcon />
           </Link>
           {guideline.has_original_document && (

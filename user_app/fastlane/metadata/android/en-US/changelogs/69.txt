@@ -1,0 +1,3 @@
+- Improved resilience when Remote Config cannot connect.
+- Prevented recursive crash reporting failures.
+- Added x86_64 support and native architecture checks for Android packages.

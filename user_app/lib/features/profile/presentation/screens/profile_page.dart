@@ -276,10 +276,20 @@ class ProfilePage extends ConsumerWidget {
 
               _SettingsTile(
                 icon: LucideIcons.refreshCw,
-                title: AppTranslationKey.checkForUpdate.tr,
+                title: updateState.valueOrNull == AppUpdateResult.readyToInstall
+                    ? 'Restart to update'
+                    : AppTranslationKey.checkForUpdate.tr,
                 subtitle: isCheckingForUpdate
                     ? AppTranslationKey.checkingForUpdates.tr
-                    : AppTranslationKey.upToDate.tr,
+                    : switch (updateState.valueOrNull) {
+                        AppUpdateResult.readyToInstall =>
+                          'Update ready to install',
+                        AppUpdateResult.downloading =>
+                          AppTranslationKey.updateDownloadingInBackground.tr,
+                        AppUpdateResult.upToDate =>
+                          AppTranslationKey.upToDate.tr,
+                        _ => 'Check for a newer version',
+                      },
                 showChevron: false,
                 trailing: isCheckingForUpdate
                     ? const SizedBox(
@@ -510,6 +520,12 @@ class ProfilePage extends ConsumerWidget {
 
   Future<void> _checkForUpdate(BuildContext context, WidgetRef ref) async {
     try {
+      final controller = ref.read(appUpdateControllerProvider.notifier);
+      if (ref.read(appUpdateControllerProvider).valueOrNull ==
+          AppUpdateResult.readyToInstall) {
+        await controller.installUpdate();
+        return;
+      }
       final result = await ref
           .read(appUpdateControllerProvider.notifier)
           .check();
@@ -520,15 +536,27 @@ class ProfilePage extends ConsumerWidget {
 
       final description = switch (result) {
         AppUpdateResult.unsupported =>
-          'Updates are only supported on Android devices',
+          'For automatic updates, install MediGuide through Google Play or Firebase App Tester.',
 
         AppUpdateResult.downloading =>
           AppTranslationKey.updateDownloadingInBackground.tr,
 
         AppUpdateResult.upToDate => AppTranslationKey.appIsUpToDate.tr,
+        AppUpdateResult.available ||
+        AppUpdateResult.criticalAvailable ||
+        AppUpdateResult.storeUpdateAvailable ||
+        AppUpdateResult.readyToInstall => null,
+        AppUpdateResult.installing => 'Installing the update…',
+        AppUpdateResult.cancelled =>
+          'Update postponed. You can continue using MediGuide.',
+        AppUpdateResult.failed => AppTranslationKey.failedToCheckForUpdates.tr,
+        AppUpdateResult.testerAlertsDisabled =>
+          'Tap Check for Update to enable Firebase tester alerts.',
+        AppUpdateResult.testerCheckComplete =>
+          'Firebase tester update check completed.',
       };
 
-      AppMessage.info(context, description);
+      if (description != null) AppMessage.info(context, description);
     } catch (_) {
       if (!context.mounted) {
         return;

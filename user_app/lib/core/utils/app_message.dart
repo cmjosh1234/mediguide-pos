@@ -16,6 +16,7 @@ class AppMessage {
     String? actionLabel,
     VoidCallback? onAction,
     bool replaceCurrent = true,
+    bool showCloseIcon = false,
   }) {
     assert(
       actionLabel == null || onAction != null,
@@ -50,6 +51,7 @@ class AppMessage {
       SnackBar(
         duration: duration,
         behavior: SnackBarBehavior.floating,
+        showCloseIcon: showCloseIcon,
         backgroundColor: backgroundColor,
         content: Semantics(
           liveRegion: true,
