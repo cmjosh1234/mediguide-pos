@@ -154,16 +154,26 @@ type NotificationPreference struct {
 
 // NotificationPreferenceSettings stores user-wide channel, locale, and quiet
 // hour choices. Device-specific push consent remains on FirebaseDevice.
+type NotificationInterests struct {
+	ProgramAreas         []string `json:"program_areas"`
+	RegionIDs            []string `json:"region_ids"`
+	FollowedGuidelineIDs []string `json:"followed_guideline_ids"`
+	FollowedOnly         bool     `json:"followed_only"`
+}
+
 type NotificationPreferenceSettings struct {
 	Base
-	UserID             uuid.UUID `gorm:"type:uuid;not null;uniqueIndex" json:"-"`
-	QuietHoursEnabled  bool      `gorm:"not null;default:false" json:"quiet_hours_enabled"`
-	QuietHoursStart    *string   `json:"quiet_hours_start,omitempty"`
-	QuietHoursEnd      *string   `json:"quiet_hours_end,omitempty"`
-	QuietHoursTimezone string    `gorm:"not null;default:'UTC'" json:"quiet_hours_timezone"`
-	PreferredLanguage  string    `gorm:"not null;default:'en'" json:"preferred_language"`
-	PushEnabled        bool      `gorm:"not null;default:true" json:"push_enabled"`
-	InAppEnabled       bool      `gorm:"not null;default:true" json:"in_app_enabled"`
+	InterestsJSON      datatypes.JSON `gorm:"column:interests_json;type:jsonb;not null;default:'{}'" json:"-"`
+	RoutineDigest      bool           `gorm:"not null;default:false" json:"routine_digest"`
+	DigestTime         string         `gorm:"not null;default:'18:00'" json:"digest_time"`
+	UserID             uuid.UUID      `gorm:"type:uuid;not null;uniqueIndex" json:"-"`
+	QuietHoursEnabled  bool           `gorm:"not null;default:false" json:"quiet_hours_enabled"`
+	QuietHoursStart    *string        `json:"quiet_hours_start,omitempty"`
+	QuietHoursEnd      *string        `json:"quiet_hours_end,omitempty"`
+	QuietHoursTimezone string         `gorm:"not null;default:'UTC'" json:"quiet_hours_timezone"`
+	PreferredLanguage  string         `gorm:"not null;default:'en'" json:"preferred_language"`
+	PushEnabled        bool           `gorm:"not null;default:true" json:"push_enabled"`
+	InAppEnabled       bool           `gorm:"not null;default:true" json:"in_app_enabled"`
 }
 
 type NotificationCampaignRecipient struct {
@@ -175,6 +185,7 @@ type NotificationCampaignRecipient struct {
 
 type NotificationOutboxJob struct {
 	Base
+	DigestID          *uuid.UUID     `gorm:"type:uuid;index" json:"digest_id,omitempty"`
 	CampaignID        uuid.UUID      `gorm:"type:uuid;not null" json:"campaign_id"`
 	RecipientID       uuid.UUID      `gorm:"type:uuid;not null" json:"recipient_id"`
 	UserID            uuid.UUID      `gorm:"type:uuid;not null" json:"user_id"`
@@ -260,4 +271,17 @@ type NotificationDeliveryEvent struct {
 	EventID    string    `gorm:"not null;uniqueIndex:idx_notification_delivery_event" json:"event_id"`
 	EventType  string    `gorm:"not null" json:"event_type"`
 	OccurredAt time.Time `gorm:"not null" json:"occurred_at"`
+}
+
+// One durable digest per installation and local delivery window. Members remain
+// individual outbox jobs so campaign outcomes and expiry remain auditable.
+type NotificationDigest struct {
+	Base
+	FirebaseDeviceID uuid.UUID `gorm:"type:uuid;uniqueIndex:idx_digest_window"`
+	WindowAt         time.Time `gorm:"uniqueIndex:idx_digest_window"`
+	Status           string    `gorm:"not null;default:'pending'"`
+	NextAttemptAt    time.Time
+	LockedAt         *time.Time
+	LockedBy         *string
+	AttemptCount     int
 }

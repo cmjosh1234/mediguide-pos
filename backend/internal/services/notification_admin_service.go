@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"mediguide/internal/models"
 
@@ -129,6 +130,7 @@ type NotificationCampaignInput struct {
 // choices that are safe at the guideline boundary. The server selects the
 // published template/version and derives all guideline variables and actions.
 type GuidelineNotificationCampaignInput struct {
+	ChangeSummary     string                         `json:"change_summary,omitempty"`
 	Audience          NotificationAudienceDefinition `json:"audience"`
 	ScheduledAt       *time.Time                     `json:"scheduled_at"`
 	Timezone          string                         `json:"timezone"`
@@ -468,6 +470,21 @@ func (s NotificationService) SaveCampaign(id *uuid.UUID, in NotificationCampaign
 			if in.LockVersion != existing.LockVersion {
 				return ErrNotificationConflict
 			}
+			var previousAction NotificationAction
+			if json.Unmarshal(existing.ActionSnapshotJSON, &previousAction) == nil && preview.Action.Type == NotificationActionGuideline &&
+				previousAction.Type == NotificationActionGuideline && previousAction.ResourceID != nil && preview.Action.ResourceID != nil &&
+				*previousAction.ResourceID == *preview.Action.ResourceID && previousAction.Parameters["version"] == fmt.Sprint(in.Variables["version"]) {
+				if preview.Action.Parameters == nil {
+					preview.Action.Parameters = map[string]string{}
+				}
+				preview.Action.Parameters["version"] = previousAction.Parameters["version"]
+				if summary := previousAction.Parameters["change_summary"]; summary != "" {
+					preview.Action.Parameters["change_summary"] = summary
+					item.RenderedBody += "\nWhat changed: " + summary
+				}
+				raw, _ := json.Marshal(preview.Action)
+				item.ActionSnapshotJSON = datatypes.JSON(raw)
+			}
 			item.Base = existing.Base
 			item.CreatedBy = existing.CreatedBy
 			item.LockVersion = existing.LockVersion + 1
@@ -517,22 +534,73 @@ func (s NotificationService) CreateGuidelineCampaign(documentID uuid.UUID, in Gu
 		return nil, err
 	}
 
-	return s.SaveCampaign(nil, NotificationCampaignInput{
-		Name:              "Guideline update: " + document.Title,
-		Type:              "update",
-		TemplateVersionID: templateVersion.ID,
-		Variables: map[string]any{
-			"guideline_id": document.ID.String(),
-			"title":        document.Title,
-			"version":      guidelineVersion.Version,
-		},
-		Audience:          in.Audience,
-		ScheduledAt:       in.ScheduledAt,
-		Timezone:          in.Timezone,
-		Priority:          in.Priority,
-		RequestedChannels: in.RequestedChannels,
-		IdempotencyKey:    in.IdempotencyKey,
-	}, actor, ip)
+	if utf8.RuneCountInString(in.ChangeSummary) > 500 {
+		return nil, ErrNotificationInvalid
+	}
+	var result *NotificationCampaignDTO
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		inner := audienceDB(s, tx)
+		// Preserve an idempotent retry's original editorial snapshot.
+		var existing models.NotificationCampaign
+		findErr := tx.Where("idempotency_key = ?", strings.TrimSpace(in.IdempotencyKey)).First(&existing).Error
+		if findErr == nil {
+			existingDTO, err := inner.GetCampaign(existing.ID)
+			if err != nil {
+				return err
+			}
+			action := existingDTO.ActionSnapshot
+			if action.Type != NotificationActionGuideline || action.ResourceID == nil || *action.ResourceID != document.ID.String() ||
+				action.Parameters["version"] != guidelineVersion.Version || action.Parameters["change_summary"] != strings.TrimSpace(in.ChangeSummary) {
+				return ErrNotificationConflict
+			}
+			result = existingDTO
+			return nil
+		}
+		if !errors.Is(findErr, gorm.ErrRecordNotFound) {
+			return findErr
+		}
+		created, err := inner.SaveCampaign(nil, NotificationCampaignInput{
+			Name:              "Guideline update: " + document.Title,
+			Type:              "update",
+			TemplateVersionID: templateVersion.ID,
+			Variables: map[string]any{
+				"guideline_id": document.ID.String(),
+				"title":        document.Title,
+				"version":      guidelineVersion.Version,
+			},
+			Audience:          in.Audience,
+			ScheduledAt:       in.ScheduledAt,
+			Timezone:          in.Timezone,
+			Priority:          in.Priority,
+			RequestedChannels: in.RequestedChannels,
+			IdempotencyKey:    in.IdempotencyKey,
+		}, actor, ip)
+		if err != nil {
+			return err
+		}
+		action := created.ActionSnapshot
+		if action.Parameters == nil {
+			action.Parameters = map[string]string{}
+		}
+		action.Parameters["version"] = guidelineVersion.Version
+		summary := strings.TrimSpace(in.ChangeSummary)
+		body := created.RenderedBody
+		if summary != "" {
+			action.Parameters["change_summary"] = summary
+			body += "\nWhat changed: " + summary
+		}
+		encoded, err := json.Marshal(action)
+		if err != nil {
+			return err
+		}
+		if err := tx.Model(&models.NotificationCampaign{}).Where("id = ? AND status = 'draft'", created.ID).
+			Updates(map[string]any{"action_snapshot_json": datatypes.JSON(encoded), "rendered_body": body}).Error; err != nil {
+			return err
+		}
+		result, err = inner.GetCampaign(created.ID)
+		return err
+	})
+	return result, err
 }
 
 // CreateOutbreakCampaign creates a draft campaign from an explicitly
@@ -706,6 +774,9 @@ func (s NotificationService) TransitionCampaign(id uuid.UUID, action string, in 
 			if err := tx.Model(&models.NotificationOutboxJob{}).Where("campaign_id = ? AND status = 'held'", item.ID).Updates(map[string]any{"status": "pending", "next_attempt_at": gorm.Expr("CASE WHEN next_attempt_at > ? THEN next_attempt_at ELSE ? END", scheduled.UTC(), scheduled.UTC())}).Error; err != nil {
 				return err
 			}
+			if err := reactivateNotificationDigests(tx, item.ID, now); err != nil {
+				return err
+			}
 			if err := tx.Model(&models.Notification{}).Where("campaign_id = ?", item.ID).Update("publish_at", scheduled.UTC()).Error; err != nil {
 				return err
 			}
@@ -745,6 +816,10 @@ func (s NotificationService) TransitionCampaign(id uuid.UUID, action string, in 
 			if err := tx.Model(&models.NotificationOutboxJob{}).Where("campaign_id = ? AND status = 'held'", item.ID).Updates(map[string]any{"status": "pending", "next_attempt_at": next}).Error; err != nil {
 				return err
 			}
+			if err := reactivateNotificationDigests(tx, item.ID, now); err != nil {
+				return err
+			}
+
 		case "cancel":
 			if !oneOf(item.Status, "draft", "pending_review", "approved", "scheduled", "queued", "paused") || item.StartedAt != nil {
 				return ErrNotificationTransition

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"regexp"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"mediguide/internal/models"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -24,36 +26,42 @@ var orderedNotificationPreferenceCategories = []string{
 }
 
 type NotificationPreferences struct {
-	ClinicalContentUpdates bool       `json:"clinical_content_updates"`
-	OutbreakAlerts         bool       `json:"outbreak_alerts"`
-	EmergencyAlerts        bool       `json:"emergency_alerts"`
-	Reminders              bool       `json:"reminders"`
-	SystemNotices          bool       `json:"system_notices"`
-	ProductAnnouncements   bool       `json:"product_announcements"`
-	QuietHoursEnabled      bool       `json:"quiet_hours_enabled"`
-	QuietHoursStart        *string    `json:"quiet_hours_start,omitempty"`
-	QuietHoursEnd          *string    `json:"quiet_hours_end,omitempty"`
-	QuietHoursTimezone     string     `json:"quiet_hours_timezone"`
-	PreferredLanguage      string     `json:"preferred_language"`
-	PushEnabled            bool       `json:"push_enabled"`
-	InAppEnabled           bool       `json:"in_app_enabled"`
-	UpdatedAt              *time.Time `json:"updated_at,omitempty"`
+	Interests              models.NotificationInterests `json:"interests"`
+	RoutineDigest          bool                         `json:"routine_digest"`
+	DigestTime             string                       `json:"digest_time"`
+	ClinicalContentUpdates bool                         `json:"clinical_content_updates"`
+	OutbreakAlerts         bool                         `json:"outbreak_alerts"`
+	EmergencyAlerts        bool                         `json:"emergency_alerts"`
+	Reminders              bool                         `json:"reminders"`
+	SystemNotices          bool                         `json:"system_notices"`
+	ProductAnnouncements   bool                         `json:"product_announcements"`
+	QuietHoursEnabled      bool                         `json:"quiet_hours_enabled"`
+	QuietHoursStart        *string                      `json:"quiet_hours_start,omitempty"`
+	QuietHoursEnd          *string                      `json:"quiet_hours_end,omitempty"`
+	QuietHoursTimezone     string                       `json:"quiet_hours_timezone"`
+	PreferredLanguage      string                       `json:"preferred_language"`
+	PushEnabled            bool                         `json:"push_enabled"`
+	InAppEnabled           bool                         `json:"in_app_enabled"`
+	UpdatedAt              *time.Time                   `json:"updated_at,omitempty"`
 }
 
 type NotificationPreferencesInput struct {
-	ClinicalContentUpdates *bool   `json:"clinical_content_updates"`
-	OutbreakAlerts         *bool   `json:"outbreak_alerts"`
-	EmergencyAlerts        *bool   `json:"emergency_alerts"`
-	Reminders              *bool   `json:"reminders"`
-	SystemNotices          *bool   `json:"system_notices"`
-	ProductAnnouncements   *bool   `json:"product_announcements"`
-	QuietHoursEnabled      *bool   `json:"quiet_hours_enabled"`
-	QuietHoursStart        *string `json:"quiet_hours_start"`
-	QuietHoursEnd          *string `json:"quiet_hours_end"`
-	QuietHoursTimezone     *string `json:"quiet_hours_timezone"`
-	PreferredLanguage      *string `json:"preferred_language"`
-	PushEnabled            *bool   `json:"push_enabled"`
-	InAppEnabled           *bool   `json:"in_app_enabled"`
+	Interests              *models.NotificationInterests `json:"interests"`
+	RoutineDigest          *bool                         `json:"routine_digest"`
+	DigestTime             *string                       `json:"digest_time"`
+	ClinicalContentUpdates *bool                         `json:"clinical_content_updates"`
+	OutbreakAlerts         *bool                         `json:"outbreak_alerts"`
+	EmergencyAlerts        *bool                         `json:"emergency_alerts"`
+	Reminders              *bool                         `json:"reminders"`
+	SystemNotices          *bool                         `json:"system_notices"`
+	ProductAnnouncements   *bool                         `json:"product_announcements"`
+	QuietHoursEnabled      *bool                         `json:"quiet_hours_enabled"`
+	QuietHoursStart        *string                       `json:"quiet_hours_start"`
+	QuietHoursEnd          *string                       `json:"quiet_hours_end"`
+	QuietHoursTimezone     *string                       `json:"quiet_hours_timezone"`
+	PreferredLanguage      *string                       `json:"preferred_language"`
+	PushEnabled            *bool                         `json:"push_enabled"`
+	InAppEnabled           *bool                         `json:"in_app_enabled"`
 }
 
 type NotificationPreferenceAggregates struct {
@@ -73,6 +81,9 @@ func (s NotificationService) GetPreferences(userID uuid.UUID) (*NotificationPref
 		return nil, err
 	}
 	result := defaultNotificationPreferences()
+	result.Interests = decodeNotificationInterests(settings.InterestsJSON)
+	result.RoutineDigest = settings.RoutineDigest
+	result.DigestTime = settings.DigestTime
 	result.QuietHoursEnabled = settings.QuietHoursEnabled
 	result.QuietHoursStart = settings.QuietHoursStart
 	result.QuietHoursEnd = settings.QuietHoursEnd
@@ -115,6 +126,40 @@ func (s NotificationService) UpdatePreferences(userID uuid.UUID, input Notificat
 			return ErrNotificationInvalid
 		}
 		updates := map[string]any{}
+		if input.Interests != nil {
+			interests := *input.Interests
+			normalizedIDs := func(ids []string) []string {
+				result := []string{}
+				seen := map[string]bool{}
+				for _, raw := range ids {
+					id, _ := uuid.Parse(raw)
+					value := id.String()
+					if !seen[value] {
+						result = append(result, value)
+						seen[value] = true
+					}
+				}
+				return result
+			}
+			interests.RegionIDs = normalizedIDs(interests.RegionIDs)
+			interests.FollowedGuidelineIDs = normalizedIDs(interests.FollowedGuidelineIDs)
+			raw, err := json.Marshal(interests)
+			if err != nil {
+				return err
+			}
+			updates["interests_json"] = datatypes.JSON(raw)
+		}
+		if input.RoutineDigest != nil {
+			updates["routine_digest"] = *input.RoutineDigest
+			if !*input.RoutineDigest {
+				if err := tx.Model(&models.NotificationOutboxJob{}).Where("user_id = ? AND digest_id IS NOT NULL AND status IN ?", userID, []string{"held", "pending", "retry"}).Update("digest_id", nil).Error; err != nil {
+					return err
+				}
+			}
+		}
+		if input.DigestTime != nil {
+			updates["digest_time"] = strings.TrimSpace(*input.DigestTime)
+		}
 		if input.QuietHoursEnabled != nil {
 			updates["quiet_hours_enabled"] = *input.QuietHoursEnabled
 		}
@@ -234,7 +279,7 @@ func (s NotificationService) PreferenceAggregates() (*NotificationPreferenceAggr
 }
 
 func (s NotificationService) preferenceSettings(userID uuid.UUID) (*models.NotificationPreferenceSettings, error) {
-	settings := models.NotificationPreferenceSettings{UserID: userID, QuietHoursTimezone: "UTC", PreferredLanguage: "en", PushEnabled: true, InAppEnabled: true}
+	settings := models.NotificationPreferenceSettings{InterestsJSON: datatypes.JSON([]byte(`{}`)), DigestTime: "18:00", UserID: userID, QuietHoursTimezone: "UTC", PreferredLanguage: "en", PushEnabled: true, InAppEnabled: true}
 	if err := s.DB.Where("user_id = ?", userID).First(&settings).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, err
@@ -254,7 +299,7 @@ func (s NotificationService) notificationDeviceStaleAfter() time.Duration {
 }
 
 func defaultNotificationPreferences() *NotificationPreferences {
-	return &NotificationPreferences{ClinicalContentUpdates: true, OutbreakAlerts: true, EmergencyAlerts: true, Reminders: true, SystemNotices: true, ProductAnnouncements: true, QuietHoursTimezone: "UTC", PreferredLanguage: "en", PushEnabled: true, InAppEnabled: true}
+	return &NotificationPreferences{DigestTime: "18:00", Interests: decodeNotificationInterests(nil), ClinicalContentUpdates: true, OutbreakAlerts: true, EmergencyAlerts: true, Reminders: true, SystemNotices: true, ProductAnnouncements: true, QuietHoursTimezone: "UTC", PreferredLanguage: "en", PushEnabled: true, InAppEnabled: true}
 }
 
 func setNotificationPreferenceCategory(result *NotificationPreferences, category string, enabled bool) {
@@ -275,6 +320,28 @@ func setNotificationPreferenceCategory(result *NotificationPreferences, category
 }
 
 func validateNotificationPreferencesInput(input NotificationPreferencesInput) error {
+	if input.DigestTime != nil {
+		if _, err := time.Parse("15:04", strings.TrimSpace(*input.DigestTime)); err != nil {
+			return ErrNotificationInvalid
+		}
+	}
+	if input.Interests != nil {
+		if len(input.Interests.ProgramAreas) > 50 || len(input.Interests.RegionIDs) > 50 || len(input.Interests.FollowedGuidelineIDs) > 500 {
+			return ErrNotificationInvalid
+		}
+		for _, area := range input.Interests.ProgramAreas {
+			if strings.TrimSpace(area) == "" || len(area) > 128 {
+				return ErrNotificationInvalid
+			}
+		}
+		for _, ids := range [][]string{input.Interests.RegionIDs, input.Interests.FollowedGuidelineIDs} {
+			for _, id := range ids {
+				if _, err := uuid.Parse(id); err != nil {
+					return ErrNotificationInvalid
+				}
+			}
+		}
+	}
 	start, end := input.QuietHoursStart, input.QuietHoursEnd
 	if (start == nil) != (end == nil) {
 		return ErrNotificationInvalid
@@ -311,4 +378,10 @@ func cleanNullableClock(value string) *string {
 		return nil
 	}
 	return &value
+}
+
+func decodeNotificationInterests(raw []byte) models.NotificationInterests {
+	result := models.NotificationInterests{ProgramAreas: []string{}, RegionIDs: []string{}, FollowedGuidelineIDs: []string{}}
+	_ = json.Unmarshal(raw, &result)
+	return result
 }

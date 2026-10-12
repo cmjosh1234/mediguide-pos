@@ -232,11 +232,11 @@ func (s NotificationOutboxService) DailyAnalytics(from, to time.Time) (*Notifica
 		From: from, To: to, Items: rows,
 		DeliveryReporting: map[string]string{
 			"in-app": "opened and clicked are reported by authenticated clients; delivered is inferred only after an open",
-			"push":   "provider acceptance is available; device delivery requires Firebase BigQuery export ingestion",
+			"push":   "provider acceptance, client opens and imported Firebase device-delivery events are reported separately",
 			"email":  "unavailable: no provider configured",
 			"sms":    "unavailable: no provider configured",
 		},
-		BigQueryExportNote: "Enable Firebase Cloud Messaging BigQuery export and ingest provider delivery events before interpreting push delivery rate.",
+		BigQueryExportNote: "Delivery requires an authenticated client open or an imported MESSAGE_DELIVERED event. Enable Firebase BigQuery export, device diagnostics consent and FCM_DELIVERY_BIGQUERY_TABLE to import device-delivery events.",
 	}, nil
 }
 

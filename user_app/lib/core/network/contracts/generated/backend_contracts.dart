@@ -8397,6 +8397,39 @@ final class ModelsNotificationAction {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ModelsNotificationInterests {
+  ModelsNotificationInterests(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ModelsNotificationInterests.fromJson(Map<String, dynamic> json) =>
+      ModelsNotificationInterests(json);
+
+  static const schemaName = 'models.NotificationInterests';
+  final Map<String, dynamic> value;
+
+  List<String> get followedGuidelineIds {
+    final raw = value['followed_guideline_ids'];
+    if (raw is! List) return const [];
+    return raw.whereType<String>().toList(growable: false);
+  }
+
+  bool? get followedOnly => value['followed_only'] as bool?;
+
+  List<String> get programAreas {
+    final raw = value['program_areas'];
+    if (raw is! List) return const [];
+    return raw.whereType<String>().toList(growable: false);
+  }
+
+  List<String> get regionIds {
+    final raw = value['region_ids'];
+    if (raw is! List) return const [];
+    return raw.whereType<String>().toList(growable: false);
+  }
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ModelsOutbreak {
   ModelsOutbreak(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -11865,6 +11898,8 @@ final class ServicesGuidelineNotificationCampaignInput {
     return ServicesNotificationAudienceDefinition.fromJson(_jsonMap(raw));
   }
 
+  String? get changeSummary => value['change_summary']?.toString();
+
   String? get idempotencyKey => value['idempotency_key']?.toString();
 
   String? get priority => value['priority']?.toString();
@@ -13312,9 +13347,17 @@ final class ServicesNotificationPreferences {
   bool? get clinicalContentUpdates =>
       value['clinical_content_updates'] as bool?;
 
+  String? get digestTime => value['digest_time']?.toString();
+
   bool? get emergencyAlerts => value['emergency_alerts'] as bool?;
 
   bool? get inAppEnabled => value['in_app_enabled'] as bool?;
+
+  ModelsNotificationInterests? get interests {
+    final raw = value['interests'];
+    if (raw is! Map) return null;
+    return ModelsNotificationInterests.fromJson(_jsonMap(raw));
+  }
 
   bool? get outbreakAlerts => value['outbreak_alerts'] as bool?;
 
@@ -13333,6 +13376,8 @@ final class ServicesNotificationPreferences {
   String? get quietHoursTimezone => value['quiet_hours_timezone']?.toString();
 
   bool? get reminders => value['reminders'] as bool?;
+
+  bool? get routineDigest => value['routine_digest'] as bool?;
 
   bool? get systemNotices => value['system_notices'] as bool?;
 
@@ -13355,9 +13400,17 @@ final class ServicesNotificationPreferencesInput {
   bool? get clinicalContentUpdates =>
       value['clinical_content_updates'] as bool?;
 
+  String? get digestTime => value['digest_time']?.toString();
+
   bool? get emergencyAlerts => value['emergency_alerts'] as bool?;
 
   bool? get inAppEnabled => value['in_app_enabled'] as bool?;
+
+  ModelsNotificationInterests? get interests {
+    final raw = value['interests'];
+    if (raw is! Map) return null;
+    return ModelsNotificationInterests.fromJson(_jsonMap(raw));
+  }
 
   bool? get outbreakAlerts => value['outbreak_alerts'] as bool?;
 
@@ -13376,6 +13429,8 @@ final class ServicesNotificationPreferencesInput {
   String? get quietHoursTimezone => value['quiet_hours_timezone']?.toString();
 
   bool? get reminders => value['reminders'] as bool?;
+
+  bool? get routineDigest => value['routine_digest'] as bool?;
 
   bool? get systemNotices => value['system_notices'] as bool?;
 

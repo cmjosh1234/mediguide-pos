@@ -42,7 +42,33 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
-	server := &http.Server{Addr: fmt.Sprintf(":%s", cfg.NotificationWorkerPort), ReadHeaderTimeout: 5 * time.Second, Handler: workerHealthHandler(sqlDB.PingContext, firebaseService.Enabled)}
+	importHealth := &services.NotificationImportHealth{}
+	if cfg.FCMDeliveryBigQueryTable != "" {
+		go func() {
+			importTick := time.NewTicker(6 * time.Hour)
+			defer importTick.Stop()
+			for {
+				importCtx, importCancel := context.WithTimeout(ctx, 2*time.Minute)
+				matched, err := worker.ImportFirebaseDeliveryExport(importCtx, cfg.FCMDeliveryBigQueryTable, cfg.FCMDeliveryAppName, cfg.FCMDeliveryCredentials)
+				importCancel()
+				importHealth.Record(err)
+				if err != nil && ctx.Err() == nil {
+					log.Error().Err(err).Msg("Firebase delivery export import failed")
+				} else {
+					log.Info().Int("matched", matched).Msg("Firebase delivery export imported")
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case <-importTick.C:
+				}
+			}
+		}()
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/", workerHealthHandler(sqlDB.PingContext, firebaseService.Enabled))
+	mux.HandleFunc("/metrics", worker.MetricsHandler(cfg.FCMDeliveryBigQueryTable != "", importHealth))
+	server := &http.Server{Addr: fmt.Sprintf(":%s", cfg.NotificationWorkerPort), ReadHeaderTimeout: 5 * time.Second, Handler: mux}
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal().Err(err).Msg("notification worker health server failed")
@@ -80,13 +106,21 @@ func main() {
 			} else if result != nil && result.Claimed > 0 {
 				log.Info().Int("claimed", result.Claimed).Int("accepted", result.Accepted).Int("retried", result.Retried).Int("failed", result.Failed).Msg("notification delivery batch completed")
 			}
+			digestCtx, digestCancel := context.WithTimeout(ctx, 45*time.Second)
+			digestResult, digestErr := worker.ProcessDigests(digestCtx)
+			digestCancel()
+			if digestErr != nil {
+				log.Error().Err(digestErr).Msg("notification digest batch failed")
+			} else if digestResult.Claimed > 0 {
+				log.Info().Int("accepted", digestResult.Accepted).Int("failed", digestResult.Failed).Msg("notification digests processed")
+			}
 			topicCtx, topicCancel := context.WithTimeout(ctx, 45*time.Second)
 			topicResult, err := topics.ProcessBatch(topicCtx)
 			topicCancel()
 			if err != nil && ctx.Err() == nil {
-				log.Error().Err(err).Msg("topic broadcast batch failed")
+				log.Error().Err(err).Msg("outbreak notification fanout failed")
 			} else if topicResult != nil && topicResult.Claimed > 0 {
-				log.Info().Int("claimed", topicResult.Claimed).Int("accepted", topicResult.Accepted).Int("retried", topicResult.Retried).Int("failed", topicResult.Failed).Msg("topic broadcast batch completed")
+				log.Info().Int("claimed", topicResult.Claimed).Int("accepted", topicResult.Accepted).Int("retried", topicResult.Retried).Int("failed", topicResult.Failed).Msg("outbreak notification fanout completed")
 			}
 		case <-pruneTicker.C:
 			count, err := worker.PruneStaleDevices()

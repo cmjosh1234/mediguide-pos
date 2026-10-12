@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'package:user_app/features/guidelines/data/repositories/progress_usage_repository.dart';
 import 'package:user_app/shared/models/models.dart';
 import 'package:user_app/core/network/api_client.dart';
@@ -13,6 +15,11 @@ final class NotificationRepository {
     this.usage,
   });
 
+  final status = ValueNotifier<NotificationInboxStatus>(
+    const NotificationInboxStatus(),
+  );
+
+  int _uncachedUnread = 0;
   final UsageRepository? usage;
   final BackendApiService _api;
   final NotificationLocalRepository _local;
@@ -113,12 +120,25 @@ final class NotificationRepository {
           )
           .toList(growable: false);
 
+      var visibleItems = items;
       // Persist successful API response without allowing cache
       // failures to break the online request.
       try {
         await _saveRemoteNotifications(items);
+        visibleItems = [
+          for (final item in items)
+            await _local.getNotification(
+                  userId: userId,
+                  notificationId: item.id,
+                ) ??
+                item,
+        ];
+        await _local.setLastSynced(userId: userId, at: DateTime.now().toUtc());
       } catch (_) {}
 
+      status.value = NotificationInboxStatus(
+        lastSynced: DateTime.now().toUtc(),
+      );
       return PaginatedResponse<MyNotification>(
         page: (data['page'] as num?)?.toInt() ?? safePage,
         perPage: (data['per_page'] as num?)?.toInt() ?? safePerPage,
@@ -126,7 +146,7 @@ final class NotificationRepository {
         totalPages:
             (data['total_pages'] as num?)?.toInt() ??
             _totalPages(items.length, safePerPage),
-        items: items,
+        items: visibleItems,
       );
     } catch (_) {
       // =======================================================
@@ -143,15 +163,28 @@ final class NotificationRepository {
         isRead: isRead,
       );
 
-      if (cached.isEmpty) {
+      if (!await _local.hasCachedNotifications(userId: userId) &&
+          await _local.lastSynced(userId: userId) == null) {
         rethrow;
       }
+      status.value = NotificationInboxStatus(
+        offline: true,
+        lastSynced: await _local.lastSynced(userId: userId),
+      );
+      final allCached = await _local.getNotifications(
+        userId: userId,
+        perPage: 1000,
+        search: search ?? '',
+        type: type ?? '',
+        priority: priority ?? '',
+        isRead: isRead,
+      );
 
       return PaginatedResponse<MyNotification>(
         page: safePage,
         perPage: safePerPage,
-        totalItems: cached.length,
-        totalPages: _totalPages(cached.length, safePerPage),
+        totalItems: allCached.length,
+        totalPages: _totalPages(allCached.length, safePerPage),
         items: cached,
       );
     }
@@ -510,14 +543,19 @@ final class NotificationRepository {
 
       final data = _data(response);
 
-      return (data['total_items'] as num?)?.toInt() ?? 0;
+      final remote = (data['total_items'] as num?)?.toInt() ?? 0;
+      final cached = await _local.unreadCount(userId: userId);
+      _uncachedUnread = remote > cached ? remote - cached : 0;
+      return remote;
     } catch (_) {
-      return _local.unreadCount(userId: userId);
+      return await _local.unreadCount(userId: userId) + _uncachedUnread;
     }
   }
 
   Stream<int> watchUnreadCount() {
-    return _local.watchUnreadCount(userId: userId);
+    return _local
+        .watchUnreadCount(userId: userId)
+        .map((count) => count + _uncachedUnread);
   }
 
   // =========================================================
@@ -557,4 +595,10 @@ final class NotificationRepository {
 
     return (totalItems / perPage).ceil();
   }
+}
+
+final class NotificationInboxStatus {
+  const NotificationInboxStatus({this.offline = false, this.lastSynced});
+  final bool offline;
+  final DateTime? lastSynced;
 }

@@ -19,6 +19,9 @@ abstract class MyNotification with _$MyNotification {
     Map<String, dynamic>? action,
     @JsonKey(name: 'action_url') String? actionUrl,
     @JsonKey(name: 'is_read') @Default(false) bool isRead,
+    @JsonKey(name: 'expires_at')
+    @NullableDateTimeConverter()
+    DateTime? expiresAt,
     @JsonKey(name: 'created_at')
     @NullableDateTimeConverter()
     DateTime? createdAt,

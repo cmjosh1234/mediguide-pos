@@ -100,6 +100,19 @@ final class MediGuideFirebaseService {
     yield* _openedMessages.stream;
   }
 
+  final _remoteConfigChanges = StreamController<int>.broadcast();
+  int _remoteConfigRevision = 0;
+  Stream<int> get remoteConfigChanges async* {
+    yield _remoteConfigRevision;
+    yield* _remoteConfigChanges.stream;
+  }
+
+  void _notifyRemoteConfigChanged() {
+    if (!_enabled) return;
+    _remoteConfigChanges.add(++_remoteConfigRevision);
+    _outbreakBannerStates.add(outbreakBannerEnabled);
+  }
+
   Stream<RemoteMessage> get foregroundMessages => _foregroundMessages.stream;
   Stream<AppNotificationPermissionState> get permissionStates =>
       _permissionStates.stream;
@@ -174,7 +187,7 @@ final class MediGuideFirebaseService {
   Future<bool> refreshRemoteConfig() async {
     if (!_enabled) return false;
     final changed = await FirebaseRemoteConfig.instance.fetchAndActivate();
-    _outbreakBannerStates.add(outbreakBannerEnabled);
+    _notifyRemoteConfigChanged();
     await _syncPublicOutbreakTopic();
     return changed;
   }
@@ -301,9 +314,7 @@ final class MediGuideFirebaseService {
 
   Future<void> _beforeLogout() async {
     await unregisterCurrentDevice();
-    if (_crashReportingEnabled) {
-      await FirebaseCrashlytics.instance.setUserIdentifier('');
-    }
+    await _syncCrashReportingUser();
   }
 
   Future<void> _initializeRemoteConfig() async {
@@ -337,16 +348,25 @@ final class MediGuideFirebaseService {
             : const Duration(hours: 1),
       ),
     );
-    try {
-      await config.fetchAndActivate();
-    } catch (error) {
-      debugPrint('Remote Config fetch failed; defaults remain active: $error');
-    }
+    unawaited(
+      (() async {
+        try {
+          await config.fetchAndActivate();
+          if (!_enabled) return;
+          _notifyRemoteConfigChanged();
+          await _syncPublicOutbreakTopic();
+        } catch (error) {
+          debugPrint(
+            'Remote Config fetch failed; defaults remain active: $error',
+          );
+        }
+      })(),
+    );
     _remoteConfigSubscription = listenRemoteConfigUpdates(
       config.onConfigUpdated,
       onUpdate: () async {
         await config.activate();
-        _outbreakBannerStates.add(outbreakBannerEnabled);
+        _notifyRemoteConfigChanged();
         await _syncPublicOutbreakTopic();
       },
     );
@@ -390,24 +410,55 @@ final class MediGuideFirebaseService {
   Future<void> _initializeMessaging() async {
     final messaging = FirebaseMessaging.instance;
     _setPermissionState(await _readPermissionState());
-    await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+    try {
+      await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+    } catch (_) {}
+    deliveryDiagnostics.value =
+        _preferences.getBool('notification_delivery_diagnostics') ?? false;
+    await _applyDeliveryDiagnostics(deliveryDiagnostics.value);
 
-    _tokenSubscription = messaging.onTokenRefresh.listen((_) {
-      _deviceRegistered = false;
-      unawaited(registerCurrentDevice());
-    });
+    _tokenSubscription = messaging.onTokenRefresh.listen(
+      (_) {
+        _deviceRegistered = false;
+        unawaited(registerCurrentDevice());
+      },
+      onError: (Object error, StackTrace stack) {
+        unawaited(_recordNonFatalQuietly(error, stack, 'push token refresh'));
+      },
+    );
     _foregroundSubscription = FirebaseMessaging.onMessage.listen(
       _showForegroundMessage,
+      onError: (Object error, StackTrace stack) {
+        unawaited(
+          _recordNonFatalQuietly(error, stack, 'foreground push stream'),
+        );
+      },
     );
     _openedSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
       _openedMessages.add,
+      onError: (Object error, StackTrace stack) {
+        unawaited(_recordNonFatalQuietly(error, stack, 'opened push stream'));
+      },
     );
     final initial = await messaging.getInitialMessage();
     if (initial != null) _initialMessage = initial;
   }
 
+  final _recentMessages = <String>{};
+
   Future<void> _showForegroundMessage(RemoteMessage message) async {
+    final id = message.data['message_id']?.toString() ?? message.messageId;
+    if (id != null && !_recentMessages.add(id)) return;
+    if (_recentMessages.length > 100) {
+      _recentMessages.remove(_recentMessages.first);
+    }
     _foregroundMessages.add(message);
+    if (!pushFeatureEnabled) return;
+    if (message.notification?.android?.channelId != 'mediguide_emergency' &&
+        message.data['priority'] != 'urgent' &&
+        message.data['priority'] != 'high') {
+      return;
+    }
     final notification = message.notification;
     if (notification == null) return;
     final channel = foregroundChannelFor(notification.android?.channelId);
@@ -427,7 +478,9 @@ final class MediGuideFirebaseService {
                 : Priority.defaultPriority,
             visibility: NotificationVisibility.private,
           ),
-          iOS: const DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(
+            interruptionLevel: InterruptionLevel.timeSensitive,
+          ),
         ),
         payload: jsonEncode(message.data),
       );
@@ -457,6 +510,7 @@ final class MediGuideFirebaseService {
       final state = await _readPermissionState();
       final changed = state != _permissionState;
       if (changed) {
+        _deviceRegistered = false;
         _setPermissionState(state);
         await _syncPublicOutbreakTopic();
       }
@@ -550,6 +604,63 @@ final class MediGuideFirebaseService {
     }
   }
 
+  Future<void> updateBadgeCount(int count) async {
+    if (!Platform.isIOS) return;
+    try {
+      await const MethodChannel(
+        'mediguide/app_settings',
+      ).invokeMethod<void>('setBadgeCount', count < 0 ? 0 : count);
+    } catch (_) {}
+  }
+
+  final deliveryDiagnostics = ValueNotifier<bool>(false);
+
+  Future<bool> setDeliveryDiagnostics(bool enabled) async {
+    final previous = deliveryDiagnostics.value;
+    try {
+      if (!await _applyDeliveryDiagnostics(enabled)) return false;
+      if (!await _preferences.setBool(
+        'notification_delivery_diagnostics',
+        enabled,
+      )) {
+        await _applyDeliveryDiagnostics(previous);
+        return false;
+      }
+      deliveryDiagnostics.value = enabled;
+      return true;
+    } catch (_) {
+      await _applyDeliveryDiagnostics(previous);
+      return false;
+    }
+  }
+
+  Future<bool> _applyDeliveryDiagnostics(bool enabled) async {
+    try {
+      if (Platform.isAndroid) {
+        await FirebaseMessaging.instance.setDeliveryMetricsExportToBigQuery(
+          enabled,
+        );
+      } else if (Platform.isIOS) {
+        await const MethodChannel(
+          'mediguide/app_settings',
+        ).invokeMethod<void>('setDeliveryDiagnostics', enabled);
+      } else {
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  final registrationStatus = ValueNotifier<String>('Not registered yet');
+  DateTime? lastRegisteredAt;
+  bool get pushFeatureEnabled =>
+      _enabled &&
+      FirebaseRemoteConfig.instance.getBool('enable_push_notifications');
+  bool get deviceRegistered => _deviceRegistered;
+  String? get currentDeviceId => _preferences.getString(_deviceRecordKey);
+
   Future<bool> openNotificationSettings() async {
     if (!_enabled) return false;
     try {
@@ -588,15 +699,45 @@ final class MediGuideFirebaseService {
   /// Registers this device for pushes. It never throws: registration is
   /// retried on the next launch, login and token refresh, so a failure only
   /// delays delivery and must not block startup or surface as a crash.
-  Future<void> registerCurrentDevice() async {
-    try {
-      await _registerCurrentDevice();
-    } catch (error, stack) {
-      debugPrint('Push device registration failed: $error');
-      if (isReportableRegistrationFailure(error)) {
-        await _recordNonFatalQuietly(error, stack, 'push device registration');
-      }
+  Future<void>? _registrationPending;
+
+  String? _registeredOwnerId;
+
+  Future<void> registerCurrentDevice({bool force = false}) {
+    if (!force &&
+        _deviceRegistered &&
+        lastRegisteredAt != null &&
+        _registeredOwnerId == _auth.currentUser.value?.id &&
+        DateTime.now().difference(lastRegisteredAt!) <
+            const Duration(hours: 24)) {
+      return Future.value();
     }
+    if (_registrationPending != null) return _registrationPending!;
+    final owner = _auth.currentUser.value?.id;
+    return _registrationPending =
+        Future<void>.sync(() async {
+          try {
+            await _registerCurrentDevice();
+          } catch (error, stack) {
+            registrationStatus.value =
+                'Registration pending. Check your connection and retry.';
+            debugPrint('Push device registration failed: $error');
+            if (isReportableRegistrationFailure(error)) {
+              await _recordNonFatalQuietly(
+                error,
+                stack,
+                'push device registration',
+              );
+            }
+          }
+        }).whenComplete(() {
+          _registrationPending = null;
+          if (_enabled &&
+              _auth.currentUser.value != null &&
+              _auth.currentUser.value?.id != owner) {
+            unawaited(registerCurrentDevice());
+          }
+        });
   }
 
   Future<void> _recordNonFatalQuietly(
@@ -612,9 +753,15 @@ final class MediGuideFirebaseService {
   }
 
   Future<void> _registerCurrentDevice() async {
-    if (!_enabled || _auth.currentUser.value == null) return;
+    final owner = _auth.currentUser.value?.id;
+    if (!_enabled || _auth.currentUser.value == null) {
+      registrationStatus.value = 'Sign in to register this device.';
+      return;
+    }
     if (_permissionState != AppNotificationPermissionState.authorized &&
         _permissionState != AppNotificationPermissionState.provisional) {
+      registrationStatus.value =
+          'Allow notifications in system Settings first.';
       return;
     }
     if (!FirebaseRemoteConfig.instance.getBool('enable_push_notifications')) {
@@ -628,6 +775,7 @@ final class MediGuideFirebaseService {
     if (token == null || token.isEmpty) return;
     final package = await PackageInfo.fromPlatform();
     final installation = _installationID();
+    if (_auth.currentUser.value?.id != owner) return;
     final response = await _api.requestJson(
       '/api/v2/firebase/devices',
       method: 'POST',
@@ -639,7 +787,11 @@ final class MediGuideFirebaseService {
         'locale': Platform.localeName,
       },
     );
+    if (!_enabled || _auth.currentUser.value?.id != owner) return;
     _deviceRegistered = true;
+    _registeredOwnerId = owner;
+    lastRegisteredAt = DateTime.now();
+    registrationStatus.value = 'Registered successfully';
     final data = response['data'];
     if (data is Map && data['id'] != null) {
       await _preferences.setString(_deviceRecordKey, data['id'].toString());
@@ -649,6 +801,11 @@ final class MediGuideFirebaseService {
   Future<void> unregisterCurrentDevice() async {
     if (!_enabled) return;
     _deviceRegistered = false;
+    registrationStatus.value = 'Not registered yet';
+    await updateBadgeCount(0);
+    try {
+      await _localNotifications.cancelAll();
+    } catch (_) {}
     await _preferences.setBool(_outbreakTopicPreferenceKey, false);
     await _syncPublicOutbreakTopic();
     final id = _preferences.getString(_deviceRecordKey);
@@ -677,6 +834,7 @@ final class MediGuideFirebaseService {
   }
 
   Future<void> dispose() async {
+    _enabled = false;
     if (_authListener != null) _auth.currentUser.removeListener(_authListener!);
     _lifecycleListener?.dispose();
     await _tokenSubscription?.cancel();
@@ -687,6 +845,9 @@ final class MediGuideFirebaseService {
     await _foregroundMessages.close();
     await _permissionStates.close();
     await _outbreakBannerStates.close();
+    await _remoteConfigChanges.close();
+    registrationStatus.dispose();
+    deliveryDiagnostics.dispose();
   }
 }
 

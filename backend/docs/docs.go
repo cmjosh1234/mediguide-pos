@@ -24748,6 +24748,32 @@ const docTemplate = `{
                 }
             }
         },
+        "models.NotificationInterests": {
+            "type": "object",
+            "properties": {
+                "followed_guideline_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "followed_only": {
+                    "type": "boolean"
+                },
+                "program_areas": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "region_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "models.Outbreak": {
             "type": "object",
             "properties": {
@@ -27996,6 +28022,9 @@ const docTemplate = `{
                 "audience": {
                     "$ref": "#/definitions/services.NotificationAudienceDefinition"
                 },
+                "change_summary": {
+                    "type": "string"
+                },
                 "idempotency_key": {
                     "type": "string"
                 },
@@ -29283,11 +29312,17 @@ const docTemplate = `{
                 "clinical_content_updates": {
                     "type": "boolean"
                 },
+                "digest_time": {
+                    "type": "string"
+                },
                 "emergency_alerts": {
                     "type": "boolean"
                 },
                 "in_app_enabled": {
                     "type": "boolean"
+                },
+                "interests": {
+                    "$ref": "#/definitions/models.NotificationInterests"
                 },
                 "outbreak_alerts": {
                     "type": "boolean"
@@ -29314,6 +29349,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "reminders": {
+                    "type": "boolean"
+                },
+                "routine_digest": {
                     "type": "boolean"
                 },
                 "system_notices": {
@@ -29330,11 +29368,17 @@ const docTemplate = `{
                 "clinical_content_updates": {
                     "type": "boolean"
                 },
+                "digest_time": {
+                    "type": "string"
+                },
                 "emergency_alerts": {
                     "type": "boolean"
                 },
                 "in_app_enabled": {
                     "type": "boolean"
+                },
+                "interests": {
+                    "$ref": "#/definitions/models.NotificationInterests"
                 },
                 "outbreak_alerts": {
                     "type": "boolean"
@@ -29361,6 +29405,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "reminders": {
+                    "type": "boolean"
+                },
+                "routine_digest": {
                     "type": "boolean"
                 },
                 "system_notices": {
@@ -33090,7 +33137,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "2.1.16",
+	Version:          "2.1.17",
 	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},

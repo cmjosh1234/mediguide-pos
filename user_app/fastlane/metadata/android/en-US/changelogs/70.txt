@@ -1,0 +1,4 @@
+- More reliable notifications and offline inbox access.
+- Choose notification interests, follow guidelines and receive daily digests.
+- See device notification status and guideline version changes.
+- Check for app updates from Settings.

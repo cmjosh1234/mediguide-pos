@@ -78,6 +78,14 @@ final firebaseForegroundMessageProvider = StreamProvider<RemoteMessage>(
   (ref) => ref.watch(firebaseServiceProvider).foregroundMessages,
 );
 
+final firebaseRemoteConfigRevisionProvider = StreamProvider<int>((ref) {
+  try {
+    return ref.watch(firebaseServiceProvider).remoteConfigChanges;
+  } on StateError {
+    return Stream.value(0);
+  }
+});
+
 final outbreakBannerEnabledProvider = StreamProvider<bool>((ref) {
   return ref.watch(firebaseServiceProvider).outbreakBannerStates;
 });
@@ -88,6 +96,7 @@ final outbreakFeatureEnabledProvider = Provider<bool>((ref) {
 });
 
 final backendManagedOutbreakHubsEnabledProvider = Provider<bool>((ref) {
+  ref.watch(firebaseRemoteConfigRevisionProvider);
   try {
     return ref.watch(firebaseServiceProvider).backendManagedOutbreakHubsEnabled;
   } on StateError {
@@ -99,6 +108,7 @@ final backendManagedOutbreakHubsEnabledProvider = Provider<bool>((ref) {
 });
 
 bool _firebaseFlag(Ref ref, bool Function(MediGuideFirebaseService) read) {
+  ref.watch(firebaseRemoteConfigRevisionProvider);
   try {
     return read(ref.watch(firebaseServiceProvider));
   } on StateError {

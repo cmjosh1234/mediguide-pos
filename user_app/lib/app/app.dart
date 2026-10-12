@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:user_app/core/utils/app_message.dart';
+import 'package:user_app/features/notifications/presentation/controllers/notification_sync.dart';
 import 'package:user_app/shared/providers/usage_tracking_provider.dart';
 import 'package:user_app/features/calculators/data/repositories/calculator_usage_tracker.dart';
 
@@ -30,6 +32,7 @@ class MediGuideApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(authControllerProvider);
     ref.watch(backendReconnectProvider);
+    ref.watch(notificationSyncProvider);
     ref.watch(calculatorUsageSyncProvider);
     ref.watch(usageTrackingProvider);
     final router = ref.watch(appRouterProvider);
@@ -46,48 +49,96 @@ class MediGuideApp extends ConsumerWidget {
       _invalidateOutbreakContent(ref, data);
       final target = NotificationActionResolver.fromPushData(data);
       final deliveryId = data['delivery_id']?.toString().trim() ?? '';
-      if (deliveryId.isNotEmpty) {
-        final messageId = data['message_id']?.toString().trim();
-        unawaited(
-          (() async {
-            final repository = ref.read(notificationRepositoryProvider);
-            final eventSuffix = messageId?.isNotEmpty == true
-                ? messageId!
-                : deliveryId;
-            await repository.recordOpen(
-              deliveryId,
-              eventId: 'push-open-$eventSuffix',
-            );
-            if (target != null) {
+      final notificationId = data['notification_id']?.toString().trim() ?? '';
+      final repository = ref.read(notificationRepositoryProvider);
+      final sync = ref.read(notificationSyncProvider);
+      final suffix = data['message_id']?.toString() ?? deliveryId;
+      unawaited(
+        (() async {
+          try {
+            if (repository.userId.trim().isNotEmpty) {
+              if (notificationId.isNotEmpty) {
+                await repository.markRead(notificationId);
+              }
+              if (deliveryId.isNotEmpty) {
+                await repository.recordOpen(
+                  deliveryId,
+                  eventId: 'push-open-$suffix',
+                );
+              }
+            }
+          } catch (_) {
+            // Opening content must work even when read-state sync fails.
+          } finally {
+            unawaited(sync.sync(force: true));
+          }
+        })(),
+      );
+      unawaited(
+        (() async {
+          try {
+            var opened = false;
+            if (target?.location case final location?) {
+              router.push(location);
+              opened = true;
+            } else if (target?.externalUri case final uri?) {
+              opened = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+            } else {
+              router.push('/notifications');
+            }
+            if (opened &&
+                deliveryId.isNotEmpty &&
+                repository.userId.trim().isNotEmpty) {
               await repository.recordClick(
                 deliveryId,
-                eventId: 'push-click-$eventSuffix',
+                eventId: 'push-click-$suffix',
               );
             }
-          })(),
-        );
-      }
-      if (target?.location case final location?) {
-        router.push(location);
-      } else if (target?.externalUri case final uri?) {
-        unawaited(launchUrl(uri, mode: LaunchMode.externalApplication));
-      }
+          } catch (_) {
+            final context = AppKeys.navigatorKey.currentContext;
+            if (context != null && context.mounted) {
+              AppMessage.error(
+                context,
+                'Unable to open this update. It remains in your inbox.',
+              );
+            }
+          }
+        })(),
+      );
     });
     ref.listen(firebaseForegroundMessageProvider, (_, message) {
       final foreground = message.valueOrNull;
       if (foreground == null) return;
       _invalidateOutbreakContent(ref, foreground.data);
-      unawaited(
-        (() async {
-          final repository = ref.read(notificationRepositoryProvider);
-          if (repository.userId.trim().isEmpty) return;
-          try {
-            await repository.list(page: 1, perPage: 30);
-          } finally {
-            ref.read(notificationInboxRefreshProvider.notifier).state++;
-            ref.invalidate(notificationUnreadCountProvider);
-          }
-        })(),
+      unawaited(ref.read(notificationSyncProvider).sync(force: true));
+      if (foreground.notification == null ||
+          !ref.read(firebaseServiceProvider).pushFeatureEnabled) {
+        return;
+      }
+      // Urgent alerts retain their OS channel; routine updates stay discreet.
+      if (foreground.notification?.android?.channelId ==
+              'mediguide_emergency' ||
+          foreground.data['priority'] == 'urgent' ||
+          foreground.data['priority'] == 'high') {
+        return;
+      }
+      final context = AppKeys.navigatorKey.currentContext;
+      if (context == null || !context.mounted) return;
+      final target = NotificationActionResolver.fromPushData(foreground.data);
+      if (target?.location ==
+          router.routeInformationProvider.value.uri.toString()) {
+        return;
+      }
+      AppMessage.show(
+        context,
+        message: foreground.notification?.title ?? 'New update in your inbox',
+        duration: const Duration(seconds: 6),
+        actionLabel: 'View',
+        onAction: () => router.push('/notifications'),
+        replaceCurrent: false,
       );
     });
     final languageCode =

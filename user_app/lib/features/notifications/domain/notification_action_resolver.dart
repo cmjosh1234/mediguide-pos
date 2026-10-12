@@ -184,6 +184,8 @@ abstract final class NotificationActionResolver {
     String? location;
     switch (type) {
       case 'guideline':
+        parameters.remove('version');
+        parameters.remove('change_summary');
         if (!_validUUID(resourceId)) return null;
         location = AppRoutes.publicGuideline(resourceId!);
         break;

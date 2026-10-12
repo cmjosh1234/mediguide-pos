@@ -459,16 +459,27 @@ func (s FirebaseService) PruneStaleDevices(now time.Time) (int64, error) {
 }
 
 func firebaseMessage(token string, payload NotificationDeliveryPayload, extra map[string]string) (*messaging.Message, error) {
+	// Unspecified lifetimes should not leave clinical alerts queued for weeks.
+	if payload.TTLSeconds <= 0 {
+		payload.TTLSeconds = 24 * 60 * 60
+	}
 	data := map[string]string{}
 	for key, value := range extra {
 		if strings.TrimSpace(key) != "" && len(key) <= 128 && len(value) <= 2048 {
 			data[key] = value
 		}
 	}
-	parameters, err := json.Marshal(payload.Action.Parameters)
+	actionParameters := map[string]string{}
+	for key, value := range payload.Action.Parameters {
+		if key != "change_summary" {
+			actionParameters[key] = value
+		}
+	}
+	parameters, err := json.Marshal(actionParameters)
 	if err != nil {
 		return nil, err
 	}
+	data["priority"] = payload.Priority
 	data["action_type"] = payload.Action.Type
 	data["action_parameters"] = string(parameters)
 	if payload.CampaignID != "" {
@@ -489,7 +500,7 @@ func firebaseMessage(token string, payload NotificationDeliveryPayload, extra ma
 	if payload.Action.Route != nil {
 		data["route"] = *payload.Action.Route
 	}
-	title, body := payload.Title, payload.Body
+	title, body := truncateRunes(payload.Title, 120), truncateRunes(payload.Body, 240)
 	if !payload.PublicContent {
 		title = "MediGuide notification"
 		body = "Open MediGuide to view this update."
@@ -507,8 +518,10 @@ func firebaseMessage(token string, payload NotificationDeliveryPayload, extra ma
 		ttl := time.Duration(payload.TTLSeconds) * time.Second
 		android.TTL = &ttl
 	}
-	badge := 1
 	apnsHeaders := map[string]string{"apns-priority": apnsPriority}
+	if payload.TTLSeconds > 0 {
+		apnsHeaders["apns-expiration"] = strconv.FormatInt(time.Now().Add(time.Duration(payload.TTLSeconds)*time.Second).Unix(), 10)
+	}
 	if payload.CollapseKey != "" {
 		apnsHeaders["apns-collapse-id"] = payload.CollapseKey
 	}
@@ -519,7 +532,7 @@ func firebaseMessage(token string, payload NotificationDeliveryPayload, extra ma
 		Android:      android,
 		APNS: &messaging.APNSConfig{
 			Headers: apnsHeaders,
-			Payload: &messaging.APNSPayload{Aps: &messaging.Aps{Sound: "default", Badge: &badge, ThreadID: payload.CollapseKey, CustomData: map[string]interface{}{"interruption-level": interruption}}},
+			Payload: &messaging.APNSPayload{Aps: &messaging.Aps{Sound: "default", ThreadID: payload.CollapseKey, CustomData: map[string]interface{}{"interruption-level": interruption}}},
 		},
 	}
 	return message, nil

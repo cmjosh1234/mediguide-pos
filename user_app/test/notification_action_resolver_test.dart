@@ -5,6 +5,16 @@ void main() {
   const guidelineId = '11111111-1111-4111-8111-111111111111';
 
   group('NotificationActionResolver', () {
+    test('guideline display metadata does not alter its navigation route', () {
+      final target = NotificationActionResolver.resolve(
+        action: {
+          'type': 'guideline',
+          'resource_id': guidelineId,
+          'parameters': {'version': '2.0', 'change_summary': 'Updated dosing'},
+        },
+      );
+      expect(target?.location, '/public/guidelines/$guidelineId');
+    });
     test('resolves typed outbreak resources without raw navigation', () {
       const guidelineId = 'f99ba42c-8e83-4ba0-bdb2-faad4183df43';
       final guideline = NotificationActionResolver.fromOutbreakResource(

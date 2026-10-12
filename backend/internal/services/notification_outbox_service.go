@@ -87,15 +87,30 @@ func (s NotificationService) prepareCampaignDispatch(tx *gorm.DB, item *models.N
 		return nil, ErrNotificationInvalid
 	}
 	preferenceCategory := ""
+	var action NotificationAction
+	if err := json.Unmarshal(item.ActionSnapshotJSON, &action); err != nil {
+		return nil, ErrNotificationInvalid
+	}
+	switch action.Type {
+	case NotificationActionGuideline:
+		preferenceCategory = "clinical_content_updates"
+	case NotificationActionOutbreak, NotificationActionSituationReport:
+		preferenceCategory = "outbreak_alerts"
+	}
+	if item.Priority == "urgent" && item.Type == "emergency" {
+		preferenceCategory = "emergency_alerts"
+	}
 	if item.TemplateVersionID != nil {
 		var version models.NotificationTemplateVersion
 		if err := tx.Select("category").First(&version, "id = ?", *item.TemplateVersionID).Error; err != nil {
 			return nil, err
 		}
-		preferenceCategory = notificationPreferenceCategory(version.Category)
-		if preferenceCategory != "" && !containsNotificationString(audience.PreferenceCategories, preferenceCategory) {
-			audience.PreferenceCategories = append(audience.PreferenceCategories, preferenceCategory)
+		if category := notificationPreferenceCategory(version.Category); category != "" {
+			preferenceCategory = category
 		}
+	}
+	if preferenceCategory != "" && !containsNotificationString(audience.PreferenceCategories, preferenceCategory) {
+		audience.PreferenceCategories = append(audience.PreferenceCategories, preferenceCategory)
 	}
 	resolver := audienceDB(s, tx)
 	resolved, err := resolver.resolveAudience(audience)
@@ -103,10 +118,6 @@ func (s NotificationService) prepareCampaignDispatch(tx *gorm.DB, item *models.N
 		return nil, err
 	}
 	if len(resolved.UserIDs) == 0 {
-		return nil, ErrNotificationInvalid
-	}
-	var action NotificationAction
-	if err := json.Unmarshal(item.ActionSnapshotJSON, &action); err != nil {
 		return nil, ErrNotificationInvalid
 	}
 	channels := []string{}
@@ -126,9 +137,8 @@ func (s NotificationService) prepareCampaignDispatch(tx *gorm.DB, item *models.N
 	if item.TTLSeconds != nil {
 		ttl = *item.TTLSeconds
 	}
-	// Campaign text is shown on the device as written; Android still hides it on
-	// secure lock screens. Public topic delivery is a separate explicit
-	// operation and never inferred from audience breadth.
+	// Full campaign text stays in the inbox. Push displays a bounded preview;
+	// Android hides the preview on secure lock screens.
 	payload, err := json.Marshal(NotificationDeliveryPayload{CampaignID: item.ID.String(), Title: item.RenderedTitle, Body: item.RenderedBody, Action: action, Priority: item.Priority, PreferenceCategory: preferenceCategory, CollapseKey: notificationStringValue(item.CollapseKey), TTLSeconds: ttl, AndroidChannel: notificationAndroidChannel(item.Type, item.Priority), PublicContent: true})
 	if err != nil {
 		return nil, err
@@ -145,8 +155,19 @@ func (s NotificationService) prepareCampaignDispatch(tx *gorm.DB, item *models.N
 	for _, settings := range preferenceSettings {
 		settingsByUser[settings.UserID] = settings
 	}
+	matchedUsers := int64(0)
 	for _, userID := range resolved.UserIDs {
 		settings, hasSettings := settingsByUser[userID]
+		if hasSettings {
+			matches, err := notificationMatchesInterests(tx, settings, action, item.Priority)
+			if err != nil {
+				return nil, err
+			}
+			if !matches {
+				continue
+			}
+		}
+		matchedUsers++
 		pushEnabled, inAppEnabled := true, true
 		if hasSettings {
 			pushEnabled, inAppEnabled = settings.PushEnabled, settings.InAppEnabled
@@ -180,6 +201,18 @@ func (s NotificationService) prepareCampaignDispatch(tx *gorm.DB, item *models.N
 			for _, device := range deviceByUser[userID] {
 				deviceID := device.ID
 				job := models.NotificationOutboxJob{CampaignID: item.ID, RecipientID: recipient.ID, UserID: userID, FirebaseDeviceID: &deviceID, Channel: "push", Status: "held", IdempotencyKey: fmt.Sprintf("campaign:%s:device:%s:push", item.ID, device.ID), PayloadJSON: datatypes.JSON(payload), MaxAttempts: 8, NextAttemptAt: pushNextAttempt, ExpiresAt: item.ExpiresAt}
+				if hasSettings && settings.RoutineDigest && inAppEnabled && channelSet["in-app"] && routineNotification(item.Priority, preferenceCategory) {
+					digestAt := nextNotificationDigest(nextAttempt, settings)
+					digest := models.NotificationDigest{FirebaseDeviceID: device.ID, WindowAt: digestAt, NextAttemptAt: digestAt, Status: "pending"}
+					if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&digest).Error; err != nil {
+						return nil, err
+					}
+					digest.ID = uuid.Nil
+					if err := tx.Where("firebase_device_id = ? AND window_at = ?", device.ID, digestAt).First(&digest).Error; err != nil {
+						return nil, err
+					}
+					job.DigestID = &digest.ID
+				}
 				if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&job).Error; err != nil {
 					return nil, err
 				}
@@ -197,7 +230,7 @@ func (s NotificationService) prepareCampaignDispatch(tx *gorm.DB, item *models.N
 	if err := s.ensureCampaignDeliveryRecords(tx, item.ID); err != nil {
 		return nil, err
 	}
-	return &NotificationAudienceEstimate{EligibleUsers: int64(len(resolved.UserIDs)), ActiveDevices: int64(len(resolved.ActiveDevices))}, nil
+	return &NotificationAudienceEstimate{EligibleUsers: matchedUsers, ActiveDevices: int64(len(resolved.ActiveDevices))}, nil
 }
 
 func notificationPreferenceCategory(category string) string {
@@ -329,6 +362,9 @@ func (s NotificationOutboxService) Requeue(id, actor uuid.UUID, in NotificationO
 		if err := tx.Model(&campaign).Updates(map[string]any{"status": "queued", "started_at": nil, "completed_at": nil, "failure_reason": nil, "lock_version": gorm.Expr("lock_version + 1")}).Error; err != nil {
 			return err
 		}
+		if err := reactivateNotificationDigests(tx, job.CampaignID, s.now()); err != nil {
+			return err
+		}
 		if err := writeNotificationAudit(tx, actor, "notification.delivery.requeued", "notification_outbox_job", job.ID, ip, map[string]any{"reason": strings.TrimSpace(in.Reason)}); err != nil {
 			return err
 		}
@@ -357,7 +393,7 @@ func (s NotificationOutboxService) ClaimBatch() ([]models.NotificationOutboxJob,
 	}
 	claimed := []models.NotificationOutboxJob{}
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
-		query := tx.Where("((status IN ('pending','retry') AND next_attempt_at <= ?) OR (status = 'processing' AND locked_at < ?))", now, now.Add(-lease)).Order("next_attempt_at, created_at").Limit(batch)
+		query := tx.Where("digest_id IS NULL").Where("((status IN ('pending','retry') AND next_attempt_at <= ?) OR (status = 'processing' AND locked_at < ?))", now, now.Add(-lease)).Order("next_attempt_at, created_at").Limit(batch)
 		if tx.Dialector.Name() == "postgres" {
 			query = query.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"})
 		}
@@ -487,6 +523,15 @@ func (s NotificationOutboxService) deliverJob(ctx context.Context, job models.No
 	if err := s.DB.First(&device, "id = ? AND user_id = ? AND notifications_enabled = ?", *job.FirebaseDeviceID, job.UserID, true).Error; err != nil {
 		return FirebaseDeliveryOutcome{Code: "device_unavailable", Message: "registered device is unavailable", Unregistered: true}
 	}
+	if job.ExpiresAt != nil {
+		remaining := int(job.ExpiresAt.Sub(now).Seconds())
+		if remaining <= 0 {
+			return FirebaseDeliveryOutcome{Code: "expired", Message: "delivery job expired"}
+		}
+		if payload.TTLSeconds <= 0 || remaining < payload.TTLSeconds {
+			payload.TTLSeconds = remaining
+		}
+	}
 	return s.Firebase.DeliverToDevice(ctx, device, payload, nil, false)
 }
 
@@ -518,6 +563,13 @@ func (s NotificationOutboxService) deliveryPreferenceOutcome(job models.Notifica
 	}
 	if !settings.PushEnabled {
 		return &FirebaseDeliveryOutcome{Code: "preference_disabled", Message: "push notifications are disabled"}
+	}
+	matches, interestErr := notificationMatchesInterests(s.DB, settings, payload.Action, payload.Priority)
+	if interestErr != nil {
+		return &FirebaseDeliveryOutcome{Code: "interest_unavailable", Message: "notification interests could not be checked", Retryable: true}
+	}
+	if !matches {
+		return &FirebaseDeliveryOutcome{Code: "interest_disabled", Message: "notification is outside selected interests"}
 	}
 	if settings.QuietHoursEnabled && !(payload.PreferenceCategory == "emergency_alerts" && payload.Priority == "urgent") {
 		deliveryAt := afterNotificationQuietHours(now, settings)
@@ -580,7 +632,7 @@ func (s NotificationOutboxService) RecordResult(job models.NotificationOutboxJob
 		case outcome.Validated:
 			deliveryUpdates["state"] = "attempted"
 		case outcome.Accepted:
-			deliveryUpdates["state"] = "accepted"
+			deliveryUpdates["state"] = gorm.Expr("CASE WHEN state IN ('delivered','opened','clicked') THEN state ELSE 'accepted' END")
 			deliveryUpdates["accepted_at"] = now
 			deliveryUpdates["provider_message_id"] = cleanOptional(&outcome.MessageID)
 			deliveryUpdates["error_category"] = nil

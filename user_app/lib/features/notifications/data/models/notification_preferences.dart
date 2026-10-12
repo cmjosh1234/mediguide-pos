@@ -11,9 +11,28 @@ final class NotificationPreferences {
     required this.preferredLanguage,
     required this.pushEnabled,
     required this.inAppEnabled,
+    this.programAreas = const [],
+    this.regionIds = const [],
+    this.followedGuidelineIds = const [],
+    this.followedOnly = false,
+    this.routineDigest = false,
+    this.digestTime = '18:00',
     this.quietHoursStart,
     this.quietHoursEnd,
   });
+
+  final List<String> programAreas;
+  final List<String> regionIds;
+  final List<String> followedGuidelineIds;
+  final bool followedOnly;
+  final bool routineDigest;
+  final String digestTime;
+  Map<String, dynamic> get interestsJson => {
+    'program_areas': programAreas,
+    'region_ids': regionIds,
+    'followed_guideline_ids': followedGuidelineIds,
+    'followed_only': followedOnly,
+  };
 
   final bool clinicalContentUpdates;
   final bool outbreakAlerts;
@@ -32,7 +51,19 @@ final class NotificationPreferences {
   factory NotificationPreferences.fromJson(Map<String, dynamic> json) {
     bool flag(String key, {bool fallback = true}) =>
         json[key] is bool ? json[key] as bool : fallback;
+    final interests = json['interests'] is Map
+        ? json['interests'] as Map
+        : const {};
+    List<String> values(String key) => (interests[key] as List? ?? const [])
+        .whereType<String>()
+        .toList(growable: false);
     return NotificationPreferences(
+      programAreas: values('program_areas'),
+      regionIds: values('region_ids'),
+      followedGuidelineIds: values('followed_guideline_ids'),
+      followedOnly: interests['followed_only'] == true,
+      routineDigest: flag('routine_digest', fallback: false),
+      digestTime: json['digest_time']?.toString() ?? '18:00',
       clinicalContentUpdates: flag('clinical_content_updates'),
       outbreakAlerts: flag('outbreak_alerts'),
       emergencyAlerts: flag('emergency_alerts'),

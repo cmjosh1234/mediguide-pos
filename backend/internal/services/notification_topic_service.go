@@ -9,22 +9,24 @@ import (
 
 	"mediguide/internal/models"
 
+	"errors"
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-// PublicOutbreakTopic is the Firebase topic the mobile app subscribes to when
-// a signed-in user turns on outbreak alerts.
+// PublicOutbreakTopic identifies legacy publication jobs and older client topic
+// subscriptions. Publication jobs are now delivered through per-user campaigns.
 const PublicOutbreakTopic = "public-outbreaks"
 
 // An alert that could not be sent within a day is no longer news, and the
 // outbreak hub already shows the current picture.
 const outbreakTopicAlertTTL = 24 * time.Hour
 
-// NotificationTopicService sends queued public topic broadcasts. Jobs are
-// written in the same transaction as the content they announce, so a publish
-// that commits is always announced and one that rolls back never is.
+// NotificationTopicService drains the transactional publication queue and
+// prepares per-user notification campaigns. Its legacy table name is retained
+// so pending publications survive the upgrade.
 type NotificationTopicService struct {
 	DB            *gorm.DB
 	Firebase      *FirebaseService
@@ -197,14 +199,73 @@ func (s NotificationTopicService) deliver(ctx context.Context, job models.Notifi
 	if s.expired(job, s.now()) {
 		return FirebaseDeliveryOutcome{Code: "expired", Message: "topic broadcast expired"}
 	}
-	if s.Firebase == nil {
-		return FirebaseDeliveryOutcome{Code: "firebase_disabled", Message: "Firebase messaging is not configured"}
-	}
 	var payload NotificationDeliveryPayload
 	if err := json.Unmarshal(job.PayloadJSON, &payload); err != nil {
 		return FirebaseDeliveryOutcome{Code: "invalid_payload", Message: "notification payload is invalid"}
 	}
-	return s.Firebase.DeliverPublicTopic(ctx, job.Topic, payload, false)
+	// The publish transaction already approved the source content. Convert its
+	// durable job once to a per-user campaign; the regular worker enforces every
+	// user's current preferences, quiet hours, interests and device consent.
+	err := s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var current models.NotificationTopicJob
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&current, "id = ?", job.ID).Error; err != nil {
+			return err
+		}
+		if current.Status != "processing" || notificationStringValue(current.LockedBy) != notificationStringValue(job.LockedBy) {
+			return ErrNotificationConflict
+		}
+		key := "automatic-outbreak:" + job.ID.String()
+		var existing models.NotificationCampaign
+		err := tx.Where("idempotency_key = ?", key).First(&existing).Error
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		audience := NotificationAudienceDefinition{AllEligible: true, PreferenceCategories: []string{"outbreak_alerts"}}
+		campaignType := "update"
+		if payload.Priority == "urgent" {
+			audience.PreferenceCategories = append(audience.PreferenceCategories, "emergency_alerts")
+			campaignType = "emergency"
+		}
+		service := NotificationService{DB: tx}
+		estimate, err := service.EstimateAudience(audience)
+		if err != nil {
+			return err
+		}
+		// No recipients is a successful no-op, not an endlessly retried broadcast.
+		if estimate.EligibleUsers == 0 {
+			return nil
+		}
+		audienceJSON, _ := json.Marshal(audience)
+		actionJSON, _ := json.Marshal(payload.Action)
+		campaign := models.NotificationCampaign{Name: payload.Title, Type: campaignType, Status: "queued",
+			RenderedTitle: payload.Title, RenderedBody: payload.Body, Priority: payload.Priority,
+			AudienceDefinitionJSON: datatypes.JSON(audienceJSON), ActionSnapshotJSON: datatypes.JSON(actionJSON),
+			RequestedChannelsJSON: datatypes.JSON([]byte(`["push","in-app"]`)),
+			CampaignVariablesJSON: datatypes.JSON([]byte(`{}`)), DispatchSnapshotJSON: datatypes.JSON([]byte(`{}`)),
+			Timezone: "UTC", IdempotencyKey: key, LockVersion: 1, ExpiresAt: job.ExpiresAt,
+			TTLSeconds: &payload.TTLSeconds, CollapseKey: &payload.CollapseKey}
+		if err := tx.Create(&campaign).Error; err != nil {
+			return err
+		}
+		resolved, err := service.prepareCampaignDispatch(tx, &campaign)
+		if err != nil {
+			return err
+		}
+		if err := tx.Model(&campaign).Update("resolved_recipient_count", resolved.EligibleUsers).Error; err != nil {
+			return err
+		}
+		if resolved.EligibleUsers == 0 {
+			return tx.Model(&campaign).Updates(map[string]any{"status": "completed", "completed_at": s.now()}).Error
+		}
+		return tx.Model(&models.NotificationOutboxJob{}).Where("campaign_id = ? AND status = 'held'", campaign.ID).Update("status", "pending").Error
+	})
+	if err != nil {
+		return FirebaseDeliveryOutcome{Code: "fanout_failed", Message: "outbreak notification preparation failed", Retryable: true}
+	}
+	return FirebaseDeliveryOutcome{Accepted: true, MessageID: "outbreak-fanout:" + job.ID.String()}
 }
 
 func (s NotificationTopicService) recordResult(job models.NotificationTopicJob, outcome FirebaseDeliveryOutcome) (string, error) {

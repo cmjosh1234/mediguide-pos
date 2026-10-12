@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -26,6 +27,7 @@ export function GuidelineNotificationDialog({ document, open, onOpenChange }: {
   const [roleIds, setRoleIds] = React.useState("")
   const [scheduledAt, setScheduledAt] = React.useState("")
   const [priority, setPriority] = React.useState<"low" | "normal" | "high" | "urgent">("normal")
+  const [changeSummary, setChangeSummary] = React.useState("")
   const [push, setPush] = React.useState(true)
   const [inApp, setInApp] = React.useState(true)
   const [submitting, setSubmitting] = React.useState(false)
@@ -40,6 +42,7 @@ export function GuidelineNotificationDialog({ document, open, onOpenChange }: {
     setSubmitting(true)
     try {
       const campaign = await GuidelineDocumentsService.createNotificationCampaign(document.id, {
+        change_summary: changeSummary.trim() || undefined,
         audience: {
           all_eligible: allEligible,
           user_ids: allEligible ? undefined : csv(userIds),
@@ -79,6 +82,7 @@ export function GuidelineNotificationDialog({ document, open, onOpenChange }: {
           <div className="space-y-4">
             <div className="flex items-center gap-2"><Checkbox id="all-eligible" checked={allEligible} onCheckedChange={(value) => setAllEligible(value === true)} /><Label htmlFor="all-eligible">All eligible users</Label></div>
             {!allEligible && <><div className="space-y-2"><Label htmlFor="guideline-user-ids">User UUIDs</Label><Input id="guideline-user-ids" value={userIds} onChange={(event) => setUserIds(event.target.value)} placeholder="Comma-separated UUIDs" /></div><div className="space-y-2"><Label htmlFor="guideline-role-ids">Role UUIDs</Label><Input id="guideline-role-ids" value={roleIds} onChange={(event) => setRoleIds(event.target.value)} placeholder="Comma-separated UUIDs" /></div></>}
+            <div className="space-y-2"><Label htmlFor="guideline-change-summary">What changed?</Label><Textarea id="guideline-change-summary" value={changeSummary} maxLength={500} onChange={(event) => setChangeSummary(event.target.value)} placeholder="Summarize the clinical changes readers should review." /><p className="text-xs text-muted-foreground">Included in the reviewed notification and mobile inbox.</p></div>
             <div className="space-y-2"><Label>Priority</Label><Select value={priority} onValueChange={(value) => setPriority(value as typeof priority)}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="low">Low</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="urgent">Urgent</SelectItem></SelectContent></Select></div>
             <div className="space-y-2"><Label htmlFor="guideline-schedule">Schedule (optional)</Label><Input id="guideline-schedule" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /></div>
             <div className="flex gap-5"><label className="flex items-center gap-2 text-sm"><Checkbox checked={push} onCheckedChange={(value) => setPush(value === true)} />Push</label><label className="flex items-center gap-2 text-sm"><Checkbox checked={inApp} onCheckedChange={(value) => setInApp(value === true)} />In-app</label></div>

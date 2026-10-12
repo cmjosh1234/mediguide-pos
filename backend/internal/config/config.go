@@ -58,6 +58,9 @@ type Config struct {
 	CacheMaxItemBytes               int
 	TrustedProxies                  []string
 	FirebaseProjectID               string
+	FCMDeliveryBigQueryTable        string
+	FCMDeliveryAppName              string
+	FCMDeliveryCredentials          string
 	FirebaseCredentials             string
 	FirebaseDeviceStaleDays         int
 	NotificationWorkerPort          string
@@ -119,6 +122,9 @@ func Load() Config {
 		CacheMaxItemBytes:               getInt("CACHE_MAX_ITEM_BYTES", 1_048_576),
 		TrustedProxies:                  getCSV("TRUSTED_PROXIES"),
 		FirebaseProjectID:               get("FIREBASE_PROJECT_ID", ""),
+		FCMDeliveryBigQueryTable:        get("FCM_DELIVERY_BIGQUERY_TABLE", ""),
+		FCMDeliveryAppName:              get("FCM_DELIVERY_APP_NAME", "com.mediguide.ug"),
+		FCMDeliveryCredentials:          get("FCM_DELIVERY_SERVICE_ACCOUNT_BASE64", ""),
 		FirebaseCredentials:             get("FIREBASE_SERVICE_ACCOUNT_BASE64", ""),
 		FirebaseDeviceStaleDays:         getInt("FIREBASE_DEVICE_STALE_DAYS", 90),
 		NotificationWorkerPort:          get("NOTIFICATION_WORKER_PORT", "8082"),
