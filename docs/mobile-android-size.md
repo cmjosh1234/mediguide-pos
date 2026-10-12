@@ -36,8 +36,11 @@ fvm flutter build appbundle --release \
 ```
 
 The release workflow rejects an individual split APK above 45 MiB or an App
-Bundle above 70 MiB. Treat a budget failure as a regression: inspect newly
-added assets and native plugins before increasing the limit.
+Bundle above 90 MiB. Treat a budget failure as a regression: inspect newly
+added assets and native plugins before increasing the limit. The three-ABI
+v2.1.16 bundle measured 82.5 MiB (the previous ARM-only bundle was 60.4 MiB);
+the 90 MiB upload budget accommodates x86_64 while retaining the 45 MiB cap
+for every device-specific APK.
 
 ## Native architecture checks
 

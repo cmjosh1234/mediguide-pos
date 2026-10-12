@@ -11,6 +11,10 @@ on:
       - "v*"
   workflow_dispatch:
     inputs:
+      release_tag:
+        description: Optional existing stable release tag to rebuild and publish with current tooling
+        required: false
+        type: string
       build_web:
         description: Build optional Flutter web artifact
         type: boolean
@@ -49,6 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.release_tag || github.ref }}
           fetch-depth: 0
       - name: Classify mobile and shared contract changes
         id: changes
@@ -69,6 +74,19 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+          fetch-depth: 0
+      - name: Verify selected immutable release
+        if: inputs.release_tag != ''
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "A stable release tag is required." >&2; exit 1; }
+          bash scripts/check-release-readiness.sh "$RELEASE_TAG" --metadata-only
+          git fetch origin main --no-tags
+          git merge-base --is-ancestor HEAD origin/main
       - name: Validate configuration without exposing secrets
         env:
           DESTINATION: android-artifacts
@@ -119,6 +137,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -132,9 +152,11 @@ jobs:
         run: flutter pub get
 
       - name: Verify release tag matches the mobile version
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         working-directory: ${{ github.workspace }}
-        run: bash scripts/check-release-readiness.sh "${GITHUB_REF_NAME}" --metadata-only
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: bash scripts/check-release-readiness.sh "${RELEASE_TAG}" --metadata-only
 
       - name: Verify generated backend contracts
         run: |
@@ -210,6 +232,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -325,7 +349,8 @@ jobs:
         run: |
           set -eu
           max_apk_bytes=$((45 * 1024 * 1024))
-          max_aab_bytes=$((70 * 1024 * 1024))
+          # Three release ABIs: v2.1.16 measured 82.5 MiB; keep per-device APKs capped.
+          max_aab_bytes=$((90 * 1024 * 1024))
           apk_count=0
           for artifact in build/app/outputs/flutter-apk/*production-release.apk; do
             test -f "${artifact}" || continue
@@ -342,7 +367,7 @@ jobs:
           aab_bytes="$(wc -c < "${aab}")"
           echo "$(basename "${aab}"): ${aab_bytes} bytes"
           if [ "${aab_bytes}" -gt "${max_aab_bytes}" ]; then
-            echo "${aab} exceeds the 70 MiB upload budget." >&2
+            echo "${aab} exceeds the 90 MiB upload budget." >&2
             exit 1
           fi
 
@@ -374,6 +399,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -418,6 +445,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Cache CocoaPods downloads
         uses: actions/cache@v4
@@ -522,7 +551,7 @@ jobs:
 
   release:
     name: Publish GitHub release
-    if: github.repository == 'mohuganda/mediguide-pos' && startsWith(github.ref, 'refs/tags/v')
+    if: github.repository == 'mohuganda/mediguide-pos' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != ''))
     needs: android
     timeout-minutes: 20
     runs-on: ubuntu-latest
@@ -532,6 +561,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Log in to GHCR
         uses: docker/login-action@v4
@@ -543,7 +574,7 @@ jobs:
       - name: Wait for the complete GHCR release set
         env:
           GHCR_OWNER: ${{ github.repository_owner }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           set -eu
           owner="$(printf '%s' "${GHCR_OWNER}" | tr '[:upper:]' '[:lower:]')"
@@ -574,7 +605,7 @@ jobs:
 
       - name: Assemble release bundle and checksums
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
           REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           set -eu
@@ -610,7 +641,7 @@ jobs:
             "mobile_version=${mobile_version}" \
             "mobile_build_number=${mobile_build_number}" \
             "mobile_full_version=${mobile_full_version}" \
-            "git_revision=${GITHUB_SHA}" \
+            "git_revision=$(git rev-parse HEAD)" \
             "api_image=ghcr.io/${owner}/mediguide-pos-api:${version}" \
             "ai_worker_image=ghcr.io/${owner}/mediguide-pos-ai-worker:${version}" \
             "dashboard_image=ghcr.io/${owner}/mediguide-pos-dashboard:${version}" \
@@ -637,7 +668,8 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
           generate_release_notes: true
           body_path: release-body.md
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(inputs.release_tag || github.ref_name, '-') }}
           files: dist/*

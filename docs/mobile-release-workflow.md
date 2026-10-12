@@ -328,7 +328,7 @@ The tagged workflow performs these branches after the shared quality gate:
 - Publishes ARM64, ARMv7 and x86_64 APKs for their matching devices.
 - Builds an Android App Bundle with all three Flutter-supported release ABIs.
 - Verifies native ELF architectures and Flutter engine/app libraries per ABI.
-- Rejects an APK above 45 MiB or AAB above 70 MiB.
+- Rejects an APK above 45 MiB or AAB above 90 MiB.
 
 Use the ARM64 APK for most direct tester downloads. Upload the AAB—not an APK—to
 Google Play.
