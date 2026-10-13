@@ -371,6 +371,10 @@ void main() {
     publicationReadingProgressProvider(
       'golden-guideline',
     ).overrideWith((_) async => null),
+    publicationGuidelineSummaryProvider('golden-guideline').overrideWith(
+      (ref) =>
+          ref.watch(publicationGuidelineProvider('golden-guideline').future),
+    ),
     guidelineOriginalDocumentProvider('golden-guideline').overrideWith(
       (_) async => const GuidelineAsset(
         id: 'pdf-1',

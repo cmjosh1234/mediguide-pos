@@ -1,0 +1,4 @@
+- Readers tailored to document kinds, including manuals and frameworks.
+- Clearer document overviews and contents navigation.
+- Improved reading settings and source-page access.
+- One bottom More menu for reading, library, downloads and source actions.

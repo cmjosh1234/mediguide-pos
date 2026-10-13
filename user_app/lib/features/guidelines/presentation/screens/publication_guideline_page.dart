@@ -20,18 +20,19 @@ import 'package:user_app/core/widgets/app_status_badge.dart';
 import 'package:user_app/features/ai_assistant/data/models/ai_context.dart';
 import 'package:user_app/features/authentication/presentation/controllers/auth_controller.dart';
 import 'package:user_app/features/documents/presentation/screens/document_reader_page.dart';
+import 'package:user_app/features/documents/presentation/widgets/document_actions_sheet.dart';
 import 'package:user_app/features/downloads/data/models/offline_download.dart';
 import 'package:user_app/features/downloads/presentation/controllers/guideline_downloads_controller.dart';
 import 'package:user_app/features/guidelines/data/models/guideline_publication.dart';
 import 'package:user_app/features/guidelines/data/models/reading_progress.dart';
 import 'package:user_app/features/guidelines/presentation/controllers/publication_guideline_controller.dart';
-import 'package:user_app/features/guidelines/presentation/widgets/publication_block_view.dart';
-import 'package:user_app/features/guidelines/presentation/widgets/publication_guideline_page_empty_section.dart';
+import 'package:user_app/features/guidelines/presentation/widgets/document_kind_reader.dart';
+import 'package:user_app/features/guidelines/presentation/utils/document_reader_kind.dart';
+import 'package:user_app/features/guidelines/presentation/utils/document_overview_presentation.dart';
 import 'package:user_app/features/library/presentation/widgets/save_to_collection_sheet.dart';
 import 'package:user_app/features/library/presentation/utils/collection_messages.dart';
 import 'package:user_app/shared/widgets/app_markdown_body.dart';
 
-part '../widgets/publication_guideline_page_guideline_menu_action.dart';
 part '../widgets/publication_guideline_page_guideline_content_search_delegate.dart';
 part '../widgets/publication_guideline_page_reading_notes_sheet.dart';
 part '../widgets/publication_guideline_page_reading_notes_sheet_state.dart';
@@ -48,10 +49,8 @@ part '../widgets/publication_guideline_page_overview_bottom_actions.dart';
 part '../widgets/publication_guideline_page_reading_bottom_actions.dart';
 part '../widgets/publication_guideline_page_bottom_icon_action.dart';
 part '../widgets/publication_guideline_page_reader_bottom_action.dart';
-part '../widgets/publication_guideline_page_overview.dart';
 part '../widgets/publication_guideline_page_original_document_reader.dart';
 part '../widgets/publication_guideline_page_linked_document.dart';
-part '../widgets/publication_guideline_page_section_header_delegate.dart';
 
 class PublicationGuidelinePage extends ConsumerStatefulWidget {
   const PublicationGuidelinePage({
@@ -71,11 +70,10 @@ class PublicationGuidelinePage extends ConsumerStatefulWidget {
 class _PublicationGuidelinePageState
     extends ConsumerState<PublicationGuidelinePage> {
   String? _selectedSectionId;
+  String? _readerIdentity;
+  GlobalKey<DocumentKindReaderState> _readerKey =
+      GlobalKey<DocumentKindReaderState>();
   String? _currentSectionId;
-
-  final Map<String, GlobalKey> _sectionKeys = {};
-
-  final ScrollController _readerScrollController = ScrollController();
 
   bool _usageTracked = false;
   bool _deepLinkApplied = false;
@@ -99,20 +97,25 @@ class _PublicationGuidelinePageState
   }
 
   @override
-  void dispose() {
-    _readerScrollController.dispose();
-
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final completeContent = ref.watch(
-      publicationGuidelineProvider(widget.guidelineId),
-    );
     final summaryContent = ref.watch(
       publicationGuidelineSummaryProvider(widget.guidelineId),
     );
+    final summary = summaryContent.valueOrNull;
+    final kind = summary == null
+        ? null
+        : DocumentReaderKind.forPublication(summary.publication);
+    // File and link readers need only metadata; their structured endpoints
+    // may intentionally have no published content.
+    final completeContent =
+        summaryContent.hasError ||
+            (summary != null &&
+                kind != DocumentReaderKind.uploaded &&
+                kind != DocumentReaderKind.link &&
+                summary.manifest.recommendedMode !=
+                    GuidelineReaderMode.originalDocument)
+        ? ref.watch(publicationGuidelineProvider(widget.guidelineId))
+        : summaryContent;
     final content = widget.readerOnly || completeContent.valueOrNull != null
         ? completeContent
         : summaryContent;
@@ -130,6 +133,18 @@ class _PublicationGuidelinePageState
         .watch(guidelineDownloadsControllerProvider)
         .valueOrNull;
     final currentContent = content.valueOrNull;
+    final overviewPresentation = currentContent == null
+        ? null
+        : DocumentOverviewPresentation(currentContent);
+    final canResume =
+        currentContent != null &&
+        (progress?.progressPercentage ?? 0) > 0 &&
+        (progress?.progressPercentage ?? 0) < 1 &&
+        currentContent.readerSections.any(
+          (section) => section.id == progress?.currentSection,
+        ) &&
+        !overviewPresentation!.isLink &&
+        !overviewPresentation.isFile;
     final targetAssetType = currentContent?.manifest.hasOfflinePackage == true
         ? 'offline_package'
         : 'original_pdf';
@@ -146,80 +161,14 @@ class _PublicationGuidelinePageState
       appBar: AppBar(
         title: Text(
           content.valueOrNull?.publication.title ??
-              (widget.readerOnly ? 'Guideline reader' : 'Guideline overview'),
+              (widget.readerOnly ? 'Document reader' : 'Document overview'),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
-          if (ref.watch(authControllerProvider).valueOrNull?.user != null)
+          if (!widget.readerOnly &&
+              ref.watch(authControllerProvider).valueOrNull?.user != null)
             _FollowGuidelineButton(guidelineId: widget.guidelineId),
-          IconButton(
-            tooltip: 'Save to collection',
-            onPressed: () => _saveToCollection(context),
-            icon: const Icon(LucideIcons.folderPlus),
-          ),
-          IconButton(
-            tooltip: progress?.isBookmarked == true
-                ? 'Remove bookmark'
-                : 'Bookmark guideline',
-            onPressed: () {
-              _toggleBookmark(context);
-            },
-            icon: Icon(
-              progress?.isBookmarked == true
-                  ? LucideIcons.bookmarkCheck
-                  : LucideIcons.bookmark,
-            ),
-          ),
-
-          PopupMenuButton<_GuidelineMenuAction>(
-            tooltip: 'More guideline actions',
-            onSelected: (action) {
-              _handleMenuAction(
-                context,
-                action,
-                content.valueOrNull,
-                progress?.notes ?? '',
-              );
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: _GuidelineMenuAction.search,
-                child: ListTile(
-                  leading: Icon(LucideIcons.search),
-                  title: Text('Search guideline'),
-                ),
-              ),
-              PopupMenuItem(
-                value: _GuidelineMenuAction.notes,
-                child: ListTile(
-                  leading: Icon(LucideIcons.notebookPen),
-                  title: Text('Reading notes'),
-                ),
-              ),
-              PopupMenuItem(
-                value: _GuidelineMenuAction.collection,
-                child: ListTile(
-                  leading: Icon(LucideIcons.folderPlus),
-                  title: Text('Save to collection'),
-                ),
-              ),
-              PopupMenuItem(
-                value: _GuidelineMenuAction.share,
-                child: ListTile(
-                  leading: Icon(LucideIcons.share2),
-                  title: Text('Copy link'),
-                ),
-              ),
-              PopupMenuItem(
-                value: _GuidelineMenuAction.original,
-                child: ListTile(
-                  leading: Icon(LucideIcons.fileText),
-                  title: Text('Open original document'),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
 
@@ -227,7 +176,7 @@ class _PublicationGuidelinePageState
       // BODY
       // =====================================================================
       body: content.when(
-        loading: () => const AppLoadingView(message: 'Loading guideline...'),
+        loading: () => const AppLoadingView(message: 'Loading document...'),
         error: (error, _) => AppErrorView(
           error: error,
           onRetry: () {
@@ -238,7 +187,18 @@ class _PublicationGuidelinePageState
           },
         ),
         data: (value) {
-          if (value.publication.opensWebsite) {
+          if (!widget.readerOnly) {
+            return _overviewPage(
+              context,
+              value,
+              progress,
+              contentLoading: completeContent.isLoading,
+              contentUnavailable:
+                  completeContent.hasError && !summaryContent.hasError,
+            );
+          }
+          if (DocumentReaderKind.forPublication(value.publication) ==
+              DocumentReaderKind.link) {
             return _LinkedDocumentView(
               publication: value.publication,
               onOpen: () {
@@ -247,28 +207,56 @@ class _PublicationGuidelinePageState
             );
           }
 
-          if (widget.readerOnly) {
-            return _content(context, value);
-          }
-
-          return _overviewPage(context, value, progress);
+          return _content(context, value);
         },
       ),
 
       // =====================================================================
       // BOTTOM ACTION BAR
       // =====================================================================
-      // A link has nothing to read or download; its view opens the website.
-      bottomNavigationBar:
-          content.valueOrNull == null ||
-              content.requireValue.publication.opensWebsite
+      // Keep document actions available from one consistent bottom menu.
+      bottomNavigationBar: currentContent == null
           ? null
           : _ReaderActionBar(
               isBookmarked: progress?.isBookmarked == true,
               offlineDownload: offlineDownload,
               showRead: !widget.readerOnly,
+              primaryLabel: canResume
+                  ? 'Continue reading'
+                  : overviewPresentation!.actionLabel,
+              primaryIcon: overviewPresentation.isLink
+                  ? Icons.open_in_new
+                  : overviewPresentation.icon,
+              primaryEnabled: overviewPresentation.canOpen,
+              showDownload:
+                  !overviewPresentation.isLink &&
+                  (currentContent.manifest.hasOfflinePackage ||
+                      currentContent.manifest.hasOriginalPdf),
+              showAi:
+                  !overviewPresentation.isLink &&
+                  !overviewPresentation.isFile &&
+                  currentContent.blocks.isNotEmpty,
+              onMore: () => _showDocumentActions(
+                context,
+                currentContent,
+                progress,
+                offlineDownload,
+              ),
               onRead: () {
-                context.push(AppRoutes.readPublicGuideline(widget.guidelineId));
+                if (overviewPresentation.isLink) {
+                  _openWebsite(context, currentContent.publication.externalUrl);
+                } else if (overviewPresentation.isFile) {
+                  _openOriginal(context);
+                } else {
+                  final route = AppRoutes.readPublicGuideline(
+                    widget.guidelineId,
+                  );
+                  context.push(
+                    canResume
+                        ? '$route?section=${Uri.encodeQueryComponent(progress!.currentSection)}'
+                        : route,
+                  );
+                }
               },
               onAskAi: () {
                 _openAiAssistant(context, content.requireValue);
@@ -278,15 +266,6 @@ class _PublicationGuidelinePageState
               },
               onNotes: () {
                 _editNotes(context, progress?.notes ?? '');
-              },
-              onSaveToCollection: () {
-                _saveToCollection(context);
-              },
-              onShare: () {
-                _copyLink(context);
-              },
-              onOriginal: () {
-                _openOriginal(context);
               },
               onDownload: () {
                 if (offlineDownload?.status == OfflineDownloadStatus.ready) {
@@ -308,29 +287,100 @@ class _PublicationGuidelinePageState
   // MENU
   // ===========================================================================
 
-  Future<void> _handleMenuAction(
+  Future<void> _showDocumentActions(
     BuildContext context,
-    _GuidelineMenuAction action,
-    GuidelinePublicationContent? content,
-    String notes,
+    GuidelinePublicationContent content,
+    ReadingProgress? progress,
+    OfflineDownload? offlineDownload,
   ) async {
+    final presentation = DocumentOverviewPresentation(content);
+    OfflineDownload? matchingDownload(List<OfflineDownload>? items) {
+      final assetType = content.manifest.hasOfflinePackage
+          ? 'offline_package'
+          : 'original_pdf';
+      return items
+          ?.where(
+            (item) =>
+                item.guidelineId == widget.guidelineId &&
+                item.assetType == assetType,
+          )
+          .firstOrNull;
+    }
+
+    final action = await showModalBottomSheet<DocumentMenuAction>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: 640),
+      builder: (_) => Consumer(
+        builder: (context, menuRef, _) {
+          final downloads = menuRef.watch(guidelineDownloadsControllerProvider);
+          return DocumentActionsSheet(
+            title: content.publication.title,
+            kindLabel: presentation.name,
+            version: content.publication.version,
+            showReadingTools:
+                widget.readerOnly && _readerKey.currentState != null,
+            showSearch:
+                !presentation.isFile &&
+                !presentation.isLink &&
+                content.blocks.isNotEmpty,
+            showAi:
+                !presentation.isFile &&
+                !presentation.isLink &&
+                content.blocks.isNotEmpty,
+            showDownload:
+                !presentation.isLink &&
+                (content.manifest.hasOfflinePackage ||
+                    content.manifest.hasOriginalPdf),
+            hasOriginal: content.manifest.hasOriginalPdf,
+            isLink: presentation.isLink,
+            websiteAvailable: presentation.hasValidWebsite,
+            websiteHost:
+                Uri.tryParse(content.publication.externalUrl)?.host ?? '',
+            isBookmarked: progress?.isBookmarked == true,
+            hasNotes: progress?.notes.trim().isNotEmpty == true,
+            isSignedIn:
+                ref.read(authControllerProvider).valueOrNull?.user != null,
+            offlineDownload: downloads.hasValue
+                ? matchingDownload(downloads.valueOrNull)
+                : offlineDownload,
+          );
+        },
+      ),
+    );
+    if (!context.mounted || action == null) return;
     switch (action) {
-      case _GuidelineMenuAction.search:
-        if (content != null) {
-          await _searchWithin(context, content);
-        }
-
-      case _GuidelineMenuAction.notes:
-        await _editNotes(context, notes);
-
-      case _GuidelineMenuAction.collection:
+      case DocumentMenuAction.contents:
+        await _readerKey.currentState?.openContents();
+      case DocumentMenuAction.settings:
+        _readerKey.currentState?.openSettings();
+      case DocumentMenuAction.search:
+        await _searchWithin(context, content);
+      case DocumentMenuAction.askAi:
+        _openAiAssistant(context, content);
+      case DocumentMenuAction.notes:
+        await _editNotes(context, progress?.notes ?? '');
+      case DocumentMenuAction.bookmark:
+        await _toggleBookmark(context);
+      case DocumentMenuAction.collection:
         await _saveToCollection(context);
-
-      case _GuidelineMenuAction.share:
+      case DocumentMenuAction.copyLink:
         await _copyLink(context);
-
-      case _GuidelineMenuAction.original:
+      case DocumentMenuAction.original:
         await _openOriginal(context);
+      case DocumentMenuAction.download:
+        if (matchingDownload(
+              ref.read(guidelineDownloadsControllerProvider).valueOrNull,
+            )?.status ==
+            OfflineDownloadStatus.ready) {
+          context.push(AppRoutes.offlineContent);
+        } else {
+          await _download(context, content);
+        }
+      case DocumentMenuAction.page:
+        break;
     }
   }
 
@@ -372,16 +422,22 @@ class _PublicationGuidelinePageState
   Widget _overviewPage(
     BuildContext context,
     GuidelinePublicationContent value,
-    ReadingProgress? progress,
-  ) {
+    ReadingProgress? progress, {
+    bool contentLoading = false,
+    bool contentUnavailable = false,
+  }) {
     return _GuidelineOverview(
+      key: ValueKey(value.publication.id),
+      contentLoading: contentLoading,
+      contentUnavailable: contentUnavailable,
+      onRetryContent: () =>
+          ref.invalidate(publicationGuidelineProvider(widget.guidelineId)),
+      onTable: (id) => context.push(
+        AppRoutes.publicGuidelineTableView(widget.guidelineId, id),
+      ),
       content: value,
-      isBookmarked: progress?.isBookmarked == true,
       currentSectionId: progress?.currentSection,
       readingProgress: progress?.progressPercentage,
-      onRead: () {
-        context.push(AppRoutes.readPublicGuideline(widget.guidelineId));
-      },
       onSection: (sectionId) {
         context.push(
           '${AppRoutes.readPublicGuideline(widget.guidelineId)}'
@@ -509,8 +565,10 @@ class _PublicationGuidelinePageState
 
   Widget _content(BuildContext context, GuidelinePublicationContent value) {
     final mode = value.manifest.recommendedMode;
+    final kind = DocumentReaderKind.forPublication(value.publication);
 
-    if (mode == GuidelineReaderMode.originalDocument) {
+    if (kind == DocumentReaderKind.uploaded ||
+        mode == GuidelineReaderMode.originalDocument) {
       final asset = ref
           .watch(guidelineOriginalDocumentProvider(widget.guidelineId))
           .valueOrNull;
@@ -528,196 +586,25 @@ class _PublicationGuidelinePageState
     final sections = value.readerSections;
 
     _scheduleInitialProgress(sections);
-
-    final selected = _selectedSectionId;
-
-    final selectedIds = selected == null
-        ? <String>{}
-        : _sectionAndDescendants(sections, selected);
-
-    final visibleSections =
-        mode == GuidelineReaderMode.structured && selected != null
-        ? sections.where((section) => selectedIds.contains(section.id)).toList()
-        : sections;
-
-    final navigationSections = sections
-        .where((section) => !value.isDocumentTitleWrapper(section))
-        .toList(growable: false);
-    final navigationSectionIds = navigationSections
-        .map((section) => section.id)
-        .toSet();
-    final rootSections = navigationSections
-        .where(
-          (section) =>
-              section.parentId == null ||
-              section.parentId!.isEmpty ||
-              !navigationSectionIds.contains(section.parentId),
-        )
-        .toList(growable: false);
-
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (notification is ScrollUpdateNotification ||
-            notification is ScrollEndNotification) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _trackVisibleSection(sections);
-          });
-        }
-
-        return false;
+    final identity = '${value.publication.id}:${value.manifest.checksum}';
+    if (_readerIdentity != identity) {
+      _readerIdentity = identity;
+      _readerKey = GlobalKey<DocumentKindReaderState>();
+    }
+    return DocumentKindReader(
+      key: _readerKey,
+      content: value,
+      kind: kind,
+      initialSectionId: _selectedSectionId,
+      onSection: (id) {
+        setState(() {
+          _selectedSectionId = id;
+          _currentSectionId = id;
+        });
+        unawaited(_recordSectionProgress(sections, id));
       },
-      child: CustomScrollView(
-        controller: _readerScrollController,
-        slivers: [
-          SliverToBoxAdapter(child: _Overview(content: value)),
-
-          // =================================================================
-          // CURRENT SECTION
-          // =================================================================
-          if (_currentSectionId != null)
-            SliverToBoxAdapter(
-              child: Semantics(
-                liveRegion: true,
-                label:
-                    'Current section ${sections.where((item) => item.id == _currentSectionId).map((item) => item.title).firstOrNull ?? ''}',
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: Responsive.horizontalPadding(context),
-                  ),
-                  child: Text(
-                    'Current section: '
-                    '${sections.where((item) => item.id == _currentSectionId).map((item) => item.title).firstOrNull ?? ''}',
-                    style: Theme.of(context).textTheme.labelMedium,
-                  ),
-                ),
-              ),
-            ),
-
-          // =================================================================
-          // SECTION NAVIGATION
-          // =================================================================
-          if (sections.isNotEmpty)
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _SectionHeaderDelegate(
-                child: Material(
-                  color: Theme.of(context).colorScheme.surface,
-                  child: Semantics(
-                    label: 'Guideline chapters',
-                    child: ListView.separated(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.horizontalPadding(context),
-                        vertical: AppSpacing.sm,
-                      ),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: rootSections.length,
-                      separatorBuilder: (_, _) => AppSpacing.gapSm,
-                      itemBuilder: (_, index) {
-                        final section = rootSections[index];
-
-                        return ChoiceChip(
-                          label: Text(section.title),
-                          selected: selected == section.id,
-                          onSelected: (_) {
-                            final next = selected == section.id
-                                ? null
-                                : section.id;
-
-                            setState(() {
-                              _selectedSectionId = next;
-                            });
-
-                            if (next != null) {
-                              unawaited(_recordSectionProgress(sections, next));
-                            }
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // =================================================================
-          // CONTENT
-          // =================================================================
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(
-              Responsive.horizontalPadding(context),
-              AppSpacing.md,
-              Responsive.horizontalPadding(context),
-
-              // Extra breathing room above the persistent bottom bar.
-              AppSpacing.xxxl + 72,
-            ),
-            sliver: SliverList.builder(
-              itemCount: visibleSections.length,
-              itemBuilder: (_, index) {
-                final section = visibleSections[index];
-
-                final blocks = value.displayBlocksFor(section);
-                final showSectionTitle = !value.isDocumentTitleWrapper(section);
-
-                _sectionKeys.putIfAbsent(section.id, GlobalKey.new);
-
-                return Semantics(
-                  key: _sectionKeys[section.id],
-                  container: true,
-                  label: section.title,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (showSectionTitle)
-                          Semantics(
-                            header: true,
-                            child: Text(
-                              section.title,
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                          ),
-
-                        if (section.pageLabel.isNotEmpty)
-                          Text(
-                            section.pageLabel,
-                            style: Theme.of(context).textTheme.labelMedium,
-                          ),
-
-                        AppSpacing.gapMd,
-
-                        if (blocks.isEmpty)
-                          PublicationEmptyReviewedSection(
-                            hasOriginalDocument: value.manifest.hasOriginalPdf,
-                            reviewedDescendants: _reviewedDescendants(
-                              section.id,
-                              sections,
-                              value.blocks,
-                            ),
-                            onSection: (id) {
-                              setState(() => _selectedSectionId = id);
-                              unawaited(_recordSectionProgress(sections, id));
-                            },
-                            onOpenOriginal: () => _openOriginal(context),
-                          )
-                        else
-                          for (final block in blocks) ...[
-                            PublicationBlockView(
-                              block: block,
-                              guidelineId: widget.guidelineId,
-                            ),
-                            AppSpacing.gapLg,
-                          ],
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+      onOpenOriginal: () => _openOriginal(context),
+      onOpenSourcePage: (page) => _openOriginal(context, page: page),
     );
   }
 
@@ -754,89 +641,6 @@ class _PublicationGuidelinePageState
     });
   }
 
-  void _trackVisibleSection(List<PublicationSection> sections) {
-    if (!mounted || sections.isEmpty) {
-      return;
-    }
-
-    String? nearest;
-
-    var distance = double.infinity;
-
-    for (final section in sections) {
-      final target = _sectionKeys[section.id]?.currentContext;
-
-      final box = target?.findRenderObject();
-
-      if (box is! RenderBox || !box.attached) {
-        continue;
-      }
-
-      final dy = box.localToGlobal(Offset.zero).dy;
-
-      final candidate = (dy - 120).abs();
-
-      if (candidate < distance) {
-        distance = candidate;
-        nearest = section.id;
-      }
-    }
-
-    if (nearest == null || nearest == _currentSectionId) {
-      return;
-    }
-
-    setState(() {
-      _currentSectionId = nearest;
-    });
-
-    unawaited(_recordSectionProgress(sections, nearest));
-  }
-
-  Set<String> _sectionAndDescendants(
-    List<PublicationSection> sections,
-    String root,
-  ) {
-    final result = <String>{root};
-
-    var frontier = <String>{root};
-
-    while (frontier.isNotEmpty) {
-      final next = sections
-          .where(
-            (section) =>
-                section.parentId != null && frontier.contains(section.parentId),
-          )
-          .map((section) => section.id)
-          .where(result.add)
-          .toSet();
-
-      frontier = next;
-    }
-
-    return result;
-  }
-
-  List<PublicationSection> _reviewedDescendants(
-    String root,
-    List<PublicationSection> sections,
-    List<GuidelineBlock> blocks,
-  ) {
-    final descendantIds = _sectionAndDescendants(sections, root)..remove(root);
-    final reviewedIds = blocks
-        .map((block) => block.sectionId)
-        .whereType<String>()
-        .toSet();
-    return sections
-        .where(
-          (section) =>
-              descendantIds.contains(section.id) &&
-              reviewedIds.contains(section.id),
-        )
-        .take(12)
-        .toList(growable: false);
-  }
-
   Future<void> _recordSectionProgress(
     List<PublicationSection> sections,
     String sectionId,
@@ -870,15 +674,15 @@ class _PublicationGuidelinePageState
   // ORIGINAL DOCUMENT
   // ===========================================================================
 
-  Future<void> _openOriginal(BuildContext context) async {
+  Future<void> _openOriginal(BuildContext context, {int? page}) async {
     final publication =
         (ref
-                    .read(publicationGuidelineProvider(widget.guidelineId))
-                    .valueOrNull ??
-                ref
                     .read(
                       publicationGuidelineSummaryProvider(widget.guidelineId),
                     )
+                    .valueOrNull ??
+                ref
+                    .read(publicationGuidelineProvider(widget.guidelineId))
                     .valueOrNull)
             ?.publication;
     if (publication != null && publication.opensWebsite) {
@@ -907,6 +711,7 @@ class _PublicationGuidelinePageState
               ? 'Original guideline'
               : asset.originalFilename,
           source: asset.url,
+          initialPage: page,
         ),
       );
     } catch (_) {
@@ -1050,11 +855,11 @@ class _PublicationGuidelinePageState
     try {
       await Clipboard.setData(ClipboardData(text: link));
       if (context.mounted) {
-        AppMessage.success(context, 'Guideline link copied.');
+        AppMessage.success(context, 'Document link copied.');
       }
     } catch (_) {
       if (context.mounted) {
-        AppMessage.error(context, 'The guideline link could not be copied.');
+        AppMessage.error(context, 'The document link could not be copied.');
       }
     }
   }
@@ -1096,20 +901,6 @@ class _PublicationGuidelinePageState
     setState(() {
       _selectedSectionId = sectionId;
     });
-
-    if (content.manifest.recommendedMode == GuidelineReaderMode.partial) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final target = _sectionKeys[sectionId]?.currentContext;
-
-        if (target != null) {
-          Scrollable.ensureVisible(
-            target,
-            duration: const Duration(milliseconds: 300),
-            alignment: 0.1,
-          );
-        }
-      });
-    }
   }
 }
 

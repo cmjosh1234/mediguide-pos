@@ -112,7 +112,7 @@ class _LinkedDocumentView extends StatelessWidget {
           ),
         ),
         AppSpacing.gapLg,
-        _GuidelineAbout(publication: publication, recommendations: const []),
+        _GuidelineAbout(publication: publication),
       ],
     );
   }

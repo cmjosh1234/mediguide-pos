@@ -2,7 +2,7 @@ name: user_app
 description: "MediGuide Mobile Application"
 publish_to: "none"
 
-version: 2.1.17+70
+version: 2.1.18+71
 
 # ============================================================
 # ENVIRONMENT
@@ -75,6 +75,7 @@ dependencies:
   lucide_icons_flutter: ^3.1.9
   gap: ^3.0.1
   responsive_framework: ^1.5.1
+  scroll_to_index: ^3.0.1
   universal_image: ^1.0.11
 
   # ==========================================================

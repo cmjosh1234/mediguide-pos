@@ -23,16 +23,18 @@ import (
 const demoNamespace = "https://mediguide.local/development-seed/"
 
 type demoGuideline struct {
-	Key         string
-	Title       string
-	Description string
-	ProgramArea string
-	Population  string
-	Healthcare  string
-	Version     string
-	Publication string
-	Review      string
-	Sections    []demoSection
+	DocumentKindSlug   string
+	SourceOrganization string
+	Key                string
+	Title              string
+	Description        string
+	ProgramArea        string
+	Population         string
+	Healthcare         string
+	Version            string
+	Publication        string
+	Review             string
+	Sections           []demoSection
 }
 
 type demoSection struct {
@@ -56,6 +58,7 @@ func seedDemoData(ctx context.Context, database *gorm.DB, store storage.ObjectSt
 			func() error { return seedDemoCalculators(tx, admin.ID) },
 			func() error { return seedDemoDrugs(tx) },
 			func() error { return seedDemoGuidelines(ctx, tx, store, reviewer.ID) },
+			func() error { return seedDemoReaderDocuments(ctx, tx, store, reviewer.ID) },
 			func() error { return seedDemoGuidelineReviewWorkflow(ctx, tx, store, admin.ID, reviewer.ID) },
 			func() error { return seedDemoDiseases(tx, admin.ID) },
 			func() error { return seedDemoOutbreaks(ctx, tx, store, admin.ID, clinician.ID) },
@@ -319,8 +322,20 @@ func seedDemoGuideline(ctx context.Context, database *gorm.DB, store storage.Obj
 		return err
 	}
 
+	kindSlug := guideline.DocumentKindSlug
+	if kindSlug == "" {
+		kindSlug = "guideline"
+	}
+	var kind models.DocumentKind
+	if err := database.Where("slug = ?", kindSlug).First(&kind).Error; err != nil {
+		return err
+	}
+	source := guideline.SourceOrganization
+	if source == "" {
+		source = "Ministry of Health Uganda"
+	}
 	if err := upsertByID(database, "guideline_documents", map[string]any{
-		"id": documentID, "title": guideline.Title, "country": "Uganda", "source_org": "Ministry of Health Uganda",
+		"id": documentID, "document_kind_id": kind.ID, "title": guideline.Title, "country": "Uganda", "source_org": source,
 		"program_area": guideline.ProgramArea, "language": "en", "description": guideline.Description,
 		"intended_population": guideline.Population, "healthcare_level": guideline.Healthcare,
 	}); err != nil {

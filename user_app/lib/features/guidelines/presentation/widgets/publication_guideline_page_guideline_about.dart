@@ -1,96 +1,92 @@
 part of '../screens/publication_guideline_page.dart';
 
 class _GuidelineAbout extends StatelessWidget {
-  const _GuidelineAbout({
-    required this.publication,
-    required this.recommendations,
-  });
-
+  const _GuidelineAbout({required this.publication});
   final GuidelinePublication publication;
-
-  final List<CalloutGuidelineBlock> recommendations;
 
   @override
   Widget build(BuildContext context) {
+    String date(String value) {
+      final parsed = DateTime.tryParse(value);
+      return parsed == null
+          ? value
+          : MaterialLocalizations.of(context).formatMediumDate(parsed);
+    }
+
+    final language = switch (publication.language.toLowerCase()) {
+      'en' => 'English',
+      'sw' => 'Swahili',
+      _ => publication.language,
+    };
     final facts = <(String, String)>[
-      ('Purpose', publication.description),
+      ('Published', date(publication.publicationDate)),
+      ('Review date', date(publication.reviewDate)),
       ('Target users', publication.intendedPopulation),
       ('Applies to', publication.healthcareLevel),
-      ('Language', publication.language),
-      ('Program area', publication.programArea),
-      ('Review date', publication.reviewDate),
+      ('Country', publication.country),
+      ('Language', language),
     ].where((item) => item.$2.trim().isNotEmpty).toList(growable: false);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'About this guideline',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+    if (facts.isEmpty) return const SizedBox.shrink();
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Document details',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            AppSpacing.gapLg,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns =
+                    constraints.maxWidth >= 520 &&
+                        MediaQuery.textScalerOf(context).scale(1) <= 1.3
+                    ? 2
+                    : 1;
+                final width =
+                    (constraints.maxWidth - AppSpacing.lg * (columns - 1)) /
+                    columns;
+                return Wrap(
+                  spacing: AppSpacing.lg,
+                  runSpacing: AppSpacing.lg,
+                  children: [
+                    for (final fact in facts)
+                      SizedBox(
+                        width: width,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              fact.$1,
+                              style: Theme.of(context).textTheme.labelMedium
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                            AppSpacing.gapXs,
+                            Text(
+                              fact.$2,
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.copyWith(height: 1.4),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
-
-        AppSpacing.gapLg,
-
-        for (final fact in facts) ...[
-          Text(
-            fact.$1,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-
-          const SizedBox(height: 4),
-
-          AppMarkdownBody(
-            data: fact.$2,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.4),
-          ),
-
-          AppSpacing.gapLg,
-        ],
-
-        if (recommendations.isNotEmpty) ...[
-          Text(
-            'Key recommendations',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-          ),
-
-          AppSpacing.gapSm,
-
-          for (final block in recommendations)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    LucideIcons.check,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-
-                  AppSpacing.hGapSm,
-
-                  Expanded(
-                    child: AppMarkdownBody(
-                      data: block.payload.content,
-                      compact: true,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ],
+      ),
     );
   }
 }
-
-// =============================================================================
-// CHAPTERS
-// =============================================================================

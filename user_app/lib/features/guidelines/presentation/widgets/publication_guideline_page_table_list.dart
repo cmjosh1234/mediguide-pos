@@ -1,9 +1,10 @@
 part of '../screens/publication_guideline_page.dart';
 
 class _TableList extends StatelessWidget {
-  const _TableList({required this.tables});
+  const _TableList({required this.tables, this.onTable});
 
   final List<TableGuidelineBlock> tables;
+  final ValueChanged<String>? onTable;
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +26,10 @@ class _TableList extends StatelessWidget {
           Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
+              onTap: onTable == null ? null : () => onTable!(table.id),
+              trailing: onTable == null
+                  ? null
+                  : const Icon(Icons.chevron_right),
               leading: const Icon(LucideIcons.table2),
               title: Text(
                 table.payload.title.isEmpty
