@@ -8911,6 +8911,10 @@ final class ServicesApplyContentHubTemplateInput {
 
   int? get lockVersion => (value['lock_version'] as num?)?.toInt();
 
+  String? get reason => value['reason']?.toString();
+
+  bool? get replace => value['replace'] as bool?;
+
   String? get templateId => value['template_id']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
@@ -9568,6 +9572,22 @@ final class ServicesContentHubTransitionInput {
   final Map<String, dynamic> value;
 
   int? get lockVersion => (value['lock_version'] as num?)?.toInt();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesContentPillarDeleteInput {
+  ServicesContentPillarDeleteInput(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesContentPillarDeleteInput.fromJson(
+    Map<String, dynamic> json,
+  ) => ServicesContentPillarDeleteInput(json);
+
+  static const schemaName = 'services.ContentPillarDeleteInput';
+  final Map<String, dynamic> value;
+
+  String? get reason => value['reason']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }

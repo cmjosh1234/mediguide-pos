@@ -45,11 +45,16 @@ type ContentHubResourceQuery struct {
 	Search      string
 	ContentType string
 	OutbreakID  string
+	// DocumentKindID narrows guideline results to one document kind; empty
+	// returns guidelines of every kind.
+	DocumentKindID string
 }
 
 type ContentHubAuditRecord struct {
 	ID         uuid.UUID      `json:"id"`
 	ActorID    string         `json:"actor_id"`
+	ActorName  string         `json:"actor_name,omitempty"`
+	ActorEmail string         `json:"actor_email,omitempty"`
 	Action     string         `json:"action"`
 	EntityType string         `json:"entity_type"`
 	EntityID   string         `json:"entity_id"`
@@ -178,7 +183,9 @@ func (s ContentHubService) ListAudit(hubID uuid.UUID, page PageInput) (*PageResu
 	p := page.Normalize(50, 200)
 	ids := []string{hubID.String()}
 	var pillarIDs []uuid.UUID
-	if err := s.DB.Model(&models.ContentPillar{}).Where("hub_id = ?", hubID).Pluck("id", &pillarIDs).Error; err != nil {
+	// Deleted pillars and assignments keep their history, including the
+	// deletion itself.
+	if err := s.DB.Unscoped().Model(&models.ContentPillar{}).Where("hub_id = ?", hubID).Pluck("id", &pillarIDs).Error; err != nil {
 		return nil, err
 	}
 	for _, id := range pillarIDs {
@@ -186,7 +193,7 @@ func (s ContentHubService) ListAudit(hubID uuid.UUID, page PageInput) (*PageResu
 	}
 	if len(pillarIDs) > 0 {
 		var itemIDs []uuid.UUID
-		if err := s.DB.Model(&models.ContentPillarItem{}).Where("pillar_id IN ?", pillarIDs).Pluck("id", &itemIDs).Error; err != nil {
+		if err := s.DB.Unscoped().Model(&models.ContentPillarItem{}).Where("pillar_id IN ?", pillarIDs).Pluck("id", &itemIDs).Error; err != nil {
 			return nil, err
 		}
 		for _, id := range itemIDs {
@@ -202,11 +209,29 @@ func (s ContentHubService) ListAudit(hubID uuid.UUID, page PageInput) (*PageResu
 	if err := q.Order("created_at DESC, id DESC").Limit(p.PerPage).Offset(p.Offset()).Find(&rows).Error; err != nil {
 		return nil, err
 	}
+	people := map[uuid.UUID]bool{}
+	for _, row := range rows {
+		if actor, err := uuid.Parse(row.ActorID); err == nil && actor != uuid.Nil {
+			people[actor] = true
+		}
+	}
+	// Deleted users keep their names in the history.
+	var users []models.User
+	if len(people) > 0 {
+		if err := s.DB.Unscoped().Select("id", "name", "email").Where("id IN ?", setKeys(people)).Find(&users).Error; err != nil {
+			return nil, err
+		}
+	}
+	byID := map[string]models.User{}
+	for _, user := range users {
+		byID[user.ID.String()] = user
+	}
 	out := make([]ContentHubAuditRecord, 0, len(rows))
 	for _, row := range rows {
 		metadata := map[string]any{}
 		_ = json.Unmarshal([]byte(row.MetadataJSON), &metadata)
-		out = append(out, ContentHubAuditRecord{ID: row.ID, ActorID: row.ActorID, Action: row.Action, EntityType: row.EntityType, EntityID: row.EntityID, Metadata: metadata, IPAddress: row.IPAddress, CreatedAt: row.CreatedAt})
+		user := byID[row.ActorID]
+		out = append(out, ContentHubAuditRecord{ID: row.ID, ActorID: row.ActorID, ActorName: user.Name, ActorEmail: user.Email, Action: row.Action, EntityType: row.EntityType, EntityID: row.EntityID, Metadata: metadata, IPAddress: row.IPAddress, CreatedAt: row.CreatedAt})
 	}
 	return NewPageResult(out, p, total), nil
 }
@@ -240,6 +265,13 @@ func (s ContentHubService) SearchAssignableResources(in ContentHubResourceQuery)
 		predicate += fmt.Sprintf(" AND outbreak_id = '%s'", id.String())
 	}
 	base := s.DB.Table(table).Where(predicate)
+	if strings.TrimSpace(in.DocumentKindID) != "" && kind == models.ContentDiseaseGuideline {
+		id, err := uuid.Parse(strings.TrimSpace(in.DocumentKindID))
+		if err != nil {
+			return nil, ErrContentHubInvalid
+		}
+		base = base.Where("document_kind_id = ?", id)
+	}
 	if strings.TrimSpace(in.Search) != "" {
 		base = base.Where("lower("+title+") LIKE ? OR lower("+description+") LIKE ?", like, like)
 	}

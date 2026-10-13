@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Archive,
+  ArchiveRestore,
   ArrowDown,
   ArrowUp,
   Eye,
@@ -14,8 +15,10 @@ import {
   Send,
   Trash2,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
@@ -27,24 +30,23 @@ import { hasBackendPermission } from "@/lib/backend-client";
 import { showToast } from "@/lib/toast";
 import { outbreaksService } from "@/services/outbreaks.service";
 import {
+  documentKindService,
+  type DocumentKind,
+} from "@/services/document-kinds.service";
+import {
   AssignableResource,
   ContentHubWorkspace,
   ContentPillar,
-  HubAudit,
   HubTemplate,
   contentHubService,
   diseaseService,
 } from "@/services/content-hubs.service";
+import { DeletePillarDialog } from "./delete-pillar-dialog";
+import { HubAuditHistory } from "./hub-audit-history";
+import { actionable } from "./hub-errors";
+import { pillarUpdate } from "./pillar-update";
+import { TemplatePicker } from "./template-picker";
 
-const itemTypes = [
-  "guideline",
-  "situation_report",
-  "algorithm",
-  "clinical_tool",
-  "drug_reference",
-  "internal_route",
-  "approved_external_url",
-];
 const emptyHub = {
   name: "",
   slug: "",
@@ -75,8 +77,6 @@ export function ContentHubEditor({ id }: { id?: string }) {
     Array<{ id: string; title: string }>
   >([]);
   const [templates, setTemplates] = React.useState<HubTemplate[]>([]);
-  const [audit, setAudit] = React.useState<HubAudit[]>([]);
-  const [templateId, setTemplateId] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
   const load = React.useCallback(async () => {
@@ -98,12 +98,8 @@ export function ContentHubEditor({ id }: { id?: string }) {
       );
       setTemplates(templateRows || []);
       if (id) {
-        const [value, events] = await Promise.all([
-          contentHubService.workspace(id),
-          contentHubService.audit(id),
-        ]);
+        const value = await contentHubService.workspace(id);
         setWorkspace(value);
-        setAudit(events.items || []);
         setForm({
           name: value.hub.name,
           slug: value.hub.slug,
@@ -152,19 +148,30 @@ export function ContentHubEditor({ id }: { id?: string }) {
       setBusy(false);
     }
   }
-  async function transition(action: "publish" | "archive") {
+  async function transition(action: "publish" | "archive" | "unarchive") {
     if (!workspace) return;
-    if (!confirm(`${action === "publish" ? "Publish" : "Archive"} this hub?`))
-      return;
+    const question = {
+      publish: "Publish this hub?",
+      archive: "Archive this hub?",
+      unarchive:
+        "Unarchive this hub? It returns to draft and stays hidden until you publish it again.",
+    }[action];
+    if (!confirm(question)) return;
     try {
       await contentHubService.transition(
         workspace.hub.id,
         action,
         workspace.hub.lock_version,
       );
-      showToast.success(
-        `Hub ${action === "publish" ? "published" : "archived"}`,
-      );
+      if (action === "unarchive")
+        showToast.success(
+          "Hub unarchived",
+          "It is a draft again. Publish it when it is ready.",
+        );
+      else
+        showToast.success(
+          `Hub ${action === "publish" ? "published" : "archived"}`,
+        );
       await load();
     } catch (error) {
       showToast.error("Workflow failed", actionable(error));
@@ -197,14 +204,25 @@ export function ContentHubEditor({ id }: { id?: string }) {
               <Send className="mr-2 h-4 w-4" />
               Publish
             </Button> : null}
-            {canArchiveHub ? <Button
-              variant="outline"
-              disabled={workspace.hub.status === "archived"}
-              onClick={() => void transition("archive")}
-            >
-              <Archive className="mr-2 h-4 w-4" />
-              Archive
-            </Button> : null}
+            {canArchiveHub ? (
+              workspace.hub.status === "archived" ? (
+                <Button
+                  variant="outline"
+                  onClick={() => void transition("unarchive")}
+                >
+                  <ArchiveRestore className="mr-2 h-4 w-4" />
+                  Unarchive
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => void transition("archive")}
+                >
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archive
+                </Button>
+              )
+            ) : null}
           </>
         ) : null}
       </div>
@@ -320,49 +338,13 @@ export function ContentHubEditor({ id }: { id?: string }) {
               <CardTitle>Template and pillars</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {canApplyTemplate ? <div className="flex gap-2">
-                <select
-                  className="h-10 flex-1 rounded-md border bg-background px-3"
-                  value={templateId}
-                  onChange={(event) => setTemplateId(event.target.value)}
-                >
-                  <option value="">Choose a template</option>
-                  {templates.map((value) => (
-                    <option key={value.id} value={value.id}>
-                      {value.name}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  variant="outline"
-                  disabled={
-                    !templateId ||
-                    workspace.pillars.length > 0 ||
-                    workspace.hub.status !== "draft"
-                  }
-                  onClick={async () => {
-                    try {
-                      await contentHubService.applyTemplate(
-                        workspace.hub.id,
-                        templateId,
-                        workspace.hub.lock_version,
-                      );
-                      showToast.success(
-                        "Template applied",
-                        "The copied pillars can now be renamed, nested and reordered.",
-                      );
-                      await load();
-                    } catch (error) {
-                      showToast.error(
-                        "Template not applied",
-                        actionable(error),
-                      );
-                    }
-                  }}
-                >
-                  Apply template
-                </Button>
-              </div> : null}
+              {canApplyTemplate ? (
+                <TemplatePicker
+                  workspace={workspace}
+                  templates={templates}
+                  onApplied={load}
+                />
+              ) : null}
               {canManagePillars ? (
                 <PillarEditor workspace={workspace} reload={load} />
               ) : (
@@ -376,28 +358,11 @@ export function ContentHubEditor({ id }: { id?: string }) {
             <ResourceAssignment workspace={workspace} reload={load} />
           ) : null}
           <HubPreview workspace={workspace} />
-          <Card>
-            <CardHeader>
-              <CardTitle>Audit history</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {audit.length ? (
-                audit.map((value) => (
-                  <div key={value.id} className="rounded-md border p-3 text-sm">
-                    <div className="font-medium">{value.action}</div>
-                    <div className="text-muted-foreground">
-                      {new Date(value.created_at).toLocaleString()} ·{" "}
-                      {value.entity_type}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-muted-foreground">
-                  No hub changes have been recorded.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <HubAuditHistory
+            hubId={workspace.hub.id}
+            templates={templates}
+            refreshKey={workspace}
+          />
         </>
       ) : null}
     </div>
@@ -418,6 +383,7 @@ function PillarEditor({
     icon: "",
     parent_id: "",
   });
+  const [deleting, setDeleting] = React.useState<ContentPillar | null>(null);
   async function add() {
     try {
       await contentHubService.createPillar(workspace.hub.id, {
@@ -475,23 +441,22 @@ function PillarEditor({
             setDraft((current) => ({ ...current, icon: event.target.value }))
           }
         />
-        <select
-          className="rounded-md border bg-background px-3"
+        <Combobox
+          options={workspace.pillars.map((value) => ({
+            value: value.id,
+            label: value.name,
+          }))}
           value={draft.parent_id}
-          onChange={(event) =>
-            setDraft((current) => ({
-              ...current,
-              parent_id: event.target.value,
-            }))
+          onValueChange={(parent_id) =>
+            setDraft((current) => ({ ...current, parent_id }))
           }
-        >
-          <option value="">Root pillar</option>
-          {workspace.pillars.map((value) => (
-            <option key={value.id} value={value.id}>
-              {value.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Root pillar"
+          searchPlaceholder="Search pillar..."
+          emptyText="No pillar found."
+          clearable
+          clearLabel="Root pillar"
+          className="min-w-56"
+        />
         <Button disabled={!draft.name.trim()} onClick={() => void add()}>
           <Plus className="mr-2 h-4 w-4" />
           Add
@@ -507,8 +472,17 @@ function PillarEditor({
           index={index}
           move={move}
           reload={reload}
+          onDelete={() => setDeleting(pillar)}
         />
       ))}
+      <DeletePillarDialog
+        hubId={workspace.hub.id}
+        live={workspace.hub.status === "active"}
+        pillar={deleting}
+        pillars={workspace.pillars}
+        onOpenChange={(open) => { if (!open) setDeleting(null) }}
+        onDeleted={() => void reload()}
+      />
     </div>
   );
 }
@@ -520,6 +494,7 @@ function PillarRow({
   index,
   move,
   reload,
+  onDelete,
 }: {
   hubId: string;
   pillar: ContentPillar;
@@ -527,6 +502,7 @@ function PillarRow({
   index: number;
   move: (index: number, direction: number) => Promise<void>;
   reload: () => Promise<void>;
+  onDelete: () => void;
 }) {
   const [value, setValue] = React.useState({
     name: pillar.name,
@@ -544,13 +520,16 @@ function PillarRow({
   );
   async function save() {
     try {
-      await contentHubService.updatePillar(hubId, pillar.id, {
-        name: value.name,
-        icon: value.icon,
-        parent_id: value.parent_id || undefined,
-        clear_parent: !value.parent_id,
-        lock_version: pillar.lock_version,
-      });
+      await contentHubService.updatePillar(
+        hubId,
+        pillar.id,
+        pillarUpdate(pillar, {
+          name: value.name,
+          icon: value.icon,
+          parent_id: value.parent_id || undefined,
+          clear_parent: !value.parent_id,
+        }),
+      );
       await reload();
       showToast.success("Pillar saved");
     } catch (error) {
@@ -565,10 +544,11 @@ function PillarRow({
     )
       return;
     try {
-      await contentHubService.updatePillar(hubId, pillar.id, {
-        status: "archived",
-        lock_version: pillar.lock_version,
-      });
+      await contentHubService.updatePillar(
+        hubId,
+        pillar.id,
+        pillarUpdate(pillar, { status: "archived" }),
+      );
       await reload();
       showToast.success(
         "Pillar archived",
@@ -578,6 +558,29 @@ function PillarRow({
       showToast.error("Pillar not archived", actionable(error));
     }
   }
+  async function unarchive() {
+    if (
+      !confirm(
+        `Unarchive ${pillar.name}? It will show in the hub again, with its sub-pillars and active assignments.`,
+      )
+    )
+      return;
+    try {
+      await contentHubService.updatePillar(
+        hubId,
+        pillar.id,
+        pillarUpdate(pillar, { status: "active" }),
+      );
+      await reload();
+      showToast.success(
+        "Pillar unarchived",
+        "It shows in the hub again with its active assignments.",
+      );
+    } catch (error) {
+      showToast.error("Pillar not unarchived", actionable(error));
+    }
+  }
+  const archived = pillar.status === "archived";
   return (
     <div className="grid items-center gap-2 rounded-md border p-3 md:grid-cols-[1fr_1fr_1fr_auto]">
       <Input
@@ -595,23 +598,23 @@ function PillarRow({
           setValue((current) => ({ ...current, icon: event.target.value }))
         }
       />
-      <select
-        className="h-10 rounded-md border bg-background px-3"
-        value={value.parent_id}
-        onChange={(event) =>
-          setValue((current) => ({ ...current, parent_id: event.target.value }))
-        }
-      >
-        <option value="">Root pillar</option>
-        {pillars
+      <Combobox
+        options={pillars
           .filter((row) => row.id !== pillar.id)
-          .map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.name}
-            </option>
-          ))}
-      </select>
-      <div className="flex gap-1">
+          .map((row) => ({ value: row.id, label: row.name }))}
+        value={value.parent_id}
+        onValueChange={(parent_id) =>
+          setValue((current) => ({ ...current, parent_id }))
+        }
+        placeholder="Root pillar"
+        searchPlaceholder="Search pillar..."
+        emptyText="No pillar found."
+        clearable
+        clearLabel="Root pillar"
+        className="min-w-56"
+      />
+      <div className="flex items-center gap-1">
+        {archived ? <Badge variant="secondary">Archived</Badge> : null}
         <Button
           size="icon"
           variant="ghost"
@@ -625,14 +628,35 @@ function PillarRow({
         <Button size="sm" variant="outline" onClick={() => void save()}>
           Save
         </Button>
+        {archived ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={`Unarchive ${pillar.name}`}
+            title="Unarchive pillar"
+            onClick={() => void unarchive()}
+          >
+            <ArchiveRestore className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={`Archive ${pillar.name}`}
+            title="Archive pillar"
+            onClick={() => void archive()}
+          >
+            <Archive className="h-4 w-4" />
+          </Button>
+        )}
         <Button
           size="icon"
           variant="ghost"
-          aria-label={`Archive ${pillar.name}`}
-          disabled={pillar.status === "archived"}
-          onClick={() => void archive()}
+          aria-label={`Delete ${pillar.name}`}
+          title="Delete pillar"
+          onClick={onDelete}
         >
-          <Archive className="h-4 w-4" />
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -649,13 +673,14 @@ function ResourceAssignment({
   const [pillarId, setPillarId] = React.useState(
     workspace.pillars[0]?.id || "",
   );
-  const [type, setType] = React.useState("guideline");
+  // Empty means every document kind.
+  const [kindId, setKindId] = React.useState("");
+  const [kinds, setKinds] = React.useState<DocumentKind[]>([]);
   const [search, setSearch] = React.useState("");
   const [results, setResults] = React.useState<AssignableResource[]>([]);
   const [searchLoading, setSearchLoading] = React.useState(true);
   const [searchError, setSearchError] = React.useState("");
   const [searchRevision, setSearchRevision] = React.useState(0);
-  const [target, setTarget] = React.useState("");
   const [startsAt, setStartsAt] = React.useState("");
   const [endsAt, setEndsAt] = React.useState("");
   const selected = workspace.pillars.find((value) => value.id === pillarId);
@@ -664,17 +689,24 @@ function ResourceAssignment({
   }, [pillarId, workspace.pillars]);
   React.useEffect(() => {
     let cancelled = false;
-    if (["internal_route", "approved_external_url"].includes(type)) {
-      setResults([]);
-      setSearchLoading(false);
-      setSearchError("");
-      return;
-    }
+    // Same options as the guidelines list filter: active kinds, plus any
+    // inactive kind that still has documents so none become unreachable.
+    void documentKindService
+      .list()
+      .then((rows) => {
+        if (!cancelled)
+          setKinds(rows.filter((kind) => kind.status === "active" || kind.guideline_document_count > 0));
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true };
+  }, []);
+  React.useEffect(() => {
+    let cancelled = false;
     const timer = setTimeout(() => {
       setSearchLoading(true);
       setSearchError("");
       void contentHubService
-        .searchResources(type, search, workspace.hub.outbreaks?.[0]?.id || "")
+        .searchResources("guideline", search, "", kindId)
         .then((page) => { if (!cancelled) setResults(page.items || []) })
         .catch((error) => {
           if (!cancelled) setSearchError(actionable(error));
@@ -682,16 +714,16 @@ function ResourceAssignment({
         .finally(() => { if (!cancelled) setSearchLoading(false) });
     }, 250);
     return () => { cancelled = true; clearTimeout(timer) };
-  }, [type, search, searchRevision, workspace.hub.outbreaks]);
-  async function add(resource?: AssignableResource) {
+  }, [kindId, search, searchRevision]);
+  async function add(resource: AssignableResource) {
     if (!pillarId) return;
     try {
       await contentHubService.createItem(workspace.hub.id, pillarId, {
-        content_type: type,
-        content_id: resource?.id,
-        target: resource ? "" : target,
-        label_override: resource?.title || "",
-        description_override: resource?.description || "",
+        content_type: "guideline",
+        content_id: resource.id,
+        target: "",
+        label_override: resource.title,
+        description_override: resource.description || "",
         status: "draft",
         sort_order: ((selected?.items.length || 0) + 1) * 10,
         starts_at: startsAt ? new Date(startsAt).toISOString() : undefined,
@@ -758,43 +790,41 @@ function ResourceAssignment({
             </div>
           </div>
         </div>
-        <div className="grid gap-2 md:grid-cols-4">
-          <select
-            className="h-10 rounded-md border bg-background px-3"
+        <div className="grid gap-2 md:grid-cols-3">
+          <Combobox
+            options={workspace.pillars.map((value) => ({
+              value: value.id,
+              label: value.name,
+            }))}
             value={pillarId}
-            onChange={(event) => setPillarId(event.target.value)}
-          >
-            <option value="">Select pillar</option>
-            {workspace.pillars.map((value) => (
-              <option key={value.id} value={value.id}>
-                {value.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="h-10 rounded-md border bg-background px-3"
-            value={type}
-            onChange={(event) => { setSearchLoading(true); setSearchError(""); setType(event.target.value) }}
-          >
-            {itemTypes.map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
+            onValueChange={setPillarId}
+            placeholder="Select pillar"
+            searchPlaceholder="Search pillar..."
+            emptyText="No pillar found."
+          />
+          <Combobox
+            options={kinds.map((kind) => ({
+              value: kind.id,
+              label: `${kind.name} (${kind.guideline_document_count})`,
+            }))}
+            value={kindId}
+            onValueChange={(next) => {
+              // Picking the current kind again would not re-run the search.
+              if (next === kindId) return;
+              setSearchLoading(true);
+              setSearchError("");
+              setKindId(next);
+            }}
+            placeholder="All documents"
+            searchPlaceholder="Search document type..."
+            emptyText="No document type found."
+            clearable
+            clearLabel="All documents"
+          />
           <Input
             value={search}
             onChange={(event) => { setSearchLoading(true); setSearchError(""); setSearch(event.target.value) }}
-            placeholder="Search assignable resources"
-            disabled={["internal_route", "approved_external_url"].includes(
-              type,
-            )}
-          />
-          <Input
-            value={target}
-            onChange={(event) => setTarget(event.target.value)}
-            placeholder="Internal route or approved HTTPS URL"
-            disabled={
-              !["internal_route", "approved_external_url"].includes(type)
-            }
+            placeholder="Search documents"
           />
           <div>
             <Label>Available from</Label>
@@ -812,16 +842,8 @@ function ResourceAssignment({
               onChange={(event) => setEndsAt(event.target.value)}
             />
           </div>
-          {["internal_route", "approved_external_url"].includes(type) ? (
-            <Button
-              disabled={!pillarId || !target.trim()}
-              onClick={() => void add()}
-            >
-              Assign target
-            </Button>
-          ) : null}
         </div>
-        {!["internal_route", "approved_external_url"].includes(type) && (searchLoading ? <p role="status" className="py-6 text-center text-sm text-muted-foreground">Searching resources…</p> : searchError ? <div role="alert" className="rounded-md border p-4"><p>{searchError}</p><Button className="mt-3" variant="outline" onClick={() => { setSearchLoading(true); setSearchRevision((value) => value + 1) }}>Try again</Button></div> : results.length === 0 ? <EmptyState title="No matching resources" description="Try another search or choose a different content type. Only assignable resources appear here." /> : null)}
+        {searchLoading ? <p role="status" className="py-6 text-center text-sm text-muted-foreground">Searching documents…</p> : searchError ? <div role="alert" className="rounded-md border p-4"><p>{searchError}</p><Button className="mt-3" variant="outline" onClick={() => { setSearchLoading(true); setSearchRevision((value) => value + 1) }}>Try again</Button></div> : results.length === 0 ? <EmptyState title="No matching documents" description="Try another search or choose a different document type." /> : null}
         {!searchLoading && !searchError && results.length ? (
           <div className="max-h-64 space-y-2 overflow-auto rounded-md border p-2">
             {results.map((value) => (
@@ -1021,14 +1043,4 @@ function Field({
       />
     </div>
   );
-}
-function actionable(value: unknown) {
-  const message = value instanceof Error ? value.message : "Try again.";
-  return /modified|conflict|lock/i.test(message)
-    ? "Another administrator changed this hub. Reload it before retrying."
-    : /not empty/i.test(message)
-      ? "Templates can only be applied to an empty draft hub. Remove existing pillars or create a new hub."
-      : /not allowed|unsafe/i.test(message)
-        ? "Use an approved HTTPS domain or a supported internal application route."
-        : message;
 }
