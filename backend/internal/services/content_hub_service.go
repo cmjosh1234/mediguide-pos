@@ -24,6 +24,8 @@ var (
 	ErrContentPillarUnsupported  = errors.New("unsupported pillar item type")
 	ErrContentPillarResource     = errors.New("pillar item resource not found")
 	ErrContentPillarUnsafeTarget = errors.New("pillar item target is not allowed")
+	ErrContentPillarNoReason     = errors.New("give a reason for deleting this pillar")
+	ErrContentHubReplaceNoReason = errors.New("give a reason for replacing this hub's pillars")
 )
 
 type ContentHubService struct {
@@ -269,6 +271,13 @@ func (s ContentHubService) TransitionHub(actor ContentHubActor, id uuid.UUID, ac
 				return ErrContentHubInvalid
 			}
 			updates["status"] = models.ContentHubStatusArchived
+		case "unarchive":
+			// An unarchived hub comes back as a draft, hidden until it is
+			// published again.
+			if hub.Status != models.ContentHubStatusArchived {
+				return ErrContentHubInvalid
+			}
+			updates["status"] = models.ContentHubStatusDraft
 		default:
 			return ErrContentHubInvalid
 		}
@@ -282,7 +291,7 @@ func (s ContentHubService) TransitionHub(actor ContentHubActor, id uuid.UUID, ac
 		if result.RowsAffected != 1 {
 			return ErrContentHubConflict
 		}
-		return auditContentHub(tx, actor, "content_hub."+action, "content_hub", id, in)
+		return auditContentHub(tx, actor, "content_hub."+action, "content_hub", id, map[string]any{"lock_version": in.LockVersion, "from_status": hub.Status, "to_status": updates["status"]})
 	})
 	if err != nil {
 		return nil, err

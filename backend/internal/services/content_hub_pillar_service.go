@@ -32,6 +32,14 @@ type ContentPillarInput struct {
 	LockVersion int        `json:"lock_version,omitempty"`
 }
 
+// pillarUpdateAudit records a pillar update together with the status it moved
+// from and to, so the history can tell archiving and unarchiving from edits.
+type pillarUpdateAudit struct {
+	ContentPillarInput
+	FromStatus string `json:"from_status"`
+	ToStatus   string `json:"to_status"`
+}
+
 type ContentPillarOrderInput struct {
 	ID          uuid.UUID `json:"id" binding:"required"`
 	SortOrder   int       `json:"sort_order" binding:"min=0"`
@@ -62,6 +70,10 @@ type ContentPillarItemOrderInput struct {
 type ApplyContentHubTemplateInput struct {
 	TemplateID  uuid.UUID `json:"template_id" binding:"required"`
 	LockVersion int       `json:"lock_version" binding:"required,min=1"`
+	// Replace first deletes the hub's pillars and their assignments, so a
+	// draft hub can switch templates. It needs a reason for the audit history.
+	Replace bool   `json:"replace"`
+	Reason  string `json:"reason"`
 }
 
 type ContentHubTemplateDetail struct {
@@ -113,6 +125,7 @@ func (s ContentHubService) UpdatePillar(actor ContentHubActor, hubID, id uuid.UU
 		if pillar.LockVersion != in.LockVersion {
 			return ErrContentHubConflict
 		}
+		previousStatus := pillar.Status
 		if in.ClearParent {
 			pillar.ParentID = nil
 		} else if in.ParentID != nil {
@@ -135,7 +148,7 @@ func (s ContentHubService) UpdatePillar(actor ContentHubActor, hubID, id uuid.UU
 		if result.RowsAffected != 1 {
 			return ErrContentHubConflict
 		}
-		return auditContentHub(tx, actor, "content_pillar.update", "content_pillar", id, in)
+		return auditContentHub(tx, actor, "content_pillar.update", "content_pillar", id, pillarUpdateAudit{ContentPillarInput: in, FromStatus: previousStatus, ToStatus: pillar.Status})
 	})
 	if err != nil {
 		return nil, err
@@ -172,9 +185,16 @@ func (s ContentHubService) ReorderPillars(actor ContentHubActor, hubID uuid.UUID
 	})
 }
 
-func (s ContentHubService) DeletePillar(actor ContentHubActor, hubID, id uuid.UUID, lockVersion int) error {
+// DeletePillar soft-deletes a pillar, its sub-pillars and their resource
+// assignments. The assigned resources themselves are untouched. The reason
+// is kept in the audit history.
+func (s ContentHubService) DeletePillar(actor ContentHubActor, hubID, id uuid.UUID, lockVersion int, reason string) error {
 	if lockVersion < 1 {
 		return ErrContentHubInvalid
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return ErrContentPillarNoReason
 	}
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		var pillar models.ContentPillar
@@ -188,14 +208,22 @@ func (s ContentHubService) DeletePillar(actor ContentHubActor, hubID, id uuid.UU
 		if err != nil {
 			return err
 		}
-		if err := tx.Where("pillar_id IN ? AND deleted_at IS NULL", ids).Delete(&models.ContentPillarItem{}).Error; err != nil {
-			return err
+		items := tx.Where("pillar_id IN ? AND deleted_at IS NULL", ids).Delete(&models.ContentPillarItem{})
+		if items.Error != nil {
+			return items.Error
 		}
 		if err := tx.Where("id IN ? AND deleted_at IS NULL", ids).Delete(&models.ContentPillar{}).Error; err != nil {
 			return err
 		}
-		return auditContentHub(tx, actor, "content_pillar.delete", "content_pillar", id, pillar)
+		return auditContentHub(tx, actor, "content_pillar.delete", "content_pillar", id, map[string]any{
+			"reason": reason, "name": pillar.Name, "slug": pillar.Slug,
+			"removed_sub_pillars": len(ids) - 1, "removed_assignments": items.RowsAffected,
+		})
 	})
+}
+
+type ContentPillarDeleteInput struct {
+	Reason string `json:"reason"`
 }
 
 func (s ContentHubService) ListPillarItems(hubID, pillarID uuid.UUID) ([]models.ContentPillarItem, error) {
@@ -352,6 +380,10 @@ func (s ContentHubService) ApplyTemplate(actor ContentHubActor, hubID uuid.UUID,
 	if hubID == uuid.Nil || in.TemplateID == uuid.Nil || in.LockVersion < 1 {
 		return nil, ErrContentHubInvalid
 	}
+	reason := strings.TrimSpace(in.Reason)
+	if in.Replace && reason == "" {
+		return nil, ErrContentHubReplaceNoReason
+	}
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		var hub models.ContentHub
 		if err := tx.Where("id = ? AND deleted_at IS NULL", hubID).First(&hub).Error; err != nil {
@@ -367,7 +399,7 @@ func (s ContentHubService) ApplyTemplate(actor ContentHubActor, hubID uuid.UUID,
 		if err := tx.Model(&models.ContentPillar{}).Where("hub_id = ? AND deleted_at IS NULL", hubID).Count(&count).Error; err != nil {
 			return err
 		}
-		if count != 0 {
+		if count != 0 && !in.Replace {
 			return ErrContentHubNotEmpty
 		}
 		var template models.ContentHubTemplate
@@ -380,6 +412,26 @@ func (s ContentHubService) ApplyTemplate(actor ContentHubActor, hubID uuid.UUID,
 		}
 		if len(definitions) == 0 {
 			return ErrContentHubUnavailable
+		}
+		audit := map[string]any{"template_id": template.ID, "template_name": template.Name}
+		if in.Replace {
+			var pillarIDs []uuid.UUID
+			if err := tx.Model(&models.ContentPillar{}).Where("hub_id = ? AND deleted_at IS NULL", hubID).Pluck("id", &pillarIDs).Error; err != nil {
+				return err
+			}
+			var removedAssignments int64
+			if len(pillarIDs) > 0 {
+				items := tx.Where("pillar_id IN ? AND deleted_at IS NULL", pillarIDs).Delete(&models.ContentPillarItem{})
+				if items.Error != nil {
+					return items.Error
+				}
+				removedAssignments = items.RowsAffected
+				if err := tx.Where("id IN ? AND deleted_at IS NULL", pillarIDs).Delete(&models.ContentPillar{}).Error; err != nil {
+					return err
+				}
+			}
+			audit["replace"], audit["reason"] = true, reason
+			audit["removed_pillars"], audit["removed_assignments"] = len(pillarIDs), removedAssignments
 		}
 		mapped := map[uuid.UUID]uuid.UUID{}
 		pending := append([]models.ContentHubTemplatePillar(nil), definitions...)
@@ -415,7 +467,7 @@ func (s ContentHubService) ApplyTemplate(actor ContentHubActor, hubID uuid.UUID,
 		if result.RowsAffected != 1 {
 			return ErrContentHubConflict
 		}
-		return auditContentHub(tx, actor, "content_hub.apply_template", "content_hub", hubID, in)
+		return auditContentHub(tx, actor, "content_hub.apply_template", "content_hub", hubID, audit)
 	})
 	if err != nil {
 		return nil, err

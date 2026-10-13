@@ -48,6 +48,7 @@ func registerClinicalContentRoutes(protected *gin.RouterGroup, guidelineContentH
 	protected.DELETE("/content-hubs/:id", middleware.RequirePermission("content_hub.manage"), contentHubH.Delete)
 	protected.POST("/content-hubs/:id/publish", middleware.RequirePermission("content_hub.publish"), contentHubH.Publish)
 	protected.POST("/content-hubs/:id/archive", middleware.RequirePermission("content_hub.archive"), contentHubH.Archive)
+	protected.POST("/content-hubs/:id/unarchive", middleware.RequirePermission("content_hub.archive"), contentHubH.Unarchive)
 	protected.GET("/content-hubs/:id/pillars", middleware.RequireAnyPermission("content_pillar.read", "content_pillar.manage"), contentHubH.ListPillars)
 	protected.POST("/content-hubs/:id/pillars", middleware.RequirePermission("content_pillar.manage"), contentHubH.CreatePillar)
 	protected.PATCH("/content-hubs/:id/pillars/:pillarId", middleware.RequirePermission("content_pillar.manage"), contentHubH.UpdatePillar)

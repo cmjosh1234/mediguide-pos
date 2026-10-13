@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -363,5 +365,268 @@ func TestContentHubPublicEligibilityAndNonDestructiveItemRemoval(t *testing.T) {
 	var sourceCount int64
 	if err := db.Model(&models.GuidelineDocument{}).Where("id = ?", publishedDocument.ID).Count(&sourceCount).Error; err != nil || sourceCount != 1 {
 		t.Fatalf("removing a pillar assignment deleted the source: count=%d err=%v", sourceCount, err)
+	}
+}
+
+func TestAssignableGuidelinesFilterByDocumentKind(t *testing.T) {
+	db := contentHubTestDB(t)
+	var sop, form models.DocumentKind
+	if err := db.Where("slug = ?", "sop").First(&sop).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Where("slug = ?", "form").First(&form).Error; err != nil {
+		t.Fatal(err)
+	}
+	documents := []models.GuidelineDocument{
+		{Title: "Hand hygiene SOP", DocumentKindID: &sop.ID},
+		{Title: "Referral form", DocumentKindID: &form.ID},
+	}
+	if err := db.Create(&documents).Error; err != nil {
+		t.Fatal(err)
+	}
+	service := ContentHubService{DB: db}
+
+	all, err := service.SearchAssignableResources(ContentHubResourceQuery{ContentType: "guideline"})
+	if err != nil || len(all.Items) != 2 {
+		t.Fatalf("expected every kind without a filter: items=%+v err=%v", all, err)
+	}
+	filtered, err := service.SearchAssignableResources(ContentHubResourceQuery{ContentType: "guideline", DocumentKindID: sop.ID.String()})
+	if err != nil || len(filtered.Items) != 1 || filtered.Items[0].Title != "Hand hygiene SOP" {
+		t.Fatalf("expected only the SOP: items=%+v err=%v", filtered, err)
+	}
+	if _, err := service.SearchAssignableResources(ContentHubResourceQuery{ContentType: "guideline", DocumentKindID: "not-a-uuid"}); !errors.Is(err, ErrContentHubInvalid) {
+		t.Fatalf("expected an invalid kind to be rejected, got %v", err)
+	}
+}
+
+func TestDeletePillarNeedsAReasonAndStaysInTheHubHistory(t *testing.T) {
+	db := contentHubTestDB(t)
+	if err := db.AutoMigrate(&models.User{}, &models.AuditLog{}); err != nil {
+		t.Fatal(err)
+	}
+	user := models.User{Name: "Hub Editor", Email: "editor@example.test", PasswordHash: "x", Status: "active"}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+	actor := ContentHubActor{ID: user.ID}
+	service := ContentHubService{DB: db}
+	hub, err := service.CreateHub(actor, CreateContentHubInput{Name: "Malaria", Audience: "all"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent, err := service.CreatePillar(actor, hub.ID, ContentPillarInput{Name: "Treatment"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CreatePillar(actor, hub.ID, ContentPillarInput{Name: "Severe malaria", ParentID: &parent.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.DeletePillar(actor, hub.ID, parent.ID, parent.LockVersion, "  "); !errors.Is(err, ErrContentPillarNoReason) {
+		t.Fatalf("expected a blank reason to be refused, got %v", err)
+	}
+	if err := service.DeletePillar(actor, hub.ID, parent.ID, parent.LockVersion, "Merged into Clinical Management"); err != nil {
+		t.Fatal(err)
+	}
+	remaining, err := service.ListPillars(hub.ID)
+	if err != nil || len(remaining) != 0 {
+		t.Fatalf("expected the pillar and its sub-pillar to be deleted: %+v err=%v", remaining, err)
+	}
+
+	history, err := service.ListAudit(hub.ID, PageInput{Page: 1, PerPage: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var deleted *ContentHubAuditRecord
+	for index := range history.Items {
+		if history.Items[index].Action == "content_pillar.delete" {
+			deleted = &history.Items[index]
+		}
+	}
+	if deleted == nil {
+		t.Fatalf("the deletion is missing from the hub history: %+v", history.Items)
+	}
+	if deleted.Metadata["reason"] != "Merged into Clinical Management" || deleted.Metadata["name"] != "Treatment" || deleted.Metadata["removed_sub_pillars"] != float64(1) {
+		t.Fatalf("unexpected deletion metadata: %+v", deleted.Metadata)
+	}
+	if deleted.ActorName != "Hub Editor" || deleted.ActorEmail != "editor@example.test" {
+		t.Fatalf("expected the editor to be named, got %q %q", deleted.ActorName, deleted.ActorEmail)
+	}
+}
+
+func TestUnarchivingAPillarIsRecordedAsAStatusChange(t *testing.T) {
+	db := contentHubTestDB(t)
+	if err := db.AutoMigrate(&models.User{}, &models.AuditLog{}); err != nil {
+		t.Fatal(err)
+	}
+	actor := ContentHubActor{ID: uuid.New()}
+	service := ContentHubService{DB: db}
+	hub, err := service.CreateHub(actor, CreateContentHubInput{Name: "Ebola", Audience: "all"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pillar, err := service.CreatePillar(actor, hub.ID, ContentPillarInput{Name: "IPC & PPE", Description: "Infection prevention.", SortOrder: 40})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored := ContentPillarInput{Name: pillar.Name, Slug: pillar.Slug, Description: pillar.Description, SortOrder: pillar.SortOrder}
+	archive := stored
+	archive.Status, archive.LockVersion = models.ContentPillarStatusArchived, pillar.LockVersion
+	archived, err := service.UpdatePillar(actor, hub.ID, pillar.ID, archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restore := stored
+	restore.Status, restore.LockVersion = models.ContentPillarStatusActive, archived.LockVersion
+	restored, err := service.UpdatePillar(actor, hub.ID, pillar.ID, restore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restored.Status != models.ContentPillarStatusActive || restored.Description != "Infection prevention." || restored.SortOrder != 40 {
+		t.Fatalf("unarchiving changed more than the status: %+v", restored)
+	}
+
+	history, err := service.ListAudit(hub.ID, PageInput{Page: 1, PerPage: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	moves := []string{}
+	for _, entry := range history.Items {
+		if entry.Action == "content_pillar.update" {
+			moves = append(moves, fmt.Sprintf("%v->%v", entry.Metadata["from_status"], entry.Metadata["to_status"]))
+		}
+	}
+	// Newest first.
+	if strings.Join(moves, ",") != "archived->active,active->archived" {
+		t.Fatalf("unexpected status history: %v", moves)
+	}
+}
+
+func TestReplacingADraftHubsTemplateNeedsAReasonAndSwapsThePillars(t *testing.T) {
+	db := contentHubTestDB(t)
+	if err := db.AutoMigrate(&models.User{}, &models.AuditLog{}); err != nil {
+		t.Fatal(err)
+	}
+	newTemplate := func(name string, pillars ...string) models.ContentHubTemplate {
+		template := models.ContentHubTemplate{Name: name, Slug: strings.ToLower(strings.ReplaceAll(name, " ", "-")), Status: models.ContentHubStatusActive}
+		if err := db.Create(&template).Error; err != nil {
+			t.Fatal(err)
+		}
+		for index, pillar := range pillars {
+			definition := models.ContentHubTemplatePillar{TemplateID: template.ID, Name: pillar, Slug: strings.ToLower(pillar), SortOrder: (index + 1) * 10}
+			if err := db.Create(&definition).Error; err != nil {
+				t.Fatal(err)
+			}
+		}
+		return template
+	}
+	care := newTemplate("Disease care", "Overview", "Diagnosis")
+	surveillance := newTemplate("Surveillance knowledge", "Surveillance", "Reporting", "Overview")
+	actor := ContentHubActor{ID: uuid.New()}
+	service := ContentHubService{DB: db}
+	hub, err := service.CreateHub(actor, CreateContentHubInput{Name: "Cholera", Audience: "all"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := service.ApplyTemplate(actor, hub.ID, ApplyContentHubTemplateInput{TemplateID: care.ID, LockVersion: hub.LockVersion})
+	if err != nil || len(first) != 2 {
+		t.Fatalf("first template not applied: %+v %v", first, err)
+	}
+	report := models.SituationReport{Title: "Week 1", Status: "published", PublicationDate: time.Now().UTC()}
+	if err := db.Create(&report).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&models.ContentPillarItem{PillarID: first[0].ID, ContentType: models.ContentDiseaseSituationReport, ContentID: &report.ID, Status: models.ContentPillarItemStatusActive, LockVersion: 1}).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	reloaded, _ := service.GetHub(hub.ID)
+	replace := ApplyContentHubTemplateInput{TemplateID: surveillance.ID, LockVersion: reloaded.LockVersion, Replace: true}
+	if _, err := service.ApplyTemplate(actor, hub.ID, replace); !errors.Is(err, ErrContentHubReplaceNoReason) {
+		t.Fatalf("expected a replacement without a reason to be refused, got %v", err)
+	}
+	replace.Reason = "Cholera is tracked as a surveillance hub"
+	pillars, err := service.ApplyTemplate(actor, hub.ID, replace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := []string{}
+	for _, pillar := range pillars {
+		names = append(names, pillar.Name)
+	}
+	if strings.Join(names, ",") != "Surveillance,Reporting,Overview" {
+		t.Fatalf("expected only the new template's pillars, got %v", names)
+	}
+	var liveItems int64
+	if err := db.Model(&models.ContentPillarItem{}).Where("pillar_id = ?", first[0].ID).Count(&liveItems).Error; err != nil || liveItems != 0 {
+		t.Fatalf("the old pillar's assignment should be deleted: count=%d err=%v", liveItems, err)
+	}
+	var keptReport int64
+	if err := db.Model(&models.SituationReport{}).Where("id = ?", report.ID).Count(&keptReport).Error; err != nil || keptReport != 1 {
+		t.Fatalf("the assigned report itself must be kept: count=%d err=%v", keptReport, err)
+	}
+
+	history, err := service.ListAudit(hub.ID, PageInput{Page: 1, PerPage: 50})
+	if err != nil || len(history.Items) == 0 || history.Items[0].Action != "content_hub.apply_template" {
+		t.Fatalf("expected the replacement to be the newest audit entry: %+v %v", history, err)
+	}
+	meta := history.Items[0].Metadata
+	if meta["replace"] != true || meta["reason"] != replace.Reason || meta["template_name"] != "Surveillance knowledge" || meta["removed_pillars"] != float64(2) || meta["removed_assignments"] != float64(1) {
+		t.Fatalf("unexpected replacement metadata: %+v", meta)
+	}
+}
+
+func TestUnarchivingAHubReturnsItToDraft(t *testing.T) {
+	db := contentHubTestDB(t)
+	if err := db.AutoMigrate(&models.User{}, &models.AuditLog{}); err != nil {
+		t.Fatal(err)
+	}
+	actor := ContentHubActor{ID: uuid.New()}
+	service := ContentHubService{DB: db}
+	hub, err := service.CreateHub(actor, CreateContentHubInput{Name: "Malaria", Audience: "all"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CreatePillar(actor, hub.ID, ContentPillarInput{Name: "Overview"}); err != nil {
+		t.Fatal(err)
+	}
+	step := func(action string) *models.ContentHub {
+		t.Helper()
+		current, err := service.GetHub(hub.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		next, err := service.TransitionHub(actor, hub.ID, action, ContentHubTransitionInput{LockVersion: current.LockVersion})
+		if err != nil {
+			t.Fatalf("%s failed: %v", action, err)
+		}
+		return next
+	}
+	step("publish")
+	current, _ := service.GetHub(hub.ID)
+	if _, err := service.TransitionHub(actor, hub.ID, "unarchive", ContentHubTransitionInput{LockVersion: current.LockVersion}); !errors.Is(err, ErrContentHubInvalid) {
+		t.Fatalf("only an archived hub can be unarchived, got %v", err)
+	}
+	step("archive")
+	if restored := step("unarchive"); restored.Status != models.ContentHubStatusDraft {
+		t.Fatalf("expected the hub back in draft, got %q", restored.Status)
+	}
+	if republished := step("publish"); republished.Status != models.ContentHubStatusActive {
+		t.Fatalf("expected the unarchived hub to publish again, got %q", republished.Status)
+	}
+
+	history, err := service.ListAudit(hub.ID, PageInput{Page: 1, PerPage: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	moves := []string{}
+	for _, entry := range history.Items {
+		if entry.EntityType == "content_hub" && entry.Metadata["to_status"] != nil {
+			moves = append(moves, fmt.Sprintf("%s:%v->%v", entry.Action, entry.Metadata["from_status"], entry.Metadata["to_status"]))
+		}
+	}
+	want := "content_hub.publish:draft->active,content_hub.unarchive:archived->draft,content_hub.archive:active->archived,content_hub.publish:draft->active"
+	if strings.Join(moves, ",") != want {
+		t.Fatalf("unexpected hub status history:\n got %s\nwant %s", strings.Join(moves, ","), want)
 	}
 }

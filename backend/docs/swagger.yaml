@@ -4627,6 +4627,13 @@ definitions:
       lock_version:
         minimum: 1
         type: integer
+      reason:
+        type: string
+      replace:
+        description: |-
+          Replace first deletes the hub's pillars and their assignments, so a
+          draft hub can switch templates. It needs a reason for the audit history.
+        type: boolean
       template_id:
         type: string
     required:
@@ -5037,6 +5044,11 @@ definitions:
         type: integer
     required:
     - lock_version
+    type: object
+  services.ContentPillarDeleteInput:
+    properties:
+      reason:
+        type: string
     type: object
   services.ContentPillarInput:
     properties:
@@ -12855,6 +12867,8 @@ paths:
       - content-hubs
   /api/v2/content-hubs/{id}/apply-template:
     post:
+      description: 'The hub must have no pillars, unless replace is set: then its
+        pillars and their assignments are deleted first, and a reason is required.'
       parameters:
       - description: Content hub UUID
         in: path
@@ -12874,7 +12888,7 @@ paths:
             $ref: '#/definitions/handlers.ContentPillarsEnvelope'
       security:
       - BearerAuth: []
-      summary: Copy a template into an empty draft hub
+      summary: Copy a template into a draft hub
       tags:
       - content-hubs
   /api/v2/content-hubs/{id}/archive:
@@ -13009,6 +13023,12 @@ paths:
         name: lock_version
         required: true
         type: integer
+      - description: Why the pillar is being deleted
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/services.ContentPillarDeleteInput'
       responses: {}
       security:
       - BearerAuth: []
@@ -13245,6 +13265,31 @@ paths:
       security:
       - BearerAuth: []
       summary: Publish a content hub
+      tags:
+      - content-hubs
+  /api/v2/content-hubs/{id}/unarchive:
+    post:
+      description: The hub stays hidden from the public until it is published again.
+      parameters:
+      - description: Content hub UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Unarchive transition
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/services.ContentHubTransitionInput'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ContentHubEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Return an archived content hub to draft
       tags:
       - content-hubs
   /api/v2/content-hubs/{id}/workspace:

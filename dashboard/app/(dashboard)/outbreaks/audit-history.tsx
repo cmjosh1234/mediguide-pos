@@ -117,12 +117,12 @@ export function AuditHistory({ entity, id, refreshKey }: { entity: keyof typeof 
   );
 }
 
-function AuditEntry({ entry }: { entry: OutbreakAuditRecord }) {
-  const details = auditDetails(entry);
+/** One audit event: what was done, when, by whom, and its details. Other audit trails pass their own label and details. */
+export function AuditEntry({ entry, label = actionLabel(entry), details = auditDetails(entry) }: { entry: OutbreakAuditRecord; label?: string; details?: Array<[string, string]> }) {
   return (
     <li className="rounded-md border p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="font-medium">{actionLabel(entry)}</p>
+        <p className="font-medium">{label}</p>
         <time dateTime={entry.created_at} className="text-xs text-muted-foreground">{new Date(entry.created_at).toLocaleString()}</time>
       </div>
       <p className="text-sm text-muted-foreground" title={entry.actor_id ? `User ID ${entry.actor_id}` : undefined}>

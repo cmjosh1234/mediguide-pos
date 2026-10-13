@@ -97,6 +97,51 @@ describe("disease and content-hub administration services", () => {
         content_type: "situation_report",
         search: "triage",
         outbreak_id: "outbreak-1",
+        document_kind_id: "",
+      },
+    });
+  });
+
+  it("sends the reason for deleting a pillar and pages the audit history", async () => {
+    send.mockResolvedValue(undefined);
+    await contentHubService.deletePillar("hub-1", "pillar-1", 3, "Merged");
+    expect(send).toHaveBeenCalledWith("/api/v2/content-hubs/hub-1/pillars/pillar-1", {
+      method: "DELETE",
+      query: { lock_version: 3 },
+      body: JSON.stringify({ reason: "Merged" }),
+    });
+    send.mockResolvedValue({ items: [] });
+    await contentHubService.audit("hub-1", 2, 5);
+    expect(send).toHaveBeenCalledWith("/api/v2/content-hubs/hub-1/audit", {
+      query: { page: 2, per_page: 5 },
+    });
+  });
+
+  it("applies a template, or replaces the hub's pillars when given a reason", async () => {
+    send.mockResolvedValue([]);
+    await contentHubService.applyTemplate("hub-1", "template-1", 4);
+    expect(send).toHaveBeenLastCalledWith("/api/v2/content-hubs/hub-1/apply-template", {
+      method: "POST",
+      body: JSON.stringify({ template_id: "template-1", lock_version: 4 }),
+    });
+    await contentHubService.applyTemplate("hub-1", "template-1", 4, "Surveillance layout");
+    expect(send).toHaveBeenLastCalledWith("/api/v2/content-hubs/hub-1/apply-template", {
+      method: "POST",
+      body: JSON.stringify({ template_id: "template-1", lock_version: 4, replace: true, reason: "Surveillance layout" }),
+    });
+  });
+
+  it("narrows guideline search to one document kind", async () => {
+    send.mockResolvedValue({ items: [] });
+    await contentHubService.searchResources("guideline", "", "", "kind-1");
+    expect(send).toHaveBeenCalledWith("/api/v2/content-hub-resources", {
+      query: {
+        page: 1,
+        per_page: 50,
+        content_type: "guideline",
+        search: "",
+        outbreak_id: "",
+        document_kind_id: "kind-1",
       },
     });
   });

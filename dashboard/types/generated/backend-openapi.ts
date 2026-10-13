@@ -2778,6 +2778,12 @@ export interface ServicesAccountActionResult {
 export interface ServicesApplyContentHubTemplateInput {
   /** @min 1 */
   lock_version: number;
+  reason?: string;
+  /**
+   * Replace first deletes the hub's pillars and their assignments, so a
+   * draft hub can switch templates. It needs a reason for the audit history.
+   */
+  replace?: boolean;
   template_id: string;
 }
 
@@ -2991,6 +2997,10 @@ export interface ServicesContentHubTemplateDetail {
 export interface ServicesContentHubTransitionInput {
   /** @min 1 */
   lock_version: number;
+}
+
+export interface ServicesContentPillarDeleteInput {
+  reason?: string;
 }
 
 export interface ServicesContentPillarInput {

@@ -195,6 +195,17 @@ func (h ContentHubHandler) Publish(c *gin.Context) { h.transition(c, "publish") 
 // @Router /api/v2/content-hubs/{id}/archive [post]
 func (h ContentHubHandler) Archive(c *gin.Context) { h.transition(c, "archive") }
 
+// Unarchive godoc
+// @Summary Return an archived content hub to draft
+// @Description The hub stays hidden from the public until it is published again.
+// @Tags content-hubs
+// @Security BearerAuth
+// @Param id path string true "Content hub UUID"
+// @Param payload body services.ContentHubTransitionInput true "Unarchive transition"
+// @Success 200 {object} handlers.ContentHubEnvelope
+// @Router /api/v2/content-hubs/{id}/unarchive [post]
+func (h ContentHubHandler) Unarchive(c *gin.Context) { h.transition(c, "unarchive") }
+
 func (h ContentHubHandler) transition(c *gin.Context, action string) {
 	id, ok := contentHubUUID(c, "id")
 	if !ok {
@@ -344,6 +355,7 @@ func (h ContentHubHandler) ReorderPillars(c *gin.Context) {
 // @Param id path string true "Content hub UUID"
 // @Param pillarId path string true "Content pillar UUID"
 // @Param lock_version query int true "Current lock version"
+// @Param payload body services.ContentPillarDeleteInput true "Why the pillar is being deleted"
 // @Router /api/v2/content-hubs/{id}/pillars/{pillarId} [delete]
 func (h ContentHubHandler) DeletePillar(c *gin.Context) {
 	hubID, ok := contentHubUUID(c, "id")
@@ -358,7 +370,12 @@ func (h ContentHubHandler) DeletePillar(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.Service.DeletePillar(contentHubActor(c), hubID, pillarID, lockVersion); err != nil {
+	var input services.ContentPillarDeleteInput
+	if c.ShouldBindJSON(&input) != nil {
+		httpx.Error(c, http.StatusBadRequest, "invalid pillar request body")
+		return
+	}
+	if err := h.Service.DeletePillar(contentHubActor(c), hubID, pillarID, lockVersion, input.Reason); err != nil {
 		h.writeError(c, err)
 		return
 	}
@@ -555,7 +572,8 @@ func (h ContentHubHandler) GetTemplate(c *gin.Context) {
 }
 
 // ApplyTemplate godoc
-// @Summary Copy a template into an empty draft hub
+// @Summary Copy a template into a draft hub
+// @Description The hub must have no pillars, unless replace is set: then its pillars and their assignments are deleted first, and a reason is required.
 // @Tags content-hubs
 // @Security BearerAuth
 // @Param id path string true "Content hub UUID"
@@ -632,7 +650,7 @@ func (h ContentHubHandler) SearchResources(c *gin.Context) {
 		httpx.Error(c, http.StatusBadRequest, "invalid pagination")
 		return
 	}
-	result, err := h.Service.SearchAssignableResources(services.ContentHubResourceQuery{Page: page, Search: c.Query("search"), ContentType: c.Query("content_type"), OutbreakID: c.Query("outbreak_id")})
+	result, err := h.Service.SearchAssignableResources(services.ContentHubResourceQuery{Page: page, Search: c.Query("search"), ContentType: c.Query("content_type"), OutbreakID: c.Query("outbreak_id"), DocumentKindID: c.Query("document_kind_id")})
 	if err != nil {
 		h.writeError(c, err)
 		return
@@ -759,7 +777,7 @@ func contentHubLockVersion(c *gin.Context) (int, bool) {
 
 func (h ContentHubHandler) writeError(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, services.ErrContentHubInvalid), errors.Is(err, services.ErrContentPillarUnsupported), errors.Is(err, services.ErrContentPillarUnsafeTarget):
+	case errors.Is(err, services.ErrContentHubInvalid), errors.Is(err, services.ErrContentPillarUnsupported), errors.Is(err, services.ErrContentPillarUnsafeTarget), errors.Is(err, services.ErrContentPillarNoReason), errors.Is(err, services.ErrContentHubReplaceNoReason):
 		httpx.Error(c, http.StatusBadRequest, err.Error())
 	case errors.Is(err, services.ErrContentHubConflict), errors.Is(err, services.ErrContentHubDuplicate), errors.Is(err, services.ErrContentHubNotEmpty), errors.Is(err, services.ErrContentPillarCycle), errors.Is(err, services.ErrContentPillarWrongHub):
 		httpx.Error(c, http.StatusConflict, err.Error())

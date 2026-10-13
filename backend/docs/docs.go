@@ -4763,10 +4763,11 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "The hub must have no pillars, unless replace is set: then its pillars and their assignments are deleted first, and a reason is required.",
                 "tags": [
                     "content-hubs"
                 ],
-                "summary": "Copy a template into an empty draft hub",
+                "summary": "Copy a template into a draft hub",
                 "parameters": [
                     {
                         "type": "string",
@@ -5049,6 +5050,15 @@ const docTemplate = `{
                         "name": "lock_version",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "description": "Why the pillar is being deleted",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.ContentPillarDeleteInput"
+                        }
                     }
                 ],
                 "responses": {}
@@ -5367,6 +5377,46 @@ const docTemplate = `{
                     },
                     {
                         "description": "Publication transition",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.ContentHubTransitionInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ContentHubEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/content-hubs/{id}/unarchive": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "The hub stays hidden from the public until it is published again.",
+                "tags": [
+                    "content-hubs"
+                ],
+                "summary": "Return an archived content hub to draft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Content hub UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Unarchive transition",
                         "name": "payload",
                         "in": "body",
                         "required": true,
@@ -25288,6 +25338,13 @@ const docTemplate = `{
                     "type": "integer",
                     "minimum": 1
                 },
+                "reason": {
+                    "type": "string"
+                },
+                "replace": {
+                    "description": "Replace first deletes the hub's pillars and their assignments, so a\ndraft hub can switch templates. It needs a reason for the audit history.",
+                    "type": "boolean"
+                },
                 "template_id": {
                     "type": "string"
                 }
@@ -25901,6 +25958,14 @@ const docTemplate = `{
                 "lock_version": {
                     "type": "integer",
                     "minimum": 1
+                }
+            }
+        },
+        "services.ContentPillarDeleteInput": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
                 }
             }
         },

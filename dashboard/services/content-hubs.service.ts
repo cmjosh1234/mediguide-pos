@@ -117,6 +117,8 @@ export interface AssignableResource {
 export interface HubAudit {
   id: string;
   actor_id: string;
+  actor_name?: string;
+  actor_email?: string;
   action: string;
   entity_type: string;
   entity_id: string;
@@ -238,7 +240,8 @@ export const contentHubService = {
       body: json(input),
     });
   },
-  transition(id: string, action: "publish" | "archive", lockVersion: number) {
+  /** Unarchiving returns an archived hub to draft. */
+  transition(id: string, action: "publish" | "archive" | "unarchive", lockVersion: number) {
     return client().send<ContentHub>(`/api/v2/content-hubs/${id}/${action}`, {
       method: "POST",
       body: json({ lock_version: lockVersion }),
@@ -247,12 +250,17 @@ export const contentHubService = {
   templates() {
     return client().send<HubTemplate[]>("/api/v2/content-hub-templates");
   },
-  applyTemplate(id: string, templateId: string, lockVersion: number) {
+  /** Copies a template into a draft hub. With a reason, the hub's current pillars and their assignments are deleted first. */
+  applyTemplate(id: string, templateId: string, lockVersion: number, replaceReason?: string) {
     return client().send<ContentPillar[]>(
       `/api/v2/content-hubs/${id}/apply-template`,
       {
         method: "POST",
-        body: json({ template_id: templateId, lock_version: lockVersion }),
+        body: json({
+          template_id: templateId,
+          lock_version: lockVersion,
+          ...(replaceReason === undefined ? {} : { replace: true, reason: replaceReason }),
+        }),
       },
     );
   },
@@ -281,6 +289,14 @@ export const contentHubService = {
       { method: "DELETE", query: { lock_version: pillar.lock_version } },
     );
   },
+  /** Deletes a pillar, its sub-pillars and their assignments; the reason is kept in the audit history. */
+  deletePillar(id: string, pillarId: string, lockVersion: number, reason: string) {
+    return client().send(`/api/v2/content-hubs/${id}/pillars/${pillarId}`, {
+      method: "DELETE",
+      query: { lock_version: lockVersion },
+      body: json({ reason }),
+    });
+  },
   reorderPillars(id: string, pillars: ContentPillar[]) {
     return client().send(`/api/v2/content-hubs/${id}/pillars/reorder`, {
       method: "PUT",
@@ -293,7 +309,12 @@ export const contentHubService = {
       ),
     });
   },
-  searchResources(contentType: string, search: string, outbreakId = "") {
+  searchResources(
+    contentType: string,
+    search: string,
+    outbreakId = "",
+    documentKindId = "",
+  ) {
     return client().send<Page<AssignableResource>>(
       "/api/v2/content-hub-resources",
       {
@@ -303,6 +324,7 @@ export const contentHubService = {
           content_type: contentType,
           search,
           outbreak_id: outbreakId,
+          document_kind_id: documentKindId,
         },
       },
     );
@@ -345,9 +367,9 @@ export const contentHubService = {
       },
     );
   },
-  audit(id: string) {
+  audit(id: string, page = 1, perPage = 100) {
     return client().send<Page<HubAudit>>(`/api/v2/content-hubs/${id}/audit`, {
-      query: { page: 1, per_page: 100 },
+      query: { page, per_page: perPage },
     });
   },
   configureOutbreak(outbreakId: string, publish = false) {
