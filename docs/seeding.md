@@ -15,6 +15,7 @@ Seeding mutates PostgreSQL and, for demo clinical content, MinIO. Run it only ag
 | `admin` | Production | The configured administrator and system admin-role assignment |
 | `facilities` | Production | Ministry of Health geographic hierarchy, facility levels, ownership/authority metadata and the facility master dataset |
 | `disease-taxonomy` | Production | The reviewed Uganda Clinical Guidelines disease and condition taxonomy, with its aliases and ICD-10 codes, filed under one guideline category per guideline chapter |
+| `reader-documents` | Development/test only | 20 labelled reader fixtures covering all 19 document kinds, including Manual and Framework, PDF originals, a link and a partial SOP |
 | `notifications` | Development only | Demonstration notification records for the seeded clinician |
 | `clinical-tools-rehearsal` | Disposable rehearsal only | Synthetic actors and schema clinical tools for retirement validation |
 
@@ -117,6 +118,39 @@ The additional Cholera and Measles scenarios are prominently marked as
 synthetic development content and intentionally omit clinical thresholds,
 treatment and dosing instructions. Replace them through the governed dashboard
 workflow before any operational or clinical use.
+
+### Test document-kind readers
+
+The demo scope also includes 20 `Local test - ...` publications under the
+**Reader testing** program area. Manual uses the chapter reader; Framework
+uses the continuous reference reader. Every kind has a sample, plus a partially
+reviewed SOP whose last section opens the original PDF. File and link samples
+contain no extracted sections. The Form sample has a real three-page PDF;
+the Link sample opens `https://example.org`.
+
+To refresh only these fixtures on the running development stack, after applying
+migrations and creating the demo reviewer:
+
+```bash
+docker compose \
+  --env-file infra/development.env \
+  -f infra/docker-compose.yml \
+  -f infra/docker-compose.dev.yml \
+  exec -w /src api /app/migrate up
+
+docker compose \
+  --env-file infra/development.env \
+  -f infra/docker-compose.yml \
+  -f infra/docker-compose.dev.yml \
+  exec -e SEED_SCOPE=reader-documents \
+  -e GOTMPDIR=/src/.air_tmp/go-build -w /src api go run ./cmd/seed
+```
+
+This scope requires `APP_ENV=development` or `test` and uses the existing demo
+reviewer. It updates only its deterministic reader fixtures and their MinIO
+objects, leaving other publications and users untouched. Reruns do not create
+duplicates. Open the regular mobile development app, browse **All Guidelines**,
+and search for **Local test** to test against the local API.
 
 ### Exercise the guideline review workflow
 

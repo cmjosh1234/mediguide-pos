@@ -177,4 +177,180 @@ void main() {
     expect(find.text('Read guideline'), findsNothing);
     expect(find.byTooltip('Download for offline use'), findsNothing);
   });
+  testWidgets('uploaded kinds use the file reader without structured requests', (
+    tester,
+  ) async {
+    final store = TestLocalStore();
+    addTearDown(store.close);
+    tester.view.physicalSize = const Size(430, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final content = GuidelinePublicationContent(
+      publication: _link.copyWith(
+        documentKind: const PublicDocumentKind(
+          slug: 'form',
+          name: 'Form',
+          publishAsUploaded: true,
+        ),
+        externalUrl: '',
+      ),
+      manifest: const GuidelineManifest(
+        guidelineId: 'ucg',
+        versionId: 'v1',
+        hasOriginalPdf: true,
+        recommendedMode: GuidelineReaderMode.structured,
+      ),
+      sections: const [],
+      blocks: const [],
+    );
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, _) => const PublicationGuidelinePage(
+            guidelineId: 'ucg',
+            readerOnly: true,
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          publicationGuidelineProvider('ucg').overrideWith(
+            (_) async =>
+                throw StateError('Structured content must not be requested'),
+          ),
+          guidelineOriginalDocumentProvider(
+            'ucg',
+          ).overrideWith((_) async => null),
+          publicationGuidelineSummaryProvider(
+            'ucg',
+          ).overrideWith((_) async => content),
+          publicationReadingProgressProvider(
+            'ucg',
+          ).overrideWith((_) async => null),
+          guidelineDownloadsControllerProvider.overrideWith(_NoDownloads.new),
+          usageRepositoryProvider.overrideWithValue(
+            UsageRepository(BackendApiService(), store.cache, () => null),
+          ),
+        ],
+        child: MaterialApp.router(
+          theme: AppTheme.light,
+          routerConfig: router,
+          builder: (context, child) => ResponsiveBreakpoints.builder(
+            breakpoints: const [
+              Breakpoint(start: 0, end: 450, name: MOBILE),
+              Breakpoint(start: 451, end: 900, name: TABLET),
+              Breakpoint(start: 901, end: double.infinity, name: DESKTOP),
+            ],
+            child: child!,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('published as its uploaded file'),
+      findsOneWidget,
+    );
+    expect(find.text('Open original document'), findsOneWidget);
+    expect(
+      find.text(
+        'Reviewed structured extraction is not available. Use the original document as the clinical source.',
+      ),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('cached procedure reader opens when the metadata request fails', (
+    tester,
+  ) async {
+    final store = TestLocalStore();
+    addTearDown(store.close);
+    tester.view.physicalSize = const Size(430, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final content = GuidelinePublicationContent(
+      publication: _link.copyWith(
+        documentKind: const PublicDocumentKind(
+          slug: 'sop',
+          name: 'SOP',
+          publishAsUploaded: false,
+        ),
+        externalUrl: '',
+      ),
+      manifest: const GuidelineManifest(
+        guidelineId: 'ucg',
+        versionId: 'v1',
+        hasOriginalPdf: true,
+        recommendedMode: GuidelineReaderMode.structured,
+      ),
+      sections: const [PublicationSection(id: 'intro', title: 'Overview')],
+      blocks: const [
+        GuidelineBlock.paragraph(
+          id: 'p',
+          sectionId: 'intro',
+          sortOrder: 1,
+          text: 'Cached published content',
+        ),
+      ],
+    );
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, _) => const PublicationGuidelinePage(
+            guidelineId: 'ucg',
+            readerOnly: true,
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          publicationGuidelineProvider(
+            'ucg',
+          ).overrideWith((_) async => content),
+          publicationGuidelineSummaryProvider(
+            'ucg',
+          ).overrideWith((_) async => throw StateError('Offline')),
+          publicationReadingProgressProvider(
+            'ucg',
+          ).overrideWith((_) async => null),
+          guidelineDownloadsControllerProvider.overrideWith(_NoDownloads.new),
+          usageRepositoryProvider.overrideWithValue(
+            UsageRepository(BackendApiService(), store.cache, () => null),
+          ),
+        ],
+        child: MaterialApp.router(
+          theme: AppTheme.light,
+          routerConfig: router,
+          builder: (context, child) => ResponsiveBreakpoints.builder(
+            breakpoints: const [
+              Breakpoint(start: 0, end: 450, name: MOBILE),
+              Breakpoint(start: 451, end: 900, name: TABLET),
+              Breakpoint(start: 901, end: double.infinity, name: DESKTOP),
+            ],
+            child: child!,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Procedure reader'), findsOneWidget);
+    expect(find.text('Cached published content'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

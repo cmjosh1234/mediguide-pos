@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path/path.dart' as path;
@@ -10,6 +11,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:user_app/core/constants/app_spacing.dart';
+import 'package:user_app/features/documents/presentation/widgets/document_page_picker.dart';
+import 'package:user_app/features/documents/presentation/widgets/document_actions_sheet.dart';
 import 'package:user_app/core/utils/app_message.dart';
 import 'package:user_app/core/widgets/app_skeleton.dart';
 import 'package:user_app/shared/widgets/clinical_icon_tile.dart';
@@ -266,12 +269,27 @@ class _DocumentReaderPageState extends State<DocumentReaderPage> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Open original PDF',
-            onPressed: _hasValidSource ? _openOriginal : null,
-            icon: const Icon(LucideIcons.externalLink),
+            tooltip: 'Go to page',
+            onPressed: _pageCount > 0 ? _pickPage : null,
+            icon: const Icon(Icons.find_in_page_outlined),
           ),
         ],
       ),
+
+      bottomNavigationBar: !_hasValidSource
+          ? null
+          : _DocumentNavigationBar(
+              currentPage: _currentPage,
+              pageCount: _pageCount,
+              onPrevious: _currentPage > 0
+                  ? () => _goToPage(_currentPage - 1)
+                  : null,
+              onNext: _pageCount > 0 && _currentPage < _pageCount - 1
+                  ? () => _goToPage(_currentPage + 1)
+                  : null,
+              onMore: _showDocumentActions,
+              onPickPage: _pageCount > 0 ? _pickPage : null,
+            ),
 
       body: !_hasValidSource
           ? const _DocumentError(
@@ -386,23 +404,6 @@ class _DocumentReaderPageState extends State<DocumentReaderPage> {
                             ),
                           ),
                         ),
-
-                        _DocumentNavigationBar(
-                          currentPage: _currentPage,
-                          pageCount: _pageCount,
-                          onPrevious: _currentPage > 0
-                              ? () {
-                                  _goToPage(_currentPage - 1);
-                                }
-                              : null,
-                          onNext:
-                              _pageCount > 0 && _currentPage < _pageCount - 1
-                              ? () {
-                                  _goToPage(_currentPage + 1);
-                                }
-                              : null,
-                          onOpenOriginal: _openOriginal,
-                        ),
                       ],
                     ),
 
@@ -430,6 +431,52 @@ class _DocumentReaderPageState extends State<DocumentReaderPage> {
   // =========================================================================
   // RETRY
   // =========================================================================
+
+  Future<void> _showDocumentActions() async {
+    final sourceUri = Uri.tryParse(_source);
+    final action = await showModalBottomSheet<DocumentMenuAction>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: 640),
+      builder: (_) => DocumentActionsSheet(
+        title: _title,
+        kindLabel: _pageCount > 0
+            ? 'PDF document · Page ${_currentPage + 1} of $_pageCount'
+            : 'PDF document',
+        showPagePicker: _pageCount > 0,
+        showLibraryActions: false,
+        showCopyLink:
+            sourceUri?.scheme == 'https' || sourceUri?.scheme == 'http',
+        copyLabel: 'Copy file link',
+        hasOriginal: _hasValidSource,
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case DocumentMenuAction.page:
+        await _pickPage();
+      case DocumentMenuAction.original:
+        await _openOriginal();
+      case DocumentMenuAction.copyLink:
+        await Clipboard.setData(ClipboardData(text: _source));
+        if (mounted) AppMessage.success(context, 'File link copied.');
+      default:
+        break;
+    }
+  }
+
+  Future<void> _pickPage() async {
+    final page = await showDialog<int>(
+      context: context,
+      builder: (_) => DocumentPagePicker(
+        pageCount: _pageCount,
+        currentPage: _currentPage + 1,
+      ),
+    );
+    if (mounted && page != null) _goToPage(page - 1);
+  }
 
   void _retry() {
     _cancelToken?.cancel('Retrying document download');

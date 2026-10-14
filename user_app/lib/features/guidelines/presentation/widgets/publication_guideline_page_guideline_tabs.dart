@@ -3,6 +3,7 @@ part of '../screens/publication_guideline_page.dart';
 class _GuidelineTabs extends StatelessWidget {
   const _GuidelineTabs({
     required this.selectedIndex,
+    this.contentsLabel = 'Chapters',
     required this.hasChapters,
     required this.hasKeyPoints,
     required this.hasTables,
@@ -10,6 +11,7 @@ class _GuidelineTabs extends StatelessWidget {
   });
 
   final int selectedIndex;
+  final String contentsLabel;
 
   final bool hasChapters;
   final bool hasKeyPoints;
@@ -21,7 +23,7 @@ class _GuidelineTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     final tabs = <(String, bool)>[
       ('Overview', true),
-      ('Chapters', hasChapters),
+      (contentsLabel, hasChapters),
       ('Key Points', hasKeyPoints),
       ('Tables', hasTables),
     ];
@@ -37,42 +39,47 @@ class _GuidelineTabs extends StatelessWidget {
         child: Row(
           children: [
             for (var index = 0; index < tabs.length; index++)
-              InkWell(
-                onTap: tabs[index].$2
-                    ? () {
-                        onSelected(index);
-                      }
-                    : null,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        width: 2,
-                        color: selectedIndex == index
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.transparent,
+              if (tabs[index].$2)
+                Semantics(
+                  selected: selectedIndex == index,
+                  button: true,
+                  child: InkWell(
+                    onTap: tabs[index].$2
+                        ? () {
+                            onSelected(index);
+                          }
+                        : null,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            width: 2,
+                            color: selectedIndex == index
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.transparent,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        tabs[index].$1,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: !tabs[index].$2
+                              ? Theme.of(context).disabledColor
+                              : selectedIndex == index
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                          fontWeight: selectedIndex == index
+                              ? FontWeight.w700
+                              : null,
+                        ),
                       ),
                     ),
                   ),
-                  child: Text(
-                    tabs[index].$1,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: !tabs[index].$2
-                          ? Theme.of(context).disabledColor
-                          : selectedIndex == index
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                      fontWeight: selectedIndex == index
-                          ? FontWeight.w700
-                          : null,
-                    ),
-                  ),
                 ),
-              ),
           ],
         ),
       ),

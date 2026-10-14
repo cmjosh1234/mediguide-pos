@@ -137,6 +137,25 @@ func main() {
 		}
 		log.Info().Msg("disease taxonomy seed completed")
 		return
+	case "reader-documents":
+		if cfg.AppEnv != "development" && cfg.AppEnv != "test" {
+			log.Fatal().Msg("reader document fixtures require APP_ENV=development or test")
+		}
+		var reviewer models.User
+		if err := database.Where("email = ?", "reviewer@mediguide.health.go.ug").First(&reviewer).Error; err != nil {
+			log.Fatal().Err(err).Msg("reader fixtures need the existing demo reviewer; run the demo seed first")
+		}
+		store, err := storage.NewMinioStore(cfg)
+		if err != nil {
+			log.Fatal().Err(err).Msg("reader fixture object storage connection failed")
+		}
+		if err := database.Transaction(func(tx *gorm.DB) error {
+			return seedDemoReaderDocuments(context.Background(), tx, store, reviewer.ID)
+		}); err != nil {
+			log.Fatal().Err(err).Msg("reader fixture seed failed")
+		}
+		log.Info().Msg("reader document fixtures seeded")
+		return
 	case "notifications":
 		if strings.EqualFold(cfg.AppEnv, "production") {
 			log.Fatal().Msg("demo notification seeding is disabled in production")

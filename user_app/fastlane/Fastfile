@@ -4,10 +4,16 @@ require "uri"
 opt_out_usage
 default_platform(:android)
 
+# Resolve once while Fastlane evaluates this file inside fastlane/. A relative
+# evaluation filename makes __dir__ depend on the current directory later.
+MEDIGUIDE_MOBILE_PROJECT_ROOT = File.expand_path(
+  ENV.fetch("MOBILE_PROJECT_ROOT", File.expand_path("..", __dir__))
+)
+
 # Fastlane restores its original directory after evaluating this file. Run lane
 # work inside the mobile package instead of relying on the caller's directory.
 def within_mobile_project
-  root = ENV.fetch("MOBILE_PROJECT_ROOT", File.expand_path("..", __dir__))
+  root = MEDIGUIDE_MOBILE_PROJECT_ROOT
   UI.user_error!("Mobile pubspec.yaml not found under #{root}") unless File.file?(File.join(root, "pubspec.yaml"))
 
   Dir.chdir(root) { yield }
@@ -22,7 +28,7 @@ def release_notes
   explicit = ENV["RELEASE_NOTES"].to_s.strip
   return explicit unless explicit.empty?
 
-  root = ENV.fetch("MOBILE_PROJECT_ROOT", File.expand_path("..", __dir__))
+  root = MEDIGUIDE_MOBILE_PROJECT_ROOT
   version = File.read(File.join(root, "pubspec.yaml")).match(/^version:\s*([^+\s]+)\+/)&.captures&.first
   notes = File.join(root, "..", "docs", "releases", "v#{version}", "mobile.md")
   return File.read(notes).strip if mobile_flavor == "production" && File.file?(notes)

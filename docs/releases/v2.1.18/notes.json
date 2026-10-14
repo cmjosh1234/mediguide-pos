@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "release_tag": "v2.1.18",
+  "previous_tag": "v2.1.17",
+  "mobile_build_number": 71,
+  "services": {
+    "mobile": [
+      "Add readers tailored to document kinds, including manuals and frameworks.",
+      "Redesign document overviews, contents navigation, reading settings and source-page access.",
+      "Keep one bottom More menu with grouped reading, library, offline and source actions.",
+      "Fix mobile CI analysis and update reader screenshot fixtures and baselines."
+    ],
+    "api": [
+      "Apply migration 83 to add Manual and Framework document kinds.",
+      "Add deterministic local reader fixtures for all document kinds with original PDFs.",
+      "Filter content-hub assignments by document kind and support audited pillar lifecycle operations."
+    ],
+    "ai-worker": [
+      "No service-specific changes since v2.1.17."
+    ],
+    "dashboard": [
+      "Improve content-hub assignment filtering, pillar archive/save, unarchive, delete and template replacement."
+    ],
+    "guidelines": [
+      "No service-specific changes since v2.1.17."
+    ]
+  },
+  "operations": [
+    "Synchronize platform version 2.1.18 and Android build 71.",
+    "Apply migration 83 through the standard deployment workflow. Reader seed fixtures remain local-development data and must not be seeded in production.",
+    "Distribute the production Android APK through Firebase and upload the production AAB as a Google Play draft using the existing release workflows."
+  ],
+  "play_store": "- Readers tailored to document kinds, including manuals and frameworks.\n- Clearer document overviews and contents navigation.\n- Improved reading settings and source-page access.\n- One bottom More menu for reading, library, downloads and source actions."
+}

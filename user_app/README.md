@@ -58,6 +58,19 @@ fvm flutter run \
   --target lib/main_production.dart
 ```
 
+To preview each document-kind reader on a simulator without adding backend
+records, launch the sample gallery:
+
+```bash
+fvm flutter run -d <simulator-id> \
+  --flavor development \
+  --target tool/reader_preview.dart
+```
+
+The gallery includes dark mode and partial-review samples. Its fixtures use
+neutral sample text; forms exercise the unavailable-original state. Sign-in,
+AI, collections, and downloads should be tested in the regular app.
+
 Development defaults to `http://localhost:8080`; Android emulators resolve it
 through `http://10.0.2.2:8080`. Supply a LAN or dedicated development URL with
 `--dart-define=MEDIGUIDE_API_BASE_URL=...` when testing on a physical device.

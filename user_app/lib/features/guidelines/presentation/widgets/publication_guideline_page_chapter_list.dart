@@ -2,6 +2,7 @@ part of '../screens/publication_guideline_page.dart';
 
 class _ChapterList extends StatefulWidget {
   const _ChapterList({
+    this.contentsLabel = 'Chapters',
     required this.sections,
     required this.blocks,
     required this.currentSectionId,
@@ -9,6 +10,7 @@ class _ChapterList extends StatefulWidget {
     required this.onSection,
   });
 
+  final String contentsLabel;
   final List<PublicationSection> sections;
   final List<GuidelineBlock> blocks;
   final String? currentSectionId;
@@ -99,7 +101,7 @@ class _ChapterListState extends State<_ChapterList> {
           children: [
             Expanded(
               child: Text(
-                'Chapters',
+                widget.contentsLabel,
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
@@ -119,12 +121,13 @@ class _ChapterListState extends State<_ChapterList> {
           textInputAction: TextInputAction.search,
           onChanged: (value) => setState(() => _query = value),
           decoration: InputDecoration(
-            hintText: 'Search chapters and content',
+            hintText:
+                'Search ${widget.contentsLabel.toLowerCase()} and content',
             prefixIcon: const Icon(LucideIcons.search),
             suffixIcon: _query.isEmpty
                 ? null
                 : IconButton(
-                    tooltip: 'Clear chapter search',
+                    tooltip: 'Clear content search',
                     onPressed: () {
                       _searchController.clear();
                       setState(() => _query = '');

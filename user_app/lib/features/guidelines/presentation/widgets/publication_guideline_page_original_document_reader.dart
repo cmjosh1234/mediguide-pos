@@ -37,9 +37,12 @@ class _OriginalDocumentReader extends StatelessWidget {
 
               AppSpacing.gapSm,
 
-              const Text(
-                'Reviewed structured extraction is not available. '
-                'Use the original document as the clinical source.',
+              Text(
+                DocumentReaderKind.forPublication(publication) ==
+                        DocumentReaderKind.uploaded
+                    ? 'This ${publication.documentKind?.name.toLowerCase() ?? 'document'} is published as its uploaded file. Open it to view the original layout.'
+                    : 'Reviewed structured extraction is not available. '
+                          'Use the original document as the clinical source.',
                 textAlign: TextAlign.center,
               ),
 

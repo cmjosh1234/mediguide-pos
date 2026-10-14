@@ -38,6 +38,7 @@ migrate_working_dir/
 /web/drift_worker.dart.js.deps
 /web/drift_worker.dart.js.map
 /coverage/
+/test/failures/
 
 # Generated files
 *.g.dart

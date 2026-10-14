@@ -100,6 +100,39 @@ class ReleaseNotesTest(unittest.TestCase):
         self.assertTrue((self.root / "user_app/fastlane/metadata/android/en-US/changelogs/11.txt").exists())
 
     @unittest.skipUnless(shutil.which("ruby"), "Ruby is required to execute Fastlane lane checks")
+    def test_firebase_notes_survive_fastlane_directory_changes(self):
+        self.generate()
+        self.write("user_app/fastlane/Fastfile", (ROOT / "user_app/fastlane/Fastfile").read_text())
+        code = r'''
+require "json"
+def opt_out_usage; end
+def default_platform(*); end
+def platform(*); end
+module UI
+  def self.user_error!(message); raise message; end
+end
+# Fastlane evaluates the source as "Fastfile" while inside fastlane/, then
+# lane helpers enter the mobile directory before resolving release notes.
+eval(File.read("Fastfile"), TOPLEVEL_BINDING, "Fastfile")
+within_mobile_project { puts JSON.generate({notes: release_notes, root: Dir.pwd}) }
+'''
+        root = self.root / "user_app"
+        env = {k: v for k, v in os.environ.items()
+               if k not in {"MOBILE_PROJECT_ROOT", "RELEASE_NOTES", "MOBILE_FLAVOR"}}
+        env["MOBILE_FLAVOR"] = "production"
+        expected = (self.root / "docs/releases/v1.0.1/mobile.md").read_text().strip()
+        for explicit in [None, "Explicit distribution notes"]:
+            with self.subTest(explicit=explicit):
+                case_env = dict(env)
+                if explicit is not None:
+                    case_env["RELEASE_NOTES"] = explicit
+                output = subprocess.check_output(["ruby", "-e", code], cwd=root / "fastlane",
+                                                 env=case_env, text=True)
+                result = json.loads(output)
+                self.assertEqual(explicit or expected, result["notes"])
+                self.assertEqual(root.resolve(), Path(result["root"]).resolve())
+
+    @unittest.skipUnless(shutil.which("ruby"), "Ruby is required to execute Fastlane lane checks")
     def test_play_notes_lane_resolves_metadata_from_fastlane_working_directory(self):
         self.generate()
         self.write("user_app/key.json", "{}")
