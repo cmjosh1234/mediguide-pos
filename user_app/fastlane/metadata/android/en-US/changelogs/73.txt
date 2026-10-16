@@ -1,0 +1,3 @@
+- Improved access to reviewed structured publications.
+- Preserved withdrawal checks and offline-reading behavior.
+- General reliability improvements.
