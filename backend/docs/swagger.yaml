@@ -3648,6 +3648,14 @@ definitions:
         items:
           $ref: '#/definitions/models.GuidelineVersion'
         type: array
+      withdrawal_reason:
+        type: string
+      withdrawn_at:
+        type: string
+      withdrawn_by:
+        type: string
+      withdrawn_version_id:
+        type: string
     type: object
   models.GuidelineEditorComment:
     properties:
@@ -9802,6 +9810,16 @@ definitions:
       verified:
         type: boolean
     type: object
+  services.WithdrawGuidelineInput:
+    properties:
+      current_version_id:
+        type: string
+      reason:
+        type: string
+    required:
+    - current_version_id
+    - reason
+    type: object
   storage.UploadPart:
     properties:
       etag:
@@ -9820,7 +9838,7 @@ info:
     name: Proprietary
   termsOfService: https://mediguide.local/terms
   title: MediGuide Backend API
-  version: 2.1.18
+  version: 2.1.19
 paths:
   /analytics/accounts:
     get:
@@ -17998,6 +18016,55 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a guideline version
+      tags:
+      - guidelines
+  /api/v2/guidelines/{id}/withdraw:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Document ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Withdrawal reason and expected current version
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/services.WithdrawGuidelineInput'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Withdraw a published guideline, retaining files and review history
       tags:
       - guidelines
   /api/v2/languages:

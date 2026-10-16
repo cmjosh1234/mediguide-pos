@@ -3,6 +3,7 @@ import 'package:user_app/core/utils/app_message.dart';
 import 'package:user_app/features/notifications/presentation/controllers/notification_sync.dart';
 import 'package:user_app/shared/providers/usage_tracking_provider.dart';
 import 'package:user_app/features/calculators/data/repositories/calculator_usage_tracker.dart';
+import 'package:user_app/features/downloads/presentation/controllers/guideline_downloads_controller.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,6 +33,9 @@ class MediGuideApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(authControllerProvider);
     ref.watch(backendReconnectProvider);
+    // Reconcile saved guideline availability at startup and on reconnection,
+    // even when the user never opens the Downloads screen.
+    ref.watch(guidelineDownloadsControllerProvider);
     ref.watch(notificationSyncProvider);
     ref.watch(calculatorUsageSyncProvider);
     ref.watch(usageTrackingProvider);

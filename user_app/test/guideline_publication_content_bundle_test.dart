@@ -5,6 +5,36 @@ import 'package:user_app/features/guidelines/data/repositories/guideline_publica
 import 'helpers/test_local_store.dart';
 
 void main() {
+  test(
+    'confirmed withdrawal purges cached content and cannot reappear offline',
+    () async {
+      final store = TestLocalStore();
+      addTearDown(store.close);
+      final api = _ContentBundleApi();
+      final repository = GuidelinePublicationRepository(api, store.cache);
+      await repository.content('guideline-1');
+      api.manifestError = const BackendApiException(
+        'Withdrawn',
+        statusCode: 404,
+      );
+      await expectLater(
+        repository.content('guideline-1'),
+        throwsA(isA<BackendApiException>()),
+      );
+      api.manifestError = Exception('Offline');
+      await expectLater(repository.content('guideline-1'), throwsException);
+    },
+  );
+
+  test('connection failure preserves the offline publication', () async {
+    final store = TestLocalStore();
+    addTearDown(store.close);
+    final api = _ContentBundleApi();
+    final repository = GuidelinePublicationRepository(api, store.cache);
+    await repository.content('guideline-1');
+    api.manifestError = Exception('Offline');
+    expect((await repository.content('guideline-1')).blocks, hasLength(1));
+  });
   test('loads all chapter blocks through one content request', () async {
     final store = TestLocalStore();
     addTearDown(store.close);
@@ -113,6 +143,7 @@ final class _ContentBundleApi extends BackendApiService {
   final String checksum;
   final bool contentError;
   final paths = <String>[];
+  Object? manifestError;
 
   @override
   Future<Map<String, dynamic>> requestJson(
@@ -124,6 +155,7 @@ final class _ContentBundleApi extends BackendApiService {
   }) async {
     paths.add(path);
     if (path.endsWith('/manifest')) {
+      if (manifestError != null) throw manifestError!;
       return {
         'data': {
           'guideline_id': 'guideline-1',

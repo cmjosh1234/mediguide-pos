@@ -195,7 +195,9 @@ func (h PublicGuidelineHandler) Markdown(c *gin.Context) {
 
 	c.Header("Content-Type", "text/markdown; charset=utf-8")
 	c.Header("Content-Disposition", `inline; filename="`+result.Filename+`"`)
-	c.Header("Cache-Control", "public, max-age=300, stale-while-revalidate=86400")
+	// Publication can be withdrawn without changing the version's content.
+	// Revalidate eligibility before reusing a cached public representation.
+	c.Header("Cache-Control", "public, no-cache, must-revalidate")
 	c.Header("ETag", result.ETag)
 	if !result.LastModified.IsZero() {
 		c.Header("Last-Modified", result.LastModified.Format(http.TimeFormat))
@@ -517,7 +519,7 @@ func respondPublicJSON(c *gin.Context, data any, etag string, modified time.Time
 	if !strings.HasPrefix(etag, `"`) && !strings.HasPrefix(etag, `W/"`) {
 		etag = `"` + etag + `"`
 	}
-	c.Header("Cache-Control", "public, max-age=120, stale-while-revalidate=86400")
+	c.Header("Cache-Control", "public, no-cache, must-revalidate")
 	c.Header("ETag", etag)
 	if !modified.IsZero() {
 		c.Header("Last-Modified", modified.UTC().Format(http.TimeFormat))

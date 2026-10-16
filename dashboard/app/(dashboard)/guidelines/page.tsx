@@ -43,6 +43,7 @@ export default function GuidelinesPage() {
   const { hasPermission, loading: permissionsLoading } = usePermissionContext()
   const canUpdate = hasPermission("content", "update:any")
   const canNotify = hasBackendPermission("notification.campaign.manage")
+  const canPublish = hasBackendPermission("guideline.publish")
   // Mirrors the DELETE /api/v2/guidelines/:id route guard.
   const canDelete = hasBackendPermission("guideline.write") && hasBackendPermission("guideline.publish")
   const [versionDocument, setVersionDocument] = React.useState<GuidelineDocumentRecord | null>(null)
@@ -100,6 +101,8 @@ export default function GuidelinesPage() {
         canUpdate,
         canNotify,
         canDelete,
+        canPublish,
+        onChanged: refresh,
         onView: (document) => router.push(`/guidelines/${document.id}`),
         onEdit: (document) => router.push(`/guidelines/${document.id}/edit`),
         onNewVersion: setVersionDocument,
@@ -113,7 +116,7 @@ export default function GuidelinesPage() {
         onNotify: setNotificationDocument,
         onDelete: setDeletingDocument,
       }),
-    [canDelete, canNotify, canUpdate, router]
+    [canDelete, canNotify, canPublish, canUpdate, refresh, router]
   )
 
   async function createVersion(payload: CreateGuidelineVersionInput) {
@@ -259,7 +262,7 @@ export default function GuidelinesPage() {
         open={Boolean(deletingDocument)}
         onOpenChange={(open) => !open && setDeletingDocument(null)}
         title="Delete guideline"
-        description={`Delete "${deletingDocument?.title ?? ""}"? It will be removed from the public library, the mobile app and search immediately. Version history is kept for audit.`}
+        description={`Delete "${deletingDocument?.title ?? ""}"? This removes it from the dashboard and public access. Use Withdraw to keep it in the dashboard for review and republication. Version history is kept for audit.`}
         confirmText="Delete"
         variant="destructive"
         onConfirm={deleteGuideline}

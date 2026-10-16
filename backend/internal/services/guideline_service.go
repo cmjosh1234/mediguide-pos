@@ -209,7 +209,7 @@ func (s GuidelineService) UpdateDocument(id uuid.UUID, in UpdateGuidelineInput) 
 func (s GuidelineService) DeleteDocument(id, actorID uuid.UUID, ip string) error {
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		var document models.GuidelineDocument
-		if err := tx.First(&document, "id = ?", id).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&document, "id = ?", id).Error; err != nil {
 			return err
 		}
 		if err := tx.Delete(&document).Error; err != nil {
@@ -358,11 +358,19 @@ func (s GuidelineService) PublishVersion(versionID uuid.UUID, userID uuid.UUID, 
 		if err := tx.First(&v, "id = ?", versionID).Error; err != nil {
 			return err
 		}
+		// Serialize publication and withdrawal on the same document. A deleted
+		// document cannot be republished through a retained version.
+		var document models.GuidelineDocument
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&document, "id = ?", v.DocumentID).Error; err != nil {
+			return err
+		}
 		if err := ensureVersionReadyForPublish(tx, &v); err != nil {
 			return err
 		}
-		if err := tx.Model(&v).Updates(map[string]any{"status": "published", "approved_by": userID, "approved_at": now}).Error; err != nil {
-			return err
+		if v.Status != "published" {
+			if err := tx.Model(&v).Updates(map[string]any{"status": "published", "approved_by": userID, "approved_at": now}).Error; err != nil {
+				return err
+			}
 		}
 		if v.CurrentMarkdownRevisionID != nil {
 			if err := tx.Model(&models.GuidelineMarkdownRevision{}).
@@ -412,7 +420,18 @@ func (s GuidelineService) PublishVersion(versionID uuid.UUID, userID uuid.UUID, 
 		if _, err := generateGuidelineVersionManifest(tx, versionID, publishedAt); err != nil {
 			return err
 		}
-		if err := tx.Model(&models.GuidelineDocument{}).Where("id = ?", v.DocumentID).Update("current_version_id", versionID).Error; err != nil {
+		if document.WithdrawnAt != nil {
+			if err := writeGuidelineAudit(tx, userID, "guideline.document.republished", "guideline_document", document.ID, ip, map[string]any{
+				"version_id": versionID, "withdrawn_version_id": document.WithdrawnVersionID,
+				"previous_withdrawal_reason": document.WithdrawalReason,
+			}); err != nil {
+				return err
+			}
+		}
+		if err := tx.Model(&document).Updates(map[string]any{
+			"current_version_id": versionID, "withdrawn_version_id": nil,
+			"withdrawn_at": nil, "withdrawn_by": nil, "withdrawal_reason": "",
+		}).Error; err != nil {
 			return err
 		}
 		return writeGuidelineAudit(tx, userID, "guideline.version.published", "guideline_version", versionID, ip, map[string]any{"document_id": v.DocumentID})

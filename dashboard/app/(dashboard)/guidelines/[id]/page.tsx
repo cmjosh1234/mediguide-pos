@@ -26,6 +26,8 @@ import { RichContent } from "@/components/ui/rich-content";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePermissionContext } from "@/lib/permission-context";
 import { showToast } from "@/lib/toast";
+import { hasBackendPermission } from "@/lib/backend-client";
+import { GuidelinePublicationAction } from "../components/guideline-publication-action";
 import { OriginalFilePreview } from "@/components/guidelines/original-file-preview";
 import {
   CreateGuidelineVersionInput,
@@ -203,6 +205,14 @@ export default function GuidelineDetailsPage() {
 
   return (
     <div className="space-y-6">
+      {document.withdrawn_at && (
+        <div className="rounded-md border border-destructive p-4 space-y-2">
+          <Badge variant="destructive">Withdrawn</Badge>
+          <p className="text-sm whitespace-pre-wrap break-words">{document.withdrawal_reason}</p>
+          <p className="text-sm text-muted-foreground">Withdrawn {new Date(document.withdrawn_at).toLocaleString()} · By {document.withdrawn_by}</p>
+        </div>
+      )}
+      {hasBackendPermission("guideline.publish") && <GuidelinePublicationAction document={document} onChanged={refresh} />}
       <PageHeader
         title={document.title}
         description={

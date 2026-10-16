@@ -12889,6 +12889,82 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/guidelines/{id}/withdraw": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guidelines"
+                ],
+                "summary": "Withdraw a published guideline, retaining files and review history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Document ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Withdrawal reason and expected current version",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.WithdrawGuidelineInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/languages": {
             "get": {
                 "security": [
@@ -23868,6 +23944,18 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.GuidelineVersion"
                     }
+                },
+                "withdrawal_reason": {
+                    "type": "string"
+                },
+                "withdrawn_at": {
+                    "type": "string"
+                },
+                "withdrawn_by": {
+                    "type": "string"
+                },
+                "withdrawn_version_id": {
+                    "type": "string"
                 }
             }
         },
@@ -33175,6 +33263,21 @@ const docTemplate = `{
                 }
             }
         },
+        "services.WithdrawGuidelineInput": {
+            "type": "object",
+            "required": [
+                "current_version_id",
+                "reason"
+            ],
+            "properties": {
+                "current_version_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
         "storage.UploadPart": {
             "type": "object",
             "properties": {
@@ -33202,7 +33305,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "2.1.18",
+	Version:          "2.1.19",
 	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},

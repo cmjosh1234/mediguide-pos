@@ -383,7 +383,9 @@ async function request(
   externalSignal?.addEventListener("abort", abort, { once: true });
 
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    // Recheck publication eligibility even if an earlier response allowed
+    // browser caching. A withdrawn source must not be served from that cache.
+    return await fetch(url, { ...options, cache: "no-store", signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
       if (externalSignal?.aborted) throw error;

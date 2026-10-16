@@ -7538,6 +7538,14 @@ final class ModelsGuidelineDocument {
         .toList(growable: false);
   }
 
+  String? get withdrawalReason => value['withdrawal_reason']?.toString();
+
+  String? get withdrawnAt => value['withdrawn_at']?.toString();
+
+  String? get withdrawnBy => value['withdrawn_by']?.toString();
+
+  String? get withdrawnVersionId => value['withdrawn_version_id']?.toString();
+
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
@@ -17553,6 +17561,23 @@ final class ServicesUserView {
   String? get updatedAt => value['updated_at']?.toString();
 
   bool? get verified => value['verified'] as bool?;
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesWithdrawGuidelineInput {
+  ServicesWithdrawGuidelineInput(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesWithdrawGuidelineInput.fromJson(Map<String, dynamic> json) =>
+      ServicesWithdrawGuidelineInput(json);
+
+  static const schemaName = 'services.WithdrawGuidelineInput';
+  final Map<String, dynamic> value;
+
+  String? get currentVersionId => value['current_version_id']?.toString();
+
+  String? get reason => value['reason']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }

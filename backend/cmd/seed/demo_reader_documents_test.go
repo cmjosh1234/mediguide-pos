@@ -133,4 +133,24 @@ func TestReaderSeedIsIdempotentAndRespectsPublicationModes(t *testing.T) {
 	if count != 0 {
 		t.Fatal("partial sample must not expose unreviewed text in an offline ZIP")
 	}
+	// Reseeding must not silently publish a document an administrator withdrew.
+	for _, key := range []string{"reader-test-sop", "reader-test-form", "reader-test-link"} {
+		if err := database.Model(&models.GuidelineDocument{}).Where("id = ?", demoID("guideline", key)).Updates(map[string]any{
+			"current_version_id": nil, "withdrawn_at": time.Now().UTC(), "withdrawal_reason": "Under review",
+		}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := seedDemoReaderDocuments(context.Background(), database, store, uuid.New()); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"reader-test-sop", "reader-test-form", "reader-test-link"} {
+		var document models.GuidelineDocument
+		if err := database.First(&document, "id = ?", demoID("guideline", key)).Error; err != nil {
+			t.Fatal(err)
+		}
+		if document.CurrentVersionID != nil || document.WithdrawnAt == nil || document.WithdrawalReason != "Under review" {
+			t.Fatalf("reseed restored withdrawn %s", key)
+		}
+	}
 }

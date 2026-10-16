@@ -1,0 +1,3 @@
+- Withdrawn publications are removed from saved downloads when the app checks online.
+- Offline reading remains available during connection failures.
+- Improved publication availability checks at startup and reconnection.

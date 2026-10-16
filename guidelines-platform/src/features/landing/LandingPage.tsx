@@ -15,6 +15,7 @@ import {
   ShieldIcon,
 } from "../../components/common/Icons";
 import { dashboardLoginUrl } from "../../config";
+import { subscribeToPublicationRefresh } from "./publication-refresh";
 
 type LibraryState =
   | { status: "loading" }
@@ -44,10 +45,12 @@ export function LandingPage() {
     document.title = "MediGuide Clinical Guidelines";
   }, []);
 
+  useEffect(() => subscribeToPublicationRefresh(() => setReloadKey((value) => value + 1)), []);
+
   useEffect(() => {
     const controller = new AbortController();
     listPublicGuidelineDocumentKinds(controller.signal)
-      .then(setDocumentKinds)
+      .then((kinds) => { if (!controller.signal.aborted) setDocumentKinds(kinds); })
       .catch(() => {
         if (!controller.signal.aborted && import.meta.env.DEV) {
           console.warn("Public document kinds request failed");
@@ -72,6 +75,7 @@ export function LandingPage() {
         controller.signal,
       )
         .then((result) => {
+          if (controller.signal.aborted) return;
           setLibrary({
             status: "ready",
             items: result.items,

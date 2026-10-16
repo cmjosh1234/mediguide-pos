@@ -1,10 +1,34 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 
 import { normalizeDashboardBaseUrl } from "./config";
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.resetModules();
+});
+
+describe("public API configuration", () => {
+  it("uses the configured API after the development config script loads", async () => {
+    const browser = { __APP_CONFIG__: {} };
+    const script = readFileSync(new URL("../public/config.js", import.meta.url), "utf8");
+    runInNewContext(script, { window: browser });
+    vi.stubGlobal("window", browser);
+    vi.stubEnv("VITE_MEDIGUIDE_API_URL", "http://127.0.0.1:8080");
+    vi.resetModules();
+    const config = await import("./config");
+    expect(config.publicApiBaseUrl).toBe("http://127.0.0.1:8080");
+  });
+
+  it("preserves production runtime API configuration over build-time defaults", async () => {
+    vi.stubGlobal("window", { __APP_CONFIG__: { mediguideApiUrl: "https://api.example.org/" } });
+    vi.stubEnv("VITE_MEDIGUIDE_API_URL", "http://127.0.0.1:8080");
+    vi.resetModules();
+    const config = await import("./config");
+    expect(config.publicApiBaseUrl).toBe("https://api.example.org");
+  });
 });
 
 describe("normalizeDashboardBaseUrl", () => {

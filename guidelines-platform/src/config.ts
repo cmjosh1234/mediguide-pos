@@ -8,7 +8,7 @@ declare global {
 }
 
 const defaultMediguidePosUrl = "http://localhost:3000";
-const defaultMediguideApiUrl = "http://localhost:8080";
+const defaultMediguideApiUrl = "http://127.0.0.1:8080";
 
 function normalizeBaseUrl(value: string | undefined, fallback: string) {
   return (value?.trim() || fallback).replace(/\/+$/, "");

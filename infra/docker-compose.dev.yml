@@ -33,7 +33,7 @@ services:
       target: development
     environment:
       NODE_ENV: development
-      NEXT_PUBLIC_API_BASE_URL: "${PUBLIC_API_BASE_URL:-http://localhost:8080}"
+      NEXT_PUBLIC_API_BASE_URL: "${PUBLIC_API_BASE_URL:-http://127.0.0.1:8080}"
       NEXT_PUBLIC_DASHBOARD_BASE_PATH: "${DASHBOARD_BASE_PATH:-/admin}"
     volumes:
       - ../dashboard:/app
@@ -61,7 +61,7 @@ services:
       NODE_ENV: development
       CHOKIDAR_USEPOLLING: "${CHOKIDAR_USEPOLLING:-true}"
       VITE_MEDIGUIDE_POS_URL: "${DASHBOARD_PUBLIC_URL:-http://localhost:3000}"
-      VITE_MEDIGUIDE_API_URL: "${PUBLIC_API_BASE_URL:-http://localhost:8080}"
+      VITE_MEDIGUIDE_API_URL: "${PUBLIC_API_BASE_URL:-http://127.0.0.1:8080}"
       VITE_HOST: 0.0.0.0
       VITE_PORT: 8080
     command:

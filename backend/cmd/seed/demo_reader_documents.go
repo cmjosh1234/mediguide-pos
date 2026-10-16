@@ -108,7 +108,7 @@ func seedDemoReaderDocuments(ctx context.Context, database *gorm.DB, store stora
 			}); err != nil {
 				return err
 			}
-			if err := database.Table("guideline_documents").Where("id = ?", documentID).Update("current_version_id", versionID).Error; err != nil {
+			if err := database.Table("guideline_documents").Where("id = ? AND withdrawn_at IS NULL", documentID).Update("current_version_id", versionID).Error; err != nil {
 				return err
 			}
 			if err := upsertByID(database, "guideline_version_manifests", map[string]any{

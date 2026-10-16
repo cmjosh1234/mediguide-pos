@@ -2244,6 +2244,10 @@ export interface ModelsGuidelineDocument {
   title?: string;
   updated_at?: string;
   versions?: ModelsGuidelineVersion[];
+  withdrawal_reason?: string;
+  withdrawn_at?: string;
+  withdrawn_by?: string;
+  withdrawn_version_id?: string;
 }
 
 export interface ModelsGuidelineEditorComment {
@@ -5589,6 +5593,11 @@ export interface ServicesUserView {
   timezone?: string;
   updated_at?: string;
   verified?: boolean;
+}
+
+export interface ServicesWithdrawGuidelineInput {
+  current_version_id: string;
+  reason: string;
 }
 
 export interface StorageUploadPart {
