@@ -417,6 +417,15 @@ The main tuning variables are:
 | `OCR_WORKERS` | `2` | Bounded OCR parallelism |
 | `EMBEDDING_WORKERS` | `2` | Bounded embedding-batch parallelism for providers that support isolated clients |
 | `EMBEDDING_REQUEST_BATCH_SIZE` | `8` | Texts sent in one embedding provider request |
+| `OLLAMA_EMBEDDING_TIMEOUT_SECONDS` | `300` | Embedding read/write deadline per request (maximum `1800`); connection deadline stays at 10 seconds |
+
+When an Ollama batch hits its read deadline, the worker halves it and retries
+the full inputs in order. Each provider instance retains the smaller batch limit
+for later batches in that job. A single-input timeout gets one retry, then fails
+the job with indexing-specific guidance. Successful complete batches remain
+checkpointed for a later job retry; timeout recovery does not shorten clinical
+text or replace embeddings with placeholders. A persistently overloaded or
+unavailable model still requires an operator to check capacity and availability.
 
 `INGESTION_ARTIFACT_REUSE=true` checkpoints reusable extraction and embedding
 artifacts. Failed jobs can therefore restart safely without repeating successful

@@ -130,6 +130,7 @@ class Settings(BaseSettings):
         default="mxbai-embed-large:latest",
         validation_alias=AliasChoices("OLLAMA_EMBEDDING_MODEL"),
     )
+    ollama_embedding_timeout_seconds: float = Field(default=300, gt=0, le=1800)
 
     rag_top_k: int = 6
     rag_min_similarity: float = 0.15
