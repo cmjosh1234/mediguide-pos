@@ -14,7 +14,6 @@ import {
   DownloadIcon,
   ShieldIcon,
 } from "../../components/common/Icons";
-import { dashboardLoginUrl } from "../../config";
 import { subscribeToPublicationRefresh } from "./publication-refresh";
 
 type LibraryState =
@@ -144,9 +143,6 @@ export function LandingPage() {
             <div className="hero-actions">
               <a className="button button-primary" href="#guidelines">
                 Browse guidelines <ArrowIcon />
-              </a>
-              <a className="button button-quiet" href={dashboardLoginUrl}>
-                Open staff dashboard
               </a>
             </div>
             <div className="trust-line">
