@@ -915,6 +915,13 @@ definitions:
       success:
         type: boolean
     type: object
+  handlers.GuidelineRevisionEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/services.GuidelineRevisionResult'
+      success:
+        type: boolean
+    type: object
   handlers.GuidelineSectionEnvelope:
     properties:
       data:
@@ -3986,10 +3993,18 @@ definitions:
         type: string
       review_date:
         type: string
+      revision_source:
+        type: string
+      revision_warnings:
+        items:
+          type: string
+        type: array
       sections:
         items:
           $ref: '#/definitions/models.GuidelineSection'
         type: array
+      source_version_id:
+        type: string
       status:
         type: string
       structured_content_status:
@@ -6622,6 +6637,13 @@ definitions:
       name:
         type: string
     type: object
+  services.GuidelineRevisionResult:
+    properties:
+      existing:
+        type: boolean
+      version:
+        $ref: '#/definitions/models.GuidelineVersion'
+    type: object
   services.GuidelineSectionOrderInput:
     properties:
       id:
@@ -9171,6 +9193,16 @@ definitions:
         $ref: '#/definitions/models.GuidelineBlockReviewStatus'
     required:
     - status
+    type: object
+  services.ReviseGuidelineInput:
+    properties:
+      source_version_id:
+        type: string
+      version:
+        type: string
+    required:
+    - source_version_id
+    - version
     type: object
   services.RoleInput:
     properties:
@@ -17977,6 +18009,55 @@ paths:
       tags:
       - guidelines
       - notification-administration
+  /api/v2/guidelines/{id}/revise:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Document ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Withdrawn source and new version
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/services.ReviseGuidelineInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GuidelineRevisionEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create or continue an unapproved draft from a withdrawn publication
+      tags:
+      - guidelines
   /api/v2/guidelines/{id}/versions:
     post:
       consumes:

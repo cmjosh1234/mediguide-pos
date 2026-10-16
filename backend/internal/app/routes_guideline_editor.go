@@ -14,6 +14,7 @@ func registerGuidelineEditorRoutes(protected *gin.RouterGroup, rateLimiter *midd
 	protected.PATCH("/guidelines/:id", middleware.RequirePermission("guideline.write"), guidelineH.Update)
 	protected.DELETE("/guidelines/:id", middleware.RequirePermission("guideline.write"), middleware.RequirePermission("guideline.publish"), guidelineH.Delete)
 	protected.POST("/guidelines/:id/withdraw", middleware.RequirePermission("guideline.publish"), guidelineH.Withdraw)
+	protected.POST("/guidelines/:id/revise", middleware.RequirePermission("guideline.write"), middleware.RequirePermission("guideline.markdown.edit"), guidelineH.ReviseWithdrawnDocument)
 	protected.POST("/guidelines/:id/versions", middleware.RequirePermission("guideline.write"), guidelineH.CreateVersion)
 	protected.POST("/guideline-versions/:id/upload", middleware.RequirePermission("guideline.markdown.upload"), rateLimiter.Limit(middleware.Policy("guideline-upload", 10, time.Hour, 0), middleware.UserIdentity), rateLimiter.Concurrency("guideline-upload", 1, 15*time.Minute, middleware.UserIdentity), guidelineH.UploadPDF)
 	protected.PUT("/guideline-versions/:id/link", middleware.RequirePermission("guideline.markdown.upload"), guidelineH.SetLink)

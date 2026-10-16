@@ -217,6 +217,10 @@ export default function GuidelineMarkdownPage() {
         </Button>
       </header>
 
+      {!!data.version.revision_warnings?.length && <Alert>
+        <AlertTitle>Revision source and omissions</AlertTitle>
+        <AlertDescription><ul className="list-disc space-y-1 pl-5">{data.version.revision_warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></AlertDescription>
+      </Alert>}
       <GuidelineMarkdownEditor
         key={data.version.id}
         documentId={data.document.id}

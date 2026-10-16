@@ -28,6 +28,9 @@ export interface GuidelineNotificationCampaignInput extends Omit<
 export interface GuidelineVersionRecord {
   id: string;
   document_id: string;
+  source_version_id?: string | null;
+  revision_source?: string;
+  revision_warnings?: string[];
   version: string;
   publication_date?: string;
   review_date?: string;
@@ -521,6 +524,11 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 export class GuidelineDocumentsService {
+  static async reviseDocument(documentId: string, sourceVersionId: string, version: string): Promise<{ version: GuidelineVersionRecord; existing: boolean }> {
+    return getBackendClient().send(`/api/v2/guidelines/${documentId}/revise`, {
+      method: "POST", body: JSON.stringify({ source_version_id: sourceVersionId, version }),
+    });
+  }
   static async listDocuments(
     programArea?: string,
   ): Promise<GuidelineDocumentsPage> {

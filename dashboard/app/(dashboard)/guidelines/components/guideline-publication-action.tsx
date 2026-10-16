@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { showToast } from "@/lib/toast"
+import { withDashboardBasePath } from "@/lib/dashboard-path"
 import { GuidelineDocumentRecord, GuidelineDocumentsService } from "@/services/guideline-documents.service"
 
 export function GuidelinePublicationAction({ document, onChanged }: {
@@ -59,7 +60,7 @@ export function GuidelinePublicationAction({ document, onChanged }: {
           {withdrawn ? <div className="space-y-3 text-sm">
             <p className="whitespace-pre-wrap break-words"><strong>Withdrawal reason:</strong> {document.withdrawal_reason}</p>
             <p>Withdrawn {new Date(document.withdrawn_at!).toLocaleString()}</p>
-            <a className="text-primary underline" href={`/guidelines/${document.id}`} target="_blank" rel="noopener noreferrer">Open document and version history for review</a>
+            <a className="text-primary underline" href={withDashboardBasePath(`/guidelines/${document.id}`)} target="_blank" rel="noopener noreferrer">Open document and version history for review</a>
             <label className="flex items-start gap-2">
               <input type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} required disabled={busy} />
               I have reviewed this version and confirm it is ready for publication.

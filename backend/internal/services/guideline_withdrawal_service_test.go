@@ -5,11 +5,63 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"mediguide/internal/models"
 
 	"github.com/google/uuid"
 )
+
+func TestGuidelineRepublicationRejectsMissingOrChangedRetainedPublication(t *testing.T) {
+	for _, name := range []string{"missing manifest", "missing approval", "changed revision", "different current version", "different withdrawn version", "invalid source"} {
+		t.Run(name, func(t *testing.T) {
+			db := publicGuidelineTestDB(t)
+			kind := models.DocumentKind{Name: "Link", Slug: "link", Status: "active", PublishAsLink: true}
+			if err := db.Create(&kind).Error; err != nil {
+				t.Fatal(err)
+			}
+			doc := models.GuidelineDocument{Title: "Retained guidance", DocumentKindID: &kind.ID}
+			db.Create(&doc)
+			actor := uuid.New()
+			approvedAt := time.Now().UTC().Format(time.RFC3339)
+			version := models.GuidelineVersion{DocumentID: doc.ID, Version: "1", Status: "published", ExternalURL: "https://example.org/guidance", ApprovedBy: &actor, ApprovedAt: &approvedAt}
+			db.Create(&version)
+			db.Model(&doc).Update("current_version_id", version.ID)
+			if _, err := generateGuidelineVersionManifest(db, version.ID, time.Now().UTC()); err != nil {
+				t.Fatal(err)
+			}
+			service := GuidelineService{DB: db}
+			if err := service.WithdrawDocument(doc.ID, actor, WithdrawGuidelineInput{Reason: "Review", CurrentVersionID: version.ID}, ""); err != nil {
+				t.Fatal(err)
+			}
+			want := ErrGuidelineValidationFailed
+			switch name {
+			case "missing manifest":
+				db.Where("version_id = ?", version.ID).Delete(&models.GuidelineVersionManifest{})
+			case "missing approval":
+				db.Model(&version).Update("approved_by", nil)
+			case "changed revision":
+				db.Model(&version).Update("current_markdown_revision_id", uuid.New())
+			case "different current version":
+				db.Model(&doc).Update("current_version_id", uuid.New())
+				want = ErrGuidelinePublicationConflict
+			case "different withdrawn version":
+				db.Model(&doc).Update("withdrawn_version_id", uuid.New())
+				want = ErrGuidelinePublicationConflict
+			case "invalid source":
+				db.Model(&version).Update("external_url", "")
+			}
+			if err := service.PublishVersion(version.ID, actor); !errors.Is(err, want) {
+				t.Fatalf("got %v, want %v", err, want)
+			}
+			var retained models.GuidelineDocument
+			db.First(&retained, "id = ?", doc.ID)
+			if retained.WithdrawnAt == nil || retained.WithdrawalReason != "Review" {
+				t.Fatal("failed republication cleared withdrawal metadata")
+			}
+		})
+	}
+}
 
 func TestGuidelineWithdrawalRetainsHistoryAndCanRepublish(t *testing.T) {
 	db := publicGuidelineTestDB(t)

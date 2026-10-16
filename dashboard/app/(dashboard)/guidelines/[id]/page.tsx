@@ -28,6 +28,7 @@ import { usePermissionContext } from "@/lib/permission-context";
 import { showToast } from "@/lib/toast";
 import { hasBackendPermission } from "@/lib/backend-client";
 import { GuidelinePublicationAction } from "../components/guideline-publication-action";
+import { GuidelineRevisionAction } from "../components/guideline-revision-action";
 import { OriginalFilePreview } from "@/components/guidelines/original-file-preview";
 import {
   CreateGuidelineVersionInput,
@@ -213,6 +214,7 @@ export default function GuidelineDetailsPage() {
         </div>
       )}
       {hasBackendPermission("guideline.publish") && <GuidelinePublicationAction document={document} onChanged={refresh} />}
+      {canUpdate && hasBackendPermission("guideline.markdown.edit") && <GuidelineRevisionAction document={document} onChanged={refresh} />}
       <PageHeader
         title={document.title}
         description={
@@ -223,16 +225,16 @@ export default function GuidelineDetailsPage() {
           canUpdate
             ? [
                 {
-                  label: "Edit Metadata",
+                  label: "Edit details",
                   icon: <Pencil className="h-4 w-4" />,
                   onClick: () => router.push(`/guidelines/${id}/edit`),
                   variant: "outline",
                 },
-                {
+                ...(document.withdrawn_at ? [] : [{
                   label: "New Version",
                   icon: <FilePlus2 className="h-4 w-4" />,
                   onClick: () => setCreateVersionOpen(true),
-                },
+                }]),
               ]
             : []
         }
@@ -294,7 +296,9 @@ export default function GuidelineDetailsPage() {
                   ),
                 );
               return (
-                <div key={version.id} className="rounded-lg border p-4">
+                <div key={version.id} id={`version-${version.id}`} className="rounded-lg border p-4">
+                  {version.source_version_id && <p className="mb-2 text-sm text-muted-foreground">Revision of version {document.versions.find(item => item.id === version.source_version_id)?.version || version.source_version_id}. Previous approvals do not carry over.</p>}
+                  {!!version.revision_warnings?.length && <ul className="mb-3 list-disc pl-5 text-sm text-muted-foreground">{version.revision_warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <div className="flex items-center gap-2">
@@ -308,7 +312,7 @@ export default function GuidelineDetailsPage() {
                               : "secondary"
                           }
                         >
-                          {version.status}
+                          {document.withdrawn_at && document.withdrawn_version_id === version.id ? "Withdrawn" : version.status === "published" && document.current_version_id !== version.id ? "Previously published" : version.status}
                         </Badge>
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
@@ -385,7 +389,7 @@ export default function GuidelineDetailsPage() {
                     </div>
                     ) : (
                     <div className="flex flex-wrap gap-2">
-                      {canUpdate && (
+                      {canUpdate && version.status !== "published" && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -394,7 +398,8 @@ export default function GuidelineDetailsPage() {
                           <Upload className="h-4 w-4" /> Upload PDF
                         </Button>
                       )}
-                      {(hasMarkdown || hasHtml) && (
+                      {version.original_file_key && <Button variant="outline" size="sm" onClick={() => setPreviewVersion(version)}><Eye className="h-4 w-4" /> Preview original</Button>}
+                      {(hasMarkdown || hasHtml || version.extraction_schema_version) && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -591,7 +596,7 @@ export default function GuidelineDetailsPage() {
       {previewVersion && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>Form — version {previewVersion.version}</CardTitle>
+            <CardTitle>Original file — version {previewVersion.version}</CardTitle>
             <Button variant="ghost" size="sm" onClick={() => setPreviewVersion(null)}>
               Close
             </Button>

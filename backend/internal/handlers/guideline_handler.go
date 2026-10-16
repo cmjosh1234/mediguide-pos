@@ -433,7 +433,7 @@ func (h GuidelineHandler) Publish(c *gin.Context) {
 	}
 	claims := c.MustGet(middleware.ClaimsKey).(*security.Claims)
 	if err := h.Service.PublishVersion(versionID, claims.UserID, c.ClientIP()); err != nil {
-		if errors.Is(err, services.ErrGuidelineIngestionIncomplete) || errors.Is(err, services.ErrGuidelineIngestionFailed) {
+		if errors.Is(err, services.ErrGuidelineIngestionIncomplete) || errors.Is(err, services.ErrGuidelineIngestionFailed) || errors.Is(err, services.ErrGuidelinePublicationConflict) {
 			httpx.Error(c, http.StatusConflict, err.Error())
 			return
 		}

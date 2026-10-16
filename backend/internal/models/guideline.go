@@ -30,6 +30,9 @@ type GuidelineDocument struct {
 type GuidelineVersion struct {
 	Base
 	DocumentID                   uuid.UUID                 `gorm:"type:uuid;index;not null" json:"document_id"`
+	SourceVersionID              *uuid.UUID                `gorm:"type:uuid;index" json:"source_version_id,omitempty"`
+	RevisionSource               string                    `gorm:"not null;default:''" json:"revision_source"`
+	RevisionWarnings             datatypes.JSON            `gorm:"type:jsonb;not null;default:'[]'" json:"revision_warnings" swaggertype:"array,string"`
 	Version                      string                    `gorm:"not null" json:"version"`
 	PublicationDate              string                    `json:"publication_date"`
 	ReviewDate                   string                    `json:"review_date"`
