@@ -677,6 +677,19 @@ func TestGuidelinePublicationValidationRejectsStructuralRegression(t *testing.T)
 	if validation.Valid || !hasGuidelineReviewIssue(validation.Errors, "structural_regression") || !hasGuidelineReviewIssue(validation.Errors, "reviewed_content_regression") {
 		t.Fatalf("structural collapse passed publication validation: %#v", validation.Errors)
 	}
+	if err := db.Model(&document).Update("current_version_id", nil).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Model(&candidate).Update("source_version_id", current.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	validation, err = (GuidelineService{DB: db}).ValidateVersionForPublication(candidate.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if validation.Valid || !hasGuidelineReviewIssue(validation.Errors, "structural_regression") || !hasGuidelineReviewIssue(validation.Errors, "reviewed_content_regression") {
+		t.Fatalf("withdrawn-source regression was not blocked: %#v", validation.Errors)
+	}
 }
 
 func TestGuidelinePublicationValidationNamesUnreviewedTable(t *testing.T) {

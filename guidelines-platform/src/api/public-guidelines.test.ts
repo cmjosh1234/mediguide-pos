@@ -44,6 +44,7 @@ describe("public guideline API client", () => {
     expect(url).toContain("program_area=Care");
     expect(url).toContain("document_kind=guideline");
     expect(url).not.toContain("/markdown");
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ cache: "no-store" });
   });
 
   it("loads the document-kind sections represented in the public library", async () => {

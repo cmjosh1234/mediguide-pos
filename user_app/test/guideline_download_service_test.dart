@@ -5,6 +5,14 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:user_app/app/providers/app_providers.dart';
+import 'package:user_app/core/network/api_client.dart';
+import 'package:user_app/features/authentication/presentation/controllers/auth_controller.dart';
+import 'package:user_app/features/authentication/presentation/controllers/auth_state.dart';
+import 'package:user_app/features/downloads/presentation/controllers/guideline_downloads_controller.dart';
+import 'package:user_app/features/guidelines/data/repositories/guideline_publication_repository.dart';
+import 'package:user_app/shared/providers/connectivity_provider.dart';
 import 'package:user_app/core/services/download_service.dart';
 import 'package:user_app/features/downloads/data/models/offline_download.dart';
 import 'package:user_app/features/guidelines/data/models/guideline_publication.dart';
@@ -66,6 +74,47 @@ void main() {
     expect(await File(result.localPath).exists(), isFalse);
     expect(await service.list('public'), isEmpty);
   });
+
+  test(
+    'download reconciliation removes a withdrawn document from disk',
+    () async {
+      final saved = await service.download(
+        guidelineId: 'withdrawn-guideline',
+        title: 'Withdrawn guideline',
+        version: '1',
+        assetType: 'offline_package',
+        asset: asset(),
+        scope: 'public',
+      );
+      final container = ProviderContainer(
+        overrides: [
+          authControllerProvider.overrideWith(_GuestAuthController.new),
+          connectivityProvider.overrideWith((ref) => Stream.value(false)),
+          guidelineDownloadServiceProvider.overrideWithValue(service),
+          guidelinePublicationRepositoryProvider.overrideWithValue(
+            GuidelinePublicationRepository(
+              _WithdrawnPublicationApi(),
+              store.cache,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(authControllerProvider.future);
+      final removed = service.changes.firstWhere(
+        (item) => item.id == saved.id && item.localPath.isEmpty,
+      );
+      final subscription = container.listen(
+        guidelineDownloadsControllerProvider,
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      await container.read(guidelineDownloadsControllerProvider.future);
+      await removed.timeout(const Duration(seconds: 5));
+      expect(await File(saved.localPath).exists(), isFalse);
+      expect(await service.list('public'), isEmpty);
+    },
+  );
 
   test('rejects corrupt content and never leaves a partial package', () async {
     await expectLater(
@@ -192,6 +241,22 @@ void main() {
       expect(await File(document.localPath).exists(), isFalse);
     },
   );
+}
+
+final class _GuestAuthController extends AuthController {
+  @override
+  Future<AuthState> build() async => const AuthState.unauthenticated();
+}
+
+final class _WithdrawnPublicationApi extends BackendApiService {
+  @override
+  Future<Map<String, dynamic>> requestJson(
+    String path, {
+    required String method,
+    Map<String, dynamic>? body,
+    Map<String, String>? query,
+    bool includeAuth = true,
+  }) async => throw const BackendApiException('Not found', statusCode: 404);
 }
 
 final class _BytesAdapter implements HttpClientAdapter {

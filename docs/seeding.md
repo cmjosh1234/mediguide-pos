@@ -114,6 +114,22 @@ These are deterministic development fixtures. Rerunning `SEED_SCOPE=demo`
 restores their repository-defined state and does not create duplicate hubs,
 pillars, category links or disease assignments.
 
+The demo scope also populates workflow-history tables with linked synthetic
+examples: account verification and cancelled email delivery, a draft training
+checklist and citation, a draft protocol and sample run, retrieval history,
+a completed reader-form upload, a parish under an existing seeded subcounty,
+a downloadable ZIP sync package and device-sync record, and a report attachment
+linked to the reader-test form. The synthetic parish is labelled **[Demo]** and
+is not an authoritative geography record.
+
+Notification examples include a completed in-app campaign, recipient, accepted
+outbox job and attempt, opened delivery and event, accepted digest, and a failed
+topic job. These are terminal history records; the seed does not queue external
+messages. The demo Firebase installation opts out of notifications. The account
+token is already consumed, and its cancelled email contains no token payload.
+The synthetic checklist and protocol remain drafts and do not become public
+clinical tools. Stable IDs and storage keys make reruns safe from duplicates.
+
 The additional Cholera and Measles scenarios are prominently marked as
 synthetic development content and intentionally omit clinical thresholds,
 treatment and dosing instructions. Replace them through the governed dashboard

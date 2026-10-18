@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/url"
 	"strings"
@@ -83,7 +84,7 @@ func TestReaderSeedIsIdempotentAndRespectsPublicationModes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := database.AutoMigrate(&models.DocumentKind{}, &models.GuidelineDocument{}, &models.GuidelineVersion{}, &models.GuidelineVersionManifest{}, &models.GuidelineSection{}, &models.GuidelineContentBlock{}, &models.GuidelineChunk{}, &models.GuidelineAsset{}); err != nil {
+	if err := database.AutoMigrate(&models.DocumentKind{}, &models.GuidelineDocument{}, &models.GuidelineVersion{}, &models.GuidelineVersionManifest{}, &models.GuidelineSection{}, &models.GuidelineContentBlock{}, &models.GuidelineChunk{}, &models.GuidelineAsset{}, &models.AuditLog{}); err != nil {
 		t.Fatal(err)
 	}
 	for _, fixture := range demoReaderDocuments() {
@@ -132,5 +133,96 @@ func TestReaderSeedIsIdempotentAndRespectsPublicationModes(t *testing.T) {
 	database.Model(&models.GuidelineAsset{}).Where("version_id = ? AND type = ?", versionID, "offline_package").Count(&count)
 	if count != 0 {
 		t.Fatal("partial sample must not expose unreviewed text in an offline ZIP")
+	}
+	// Exercise the actual withdrawal/publication services for every reader mode,
+	// including the partial SOP whose raw Markdown is deliberately unavailable.
+	actor := uuid.New()
+	service := services.GuidelineService{DB: database, Store: store}
+	for _, fixture := range demoReaderDocuments() {
+		t.Run("republish/"+fixture.Key, func(t *testing.T) {
+			id := demoID("guideline", fixture.Key)
+			versionID := demoID("guideline-version", fixture.Key+"-1.0")
+			var before models.GuidelineVersion
+			var beforeManifest models.GuidelineVersionManifest
+			if err := database.First(&before, "id = ?", versionID).Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := database.First(&beforeManifest, "version_id = ?", versionID).Error; err != nil {
+				t.Fatal(err)
+			}
+			var draftChunksBefore int64
+			database.Model(&models.GuidelineChunk{}).Where("version_id = ? AND review_status = 'draft'", versionID).Count(&draftChunksBefore)
+			if err := service.WithdrawDocument(id, actor, services.WithdrawGuidelineInput{Reason: "Review publication", CurrentVersionID: versionID}, ""); err != nil {
+				t.Fatal(err)
+			}
+			public := services.PublicGuidelineService{DB: database}
+			if _, err := public.Get(context.Background(), id); !errors.Is(err, services.ErrPublicGuidelineNotFound) {
+				t.Fatalf("withdrawn document exposed: %v", err)
+			}
+			if fixture.Key == "reader-test-partial-sop" {
+				// Missing source objects and pending high-risk review must still
+				// block restoration even though ingestion is not repeated.
+				original := store.objects[before.OriginalFileKey]
+				delete(store.objects, before.OriginalFileKey)
+				if err := service.PublishVersion(versionID, actor); !errors.Is(err, services.ErrGuidelineValidationFailed) {
+					t.Fatalf("missing original accepted: %v", err)
+				}
+				store.objects[before.OriginalFileKey] = original
+				database.Model(&models.GuidelineContentBlock{}).Where("version_id = ? AND type = 'table'", versionID).Update("review_status", models.GuidelineBlockDraft)
+				if err := service.PublishVersion(versionID, actor); !errors.Is(err, services.ErrGuidelineValidationFailed) {
+					t.Fatalf("unreviewed high-risk table accepted: %v", err)
+				}
+				database.Model(&models.GuidelineContentBlock{}).Where("version_id = ? AND type = 'table'", versionID).Update("review_status", models.GuidelineBlockReviewed)
+				database.Model(&models.GuidelineVersion{}).Where("id = ?", versionID).Update("status", "review_required")
+				if err := service.PublishVersion(versionID, actor); !errors.Is(err, services.ErrGuidelineIngestionIncomplete) {
+					t.Fatalf("first-publication ingestion checks skipped: %v", err)
+				}
+				database.Model(&models.GuidelineVersion{}).Where("id = ?", versionID).Update("status", "published")
+			}
+			if err := service.PublishVersion(versionID, actor); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := public.Get(context.Background(), id); err != nil {
+				t.Fatalf("restored document unavailable: %v", err)
+			}
+			var after models.GuidelineVersion
+			var afterManifest models.GuidelineVersionManifest
+			database.First(&after, "id = ?", versionID)
+			database.First(&afterManifest, "version_id = ?", versionID)
+			var draftChunksAfter int64
+			database.Model(&models.GuidelineChunk{}).Where("version_id = ? AND review_status = 'draft'", versionID).Count(&draftChunksAfter)
+			if after.MarkdownFileKey != before.MarkdownFileKey || *after.ApprovedBy != *before.ApprovedBy || *after.ApprovedAt != *before.ApprovedAt || afterManifest.Checksum != beforeManifest.Checksum || !afterManifest.GeneratedAt.Equal(beforeManifest.GeneratedAt) || draftChunksBefore != draftChunksAfter {
+				t.Fatal("republishing changed retained content, approvals, manifest or draft chunk visibility")
+			}
+			if fixture.Key == "reader-test-partial-sop" {
+				content, err := public.Content(context.Background(), id)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(content.Blocks) != 3 {
+					t.Fatalf("expected only the three reviewed blocks, got %d", len(content.Blocks))
+				}
+			}
+		})
+	}
+	// Reseeding must not silently publish a document an administrator withdrew.
+	for _, key := range []string{"reader-test-sop", "reader-test-form", "reader-test-link"} {
+		if err := database.Model(&models.GuidelineDocument{}).Where("id = ?", demoID("guideline", key)).Updates(map[string]any{
+			"current_version_id": nil, "withdrawn_at": time.Now().UTC(), "withdrawal_reason": "Under review",
+		}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := seedDemoReaderDocuments(context.Background(), database, store, uuid.New()); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"reader-test-sop", "reader-test-form", "reader-test-link"} {
+		var document models.GuidelineDocument
+		if err := database.First(&document, "id = ?", demoID("guideline", key)).Error; err != nil {
+			t.Fatal(err)
+		}
+		if document.CurrentVersionID != nil || document.WithdrawnAt == nil || document.WithdrawalReason != "Under review" {
+			t.Fatalf("reseed restored withdrawn %s", key)
+		}
 	}
 }

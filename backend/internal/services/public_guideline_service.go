@@ -12,6 +12,7 @@ import (
 	"time"
 
 	cachepkg "mediguide/internal/cache"
+	"mediguide/internal/models"
 	"mediguide/internal/storage"
 
 	"github.com/google/uuid"
@@ -203,6 +204,18 @@ func (s PublicGuidelineService) getUncached(ctx context.Context, id uuid.UUID) (
 	hasContent := strings.TrimSpace(row.MarkdownFileKey) != "" ||
 		row.PublishAsUploaded && strings.TrimSpace(row.OriginalFileKey) != "" ||
 		row.PublishAsLink && strings.TrimSpace(row.ExternalURL) != ""
+	if !hasContent && !row.PublishAsUploaded && !row.PublishAsLink {
+		// Structured publications can omit raw Markdown (for example when it
+		// contains unreviewed prose). The retained reviewed projection is content.
+		var reviewedBlocks int64
+		if err := s.DB.WithContext(ctx).Model(&models.GuidelineContentBlock{}).
+			Joins("JOIN guideline_version_manifests AS gvm ON gvm.version_id = guideline_content_blocks.version_id AND gvm.guideline_id = ? AND gvm.deleted_at IS NULL", id).
+			Where("guideline_content_blocks.version_id = ? AND guideline_content_blocks.review_status = ?", row.VersionID, models.GuidelineBlockReviewed).
+			Count(&reviewedBlocks).Error; err != nil {
+			return nil, err
+		}
+		hasContent = reviewedBlocks > 0
+	}
 	if !hasContent {
 		return nil, ErrPublicGuidelineNotFound
 	}

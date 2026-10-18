@@ -46,16 +46,18 @@ func (s GuidelineService) GetRegenerationJob(versionID, jobID uuid.UUID) (*Regen
 		return nil, err
 	}
 	_, operations := markdownJobRequest(job.PayloadJSON)
-	job.Error = editorSafeRegenerationError(job.Error)
+	job.Error = editorSafeRegenerationError(job.Error, job.ProgressStage)
 	return &RegenerationJobView{Job: job, RevisionID: revision.ID, Operations: operations}, nil
 }
 
-func editorSafeRegenerationError(value string) string {
+func editorSafeRegenerationError(value, stage string) string {
 	if strings.TrimSpace(value) == "" {
 		return ""
 	}
 	lower := strings.ToLower(value)
 	switch {
+	case stage == "embeddings" && (strings.Contains(lower, "timed out") || strings.Contains(lower, "timeout")):
+		return "Search indexing timed out. The saved Markdown revision is unchanged. Retry regeneration; if this persists, ask an administrator to check embedding model availability and server capacity."
 	case strings.Contains(lower, "asset") || strings.Contains(lower, "foreign key"):
 		return "Regeneration could not resolve one or more guideline assets. Review asset references and retry."
 	case strings.Contains(lower, "markdown") || strings.Contains(lower, "parse"):

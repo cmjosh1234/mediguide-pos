@@ -12825,6 +12825,82 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/guidelines/{id}/revise": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guidelines"
+                ],
+                "summary": "Create or continue an unapproved draft from a withdrawn publication",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Document ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Withdrawn source and new version",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.ReviseGuidelineInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GuidelineRevisionEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/guidelines/{id}/versions": {
             "post": {
                 "security": [
@@ -12882,6 +12958,82 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/guidelines/{id}/withdraw": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guidelines"
+                ],
+                "summary": "Withdraw a published guideline, retaining files and review history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Document ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Withdrawal reason and expected current version",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.WithdrawGuidelineInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -19769,6 +19921,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.GuidelineRevisionEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/services.GuidelineRevisionResult"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.GuidelineSectionEnvelope": {
             "type": "object",
             "properties": {
@@ -23868,6 +24031,18 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.GuidelineVersion"
                     }
+                },
+                "withdrawal_reason": {
+                    "type": "string"
+                },
+                "withdrawn_at": {
+                    "type": "string"
+                },
+                "withdrawn_by": {
+                    "type": "string"
+                },
+                "withdrawn_version_id": {
+                    "type": "string"
                 }
             }
         },
@@ -24362,11 +24537,23 @@ const docTemplate = `{
                 "review_date": {
                     "type": "string"
                 },
+                "revision_source": {
+                    "type": "string"
+                },
+                "revision_warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "sections": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.GuidelineSection"
                     }
+                },
+                "source_version_id": {
+                    "type": "string"
                 },
                 "status": {
                     "type": "string"
@@ -28349,6 +28536,17 @@ const docTemplate = `{
                 }
             }
         },
+        "services.GuidelineRevisionResult": {
+            "type": "object",
+            "properties": {
+                "existing": {
+                    "type": "boolean"
+                },
+                "version": {
+                    "$ref": "#/definitions/models.GuidelineVersion"
+                }
+            }
+        },
         "services.GuidelineSectionOrderInput": {
             "type": "object",
             "required": [
@@ -32213,6 +32411,21 @@ const docTemplate = `{
                 }
             }
         },
+        "services.ReviseGuidelineInput": {
+            "type": "object",
+            "required": [
+                "source_version_id",
+                "version"
+            ],
+            "properties": {
+                "source_version_id": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
         "services.RoleInput": {
             "type": "object",
             "properties": {
@@ -33175,6 +33388,21 @@ const docTemplate = `{
                 }
             }
         },
+        "services.WithdrawGuidelineInput": {
+            "type": "object",
+            "required": [
+                "current_version_id",
+                "reason"
+            ],
+            "properties": {
+                "current_version_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
         "storage.UploadPart": {
             "type": "object",
             "properties": {
@@ -33202,7 +33430,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "2.1.18",
+	Version:          "2.1.20",
 	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},

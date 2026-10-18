@@ -3,6 +3,7 @@ package models
 import (
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
+	"time"
 )
 
 type GuidelineDocument struct {
@@ -18,6 +19,10 @@ type GuidelineDocument struct {
 	DocumentKindID     *uuid.UUID          `gorm:"type:uuid;index" json:"document_kind_id"`
 	DocumentKind       *DocumentKind       `gorm:"foreignKey:DocumentKindID" json:"document_kind,omitempty"`
 	CurrentVersionID   *uuid.UUID          `gorm:"type:uuid" json:"current_version_id"`
+	WithdrawnVersionID *uuid.UUID          `gorm:"type:uuid" json:"withdrawn_version_id"`
+	WithdrawnAt        *time.Time          `json:"withdrawn_at"`
+	WithdrawnBy        *uuid.UUID          `gorm:"type:uuid" json:"withdrawn_by"`
+	WithdrawalReason   string              `gorm:"not null;default:''" json:"withdrawal_reason"`
 	Versions           []GuidelineVersion  `gorm:"foreignKey:DocumentID" json:"versions,omitempty"`
 	Categories         []GuidelineCategory `gorm:"many2many:guideline_document_categories;joinForeignKey:GuidelineDocumentID;joinReferences:CategoryID" json:"categories"`
 }
@@ -25,6 +30,9 @@ type GuidelineDocument struct {
 type GuidelineVersion struct {
 	Base
 	DocumentID                   uuid.UUID                 `gorm:"type:uuid;index;not null" json:"document_id"`
+	SourceVersionID              *uuid.UUID                `gorm:"type:uuid;index" json:"source_version_id,omitempty"`
+	RevisionSource               string                    `gorm:"not null;default:''" json:"revision_source"`
+	RevisionWarnings             datatypes.JSON            `gorm:"type:jsonb;not null;default:'[]'" json:"revision_warnings" swaggertype:"array,string"`
 	Version                      string                    `gorm:"not null" json:"version"`
 	PublicationDate              string                    `json:"publication_date"`
 	ReviewDate                   string                    `json:"review_date"`

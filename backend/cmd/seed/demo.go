@@ -64,6 +64,7 @@ func seedDemoData(ctx context.Context, database *gorm.DB, store storage.ObjectSt
 			func() error { return seedDemoOutbreaks(ctx, tx, store, admin.ID, clinician.ID) },
 			func() error { return seedDemoDiseaseHubs(tx, admin.ID) },
 			func() error { return seedDemoPeopleAndHelp(tx, admin.ID, clinician.ID) },
+			func() error { return seedDemoWorkflowHistory(ctx, tx, store, admin.ID, clinician.ID) },
 		}
 		for _, step := range steps {
 			if err := step(); err != nil {
@@ -350,7 +351,7 @@ func seedDemoGuideline(ctx context.Context, database *gorm.DB, store storage.Obj
 	}); err != nil {
 		return err
 	}
-	if err := database.Table("guideline_documents").Where("id = ?", documentID).Updates(map[string]any{"current_version_id": versionID, "updated_at": time.Now().UTC()}).Error; err != nil {
+	if err := database.Table("guideline_documents").Where("id = ? AND withdrawn_at IS NULL", documentID).Updates(map[string]any{"current_version_id": versionID, "updated_at": time.Now().UTC()}).Error; err != nil {
 		return err
 	}
 

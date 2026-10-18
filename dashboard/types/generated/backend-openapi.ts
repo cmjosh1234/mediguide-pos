@@ -576,6 +576,11 @@ export interface HandlersGuidelinePreviewEnvelope {
   success?: boolean;
 }
 
+export interface HandlersGuidelineRevisionEnvelope {
+  data?: ServicesGuidelineRevisionResult;
+  success?: boolean;
+}
+
 export interface HandlersGuidelineSectionEnvelope {
   data?: ModelsGuidelineSection;
   /** @example true */
@@ -2244,6 +2249,10 @@ export interface ModelsGuidelineDocument {
   title?: string;
   updated_at?: string;
   versions?: ModelsGuidelineVersion[];
+  withdrawal_reason?: string;
+  withdrawn_at?: string;
+  withdrawn_by?: string;
+  withdrawn_version_id?: string;
 }
 
 export interface ModelsGuidelineEditorComment {
@@ -2422,7 +2431,10 @@ export interface ModelsGuidelineVersion {
   publication_date?: string;
   published_markdown_revision_id?: string;
   review_date?: string;
+  revision_source?: string;
+  revision_warnings?: string[];
   sections?: ModelsGuidelineSection[];
+  source_version_id?: string;
   status?: string;
   structured_content_status?: string;
   structured_markdown_revision_id?: string;
@@ -3861,6 +3873,11 @@ export interface ServicesGuidelineReviewerCandidate {
   name?: string;
 }
 
+export interface ServicesGuidelineRevisionResult {
+  existing?: boolean;
+  version?: ModelsGuidelineVersion;
+}
+
 export interface ServicesGuidelineSectionOrderInput {
   id: string;
   level?: number;
@@ -5243,6 +5260,11 @@ export interface ServicesReviewGuidelineBlockInput {
   status: ModelsGuidelineBlockReviewStatus;
 }
 
+export interface ServicesReviseGuidelineInput {
+  source_version_id: string;
+  version: string;
+}
+
 export interface ServicesRoleInput {
   description?: string;
   isActive?: boolean;
@@ -5589,6 +5611,11 @@ export interface ServicesUserView {
   timezone?: string;
   updated_at?: string;
   verified?: boolean;
+}
+
+export interface ServicesWithdrawGuidelineInput {
+  current_version_id: string;
+  reason: string;
 }
 
 export interface StorageUploadPart {

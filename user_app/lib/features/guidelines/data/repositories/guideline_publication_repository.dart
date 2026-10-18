@@ -211,7 +211,13 @@ final class GuidelinePublicationRepository {
       return value;
     } on GuidelinePublicationVersionMismatch {
       rethrow;
-    } catch (_) {
+    } catch (error) {
+      if (error is BackendApiException && error.statusCode == 404) {
+        // A confirmed removal is authoritative. Do not resurrect withdrawn
+        // content through the offline fallback after connectivity returns.
+        await _forgetPublication(id);
+        rethrow;
+      }
       final index = await _cache.get(
         type: _contentIndexType,
         id: id,
@@ -238,6 +244,20 @@ final class GuidelinePublicationRepository {
         blocks: _maps(cached['blocks']).map(GuidelineBlock.fromJson).toList(),
       );
     }
+  }
+
+  Future<void> _forgetPublication(String id) async {
+    final index = await _cache.get(
+      type: _contentIndexType,
+      id: id,
+      scope: _cacheScope,
+    );
+    final cacheId = index?['cache_id']?.toString() ?? '';
+    if (cacheId.isNotEmpty) {
+      await _cache.remove(type: _contentType, id: cacheId, scope: _cacheScope);
+    }
+    await _cache.remove(type: _contentIndexType, id: id, scope: _cacheScope);
+    await _cache.remove(type: _publicationType, id: id, scope: _cacheScope);
   }
 
   /// Loads the small publication pointer used to paint the overview shell.

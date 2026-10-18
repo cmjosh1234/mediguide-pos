@@ -789,13 +789,17 @@ func guidelinePublicationGuardIssues(tx *gorm.DB, version *models.GuidelineVersi
 		if h1 != nil && !guidelineTitlesCompatible(document.Title, h1.Title) {
 			appendIssue("document_title_mismatch", fmt.Sprintf("The H1 title %q does not match guideline metadata %q.", h1.Title, document.Title), &h1.ID, nil)
 		}
-		if document.CurrentVersionID != nil && *document.CurrentVersionID != version.ID {
+		previousVersionID := document.CurrentVersionID
+		if previousVersionID == nil && version.SourceVersionID != nil {
+			previousVersionID = version.SourceVersionID
+		}
+		if previousVersionID != nil && *previousVersionID != version.ID {
 			previousSections := []models.GuidelineSection{}
-			if err := tx.Where("version_id = ?", *document.CurrentVersionID).Find(&previousSections).Error; err != nil {
+			if err := tx.Where("version_id = ?", *previousVersionID).Find(&previousSections).Error; err != nil {
 				return nil, err
 			}
 			previousBlocks := []models.GuidelineContentBlock{}
-			if err := tx.Where("version_id = ?", *document.CurrentVersionID).Find(&previousBlocks).Error; err != nil {
+			if err := tx.Where("version_id = ?", *previousVersionID).Find(&previousBlocks).Error; err != nil {
 				return nil, err
 			}
 			before := guidelineStructureCounts(previousSections, previousBlocks)
@@ -953,13 +957,17 @@ func guidelinePublicationCompletenessIssues(tx *gorm.DB, version *models.Guideli
 	if err := tx.Select("id", "current_version_id").First(&document, "id = ?", version.DocumentID).Error; err != nil {
 		return nil, err
 	}
-	if document.CurrentVersionID != nil && *document.CurrentVersionID != version.ID {
+	previousVersionID := document.CurrentVersionID
+	if previousVersionID == nil && version.SourceVersionID != nil {
+		previousVersionID = version.SourceVersionID
+	}
+	if previousVersionID != nil && *previousVersionID != version.ID {
 		var previousSections []models.GuidelineSection
-		if err := tx.Where("version_id = ?", *document.CurrentVersionID).Find(&previousSections).Error; err != nil {
+		if err := tx.Where("version_id = ?", *previousVersionID).Find(&previousSections).Error; err != nil {
 			return nil, err
 		}
 		var previousBlocks []models.GuidelineContentBlock
-		if err := tx.Where("version_id = ?", *document.CurrentVersionID).Find(&previousBlocks).Error; err != nil {
+		if err := tx.Where("version_id = ?", *previousVersionID).Find(&previousBlocks).Error; err != nil {
 			return nil, err
 		}
 		before := guidelineReviewedContentSummary(previousSections, previousBlocks)

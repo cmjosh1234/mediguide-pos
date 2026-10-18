@@ -200,6 +200,9 @@ func TestPublicGuidelineMarkdownHeadersAndConditionalRequest(t *testing.T) {
 	if response.Header().Get("ETag") != `"sha256-test"` {
 		t.Fatal("missing ETag")
 	}
+	if got := response.Header().Get("Cache-Control"); got != "public, no-cache, must-revalidate" {
+		t.Fatalf("cached markdown must recheck publication eligibility, got %q", got)
+	}
 
 	notModified := httptest.NewRecorder()
 	conditional := httptest.NewRequest(http.MethodGet, "/api/public/guidelines/"+id.String()+"/markdown", nil)
@@ -265,6 +268,9 @@ func TestPublicGuidelineDetailSupportsConditionalRequests(t *testing.T) {
 	router.ServeHTTP(first, httptest.NewRequest(http.MethodGet, "/api/public/guidelines/"+id.String(), nil))
 	if first.Code != http.StatusOK || first.Header().Get("ETag") == "" {
 		t.Fatalf("missing public ETag: %d %#v", first.Code, first.Header())
+	}
+	if got := first.Header().Get("Cache-Control"); got != "public, no-cache, must-revalidate" {
+		t.Fatalf("cached publication must recheck eligibility, got %q", got)
 	}
 	second := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/public/guidelines/"+id.String(), nil)

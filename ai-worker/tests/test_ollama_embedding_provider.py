@@ -45,12 +45,104 @@ class FakeClient:
     def post(self, url: str, json: dict):
         self._calls.append((url, json))
         if self._responses:
-            return self._responses.pop(0)
+            response = self._responses.pop(0)
+            if isinstance(response, Exception):
+                raise response
+            return response
         return FakeResponse([])
 
 
 def clear_settings_cache() -> None:
     get_settings.cache_clear()
+
+
+def test_timeout_splits_full_inputs_and_reuses_smaller_batches(monkeypatch):
+    from app.core.config import Settings
+
+    calls = []
+    timeouts = []
+    responses = [
+        httpx.ReadTimeout("timed out"),
+        FakeResponse([[1.0], [2.0]]),
+        FakeResponse([[3.0], [4.0]]),
+        FakeResponse([[5.0], [6.0]]),
+        FakeResponse([[7.0], [8.0]]),
+    ]
+    def client(**kwargs):
+        timeouts.append(kwargs["timeout"])
+        return FakeClient(responses, calls)
+    monkeypatch.setattr("app.embeddings.ollama_provider.httpx.Client", client)
+    provider = OllamaEmbeddingProvider(Settings(embedding_dim=1, ollama_embedding_timeout_seconds=450))
+    texts = [str(i) + " complete clinical text " * 100 for i in range(8)]
+
+    assert provider.embed(texts[:4]) == [[1.0], [2.0], [3.0], [4.0]]
+    assert provider.last_batch_cacheable is True
+    assert provider.embed(texts[4:]) == [[5.0], [6.0], [7.0], [8.0]]
+    assert [payload["input"] for _, payload in calls] == [texts[:4], texts[:2], texts[2:4], texts[4:6], texts[6:]]
+    assert all(timeout.read == 450 and timeout.connect == 10 for timeout in timeouts)
+
+
+def test_single_input_timeout_retries_once_then_succeeds(monkeypatch):
+    from app.core.config import Settings
+
+    calls = []
+    monkeypatch.setattr("app.embeddings.ollama_provider.httpx.Client", lambda **_: FakeClient(
+        [httpx.ReadTimeout("timed out"), FakeResponse([[1.0]])], calls))
+    provider = OllamaEmbeddingProvider(Settings(embedding_dim=1))
+    assert provider.embed(["full input"]) == [[1.0]]
+    assert [payload["input"] for _, payload in calls] == [["full input"], ["full input"]]
+
+
+def test_nested_splits_preserve_odd_batch_order_and_checkpoint_exact_inputs(monkeypatch):
+    from app.core.config import Settings
+    from app.services.ingestion_artifacts import IngestionArtifacts
+    from tests.test_ingestion_artifacts import Repository, Storage
+
+    calls = []
+    responses = [
+        httpx.ReadTimeout("timed out"),
+        FakeResponse([[1.0]]),
+        httpx.ReadTimeout("timed out"),
+        FakeResponse([[2.0]]),
+        FakeResponse([[3.0]]),
+    ]
+    monkeypatch.setattr("app.embeddings.ollama_provider.httpx.Client", lambda **_: FakeClient(responses, calls))
+    provider = OllamaEmbeddingProvider(Settings(embedding_dim=1))
+    cache = IngestionArtifacts(Repository(), Storage(), {})
+    texts = ["first", "second", "third", "first"]
+    result = cache.embeddings(texts, provider, "model-revision", 1, 8, lambda *_: None)
+    assert result == [[1.0], [2.0], [3.0], [1.0]]
+    assert [payload["input"] for _, payload in calls] == [texts[:3], texts[:1], texts[1:3], texts[1:2], texts[2:3]]
+    # A retry reuses these full-input vectors without contacting the provider.
+    calls.clear()
+    assert cache.embeddings(texts, provider, "model-revision", 1, 8, lambda *_: None) == result
+    assert calls == []
+
+
+@pytest.mark.parametrize("error_type", [httpx.ReadTimeout, httpx.ConnectTimeout])
+def test_persistent_timeout_is_bounded_and_actionable(monkeypatch, error_type):
+    from app.core.config import Settings
+
+    calls = []
+    monkeypatch.setattr("app.embeddings.ollama_provider.httpx.Client", lambda **_: FakeClient(
+        [error_type("timed out"), error_type("timed out")], calls))
+    provider = OllamaEmbeddingProvider(Settings(embedding_dim=1))
+    with pytest.raises(RuntimeError, match="Ollama embedding request timed out.*server capacity"):
+        provider.embed(["full input"])
+    assert len(calls) == 2
+    assert all(url.endswith("/api/embed") for url, _ in calls)
+
+
+def test_connect_timeout_does_not_fan_out_batches(monkeypatch):
+    from app.core.config import Settings
+
+    calls = []
+    monkeypatch.setattr("app.embeddings.ollama_provider.httpx.Client", lambda **_: FakeClient(
+        [httpx.ConnectTimeout("timed out"), httpx.ConnectTimeout("timed out")], calls))
+    provider = OllamaEmbeddingProvider(Settings(embedding_dim=1))
+    with pytest.raises(RuntimeError, match="embedding request timed out"):
+        provider.embed(["first", "second", "third"])
+    assert [payload["input"] for _, payload in calls] == [["first", "second", "third"]] * 2
 
 
 def test_ollama_embedding_provider_calls_embed_api(monkeypatch: pytest.MonkeyPatch):

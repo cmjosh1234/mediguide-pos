@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { BellPlus, Eye, FilePlus2, Link2, Pencil, Trash2, Upload } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { GuidelinePublicationAction } from "./components/guideline-publication-action"
 import { Button } from "@/components/ui/button"
 import { DataTableColumnHeader } from "@/components/ui/datatable-column-header"
 import {
@@ -17,6 +18,8 @@ interface GuidelineColumnActions {
   canUpdate: boolean
   canNotify: boolean
   canDelete: boolean
+  canPublish: boolean
+  onChanged: () => Promise<unknown>
   onView: (document: GuidelineDocumentRecord) => void
   onEdit: (document: GuidelineDocumentRecord) => void
   onNewVersion: (document: GuidelineDocumentRecord) => void
@@ -29,6 +32,8 @@ export function createGuidelinesColumns({
   canUpdate,
   canNotify,
   canDelete,
+  canPublish,
+  onChanged,
   onView,
   onEdit,
   onNewVersion,
@@ -86,6 +91,7 @@ export function createGuidelinesColumns({
       header: "Current Version",
       accessorFn: (document) => getDocumentCurrentVersion(document)?.version || "",
       cell: ({ row }) => {
+        if (row.original.withdrawn_at) return <Badge variant="destructive">Withdrawn</Badge>
         const version = getDocumentCurrentVersion(row.original)
         return version ? (
           <div className="flex min-w-[170px] flex-wrap items-center gap-2">
@@ -173,6 +179,7 @@ export function createGuidelinesColumns({
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
+          {canPublish && <GuidelinePublicationAction document={row.original} onChanged={onChanged} />}
         </div>
       ),
     },

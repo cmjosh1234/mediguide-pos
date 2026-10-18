@@ -334,6 +334,48 @@ eligible, not that authentication is required.
 
 ## Correction and rollback
 
+### Withdraw and republish a library document
+
+Use **Withdraw** to stop public access while keeping a document available to
+administrators. **Delete** is a separate action that removes the document from
+the dashboard as well.
+
+1. Open **Clinical Guidelines**, find the document and select **Withdraw**
+   (also available on its detail page). This requires `guideline.publish`.
+2. Enter a reason and confirm. The dashboard shows **Withdrawn**, with the
+   reason, time and actor on the detail page. The audit log retains the action.
+3. Check that the public website, library, search, AI retrieval and downloads
+   no longer expose the document. Hub assignments remain, but their public
+   eligibility follows the source publication state.
+4. For unchanged content, choose **Review and republish**, open the retained
+   version for review, confirm that it is ready and select **Republish**.
+   Publication validation runs again. The original approval remains intact;
+   a new audit event records republication.
+5. For corrections, create a new version and complete its existing review and
+   publication workflow. Publishing that version also clears the withdrawal.
+
+Withdrawal keeps approved versions immutable, together with their source files
+and review history. Devices that are offline cannot learn of a withdrawal
+until they reconnect. The updated app clears cached content on a confirmed
+public `404` and removes saved files on its next download check (app startup,
+opening or refreshing Downloads/the reader, or reconnecting while the app is
+running). Connection and server failures preserve offline copies. Files already
+exported outside the app and previously issued storage links cannot be recalled.
+
+The public website refreshes the library and document-kind counts when its tab
+regains focus or visibility, and every 30 seconds while visible. Public API
+responses require revalidation; the website bypasses older browser cache entries.
+Rerunning the development seed preserves document withdrawals; republish through
+the governed dashboard action when the document is ready.
+
+Deployment requires database migration `00084_guideline_withdrawal.sql` before
+the backend/dashboard update, plus an app release for mobile cache removal.
+The API is `POST /api/v2/guidelines/{id}/withdraw` with JSON
+`{"reason":"Source under review","current_version_id":"<current UUID>"}`.
+It returns `204`, or `409` if publication changed; reload before retrying.
+
+### Other correction and rollback actions
+
 - Turn off the affected Firebase flag to restore a compatibility path without a
   mobile redeployment.
 - Archive an incorrect hub; do not delete its audit trail after publication.

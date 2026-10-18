@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:user_app/app/providers/app_providers.dart';
+import 'package:user_app/core/network/api_client.dart';
+import 'package:user_app/shared/providers/connectivity_provider.dart';
 import 'package:user_app/features/authentication/presentation/controllers/auth_controller.dart';
 import 'package:user_app/features/downloads/data/models/offline_download.dart';
 import 'package:user_app/features/guidelines/data/models/guideline_publication.dart';
@@ -18,6 +20,11 @@ class GuidelineDownloadsController extends _$GuidelineDownloadsController {
     final user = ref.watch(authControllerProvider).valueOrNull?.user;
     _scope = user == null ? 'public' : 'user:${user.id}';
     final service = ref.watch(guidelineDownloadServiceProvider);
+    ref.listen(connectivityProvider, (previous, next) {
+      if (next.valueOrNull == true && previous?.valueOrNull != true) {
+        unawaited(_checkForUpdates(state.valueOrNull ?? const []));
+      }
+    });
     final subscription = service.changes.listen((item) {
       if (item.scope != _scope || !state.hasValue) return;
       final items = [...state.requireValue];
@@ -101,21 +108,23 @@ class GuidelineDownloadsController extends _$GuidelineDownloadsController {
 
   Future<void> _checkForUpdates(List<OfflineDownload> items) async {
     final service = ref.read(guidelineDownloadServiceProvider);
-    for (final item in items.where(
-      (value) => value.status == OfflineDownloadStatus.ready,
-    )) {
+    final repository = ref.read(guidelinePublicationRepositoryProvider);
+    for (final item in items) {
       try {
-        final content = await ref
-            .read(guidelinePublicationRepositoryProvider)
-            .content(item.guidelineId);
-        await service.markUpdateAvailable(
-          scope: _scope,
-          guidelineId: item.guidelineId,
-          assetType: item.assetType,
-          latestVersion: content.manifest.version,
-        );
-      } catch (_) {
-        // A failed update check must not invalidate the verified local copy.
+        final content = await repository.content(item.guidelineId);
+        if (item.status == OfflineDownloadStatus.ready) {
+          await service.markUpdateAvailable(
+            scope: item.scope,
+            guidelineId: item.guidelineId,
+            assetType: item.assetType,
+            latestVersion: content.manifest.version,
+          );
+        }
+      } catch (error) {
+        if (error is BackendApiException && error.statusCode == 404) {
+          await service.remove(item);
+        }
+        // Connection and server failures preserve the verified local copy.
       }
     }
   }

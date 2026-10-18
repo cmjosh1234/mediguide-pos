@@ -2196,6 +2196,28 @@ final class HandlersGuidelinePreviewEnvelope {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class HandlersGuidelineRevisionEnvelope {
+  HandlersGuidelineRevisionEnvelope(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersGuidelineRevisionEnvelope.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersGuidelineRevisionEnvelope(json);
+
+  static const schemaName = 'handlers.GuidelineRevisionEnvelope';
+  final Map<String, dynamic> value;
+
+  ServicesGuidelineRevisionResult? get data {
+    final raw = value['data'];
+    if (raw is! Map) return null;
+    return ServicesGuidelineRevisionResult.fromJson(_jsonMap(raw));
+  }
+
+  bool? get success => value['success'] as bool?;
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class HandlersGuidelineSectionEnvelope {
   HandlersGuidelineSectionEnvelope(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -7538,6 +7560,14 @@ final class ModelsGuidelineDocument {
         .toList(growable: false);
   }
 
+  String? get withdrawalReason => value['withdrawal_reason']?.toString();
+
+  String? get withdrawnAt => value['withdrawn_at']?.toString();
+
+  String? get withdrawnBy => value['withdrawn_by']?.toString();
+
+  String? get withdrawnVersionId => value['withdrawn_version_id']?.toString();
+
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
@@ -8026,6 +8056,14 @@ final class ModelsGuidelineVersion {
 
   String? get reviewDate => value['review_date']?.toString();
 
+  String? get revisionSource => value['revision_source']?.toString();
+
+  List<String> get revisionWarnings {
+    final raw = value['revision_warnings'];
+    if (raw is! List) return const [];
+    return raw.whereType<String>().toList(growable: false);
+  }
+
   List<ModelsGuidelineSection> get sections {
     final raw = value['sections'];
     if (raw is! List) return const [];
@@ -8034,6 +8072,8 @@ final class ModelsGuidelineVersion {
         .map((item) => ModelsGuidelineSection.fromJson(_jsonMap(item)))
         .toList(growable: false);
   }
+
+  String? get sourceVersionId => value['source_version_id']?.toString();
 
   String? get status => value['status']?.toString();
 
@@ -12260,6 +12300,27 @@ final class ServicesGuidelineReviewerCandidate {
   String? get id => value['id']?.toString();
 
   String? get name => value['name']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesGuidelineRevisionResult {
+  ServicesGuidelineRevisionResult(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesGuidelineRevisionResult.fromJson(Map<String, dynamic> json) =>
+      ServicesGuidelineRevisionResult(json);
+
+  static const schemaName = 'services.GuidelineRevisionResult';
+  final Map<String, dynamic> value;
+
+  bool? get existing => value['existing'] as bool?;
+
+  ModelsGuidelineVersion? get version {
+    final raw = value['version'];
+    if (raw is! Map) return null;
+    return ModelsGuidelineVersion.fromJson(_jsonMap(raw));
+  }
 
   Map<String, dynamic> toJson() => Map.of(value);
 }
@@ -16591,6 +16652,23 @@ final class ServicesReviewGuidelineBlockInput {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ServicesReviseGuidelineInput {
+  ServicesReviseGuidelineInput(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesReviseGuidelineInput.fromJson(Map<String, dynamic> json) =>
+      ServicesReviseGuidelineInput(json);
+
+  static const schemaName = 'services.ReviseGuidelineInput';
+  final Map<String, dynamic> value;
+
+  String? get sourceVersionId => value['source_version_id']?.toString();
+
+  String? get version => value['version']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ServicesRoleInput {
   ServicesRoleInput(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -17553,6 +17631,23 @@ final class ServicesUserView {
   String? get updatedAt => value['updated_at']?.toString();
 
   bool? get verified => value['verified'] as bool?;
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
+final class ServicesWithdrawGuidelineInput {
+  ServicesWithdrawGuidelineInput(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesWithdrawGuidelineInput.fromJson(Map<String, dynamic> json) =>
+      ServicesWithdrawGuidelineInput(json);
+
+  static const schemaName = 'services.WithdrawGuidelineInput';
+  final Map<String, dynamic> value;
+
+  String? get currentVersionId => value['current_version_id']?.toString();
+
+  String? get reason => value['reason']?.toString();
 
   Map<String, dynamic> toJson() => Map.of(value);
 }

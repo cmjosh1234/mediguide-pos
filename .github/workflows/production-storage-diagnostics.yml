@@ -1,0 +1,57 @@
+name: Inspect production storage routing
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-storage-diagnostics
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    name: Inspect storage and reverse proxy without changing services
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    steps:
+      - name: Inspect through verified production SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "${RUNNER_TEMP}/storage-ssh"
+          key="${RUNNER_TEMP}/storage-ssh/key"
+          hosts="${RUNNER_TEMP}/storage-ssh/known_hosts"
+          trap 'rm -f "$key" "$hosts"' EXIT
+          printf '%s\n' "${DEPLOY_SSH_PRIVATE_KEY}" > "$key"
+          printf '%s\n' "${DEPLOY_KNOWN_HOSTS}" > "$hosts"
+          ssh -i "$key" -p "${DEPLOY_PORT}" -o BatchMode=yes \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$hosts" -o ConnectTimeout=15 \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s <<'REMOTE'
+          set -uo pipefail
+          echo 'Running containers and port bindings:'
+          docker ps --format '{{.Names}} {{.Ports}}'
+          echo 'Local MinIO live endpoint:'
+          curl --connect-timeout 5 --max-time 10 -sS -o /dev/null -w 'HTTP %{http_code}\n' http://127.0.0.1:9000/minio/health/live || true
+          echo 'Nginx configuration validation:'
+          sudo -n nginx -t 2>&1 || true
+          echo 'Relevant proxy configuration (routing directives only):'
+          sudo -n sh -c '
+            for file in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
+              [ -f "$file" ] || continue
+              if grep -q "mediguide" "$file"; then
+                printf "File: %s\n" "$file"
+                grep -nE "^[[:space:]]*(server_name|listen|location|proxy_pass|include)[[:space:]]" "$file" | head -100
+              fi
+            done
+          ' || true
+          REMOTE

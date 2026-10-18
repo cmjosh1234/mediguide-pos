@@ -915,6 +915,13 @@ definitions:
       success:
         type: boolean
     type: object
+  handlers.GuidelineRevisionEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/services.GuidelineRevisionResult'
+      success:
+        type: boolean
+    type: object
   handlers.GuidelineSectionEnvelope:
     properties:
       data:
@@ -3648,6 +3655,14 @@ definitions:
         items:
           $ref: '#/definitions/models.GuidelineVersion'
         type: array
+      withdrawal_reason:
+        type: string
+      withdrawn_at:
+        type: string
+      withdrawn_by:
+        type: string
+      withdrawn_version_id:
+        type: string
     type: object
   models.GuidelineEditorComment:
     properties:
@@ -3978,10 +3993,18 @@ definitions:
         type: string
       review_date:
         type: string
+      revision_source:
+        type: string
+      revision_warnings:
+        items:
+          type: string
+        type: array
       sections:
         items:
           $ref: '#/definitions/models.GuidelineSection'
         type: array
+      source_version_id:
+        type: string
       status:
         type: string
       structured_content_status:
@@ -6614,6 +6637,13 @@ definitions:
       name:
         type: string
     type: object
+  services.GuidelineRevisionResult:
+    properties:
+      existing:
+        type: boolean
+      version:
+        $ref: '#/definitions/models.GuidelineVersion'
+    type: object
   services.GuidelineSectionOrderInput:
     properties:
       id:
@@ -9164,6 +9194,16 @@ definitions:
     required:
     - status
     type: object
+  services.ReviseGuidelineInput:
+    properties:
+      source_version_id:
+        type: string
+      version:
+        type: string
+    required:
+    - source_version_id
+    - version
+    type: object
   services.RoleInput:
     properties:
       description:
@@ -9802,6 +9842,16 @@ definitions:
       verified:
         type: boolean
     type: object
+  services.WithdrawGuidelineInput:
+    properties:
+      current_version_id:
+        type: string
+      reason:
+        type: string
+    required:
+    - current_version_id
+    - reason
+    type: object
   storage.UploadPart:
     properties:
       etag:
@@ -9820,7 +9870,7 @@ info:
     name: Proprietary
   termsOfService: https://mediguide.local/terms
   title: MediGuide Backend API
-  version: 2.1.18
+  version: 2.1.20
 paths:
   /analytics/accounts:
     get:
@@ -17959,6 +18009,55 @@ paths:
       tags:
       - guidelines
       - notification-administration
+  /api/v2/guidelines/{id}/revise:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Document ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Withdrawn source and new version
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/services.ReviseGuidelineInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GuidelineRevisionEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create or continue an unapproved draft from a withdrawn publication
+      tags:
+      - guidelines
   /api/v2/guidelines/{id}/versions:
     post:
       consumes:
@@ -17998,6 +18097,55 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a guideline version
+      tags:
+      - guidelines
+  /api/v2/guidelines/{id}/withdraw:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Document ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Withdrawal reason and expected current version
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/services.WithdrawGuidelineInput'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Withdraw a published guideline, retaining files and review history
       tags:
       - guidelines
   /api/v2/languages:
