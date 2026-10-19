@@ -1,0 +1,1 @@
+Maintenance release aligned with platform 2.1.21. No mobile-specific behavior changes.

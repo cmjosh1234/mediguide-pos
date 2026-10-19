@@ -165,6 +165,11 @@ jobs:
             printf 'S3_PUBLIC_SSL=%s\n' "${S3_PUBLIC_SSL:-true}" >> infra/production.env
           fi
           printf 'MINIO_API_CORS_ALLOW_ORIGIN=%s\n' "${PUBLIC_SITE_URL%/}" >> infra/production.env
+          # Older protected env bundles predate configurable embedding batches.
+          # Add only this tuning default; missing credentials must still fail validation.
+          if ! grep -q '^EMBEDDING_REQUEST_BATCH_SIZE=' infra/production.env; then
+            printf '\nEMBEDDING_REQUEST_BATCH_SIZE=1\n' >> infra/production.env
+          fi
           python3 infra/organize-env.py infra/production.env --private
           python3 infra/check-production-env.py infra/production.env
           python3 infra/check-public-storage.py infra/production.env
