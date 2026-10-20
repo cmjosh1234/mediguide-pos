@@ -1,5 +1,20 @@
 # MediGuide platform release process
 
+## v2.1.22 processing capacity release — 20 October 2026
+
+- Synchronizes all service versions to 2.1.22 and mobile to 2.1.22+75.
+- Tunes the 8-vCPU, 32-GiB production server for two concurrent documents with
+  three PDF table-extraction workers per document, for up to six extraction
+  processes in one queue consumer.
+- Keeps two OCR workers and one embedding worker per document, four-text
+  embedding batches, a 600-second embedding deadline and artifact reuse.
+- Starts with one queue-worker replica. Monitor memory, processing-stage times,
+  application responsiveness and embedding retries. Reduce document concurrency
+  to one if contention or timeouts increase. This profile needs production
+  measurements before claiming a throughput improvement.
+- Includes the five-slide platform presentation. No clinical content is approved
+  or published by this release.
+
 ## v2.1.11 release cut — 6 October 2026
 
 - Synchronizes the API, AI worker, dashboard, public guidelines portal and

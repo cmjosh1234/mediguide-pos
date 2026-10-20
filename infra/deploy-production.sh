@@ -147,11 +147,10 @@ else
   echo "Using immutable release images preloaded and verified by the deployment workflow."
 fi
 
-# Bootstrap the published S3 API port for a remote Nginx server before
-# checking its route. Leave the application stack running if routing fails.
+# Apply the published S3 API port and require local MinIO container health.
+# Public HTTPS storage routing is diagnosed separately from deployment.
 echo "Applying MinIO API port mapping and waiting for storage health."
 "${compose[@]}" up --no-build -d --no-deps --wait --wait-timeout 120 minio
-python3 "${infra_dir}/check-public-storage.py" "${production_env}" --check-network
 
 echo "Removing existing MediGuide containers while preserving named volumes."
 "${compose[@]}" down --remove-orphans --timeout 60
