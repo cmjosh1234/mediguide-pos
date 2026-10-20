@@ -6,6 +6,7 @@ import { DataTableColumnHeader } from "@/components/ui/datatable-column-header";
 import { ExtendedColumnDef } from "@/types/data-table";
 import { DecisionToolWithRelations } from "./types";
 import { getAppFileLabel } from "./app-file";
+import { ToolIcon } from "./tool-icon";
 
 import {
   CalculatorsTypeOptions,
@@ -81,7 +82,7 @@ export const columns: ExtendedColumnDef<DecisionToolWithRelations>[] = [
 
       return (
         <div className="flex items-center gap-2 font-medium">
-          {icon ? <span className="text-lg">{icon}</span> : getTypeIcon(type)}
+          <ToolIcon icon={icon} fallback={getTypeIcon(type)} />
           <span>{name}</span>
         </div>
       );
@@ -184,6 +185,17 @@ export const columns: ExtendedColumnDef<DecisionToolWithRelations>[] = [
   },
 
   // ADDITIONAL INFORMATION (Hidden by default)
+  {
+    accessorKey: "usageCount",
+    defaultVisible: false,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Usage" canSort={false} />
+    ),
+    cell: ({ row }) => {
+      const usageCount = (row.getValue("usageCount") as number) || 0;
+      return <span className="text-sm">{usageCount.toLocaleString()}</span>;
+    },
+  },
   {
     accessorKey: "version",
     defaultVisible: false,

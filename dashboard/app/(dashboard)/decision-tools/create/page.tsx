@@ -4,7 +4,7 @@ import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { PageHeader } from "@/components/ui/page-header"
 import { DecisionToolForm } from "@/components/forms/decision-tool-form"
-import { CalculatorsResponse } from "@/types/backend-types"
+import { CalculatorsResponse, CalculatorsTypeOptions } from "@/types/backend-types"
 import { useDomainCrud } from "@/hooks/use-domain-crud"
 import { calculatorService } from "@/services/calculator.service"
 import { usePermissionContext } from "@/lib/permission-context"
@@ -21,7 +21,9 @@ export default function CreateDecisionToolPage() {
     }
   }, [permLoading, hasPermission, router])
   const duplicateId = searchParams.get("duplicate")
-  
+  const typeParam = searchParams.get("type")
+  const presetType = Object.values(CalculatorsTypeOptions).find((value) => value === typeParam)
+
   const [duplicateData, setDuplicateData] = React.useState<CalculatorsResponse | null>(null)
   const [loadingDuplicate, setLoadingDuplicate] = React.useState(!!duplicateId)
 
@@ -83,7 +85,7 @@ export default function CreateDecisionToolPage() {
     ...duplicateData,
     // Clear some fields that shouldn't be duplicated
     name: `${duplicateData.name} (Copy)`
-  } : undefined
+  } : presetType ? { type: presetType } : undefined
 
   const pageTitle = duplicateId 
     ? `Duplicate "${duplicateData?.name || 'Tool'}"` 

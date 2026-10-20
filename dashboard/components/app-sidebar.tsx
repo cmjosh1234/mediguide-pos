@@ -154,7 +154,6 @@ const data: { navMain: NavItem[] } = {
         { title: "All Tools", url: "/decision-tools" },
         { title: "Clinical Review", url: "/decision-tools/review", backendPermissions: ["calculator.review"] },
         { title: "Calculators", url: "/decision-tools/calculators" },
-        { title: "Checklists", url: "/decision-tools/checklists" },
       ],
     },
     {

@@ -20,7 +20,6 @@ export default function DecisionToolsPage() {
   const searchParams = useSearchParams()
   const typeFilter = searchParams.get("type")
 
-  const isCalculatorView = typeFilter === "calculator"
   const { hasPermission, loading } = usePermissionContext()
 
   React.useEffect(() => {
@@ -46,27 +45,15 @@ export default function DecisionToolsPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        title={isCalculatorView ? "All Calculators" : "Decision Support Tools"}
-        description={
-          isCalculatorView
-            ? "Every calculator available in the system"
-            : "Clinical calculators, decision trees, and assessment tools for healthcare decisions"
-        }
-        actions={
-          isCalculatorView ? [
-            {
-              label: "Add Calculator",
-              onClick: () => router.push('/decision-tools/create'),
-              icon: <Plus className="h-4 w-4" />
-            }
-          ] : [
-            {
-              label: "Add Decision Tool",
-              onClick: () => router.push('/decision-tools/create'),
-              icon: <Plus className="h-4 w-4" />
-            }
-          ]
-        }
+        title="Decision Support Tools"
+        description="Clinical calculators, decision trees, and assessment tools for healthcare decisions"
+        actions={[
+          {
+            label: "Add Decision Tool",
+            onClick: () => router.push(typeFilter ? `/decision-tools/create?type=${typeFilter}` : '/decision-tools/create'),
+            icon: <Plus className="h-4 w-4" />
+          }
+        ]}
       />
 
       {/* Simplified DataTable */}

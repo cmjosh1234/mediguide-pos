@@ -37,6 +37,53 @@ describe("typed calculator and drug services", () => {
     expect(url).not.toContain("expand=");
   });
 
+  it("maps calculator table type and status filters to backend query parameters", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      json({
+        items: [],
+        page: 1,
+        per_page: 20,
+        total_items: 0,
+        total_pages: 0,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await calculatorService.listTable({
+      page: 1,
+      perPage: 20,
+      search: "",
+      filters: [
+        { id: "1", field: "type", condition: "equals", value: "checklist" },
+        { id: "2", field: "status", condition: "not_equals", value: "archived" },
+      ],
+    });
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost");
+    expect(url.searchParams.get("type")).toBe("checklist");
+    expect(url.searchParams.get("status")).toBe("active,draft");
+  });
+
+  it("returns an empty page without calling the backend when calculator filters exclude every value", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await calculatorService.listTable(
+      {
+        page: 1,
+        perPage: 20,
+        search: "",
+        filters: [
+          { id: "1", field: "type", condition: "equals", value: "calculator" },
+        ],
+      },
+      "checklist",
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.totalItems).toBe(0);
+  });
+
   it("maps legacy drug form fields to the typed drug DTO", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       json(

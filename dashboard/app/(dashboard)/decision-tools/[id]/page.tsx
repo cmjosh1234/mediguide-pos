@@ -16,6 +16,7 @@ import { formatDistanceToNow } from "date-fns"
 import { Edit, Copy, Trash2, Play, Calculator, Brain, CheckSquare, Info, Settings, Activity, Calendar } from "lucide-react"
 import { usePermissionContext } from "@/lib/permission-context"
 import { getAppFileLabel } from "../app-file"
+import { ToolIcon } from "../tool-icon"
 
 interface DecisionToolViewPageProps {
   params: Promise<{ id: string }>
@@ -34,17 +35,6 @@ export default function DecisionToolViewPage({ params }: DecisionToolViewPagePro
 
   // Unwrap params using React.use()
   const { id } = React.use(params)
-
-  const getListPath = (type?: string) => {
-    switch (type) {
-      case CalculatorsTypeOptions.checklist:
-        return "/decision-tools/checklists"
-      case CalculatorsTypeOptions.calculator:
-        return "/decision-tools/calculators"
-      default:
-        return "/decision-tools"
-    }
-  }
 
   const { record: tool, loading } = useDomainRecord<DecisionToolWithRelations>("calculators", id, calculatorService.get)
 
@@ -67,7 +57,7 @@ export default function DecisionToolViewPage({ params }: DecisionToolViewPagePro
     if (window.confirm("Are you sure you want to delete this decision tool? This action cannot be undone.")) {
       try {
         await calculatorService.delete(id)
-        router.push(getListPath(tool?.type))
+        router.push("/decision-tools")
       } catch (error) {
         console.error("Failed to delete decision tool:", error)
       }
@@ -111,7 +101,7 @@ export default function DecisionToolViewPage({ params }: DecisionToolViewPagePro
         <PageHeader
           title="Loading..."
           showBackButton={true}
-          onBack={() => router.push(getListPath(tool?.type))}
+          onBack={() => router.push("/decision-tools")}
         />
         <div className="flex items-center justify-center h-64">
           <div className="text-muted-foreground">Loading decision tool details...</div>
@@ -133,7 +123,7 @@ export default function DecisionToolViewPage({ params }: DecisionToolViewPagePro
         title={tool.name}
         description={tool.description}
         showBackButton={true}
-        onBack={() => router.push(getListPath(tool?.type))}
+        onBack={() => router.push("/decision-tools")}
         actions={[
           {
             label: "Test Tool",
@@ -169,11 +159,7 @@ export default function DecisionToolViewPage({ params }: DecisionToolViewPagePro
       {/* Status Badges */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          {tool.icon ? (
-            <span className="text-lg">{tool.icon}</span>
-          ) : (
-            getTypeIcon(tool.type)
-          )}
+          <ToolIcon icon={tool.icon} fallback={getTypeIcon(tool.type)} />
           <Badge variant="outline">
             {getTypeDisplayName(tool.type)}
           </Badge>
@@ -217,11 +203,7 @@ export default function DecisionToolViewPage({ params }: DecisionToolViewPagePro
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-muted-foreground">Tool Type</Label>
                   <div className="flex items-center gap-2">
-                    {tool.icon ? (
-                      <span className="text-lg">{tool.icon}</span>
-                    ) : (
-                      getTypeIcon(tool.type)
-                    )}
+                    <ToolIcon icon={tool.icon} fallback={getTypeIcon(tool.type)} />
                     <span className="text-sm font-medium">
                       {getTypeDisplayName(tool.type)}
                     </span>

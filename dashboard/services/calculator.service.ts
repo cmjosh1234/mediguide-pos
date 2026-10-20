@@ -5,7 +5,11 @@ import type {
   ServicesCreateCalculatorInput,
   ServicesUpdateCalculatorInput,
 } from "@/types/generated/backend-openapi";
-import type { DomainPageQuery, DomainPageResult } from "@/types/data-table";
+import type {
+  AdvancedFilter,
+  DomainPageQuery,
+  DomainPageResult,
+} from "@/types/data-table";
 
 interface Page<T> {
   items: T[];
@@ -19,6 +23,29 @@ export type CalculatorRecord = CalculatorsResponse<{
   addedBy: UsersResponse[];
 }>;
 export type CalculatorInput = Record<string, unknown> | FormData;
+
+const CALCULATOR_TYPES = ["calculator", "decision_tool", "checklist"];
+const CALCULATOR_STATUSES = ["active", "draft", "archived"];
+
+// The backend filters type and status by comma-separated value lists, so
+// equals / not_equals table filters are reduced to the set of values to keep.
+function narrowChoices(
+  choices: string[],
+  filters: AdvancedFilter[],
+  field: string,
+): string[] {
+  let kept = choices;
+  for (const filter of filters) {
+    if (filter.field !== field || filter.value == null) continue;
+    const value = String(filter.value);
+    if (filter.condition === "equals") {
+      kept = kept.filter((choice) => choice === value);
+    } else if (filter.condition === "not_equals") {
+      kept = kept.filter((choice) => choice !== value);
+    }
+  }
+  return kept;
+}
 
 function artifactPath(value: unknown): string {
   if (typeof value === "string") return value;
@@ -132,11 +159,30 @@ export const calculatorService = {
     query: DomainPageQuery,
     type?: string,
   ): Promise<DomainPageResult<CalculatorRecord>> {
+    const types = narrowChoices(
+      type ? type.split(",") : CALCULATOR_TYPES,
+      query.filters,
+      "type",
+    );
+    const statuses = narrowChoices(CALCULATOR_STATUSES, query.filters, "status");
+    if (types.length === 0 || statuses.length === 0) {
+      return {
+        items: [],
+        page: 1,
+        perPage: query.perPage,
+        totalItems: 0,
+        totalPages: 0,
+      };
+    }
     const result = await this.list({
       page: query.page,
       perPage: query.perPage,
       search: query.search,
-      type,
+      type: types.length < CALCULATOR_TYPES.length ? types.join(",") : undefined,
+      status:
+        statuses.length < CALCULATOR_STATUSES.length
+          ? statuses.join(",")
+          : undefined,
       sort: "name",
     });
     return {

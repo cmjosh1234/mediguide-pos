@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { notFound } from "next/navigation"
 import { PageHeader } from "@/components/ui/page-header"
 import { DecisionToolForm } from "@/components/forms/decision-tool-form"
-import { CalculatorsResponse, CalculatorsTypeOptions } from "@/types/backend-types"
+import { CalculatorsResponse } from "@/types/backend-types"
 import { useDomainCrud } from "@/hooks/use-domain-crud"
 import { calculatorService } from "@/services/calculator.service"
 import { usePermissionContext } from "@/lib/permission-context"
@@ -29,16 +29,6 @@ export default function DecisionToolEditPage({ params, searchParams }: DecisionT
 
   const isDuplicate = !!resolvedSearchParams.duplicate
 
-  const getListPath = (type?: string) => {
-    switch (type) {
-      case CalculatorsTypeOptions.checklist:
-        return "/decision-tools/checklists"
-      case CalculatorsTypeOptions.calculator:
-        return "/decision-tools/calculators"
-      default:
-        return "/decision-tools"
-    }
-  }
   React.useEffect(() => {
     if (permLoading) return
     if (!hasPermission("content", "update:any")) {
@@ -56,7 +46,7 @@ export default function DecisionToolEditPage({ params, searchParams }: DecisionT
       if (resolvedParams?.id && !isDuplicate) {
         router.push(`/decision-tools/${resolvedParams.id}`)
       } else {
-        router.push(getListPath(tool?.type))
+        router.push("/decision-tools")
       }
   })
 
@@ -113,7 +103,7 @@ export default function DecisionToolEditPage({ params, searchParams }: DecisionT
   }
 
   const handleCancel = () => {
-    router.push(getListPath(tool?.type))
+    router.push("/decision-tools")
   }
 
   if (loadingData) {
@@ -122,7 +112,7 @@ export default function DecisionToolEditPage({ params, searchParams }: DecisionT
         <PageHeader
           title="Loading..."
           showBackButton={true}
-          onBack={() => router.push(getListPath(tool?.type))}
+          onBack={() => router.push("/decision-tools")}
         />
         <div className="flex items-center justify-center h-64">
           <div className="text-muted-foreground">Loading decision tool data...</div>
@@ -156,7 +146,7 @@ export default function DecisionToolEditPage({ params, searchParams }: DecisionT
         title={pageTitle}
         description={pageDescription}
         showBackButton={true}
-        onBack={() => router.push(getListPath(tool?.type))}
+        onBack={() => router.push("/decision-tools")}
       />
 
       <div className="bg-card rounded-lg border p-6">
