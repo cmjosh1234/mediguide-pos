@@ -16,7 +16,7 @@ import { formatDistanceToNow } from "date-fns"
 import { Edit, Copy, Trash2, Play, Calculator, Brain, CheckSquare, Info, Settings, Activity, Calendar } from "lucide-react"
 import { usePermissionContext } from "@/lib/permission-context"
 import { getAppFileLabel } from "../app-file"
-import { ToolIcon } from "../tool-icon"
+import { StoredIcon } from "@/components/ui/stored-icon"
 
 interface DecisionToolViewPageProps {
   params: Promise<{ id: string }>
@@ -159,7 +159,7 @@ export default function DecisionToolViewPage({ params }: DecisionToolViewPagePro
       {/* Status Badges */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <ToolIcon icon={tool.icon} fallback={getTypeIcon(tool.type)} />
+          <StoredIcon icon={tool.icon} fallback={getTypeIcon(tool.type)} />
           <Badge variant="outline">
             {getTypeDisplayName(tool.type)}
           </Badge>
@@ -203,7 +203,7 @@ export default function DecisionToolViewPage({ params }: DecisionToolViewPagePro
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-muted-foreground">Tool Type</Label>
                   <div className="flex items-center gap-2">
-                    <ToolIcon icon={tool.icon} fallback={getTypeIcon(tool.type)} />
+                    <StoredIcon icon={tool.icon} fallback={getTypeIcon(tool.type)} />
                     <span className="text-sm font-medium">
                       {getTypeDisplayName(tool.type)}
                     </span>

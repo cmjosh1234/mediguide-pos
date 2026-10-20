@@ -5,6 +5,7 @@ import 'package:user_app/core/utils/extensions.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:user_app/shared/models/models.dart';
 import 'package:user_app/core/constants/app_spacing.dart';
+import 'package:user_app/features/calculators/presentation/widgets/clinical_tool_icon.dart';
 
 /// Clean list tile for calculator/tool items — MDCalc-style.
 /// No cards, just icon badge + text + chevron with divider.
@@ -46,8 +47,10 @@ class CalculatorTile extends StatelessWidget {
                     color: bgColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    _getTypeIcon(calculator.type),
+                  alignment: Alignment.center,
+                  child: ClinicalToolIcon(
+                    icon: calculator.icon,
+                    fallback: _getTypeIcon(calculator.type),
                     size: 22,
                     color: iconColor,
                   ),

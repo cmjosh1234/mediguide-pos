@@ -6,7 +6,7 @@ import { DataTableColumnHeader } from "@/components/ui/datatable-column-header";
 import { ExtendedColumnDef } from "@/types/data-table";
 import { DecisionToolWithRelations } from "./types";
 import { getAppFileLabel } from "./app-file";
-import { ToolIcon } from "./tool-icon";
+import { StoredIcon } from "@/components/ui/stored-icon";
 
 import {
   CalculatorsTypeOptions,
@@ -82,7 +82,7 @@ export const columns: ExtendedColumnDef<DecisionToolWithRelations>[] = [
 
       return (
         <div className="flex items-center gap-2 font-medium">
-          <ToolIcon icon={icon} fallback={getTypeIcon(type)} />
+          <StoredIcon icon={icon} fallback={getTypeIcon(type)} />
           <span>{name}</span>
         </div>
       );

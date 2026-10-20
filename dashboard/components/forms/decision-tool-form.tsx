@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CalculatorsResponse, CalculatorsTypeOptions, CalculatorsStatusOptions, CalculatorsCategoryOptions, CalculatorsPriorityOptions } from "@/types/backend-types"
 import { Calculator, Brain, CheckSquare, Palette, Settings, Info } from "lucide-react"
+import { IconPicker } from "@/components/ui/icon-picker"
+import { isValidStoredIcon } from "@/components/ui/stored-icon"
 
 const decisionToolSchema = z.object({
   name: z.string().min(1, "Name is required").max(200, "Name must be less than 200 characters"),
@@ -41,7 +43,10 @@ const decisionToolSchema = z.object({
   ]),
   priority: z.enum(["critical", "high", "medium", "low"]),
   appFile: z.string().optional(),
-  icon: z.string().optional(),
+  icon: z
+    .string()
+    .optional()
+    .refine((value) => !value || isValidStoredIcon(value), "Choose an icon from the list or paste an emoji"),
   color: z.string().optional(),
   backgroundColor: z.string().optional(),
 })
@@ -141,6 +146,7 @@ export function DecisionToolForm({
   const watchedStatus = watch("status")
   const watchedCategory = watch("category")
   const watchedPriority = watch("priority")
+  const watchedIcon = watch("icon")
 
   const onFormSubmit = async (data: DecisionToolFormData) => {
     try {
@@ -371,15 +377,15 @@ export function DecisionToolForm({
               {/* Icon */}
               <div className="space-y-2">
                 <Label htmlFor="icon">Icon</Label>
-                <Input
+                <IconPicker
                   id="icon"
-                  {...register("icon")}
-                  placeholder="🧮"
-                  className={errors.icon ? "border-destructive" : ""}
+                  value={watchedIcon ?? ""}
+                  onChange={(value) => setValue("icon", value, { shouldDirty: true, shouldValidate: true })}
+                  invalid={!!errors.icon}
                   disabled={isFormLoading}
                 />
                 <p className="text-sm text-muted-foreground">
-                  Emoji or icon identifier (optional)
+                  Choose a clinical icon or paste an emoji (optional)
                 </p>
                 {errors.icon && (
                   <p className="text-sm text-destructive">{errors.icon.message}</p>
