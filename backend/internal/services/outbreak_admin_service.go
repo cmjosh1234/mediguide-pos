@@ -1430,13 +1430,27 @@ func (s OutbreakAdminService) UpdateReportMetrics(actor OutbreakActor, id uuid.U
 	}
 	return s.GetReport(id)
 }
-func (s OutbreakAdminService) DeleteReport(actor OutbreakActor, id uuid.UUID, lock int) error {
+// ReportDeleteInput records why a situation report is being deleted.
+type ReportDeleteInput struct {
+	Reason string `json:"reason"`
+}
+
+// DeleteReport soft-deletes a situation report in any state, together with its
+// attachments and open corrections. Removing anything beyond a draft or a
+// submission in review takes it off the public app or erases a withdrawn
+// record, so it needs the withdraw permission too. The reason is kept in the
+// audit history.
+func (s OutbreakAdminService) DeleteReport(actor OutbreakActor, id uuid.UUID, lock int, in ReportDeleteInput, canWithdraw bool) error {
+	reason := strings.TrimSpace(in.Reason)
+	if reason == "" {
+		return invalidField("Give a reason for deleting this situation report.", "reason")
+	}
 	var row models.SituationReport
 	if err := s.DB.First(&row, "id = ?", id).Error; err != nil {
 		return err
 	}
-	if row.Status == "published" || row.Status == "withdrawn" {
-		return ErrOutbreakImmutable
+	if row.Status != "draft" && row.Status != "pending_review" && !canWithdraw {
+		return ErrOutbreakForbidden
 	}
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		r := tx.Where("id = ? AND lock_version = ?", id, lock).Delete(&models.SituationReport{})
@@ -1446,7 +1460,20 @@ func (s OutbreakAdminService) DeleteReport(actor OutbreakActor, id uuid.UUID, lo
 		if r.RowsAffected == 0 {
 			return ErrOutbreakConflict
 		}
-		return auditOutbreak(tx, actor, "situation_report.deleted", "situation_report", id, nil)
+		if err := tx.Where("situation_report_id = ?", id).Delete(&models.SituationReportAttachment{}).Error; err != nil {
+			return err
+		}
+		c := tx.Where("supersedes_id = ? AND status IN ?", id, []string{"draft", "pending_review"}).Delete(&models.SituationReport{})
+		if c.Error != nil {
+			return c.Error
+		}
+		// A correction published on its own becomes an ordinary report.
+		if err := tx.Model(&models.SituationReport{}).Where("supersedes_id = ?", id).Update("supersedes_id", nil).Error; err != nil {
+			return err
+		}
+		return auditOutbreak(tx, actor, "situation_report.deleted", "situation_report", id, map[string]any{
+			"reason": reason, "status": row.Status, "title": row.Title, "deleted_corrections": c.RowsAffected,
+		})
 	})
 }
 func (s OutbreakAdminService) TransitionReport(actor OutbreakActor, id uuid.UUID, action string, in TransitionInput) (*SituationReportAdminDTO, error) {

@@ -899,3 +899,42 @@ func TestAuditHistoryNamesWhoActedAndWhatChanged(t *testing.T) {
 		}
 	}
 }
+
+func TestSituationReportDeleteNeedsReasonAndWithdrawPermissionBeyondDraft(t *testing.T) {
+	service := outbreakAdminTestService(t)
+	author := OutbreakActor{ID: uuid.New()}
+	now := time.Now().UTC()
+	report, err := service.CreateReport(author, SituationReportInput{Title: ptr("Trial report"), StandaloneAllowed: ptr(true), PublicationDate: &now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reason := ReportDeleteInput{Reason: "Entered by mistake"}
+	if err := service.DeleteReport(author, report.ID, report.LockVersion, ReportDeleteInput{Reason: "  "}, false); !errors.Is(err, ErrOutbreakInvalid) {
+		t.Fatalf("delete without reason accepted: %v", err)
+	}
+	if err := service.DeleteReport(author, report.ID, report.LockVersion-1, reason, false); !errors.Is(err, ErrOutbreakConflict) {
+		t.Fatalf("stale delete accepted: %v", err)
+	}
+	// A draft needs no withdraw permission.
+	if err := service.DeleteReport(author, report.ID, report.LockVersion, reason, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.GetReport(report.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("deleted report still exists: %v", err)
+	}
+
+	// Anything past review needs the withdraw permission.
+	live, err := service.CreateReport(author, SituationReportInput{Title: ptr("Published report"), StandaloneAllowed: ptr(true), PublicationDate: &now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.DB.Model(&models.SituationReport{}).Where("id = ?", live.ID).Update("status", "published").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := service.DeleteReport(author, live.ID, live.LockVersion, reason, false); !errors.Is(err, ErrOutbreakForbidden) {
+		t.Fatalf("published report deleted without withdraw permission: %v", err)
+	}
+	if err := service.DeleteReport(author, live.ID, live.LockVersion, reason, true); err != nil {
+		t.Fatal(err)
+	}
+}

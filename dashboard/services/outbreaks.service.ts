@@ -288,10 +288,12 @@ export const situationReportsService = {
       { method: "PATCH", body: JSON.stringify(input) },
     );
   },
-  remove(id: string, lockVersion: number) {
+  /** Deletes the report with its attachments and open corrections; a reason is required and kept in the audit history. */
+  remove(id: string, lockVersion: number, reason: string) {
     return client().send<void>(`/api/v2/situation-reports/${id}`, {
       method: "DELETE",
       query: { lock_version: lockVersion },
+      body: JSON.stringify({ reason }),
     });
   },
   transition(

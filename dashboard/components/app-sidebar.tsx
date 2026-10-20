@@ -143,7 +143,6 @@ const data: { navMain: NavItem[] } = {
         { title: "Outbreaks", url: "/outbreaks", backendPermissions: ["outbreak.read"] },
         { title: "Situation Reports", url: "/situation-reports", backendPermissions: ["situation_report.read"] },
         { title: "Outbreak Resources", url: "/outbreaks/resources", backendPermissions: ["outbreak.read"] },
-        { title: "Publication Review", url: "/outbreaks/review", backendPermissions: ["outbreak.review", "outbreak.publish", "situation_report.review", "situation_report.publish"] },
       ],
     },
     {

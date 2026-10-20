@@ -195,7 +195,7 @@ export function SituationReportEditor({ id }: { id?: string }) {
     if (!window.confirm("Discard this correction? The published report stays as it is.")) return
     setSaving(true)
     try {
-      await situationReportsService.remove(item.id, item.lock_version!)
+      await situationReportsService.remove(item.id, item.lock_version!, "Correction discarded")
       showToast.success("Correction discarded", "The published report is unchanged.")
       window.location.assign(withDashboardBasePath(`/situation-reports/${item.supersedes_id}`))
     } catch (value) { showToast.error("Correction not discarded", message(value)) }

@@ -628,9 +628,12 @@ func (h OutbreakAdminHandler) UpdateReport(c *gin.Context) {
 }
 
 // DeleteReport godoc
-// @Summary Delete an unpublished situation report
+// @Summary Soft-delete a situation report
+// @Description Deletes the report with its attachments and open corrections. Deleting anything beyond a draft or a submission in review also needs situation_report.withdraw.
 // @Tags situation-report-administration
 // @Security BearerAuth
+// @Param lock_version query int true "Optimistic lock version"
+// @Param payload body services.ReportDeleteInput true "Reason for deleting"
 // @Success 204
 // @Router /api/v2/situation-reports/{id} [delete]
 func (h OutbreakAdminHandler) DeleteReport(c *gin.Context) {
@@ -642,7 +645,13 @@ func (h OutbreakAdminHandler) DeleteReport(c *gin.Context) {
 	if !ok {
 		return
 	}
-	e := h.Service.DeleteReport(outbreakActor(c), id, lock)
+	var in services.ReportDeleteInput
+	if c.ShouldBindJSON(&in) != nil {
+		httpx.Error(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	canWithdraw := security.HasPerm(supportClaims(c), "situation_report.withdraw")
+	e := h.Service.DeleteReport(outbreakActor(c), id, lock, in, canWithdraw)
 	if e == nil {
 		c.Status(204)
 		return
