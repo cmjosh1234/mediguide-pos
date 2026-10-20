@@ -416,7 +416,7 @@ The main tuning variables are:
 | `PDF_PAGE_WORKERS` | `2` | Bounded PDF page extraction parallelism |
 | `OCR_WORKERS` | `2` | Bounded OCR parallelism |
 | `EMBEDDING_WORKERS` | `2` | Bounded embedding-batch parallelism for providers that support isolated clients |
-| `EMBEDDING_REQUEST_BATCH_SIZE` | `8` | Texts sent in one embedding provider request; production template uses `1` |
+| `EMBEDDING_REQUEST_BATCH_SIZE` | `8` | Texts sent in one embedding provider request; production template uses `4` |
 | `OLLAMA_EMBEDDING_TIMEOUT_SECONDS` | `300` | Embedding read/write deadline per request (maximum `1800`); connection deadline stays at 10 seconds |
 
 When an Ollama batch hits its read deadline, the worker halves it and retries
@@ -427,10 +427,21 @@ checkpointed for a later job retry; timeout recovery does not shorten clinical
 text or replace embeddings with placeholders. A persistently overloaded or
 unavailable model still requires an operator to check capacity and availability.
 
-The production template uses `EMBEDDING_WORKERS=1`,
-`INGESTION_WORKER_CONCURRENCY=1`, `EMBEDDING_REQUEST_BATCH_SIZE=1`, and
-`OLLAMA_EMBEDDING_TIMEOUT_SECONDS=600` to avoid concurrent requests overwhelming
-the local embedding model. The embedding timeout requires the v2.1.21 worker
+The production template targets an 8-vCPU, 32-GiB server with
+`PDF_PAGE_WORKERS=3`, `OCR_WORKERS=2`, `EMBEDDING_WORKERS=1`,
+`INGESTION_WORKER_CONCURRENCY=2`, `EMBEDDING_REQUEST_BATCH_SIZE=4`, and
+`OLLAMA_EMBEDDING_TIMEOUT_SECONDS=600`. Keep one queue-worker replica initially.
+This allows two documents and up to six table-extraction processes per queue
+worker, with up to two embedding requests across those documents. The embedding
+worker setting is per document; it is not a global provider limit.
+`INGESTION_PROCESSING_CONCURRENCY`
+and `INGESTION_ARTIFACT_REUSE` remain enabled. Benchmark parsing and embedding
+durations, memory, CPU contention and retries before increasing document or
+embedding concurrency. If embedding timeouts recur, reduce document concurrency
+to `1` and, if necessary, the batch size to `1`. This is a throughput profile,
+not a measured speedup guarantee for an individual document. Do not multiply
+queue-worker replicas without accounting for their nested processing pools.
+The embedding timeout requires the v2.1.21 worker
 image or later; the v2.1.20 image hardcodes 120 seconds. Changing
 `AI_WORKER_TIMEOUT_SECONDS` does not change the embedding HTTP deadline.
 Update the protected `PRODUCTION_ENV_FILE` secret with the production settings

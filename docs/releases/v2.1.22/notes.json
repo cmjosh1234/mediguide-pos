@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "release_tag": "v2.1.22",
+  "previous_tag": "v2.1.21",
+  "mobile_build_number": 75,
+  "services": {
+    "mobile": [
+      "No service-specific changes since v2.1.21."
+    ],
+    "api": [
+      "No service-specific changes since v2.1.21."
+    ],
+    "ai-worker": [
+      "No service-specific changes since v2.1.21."
+    ],
+    "dashboard": [
+      "No service-specific changes since v2.1.21."
+    ],
+    "guidelines": [
+      "No service-specific changes since v2.1.21."
+    ]
+  },
+  "operations": [
+    "Increase the 8-vCPU/32-GiB production processing profile to two concurrent documents with three PDF table-extraction workers per document; keep one queue-worker replica initially.",
+    "Use two OCR workers and one embedding worker per document, four-text embedding batches, a 600-second embedding deadline and reusable artifact checkpoints.",
+    "Synchronize the protected production environment with the throughput profile before deployment; monitor memory, API responsiveness, job duration and embedding retries, and reduce document concurrency if contention increases.",
+    "Publish all service images under the immutable 2.1.22 tag. Include the five-slide MediGuide platform overview in the repository."
+  ],
+  "play_store": "- Platform release 2.1.22.\n- Server-side document processing capacity increased.\n- No mobile feature changes in this release."
+}

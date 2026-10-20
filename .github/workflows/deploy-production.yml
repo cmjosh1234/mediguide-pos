@@ -168,7 +168,7 @@ jobs:
           # Older protected env bundles predate configurable embedding batches.
           # Add only this tuning default; missing credentials must still fail validation.
           if ! grep -q '^EMBEDDING_REQUEST_BATCH_SIZE=' infra/production.env; then
-            printf '\nEMBEDDING_REQUEST_BATCH_SIZE=1\n' >> infra/production.env
+            printf '\nEMBEDDING_REQUEST_BATCH_SIZE=4\n' >> infra/production.env
           fi
           python3 infra/organize-env.py infra/production.env --private
           python3 infra/check-production-env.py infra/production.env
