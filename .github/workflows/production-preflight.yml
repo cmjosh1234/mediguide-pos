@@ -14,7 +14,7 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v6
-      - name: Validate production environment and public storage
+      - name: Validate production environment and storage configuration
         env:
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
           AI_WORKER_SECRET: ${{ secrets.AI_WORKER_SECRET }}
@@ -45,7 +45,7 @@ jobs:
           fi
           python3 infra/organize-env.py infra/production.env --private
           python3 infra/check-production-env.py infra/production.env
-          python3 infra/check-public-storage.py infra/production.env --check-network
+          python3 infra/check-public-storage.py infra/production.env
       - name: Remove protected environment file
         if: always()
         run: rm -f infra/production.env

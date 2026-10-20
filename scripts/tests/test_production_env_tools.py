@@ -3,6 +3,7 @@ import io
 import importlib.util
 from pathlib import Path
 import re
+import subprocess
 import tempfile
 import unittest
 from types import SimpleNamespace
@@ -99,15 +100,37 @@ class ProductionEnvironmentToolsTest(unittest.TestCase):
             path.write_text(f"SMTP_PASSWORD=opaque-fixture\nS3_PUBLIC_ENDPOINT={endpoint}\nS3_PUBLIC_SSL={ssl}\n")
             return checker.storage_url(path)
 
-    def test_deployment_bootstraps_minio_before_public_health_and_stack_replacement(self):
+    def test_deployment_requires_local_storage_health_without_public_network_probe(self):
         script = (ROOT / "infra/deploy-production.sh").read_text()
         bootstrap = script.index('up --no-build -d --no-deps --wait --wait-timeout 120 minio')
-        network_check = script.index('"${production_env}" --check-network')
         replacement = script.index('down --remove-orphans')
         self.assertLess(script.index('config --quiet'), bootstrap)
         self.assertLess(script.index('Using immutable release images preloaded'), bootstrap)
-        self.assertLess(bootstrap, network_check)
-        self.assertLess(network_check, replacement)
+        self.assertLess(bootstrap, replacement)
+        self.assertNotIn('--check-network', script)
+        self.assertIn('python3 "${infra_dir}/check-public-storage.py" "${production_env}"', script)
+
+    def test_legacy_release_filter_preserves_every_other_deployment_check(self):
+        workflow = (ROOT / ".github/workflows/deploy-production.yml").read_text()
+        start = workflow.index('# Older immutable tags still contain the retired public HTTPS probe.')
+        program = re.search(r"awk '\n(.*?)\n\s*'", workflow[start:], re.DOTALL).group(1)
+        probe = 'python3 "${infra_dir}/check-public-storage.py" "${production_env}" --check-network\n'
+        before = 'python3 "${infra_dir}/check-public-storage.py" "${production_env}"\n'
+        after = '"${compose[@]}" up --no-build -d --no-deps --wait --wait-timeout 120 minio\nverify_public_route "API" "${public_api_base_url%/}/api/readyz"\n'
+        result = subprocess.run(['awk', program], input=before + probe + after, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, before + after)
+        # Fail closed if the legacy script unexpectedly contains duplicate probes.
+        result = subprocess.run(['awk', program], input=before + probe + probe + after, text=True, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_preflight_and_workflow_no_longer_require_public_probe_override(self):
+        preflight = (ROOT / ".github/workflows/production-preflight.yml").read_text()
+        workflow = (ROOT / ".github/workflows/deploy-production.yml").read_text()
+        self.assertNotIn('--check-network', preflight)
+        self.assertIn('python3 infra/check-public-storage.py infra/production.env', preflight)
+        self.assertNotIn('skip_public_storage_check', workflow)
+        self.assertNotIn('SKIP_PUBLIC_STORAGE_CHECK', workflow)
 
     def test_validates_https_browser_facing_storage(self):
         self.assertEqual(self.check("assets.example.org"), "https://assets.example.org")
