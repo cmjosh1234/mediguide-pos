@@ -15,29 +15,11 @@ class _QuickFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return ChoiceChip(
-      selected: selected,
-      onSelected: (_) {
-        onTap();
-      },
-      avatar: Icon(
-        icon,
-        size: 16,
-        color: selected ? colors.onPrimary : colors.primary,
-      ),
+    return AppChoiceChip(
       label: Text(label),
-      labelStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
-        color: selected ? colors.onPrimary : colors.onSurface,
-        fontWeight: FontWeight.w700,
-      ),
-      selectedColor: colors.primary,
-      backgroundColor: colors.surfaceContainerLowest,
-      side: BorderSide(
-        color: selected ? colors.primary : colors.outlineVariant,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      icon: icon,
+      selected: selected,
+      onSelected: onTap,
     );
   }
 }

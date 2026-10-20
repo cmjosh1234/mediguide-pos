@@ -250,7 +250,9 @@ class ToolsController extends _$ToolsController {
   }
 
   void clearAllFilters() {
-    state = const ToolsState(query: ToolsQuery.empty);
+    state = ToolsState(
+      query: ToolsQuery(selectedTabIndex: state.query.selectedTabIndex),
+    );
 
     pagingController.refresh();
   }

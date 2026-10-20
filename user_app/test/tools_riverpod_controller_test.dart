@@ -92,7 +92,32 @@ void main() {
     final state = container.read(provider);
 
     expect(state.selectedTabIndex, 2);
-    expect(state.hasActiveFilters, isTrue);
+    expect(state.hasActiveFilters, isFalse);
+  });
+
+  test('search counts as a filter and clearing it keeps the selected tab', () {
+    final store = TestLocalStore();
+    addTearDown(store.close);
+    final repository = CalculatorRepository(
+      ToolApi(),
+      CalculatorLocalRepository(store.cache),
+    );
+    final provider = toolsControllerProvider(const {'initialTab': 1});
+    final container = ProviderContainer(
+      overrides: [calculatorRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+    container.listen(provider, (_, _) {});
+    final controller = container.read(provider.notifier);
+
+    controller.updateSearch('apgar');
+    expect(container.read(provider).hasActiveFilters, isTrue);
+
+    controller.clearAllFilters();
+    final state = container.read(provider);
+    expect(state.hasActiveFilters, isFalse);
+    expect(state.searchQuery, isEmpty);
+    expect(state.selectedTabIndex, 1);
   });
 
   test(

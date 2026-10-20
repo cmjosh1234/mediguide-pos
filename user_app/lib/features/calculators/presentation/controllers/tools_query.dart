@@ -13,11 +13,12 @@ final class ToolsQuery {
   final List<CalculatorStatus> selectedStatuses;
   final int selectedTabIndex;
 
+  /// The selected tab is navigation, shown by its highlighted chip, so it does
+  /// not count as a filter.
   bool get hasFilters =>
       search.isNotEmpty ||
       selectedTypes.isNotEmpty ||
-      selectedStatuses.isNotEmpty ||
-      selectedTabIndex > 0;
+      selectedStatuses.isNotEmpty;
 
   ToolsQuery copyWith({
     String? search,

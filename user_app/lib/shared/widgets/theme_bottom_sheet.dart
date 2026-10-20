@@ -16,64 +16,57 @@ class ThemeBottomSheet extends ConsumerWidget {
     final selectedMode = ref.watch(
       appSettingsControllerProvider.select((settings) => settings.themeMode),
     );
-    return Container(
-      padding: AppSpacing.paddingLg,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            margin: EdgeInsets.only(bottom: AppSpacing.md),
-            decoration: BoxDecoration(
-              color: context.theme.colorScheme.onSurfaceVariant.withValues(
-                alpha: 0.4,
-              ),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              AppTranslationKey.chooseTheme.tr,
-              style: context.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
+    // The theme's bottom sheet supplies the drag handle. Scrolling keeps the
+    // options reachable when large text makes them taller than the sheet.
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: AppSpacing.paddingLg.copyWith(top: 0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                AppTranslationKey.chooseTheme.tr,
+                style: context.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ),
-          AppSpacing.gapMd,
-          Column(
-            children: [
-              _buildOption(
-                context,
-                ref,
-                selectedMode,
-                ThemeModes.light,
-                AppTranslationKey.lightMode.tr,
-                AppTranslationKey.lightModeDesc.tr,
-                LucideIcons.sun,
-              ),
-              _buildOption(
-                context,
-                ref,
-                selectedMode,
-                ThemeModes.dark,
-                AppTranslationKey.darkMode.tr,
-                AppTranslationKey.darkModeDesc.tr,
-                LucideIcons.moon,
-              ),
-              _buildOption(
-                context,
-                ref,
-                selectedMode,
-                ThemeModes.system,
-                AppTranslationKey.systemDefault.tr,
-                AppTranslationKey.systemDefaultDesc.tr,
-                LucideIcons.monitor,
-              ),
-            ],
-          ),
-        ],
+            AppSpacing.gapMd,
+            Column(
+              children: [
+                _buildOption(
+                  context,
+                  ref,
+                  selectedMode,
+                  ThemeModes.light,
+                  AppTranslationKey.lightMode.tr,
+                  AppTranslationKey.lightModeDesc.tr,
+                  LucideIcons.sun,
+                ),
+                _buildOption(
+                  context,
+                  ref,
+                  selectedMode,
+                  ThemeModes.dark,
+                  AppTranslationKey.darkMode.tr,
+                  AppTranslationKey.darkModeDesc.tr,
+                  LucideIcons.moon,
+                ),
+                _buildOption(
+                  context,
+                  ref,
+                  selectedMode,
+                  ThemeModes.system,
+                  AppTranslationKey.systemDefault.tr,
+                  AppTranslationKey.systemDefaultDesc.tr,
+                  LucideIcons.monitor,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -126,7 +119,7 @@ class ThemeBottomSheet extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       clipBehavior: Clip.antiAliasWithSaveLayer,
-      isScrollControlled: false,
+      isScrollControlled: true,
       enableDrag: true,
       isDismissible: true,
     );

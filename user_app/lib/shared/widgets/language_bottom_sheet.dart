@@ -14,87 +14,80 @@ class LanguageBottomSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final languages = ref.watch(languageControllerProvider);
-    return Container(
-      padding: AppSpacing.paddingLg,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            margin: EdgeInsets.only(bottom: AppSpacing.md),
-            decoration: BoxDecoration(
-              color: context.theme.colorScheme.onSurfaceVariant.withValues(
-                alpha: 0.4,
-              ),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              AppTranslationKey.chooseLanguage.tr,
-              style: context.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          AppSpacing.gapMd,
-          languages.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-              child: AppShimmer(
-                child: Column(
-                  children: [
-                    _LanguageSkeletonRow(),
-                    AppSpacing.gapSm,
-                    _LanguageSkeletonRow(),
-                    AppSpacing.gapSm,
-                    _LanguageSkeletonRow(),
-                  ],
+    // The theme's bottom sheet supplies the drag handle. Scrolling keeps the
+    // options reachable when large text makes them taller than the sheet.
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: AppSpacing.paddingLg.copyWith(top: 0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                AppTranslationKey.chooseLanguage.tr,
+                style: context.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            error: (error, stackTrace) => Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Unable to load languages'),
-                    TextButton(
-                      onPressed: () => ref
-                          .read(languageControllerProvider.notifier)
-                          .refresh(),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            data: (state) => state.languages.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                      child: const Text('No languages available'),
-                    ),
-                  )
-                : Column(
-                    children: state.languages
-                        .map(
-                          (language) => _LanguageOption(
-                            languageCode: language.code,
-                            title: language.name,
-                            subtitle: language.nativeName.isNotEmpty
-                                ? language.nativeName
-                                : language.name,
-                            selected: state.currentCode == language.code,
-                          ),
-                        )
-                        .toList(),
+            AppSpacing.gapMd,
+            languages.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                child: AppShimmer(
+                  child: Column(
+                    children: [
+                      _LanguageSkeletonRow(),
+                      AppSpacing.gapSm,
+                      _LanguageSkeletonRow(),
+                      AppSpacing.gapSm,
+                      _LanguageSkeletonRow(),
+                    ],
                   ),
-          ),
-        ],
+                ),
+              ),
+              error: (error, stackTrace) => Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Unable to load languages'),
+                      TextButton(
+                        onPressed: () => ref
+                            .read(languageControllerProvider.notifier)
+                            .refresh(),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              data: (state) => state.languages.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                        child: const Text('No languages available'),
+                      ),
+                    )
+                  : Column(
+                      children: state.languages
+                          .map(
+                            (language) => _LanguageOption(
+                              languageCode: language.code,
+                              title: language.name,
+                              subtitle: language.nativeName.isNotEmpty
+                                  ? language.nativeName
+                                  : language.name,
+                              selected: state.currentCode == language.code,
+                            ),
+                          )
+                          .toList(),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -107,7 +100,7 @@ class LanguageBottomSheet extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       clipBehavior: Clip.antiAliasWithSaveLayer,
-      isScrollControlled: false,
+      isScrollControlled: true,
       enableDrag: true,
       isDismissible: true,
     );

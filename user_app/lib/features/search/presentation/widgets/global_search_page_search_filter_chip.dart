@@ -15,12 +15,10 @@ class _SearchFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilterChip(
+    return AppChoiceChip(
       selected: selected,
-      onSelected: (_) {
-        onTap();
-      },
-      avatar: Icon(_SearchResultTile.iconFor(category), size: 16),
+      onSelected: onTap,
+      icon: _SearchResultTile.iconFor(category),
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

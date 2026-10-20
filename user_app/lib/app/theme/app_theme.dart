@@ -243,6 +243,8 @@ abstract final class AppTheme {
       chipTheme: base.chipTheme.copyWith(
         backgroundColor: colors.surfaceContainerLow,
         selectedColor: colors.primaryContainer,
+        // Selection is shown by the fill; multi-select chips opt back in.
+        showCheckmark: false,
         side: border,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         labelStyle: text.labelMedium,
@@ -261,19 +263,26 @@ abstract final class AppTheme {
         height: 68,
         elevation: 0,
         backgroundColor: colors.surfaceContainerLowest,
-        indicatorColor: Colors.transparent,
+        indicatorColor: colors.primaryContainer,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
             size: 22,
-            color: selected ? colors.primary : colors.onSurfaceVariant,
+            color: selected
+                ? colors.onPrimaryContainer
+                : colors.onSurfaceVariant,
           );
         }),
+        // Theme text styles carry no font size, so set one explicitly (the
+        // label otherwise inherits 14sp body text). One weight and no tracking
+        // in both states, so selecting a tab never changes the label's width.
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
-          return text.labelSmall?.copyWith(
+          return text.labelMedium?.copyWith(
             color: selected ? colors.primary : colors.onSurfaceVariant,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0,
           );
         }),
       ),

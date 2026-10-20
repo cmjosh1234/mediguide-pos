@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:user_app/app/router/app_navigator.dart';
 import 'package:user_app/app/router/route_names.dart';
 import 'package:user_app/features/navigation/presentation/controllers/main_navigation_controller.dart';
+import 'package:user_app/features/navigation/presentation/widgets/main_navigation_bar.dart';
 import 'package:user_app/features/home/presentation/screens/home_page.dart';
 import 'package:user_app/features/home/presentation/controllers/home_controller.dart';
 import 'package:user_app/features/home/presentation/screens/guest_home_page.dart';
@@ -140,26 +141,10 @@ class _MainPageState extends ConsumerState<MainPage> {
                     ],
                   ),
             bottomNavigationBar: compact
-                ? DecoratedBox(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(
-                          color: theme.colorScheme.outlineVariant,
-                        ),
-                      ),
-                    ),
-                    child: NavigationBar(
-                      selectedIndex: currentIndex,
-                      onDestinationSelected: selectDestination,
-                      destinations: [
-                        for (final destination in destinations)
-                          NavigationDestination(
-                            icon: Icon(destination.$1),
-                            selectedIcon: Icon(destination.$1, fill: 1),
-                            label: destination.$2,
-                          ),
-                      ],
-                    ),
+                ? MainNavigationBar(
+                    destinations: destinations,
+                    selectedIndex: currentIndex,
+                    onDestinationSelected: selectDestination,
                   )
                 : null,
           );
