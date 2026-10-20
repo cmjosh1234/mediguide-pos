@@ -205,34 +205,18 @@ export const CalculatorsStatusOptions = {
 } as const
 export type CalculatorsStatusOptions = typeof CalculatorsStatusOptions[keyof typeof CalculatorsStatusOptions]
 
-export const CalculatorsCategoryOptions = {
-	"surgical": "surgical",
-	"emergency": "emergency",
-	"maternal": "maternal",
-	"pediatric": "pediatric",
-	"cardiology": "cardiology",
-	"neurology": "neurology",
-	"pharmacy": "pharmacy",
-	"nutrition": "nutrition",
-	"infection_control": "infection_control",
-	"safety": "safety",
-	"general": "general",
-} as const
-export type CalculatorsCategoryOptions = typeof CalculatorsCategoryOptions[keyof typeof CalculatorsCategoryOptions]
-
-export const CalculatorsPriorityOptions = {
-	"critical": "critical",
+export const CalculatorsRiskLevelOptions = {
+	"standard": "standard",
 	"high": "high",
-	"medium": "medium",
-	"low": "low",
+	"critical": "critical",
 } as const
-export type CalculatorsPriorityOptions = typeof CalculatorsPriorityOptions[keyof typeof CalculatorsPriorityOptions]
+export type CalculatorsRiskLevelOptions = typeof CalculatorsRiskLevelOptions[keyof typeof CalculatorsRiskLevelOptions]
 
 export type CalculatorsRecord = {
 	addedBy: RecordIdString
 	appFile: FileNameString
 	backgroundColor?: string
-	category?: CalculatorsCategoryOptions
+	category_id?: RecordIdString
 	color?: string
 	created: IsoAutoDateString
 	description?: string
@@ -240,7 +224,8 @@ export type CalculatorsRecord = {
 	icon?: string
 	id: string
 	name: string
-	priority?: CalculatorsPriorityOptions
+	risk_level?: CalculatorsRiskLevelOptions
+	current_version_id?: RecordIdString | null
 	status?: CalculatorsStatusOptions
 	type: CalculatorsTypeOptions
 	updated: IsoAutoDateString

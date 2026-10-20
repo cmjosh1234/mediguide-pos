@@ -106,7 +106,11 @@ def _block_text(block: ExtractedContentBlock) -> str:
         return str(content.get("text") or "").strip()
     if block.type in {"ordered_list", "unordered_list"}:
         return "\n".join(str(item) for item in content.get("items") or []).strip()
-    if block.type in {"recommendation", "warning", "key_point", "caution", "clinical_note"}:
+    if block.type in {
+        "recommendation", "warning", "caution", "key_point", "contraindication", "dosage",
+        "evidence", "definition", "procedure", "algorithm_reference", "clinical_note",
+        "referral_criteria",
+    }:
         return " ".join(
             value
             for value in (

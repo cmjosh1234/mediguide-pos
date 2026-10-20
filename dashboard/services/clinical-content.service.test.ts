@@ -64,6 +64,27 @@ describe("typed calculator and drug services", () => {
     expect(url.searchParams.get("status")).toBe("active,draft");
   });
 
+  it("maps calculator category and risk filters to backend query parameters", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      json({ items: [], page: 1, per_page: 20, total_items: 0, total_pages: 0 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await calculatorService.listTable({
+      page: 1,
+      perPage: 20,
+      search: "",
+      filters: [
+        { id: "1", field: "category_id", condition: "equals", value: "cat-1" },
+        { id: "2", field: "risk_level", condition: "not_equals", value: "standard" },
+      ],
+    });
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost");
+    expect(url.searchParams.get("category_id")).toBe("cat-1");
+    expect(url.searchParams.get("risk_level")).toBe("high,critical");
+  });
+
   it("returns an empty page without calling the backend when calculator filters exclude every value", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

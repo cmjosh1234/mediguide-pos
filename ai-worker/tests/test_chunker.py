@@ -11,7 +11,11 @@ def test_chunk_sections_basic():
     assert chunks[0].title == "Malaria"
 
 
-@pytest.mark.parametrize("kind", ["caution", "clinical_note", "warning", "key_point"])
+@pytest.mark.parametrize("kind", [
+    "recommendation", "warning", "caution", "key_point", "contraindication", "dosage",
+    "evidence", "definition", "procedure", "algorithm_reference", "clinical_note",
+    "referral_criteria",
+])
 def test_clinical_callouts_have_search_chunks(kind):
     block = ExtractedContentBlock(
         type=kind, sort_order=7, section_order=3, source_fingerprint="test",

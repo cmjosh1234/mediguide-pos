@@ -25,7 +25,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import { Textarea } from "@/components/ui/textarea";
-import { getCurrentUser } from "@/lib/backend-client";
+import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToolCategories } from "@/hooks/use-tool-categories";
+import { BackendRequestError, getCurrentUser } from "@/lib/backend-client";
 import { usePermissionContext } from "@/lib/permission-context";
 import { showToast } from "@/lib/toast";
 import { calculatorService } from "@/services/calculator.service";
@@ -136,6 +145,41 @@ export default function CalculatorsPage() {
   }, [selectedId]);
 
   const selected = tools.find((tool) => tool.id === selectedId);
+  const { activeCategories } = useToolCategories();
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const itemRefs = React.useRef(new Map<string, HTMLButtonElement>());
+
+  // Keep the selected tool visible in the list by scrolling only the list,
+  // never the page.
+  React.useEffect(() => {
+    const list = listRef.current;
+    const item = itemRefs.current.get(selectedId);
+    if (!list || !item) return;
+    const top = item.offsetTop - list.offsetTop;
+    const bottom = top + item.offsetHeight;
+    if (top < list.scrollTop) list.scrollTop = top - 8;
+    else if (bottom > list.scrollTop + list.clientHeight)
+      list.scrollTop = bottom - list.clientHeight + 8;
+  }, [selectedId, search, loading]);
+
+  function selectTool(id: string) {
+    setSelectedId(id);
+    const panel = panelRef.current;
+    if (!panel?.scrollIntoView) return;
+    // Bring the tool into view when its top is hidden under the header (after
+    // scrolling a long form) or below the fold (narrow screens).
+    const top = panel.getBoundingClientRect().top;
+    if (top < 80 || top > window.innerHeight * 0.6) {
+      const reduceMotion = window.matchMedia?.(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      panel.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      });
+    }
+  }
   const visibleTools = tools.filter((tool) =>
     `${tool.name} ${tool.description ?? ""}`
       .toLowerCase()
@@ -169,17 +213,20 @@ export default function CalculatorsPage() {
       ]
         .filter(Boolean)
         .join("\n\n");
-      await SupportTicketsService.createTicket({
+      const ticket = await SupportTicketsService.createTicket({
         subject: `Clinical Tool Request: ${requestForm.name.trim()}`,
         description: details,
         priority: SupportTicketsPriorityOptions.normal,
         category: "Clinical Tool Request",
         user_id: user.id,
       });
-      showToast.success(
-        "Request submitted",
-        "The clinical-tool request was logged for review",
-      );
+      toast.success("Request logged as a support ticket", {
+        description: "The support team will follow it up.",
+        action: {
+          label: "View ticket",
+          onClick: () => router.push(`/support/${ticket.id}`),
+        },
+      });
       setRequestOpen(false);
       setRequestForm({
         name: "",
@@ -189,7 +236,14 @@ export default function CalculatorsPage() {
       });
     } catch (error) {
       console.error("Failed to submit tool request:", error);
-      showToast.error("Submission failed", "Could not submit the request");
+      showToast.error(
+        "Submission failed",
+        error instanceof BackendRequestError && error.status === 429
+          ? "You can send up to 5 requests an hour. Try again later."
+          : error instanceof Error
+            ? error.message
+            : "Could not submit the request",
+      );
     } finally {
       setRequestSubmitting(false);
     }
@@ -208,28 +262,22 @@ export default function CalculatorsPage() {
           },
         ]}
       />
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Published tools</CardDescription>
-            <CardTitle>{tools.length}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Schema runtime</CardDescription>
-            <CardTitle className="text-base">JSON schema v1</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Execution policy</CardDescription>
-            <CardTitle className="text-base">Native controls only</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      <dl className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-lg border bg-card px-4 py-3 text-sm">
+        <div className="flex items-baseline gap-2">
+          <dt className="text-muted-foreground">Published tools</dt>
+          <dd className="font-semibold">{tools.length}</dd>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <dt className="text-muted-foreground">Schema runtime</dt>
+          <dd className="font-medium">JSON schema v1</dd>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <dt className="text-muted-foreground">Execution policy</dt>
+          <dd className="font-medium">Native controls only</dd>
+        </div>
+      </dl>
       <div className="grid min-h-[620px] gap-5 lg:grid-cols-[340px_1fr]">
-        <Card>
+        <Card className="flex flex-col lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start">
           <CardHeader>
             <CardTitle>Available tools</CardTitle>
             <CardDescription>Select a published tool to run</CardDescription>
@@ -243,7 +291,11 @@ export default function CalculatorsPage() {
               />
             </div>
           </CardHeader>
-          <CardContent className="space-y-2">
+          {/* The list scrolls inside the card, which stays in view beside the tool. */}
+          <CardContent
+            ref={listRef}
+            className="max-h-96 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [scrollbar-width:thin] lg:max-h-none"
+          >
             {loading ? (
               <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
                 <Loader2 className="animate-spin" />
@@ -258,9 +310,14 @@ export default function CalculatorsPage() {
             {visibleTools.map((tool) => (
               <button
                 key={tool.id}
+                ref={(node) => {
+                  if (node) itemRefs.current.set(tool.id, node);
+                  else itemRefs.current.delete(tool.id);
+                }}
                 type="button"
-                onClick={() => setSelectedId(tool.id)}
-                className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedId === tool.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                aria-pressed={selectedId === tool.id}
+                onClick={() => selectTool(tool.id)}
+                className={`w-full cursor-pointer rounded-lg border p-3 text-left transition-colors ${selectedId === tool.id ? "border-primary bg-primary/5" : "hover:border-primary/40 hover:bg-muted/50"}`}
               >
                 <div className="flex items-start gap-3">
                   <span className="rounded-md bg-primary/10 p-2 text-primary">
@@ -282,45 +339,53 @@ export default function CalculatorsPage() {
             ))}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>{selected?.name ?? "Select a clinical tool"}</CardTitle>
-            <CardDescription>
-              {selected?.description ?? "Inputs and results will appear here."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {definitionLoading ? (
-              <div className="flex min-h-80 items-center justify-center gap-2 text-muted-foreground">
-                <Loader2 className="animate-spin" />
-                Loading reviewed schema…
-              </div>
-            ) : null}
-            {!definitionLoading && definitionError ? (
-              <div className="flex min-h-80 flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-                <p className="font-medium">Native clinical tool unavailable</p>
-                <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                  {definitionError}
-                </p>
-              </div>
-            ) : null}
-            {!definitionLoading && definition ? (
-              <NativeClinicalTool key={selectedId} definition={definition} />
-            ) : null}
-          </CardContent>
-        </Card>
+        <div ref={panelRef} className="scroll-mt-20">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {selected?.name ?? "Select a clinical tool"}
+              </CardTitle>
+              <CardDescription>
+                {selected?.description ??
+                  "Inputs and results will appear here."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {definitionLoading ? (
+                <div className="flex min-h-80 items-center justify-center gap-2 text-muted-foreground">
+                  <Loader2 className="animate-spin" />
+                  Loading reviewed schema…
+                </div>
+              ) : null}
+              {!definitionLoading && definitionError ? (
+                <div className="flex min-h-80 flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+                  <p className="font-medium">
+                    Native clinical tool unavailable
+                  </p>
+                  <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                    {definitionError}
+                  </p>
+                </div>
+              ) : null}
+              {!definitionLoading && definition ? (
+                <NativeClinicalTool key={selectedId} definition={definition} />
+              ) : null}
+            </CardContent>
+          </Card>
+        </div>
       </div>
       <Dialog open={requestOpen} onOpenChange={setRequestOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request a clinical tool</DialogTitle>
             <DialogDescription>
-              Requests enter the clinical review workflow before publication.
+              Your request is sent to the support team as a ticket. You can
+              follow it under Support → Support Tickets.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="request-name">Name</Label>
+              <Label htmlFor="request-name">Name *</Label>
               <Input
                 id="request-name"
                 value={requestForm.name}
@@ -334,19 +399,29 @@ export default function CalculatorsPage() {
             </div>
             <div>
               <Label htmlFor="request-category">Category</Label>
-              <Input
-                id="request-category"
-                value={requestForm.category}
-                onChange={(event) =>
-                  setRequestForm((value) => ({
-                    ...value,
-                    category: event.target.value,
-                  }))
+              <Select
+                value={requestForm.category || undefined}
+                onValueChange={(category) =>
+                  setRequestForm((value) => ({ ...value, category }))
                 }
-              />
+              >
+                <SelectTrigger id="request-category" className="w-full">
+                  <SelectValue placeholder="Choose the closest category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.name}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="Other / not sure">
+                    Other / not sure
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <Label htmlFor="request-description">Description</Label>
+              <Label htmlFor="request-description">Description *</Label>
               <Textarea
                 id="request-description"
                 value={requestForm.description}

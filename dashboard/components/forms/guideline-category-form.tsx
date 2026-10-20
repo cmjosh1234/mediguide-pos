@@ -24,6 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { GuidelineCategorySelector } from "@/components/ui/guideline-category-selector"
+import { IconPicker } from "@/components/ui/icon-picker"
+import { isValidStoredIcon } from "@/components/ui/stored-icon"
 // import { useGuidelineCategories } from "@/hooks/use-guideline-categories"
 // import type { GuidelineCategoriesResponse } from "@/types/backend-types"
 
@@ -35,7 +37,11 @@ const categoryFormSchema = z.object({
   sort_order: z.number().min(0, "Sort order must be 0 or greater").optional(),
   status: z.enum(["active", "inactive"]),
   color: z.string().optional(),
-  icon: z.string().max(50, "Icon must be less than 50 characters").optional(),
+  icon: z
+    .string()
+    .max(50, "Icon must be less than 50 characters")
+    .optional()
+    .refine((value) => !value || isValidStoredIcon(value), "Choose an icon from the list or paste an emoji"),
 })
 
 export type GuidelineCategoryFormData = z.infer<typeof categoryFormSchema>
@@ -115,11 +121,6 @@ export function GuidelineCategoryForm({
     { name: "Pink", value: "#EC4899" },
     { name: "Indigo", value: "#6366F1" },
     { name: "Gray", value: "#6B7280" },
-  ]
-
-  const commonIcons = [
-    "📋", "📝", "🏥", "💊", "🩺", "🔬", "🧬", "⚕️", 
-    "🫀", "🧠", "👁️", "🦷", "🦴", "🩸", "💉", "🧪"
   ]
 
   return (
@@ -293,26 +294,14 @@ export function GuidelineCategoryForm({
               <FormItem>
                 <FormLabel>Icon</FormLabel>
                 <FormControl>
-                  <div className="flex flex-wrap gap-2">
-                    {commonIcons.map((icon) => (
-                      <button
-                        key={icon}
-                        type="button"
-                        className={`w-10 h-10 rounded border transition-colors flex items-center justify-center text-lg ${
-                          field.value === icon 
-                            ? 'border-primary border-2 bg-primary/10' 
-                            : 'border-border hover:border-primary hover:bg-accent'
-                        }`}
-                        onClick={() => field.onChange(icon)}
-                        title={`Select ${icon}`}
-                      >
-                        {icon}
-                      </button>
-                    ))}
-                  </div>
+                  <IconPicker
+                    id="guideline-category-icon"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                  />
                 </FormControl>
                 <FormDescription>
-                  Choose an icon for visual representation
+                  Choose a clinical icon or paste an emoji
                 </FormDescription>
                 <FormMessage />
               </FormItem>

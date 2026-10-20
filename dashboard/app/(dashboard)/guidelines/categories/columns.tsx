@@ -3,63 +3,15 @@
 import type { ColumnDef, Column, Row } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { 
-  ExternalLink, 
-  Bug, 
-  Users, 
-  Heart, 
-  HeartPulse, 
-  Wind, 
-  Zap, 
-  Shield, 
-  Activity, 
-  Microscope, 
-  Flower2, 
-  UserX, 
-  Waves, 
-  Thermometer, 
-  AlertTriangle, 
-  Skull, 
-  Droplet,
-  Bandage,
-  LucideIcon
-} from "lucide-react"
+import { ExternalLink, FolderOpen } from "lucide-react"
+import { StoredIcon } from "@/components/ui/stored-icon"
+import { clinicalIcons } from "@/components/ui/clinical-icons"
 import { DataTableColumnHeader } from "@/components/ui/datatable-column-header"
 import type { GuidelineCategoriesResponse } from "@/types/backend-types"
 import { GuidelineCategoriesWithParent } from "@/types/expanded"
 import { ExtendedColumnDef } from "@/types/data-table"
 import { useGuidelineCategories } from "@/hooks/use-guideline-categories"
 
-// Icon mapping for rendering proper Lucide icons
-const iconMap: Record<string, LucideIcon> = {
-  Bug,
-  Users,
-  Heart,
-  HeartPulse,
-  Wind,
-  Zap,
-  Shield,
-  Activity,
-  Microscope,
-  Flower2,
-  UserX,
-  Waves,
-  Thermometer,
-  AlertTriangle,
-  Skull,
-  Droplet,
-  Bandage,
-}
-
-// Helper function to render icon component
-const renderIcon = (iconName: string | null) => {
-  if (!iconName || !iconMap[iconName]) {
-    return <span className="text-muted-foreground">—</span>
-  }
-  
-  const IconComponent = iconMap[iconName]
-  return <IconComponent className="h-4 w-4" />
-}
 
 export function useGuidelineCategoryColumns(): ColumnDef<GuidelineCategoriesResponse>[] {
   const { getCategoryById, getCategoryPath } = useGuidelineCategories()
@@ -83,9 +35,7 @@ export function useGuidelineCategoryColumns(): ColumnDef<GuidelineCategoriesResp
                 {indent}└─
               </span>
             )}
-            {category.icon && (
-              <span className="text-lg">{category.icon}</span>
-            )}
+            <StoredIcon icon={category.icon} fallback={null} />
             {category.color && (
               <div 
                 className="w-3 h-3 rounded-full border"
@@ -143,9 +93,7 @@ export function useGuidelineCategoryColumns(): ColumnDef<GuidelineCategoriesResp
 
         return (
           <div className="flex items-center space-x-2">
-            {parent.icon && (
-              <span className="text-sm">{parent.icon}</span>
-            )}
+            <StoredIcon icon={parent.icon} fallback={null} className="h-3.5 w-3.5" />
             {parent.color && (
               <div 
                 className="w-2 h-2 rounded-full"
@@ -385,30 +333,17 @@ export const columns: ExtendedColumnDef<GuidelineCategoriesWithParent>[] = [
         canSort={false}
         canFilter={true}
         filterType="select"
-        filterOptions={[
-          { label: "Bug", value: "Bug" },
-          { label: "Users", value: "Users" },
-          { label: "Heart", value: "Heart" },
-          { label: "HeartPulse", value: "HeartPulse" },
-          { label: "Wind", value: "Wind" },
-          { label: "Zap", value: "Zap" },
-          { label: "Shield", value: "Shield" },
-          { label: "Activity", value: "Activity" },
-          { label: "Microscope", value: "Microscope" },
-          { label: "Flower2", value: "Flower2" },
-          { label: "UserX", value: "UserX" },
-          { label: "Waves", value: "Waves" },
-          { label: "Thermometer", value: "Thermometer" },
-          { label: "AlertTriangle", value: "AlertTriangle" },
-          { label: "Skull", value: "Skull" },
-          { label: "Droplet", value: "Droplet" },
-          { label: "Bandage", value: "Bandage" }
-        ]}
+        filterOptions={clinicalIcons.map(({ label, name }) => ({ label, value: name }))}
       />
     ),
     cell: ({ row }: { row: Row<GuidelineCategoriesWithParent> }) => {
       const icon = row.getValue("icon") as string
-      return renderIcon(icon)
+      return (
+        <StoredIcon
+          icon={icon}
+          fallback={<FolderOpen className="h-4 w-4 text-muted-foreground" />}
+        />
+      )
     },
     enableSorting: false,
     enableHiding: true,

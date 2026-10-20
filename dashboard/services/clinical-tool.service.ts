@@ -42,10 +42,16 @@ export type ClinicalToolVersion = Omit<ServicesCalculatorVersionDTO, "id" | "cal
   lock_version: number; created_at: string; updated_at: string
 }
 
+export type ClinicalToolAuditEntry = {
+  id: string; action: string; created_at: string
+  actor_id?: string; actor_name?: string; actor_email?: string
+  from_status?: string; to_status?: string
+  metadata?: Record<string, unknown> & { comment?: string }
+}
 export type ValidationIssue = { path: string; code: string; message: string }
 export type TestReport = { passed: boolean; cases: Array<{ key: string; passed: boolean; failures?: string[] }> }
 export type ClinicalToolReviewQueueItem = ServicesCalculatorReviewQueueItem & {
-  version_id: string; calculator_id: string; tool_name: string; tool_type: string; tool_status: string
+  version_id: string; calculator_id: string; tool_name: string; tool_type: string; tool_status: string; tool_risk_level: string
   semantic_version: string; version_status: string; author_id?: string; reviewer_id?: string
   clinical_owner?: string; clinical_reviewer?: string; validation_passed: boolean; tests_passed: boolean
   fixture_count: number; fixture_passed_count: number; review_evidence_status: string
@@ -53,11 +59,11 @@ export type ClinicalToolReviewQueueItem = ServicesCalculatorReviewQueueItem & {
   created_at: string; updated_at: string
 }
 export type ClinicalToolReviewQueue = { items: ClinicalToolReviewQueueItem[]; page: number; per_page: number; total_items: number; total_pages: number }
-export type ClinicalToolReviewPreview = Omit<ServicesCalculatorVersionPreviewDTO, "version" | "fixtures" | "audit" | "tool_name" | "tool_type" | "tool_status" | "runtime_type" | "review_evidence_status"> & {
-  version: ClinicalToolVersion; tool_name: string; tool_type: string; tool_status: string; runtime_type: string
+export type ClinicalToolReviewPreview = Omit<ServicesCalculatorVersionPreviewDTO, "version" | "fixtures" | "audit" | "tool_name" | "tool_type" | "tool_status" | "tool_risk_level" | "runtime_type" | "review_evidence_status"> & {
+  version: ClinicalToolVersion; tool_name: string; tool_type: string; tool_status: string; tool_risk_level: string; runtime_type: string
   review_evidence_status: string
   fixtures: Array<{ key: string; description: string; input: Record<string, unknown>; expected: Record<string, unknown>; last_result?: Record<string, unknown>; last_passed?: boolean; last_run_at?: string; numeric_tolerance?: number }>
-  audit: Array<{ id: string; action: string; created_at: string; actor_id?: string; metadata?: { comment?: string } }>
+  audit: ClinicalToolAuditEntry[]
 }
 
 const json = (value: unknown) => JSON.stringify(value)
@@ -78,6 +84,6 @@ export const clinicalToolService = {
   test: (id: string, lockVersion: number) => backendClient.send<{ report: TestReport; lock_version: number }>(`/api/v2/calculator-versions/${id}/test`, { method: "POST", body: json({ lock_version: lockVersion }) }),
   transition: (id: string, action: "submit" | "approve" | "publish" | "withdraw", lockVersion: number) => backendClient.send<ClinicalToolVersion>(`/api/v2/calculator-versions/${id}/${action}`, { method: "POST", body: json({ lock_version: lockVersion }) }),
   rollbackToLegacy: (toolId: string) => backendClient.send<void>(`/api/v2/calculators/${toolId}/runtime/legacy`, { method: "POST" }),
-  audit: (id: string) => backendClient.send<Array<{ id: string; action: string; created_at: string; actor_id?: string; metadata?: { comment?: string } }>>(`/api/v2/calculator-versions/${id}/audit`),
+  audit: (id: string) => backendClient.send<ClinicalToolAuditEntry[]>(`/api/v2/calculator-versions/${id}/audit`),
   reviewComment: (id: string, comment: string) => backendClient.send<void>(`/api/v2/calculator-versions/${id}/review-comments`, { method: "POST", body: json({ comment }) }),
 }

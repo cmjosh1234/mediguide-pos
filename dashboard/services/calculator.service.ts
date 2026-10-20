@@ -26,6 +26,7 @@ export type CalculatorInput = Record<string, unknown> | FormData;
 
 const CALCULATOR_TYPES = ["calculator", "decision_tool", "checklist"];
 const CALCULATOR_STATUSES = ["active", "draft", "archived"];
+const CALCULATOR_RISK_LEVELS = ["standard", "high", "critical"];
 
 // The backend filters type and status by comma-separated value lists, so
 // equals / not_equals table filters are reduced to the set of values to keep.
@@ -102,6 +103,8 @@ async function calculatorPayload(
     version: "version",
     type: "type",
     status: "status",
+    category_id: "category_id",
+    risk_level: "risk_level",
   };
   for (const [source, target] of Object.entries(stringFields)) {
     if (values[source] !== undefined && values[source] !== null) {
@@ -137,6 +140,8 @@ export const calculatorService = {
       type?: string;
       status?: string;
       featured?: boolean;
+      categoryId?: string;
+      riskLevel?: string;
       sort?: string;
       order?: "asc" | "desc";
     } = {},
@@ -149,6 +154,8 @@ export const calculatorService = {
         type: query.type,
         status: query.status,
         featured: query.featured,
+        category_id: query.categoryId,
+        risk_level: query.riskLevel,
         sort: query.sort,
         order: query.order,
       },
@@ -165,7 +172,11 @@ export const calculatorService = {
       "type",
     );
     const statuses = narrowChoices(CALCULATOR_STATUSES, query.filters, "status");
-    if (types.length === 0 || statuses.length === 0) {
+    const riskLevels = narrowChoices(CALCULATOR_RISK_LEVELS, query.filters, "risk_level");
+    const category = query.filters.find(
+      (filter) => filter.field === "category_id" && filter.condition === "equals",
+    )?.value;
+    if (types.length === 0 || statuses.length === 0 || riskLevels.length === 0) {
       return {
         items: [],
         page: 1,
@@ -183,6 +194,11 @@ export const calculatorService = {
         statuses.length < CALCULATOR_STATUSES.length
           ? statuses.join(",")
           : undefined,
+      riskLevel:
+        riskLevels.length < CALCULATOR_RISK_LEVELS.length
+          ? riskLevels.join(",")
+          : undefined,
+      categoryId: category ? String(category) : undefined,
       sort: "name",
     });
     return {

@@ -149,7 +149,7 @@ export default function DecisionToolEditPage({ params, searchParams }: DecisionT
         onBack={() => router.push("/decision-tools")}
       />
 
-      <div className="bg-card rounded-lg border p-6">
+      <div>
         <DecisionToolForm
           mode={isDuplicate ? "create" : "edit"}
           initialData={initialData}

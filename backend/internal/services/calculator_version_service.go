@@ -23,7 +23,8 @@ var (
 	ErrCalculatorVersionInvalidState   = errors.New("calculator version state transition is invalid")
 	ErrCalculatorVersionValidation     = errors.New("calculator definition validation failed")
 	ErrCalculatorVersionTestsFailed    = errors.New("calculator definition tests have not passed")
-	ErrCalculatorVersionAuthorApproval = errors.New("author cannot approve this clinically critical version")
+	ErrCalculatorVersionAuthorApproval = errors.New("the author cannot approve a version of a high or critical risk tool")
+	ErrCalculatorVersionAuthorPublish  = errors.New("the author cannot publish a version of a critical risk tool")
 	ErrCalculatorMigrationConflict     = errors.New("clinical tool migration conflicts with an existing version")
 )
 
@@ -102,6 +103,8 @@ type CalculatorVersionAuditDTO struct {
 	CalculatorID        uuid.UUID      `json:"calculator_id"`
 	CalculatorVersionID *uuid.UUID     `json:"calculator_version_id,omitempty"`
 	ActorID             *uuid.UUID     `json:"actor_id,omitempty"`
+	ActorName           string         `json:"actor_name,omitempty"`
+	ActorEmail          string         `json:"actor_email,omitempty"`
 	Action              string         `json:"action"`
 	FromStatus          *string        `json:"from_status,omitempty"`
 	ToStatus            *string        `json:"to_status,omitempty"`
@@ -241,11 +244,32 @@ func (s CalculatorVersionService) Audit(versionID uuid.UUID) ([]CalculatorVersio
 	if err := s.DB.Where("calculator_version_id = ?", versionID).Order("created_at ASC, id ASC").Find(&rows).Error; err != nil {
 		return nil, err
 	}
+	// Name the people involved, including deleted accounts, as outbreak audits do.
+	actorIDs := []uuid.UUID{}
+	for _, row := range rows {
+		if row.ActorID != nil {
+			actorIDs = append(actorIDs, *row.ActorID)
+		}
+	}
+	actors := map[uuid.UUID]models.User{}
+	if len(actorIDs) > 0 {
+		var users []models.User
+		if err := s.DB.Unscoped().Select("id", "name", "email").Where("id IN ?", actorIDs).Find(&users).Error; err != nil {
+			return nil, err
+		}
+		for _, user := range users {
+			actors[user.ID] = user
+		}
+	}
 	items := make([]CalculatorVersionAuditDTO, 0, len(rows))
 	for _, row := range rows {
 		metadata := map[string]any{}
 		_ = json.Unmarshal(row.MetadataJSON, &metadata)
-		items = append(items, CalculatorVersionAuditDTO{ID: row.ID, CalculatorID: row.CalculatorID, CalculatorVersionID: row.CalculatorVersionID, ActorID: row.ActorID, Action: row.Action, FromStatus: row.FromStatus, ToStatus: row.ToStatus, Metadata: metadata, CreatedAt: row.CreatedAt})
+		item := CalculatorVersionAuditDTO{ID: row.ID, CalculatorID: row.CalculatorID, CalculatorVersionID: row.CalculatorVersionID, ActorID: row.ActorID, Action: row.Action, FromStatus: row.FromStatus, ToStatus: row.ToStatus, Metadata: metadata, CreatedAt: row.CreatedAt}
+		if row.ActorID != nil {
+			item.ActorName, item.ActorEmail = actors[*row.ActorID].Name, actors[*row.ActorID].Email
+		}
+		items = append(items, item)
 	}
 	return items, nil
 }
@@ -374,7 +398,7 @@ func (s CalculatorVersionService) Approve(versionID, actorID uuid.UUID, lockVers
 		if err := s.DB.First(&tool, "id = ?", row.CalculatorID).Error; err != nil {
 			return nil, err
 		}
-		if clinicallyCriticalTool(tool) {
+		if tool.RiskLevel == models.CalculatorRiskHigh || tool.RiskLevel == models.CalculatorRiskCritical {
 			return nil, ErrCalculatorVersionAuthorApproval
 		}
 	}
@@ -391,6 +415,15 @@ func (s CalculatorVersionService) Publish(versionID, actorID uuid.UUID, lockVers
 		}
 		if row.Status != "approved" {
 			return ErrCalculatorVersionInvalidState
+		}
+		if row.CreatedBy != nil && *row.CreatedBy == actorID {
+			var tool models.Calculator
+			if err := tx.First(&tool, "id = ?", row.CalculatorID).Error; err != nil {
+				return err
+			}
+			if tool.RiskLevel == models.CalculatorRiskCritical {
+				return ErrCalculatorVersionAuthorPublish
+			}
 		}
 		if !row.ValidationPassed {
 			return ErrCalculatorVersionValidation
@@ -649,10 +682,6 @@ func normalizeChecksumJSON(value any) any {
 	default:
 		return value
 	}
-}
-func clinicallyCriticalTool(tool models.Calculator) bool {
-	name := strings.ToLower(tool.Name)
-	return tool.Type == "decision_tool" || strings.Contains(name, "dose") || strings.Contains(name, "medication") || strings.Contains(name, "triage") || strings.Contains(name, "emergency")
 }
 func calculatorStringPointer(value string) *string { return &value }
 func writeCalculatorVersionAudit(tx *gorm.DB, calculatorID uuid.UUID, versionID *uuid.UUID, actorID uuid.UUID, action string, from, to *string, metadata any) error {

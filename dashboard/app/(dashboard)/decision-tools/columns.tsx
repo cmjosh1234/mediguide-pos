@@ -7,6 +7,8 @@ import { ExtendedColumnDef } from "@/types/data-table";
 import { DecisionToolWithRelations } from "./types";
 import { getAppFileLabel } from "./app-file";
 import { StoredIcon } from "@/components/ui/stored-icon";
+import { RiskLevelBadge } from "@/components/clinical-tools/risk-level";
+import { useToolCategories } from "@/hooks/use-tool-categories";
 
 import {
   CalculatorsTypeOptions,
@@ -29,6 +31,22 @@ const getTypeIcon = (type: CalculatorsTypeOptions) => {
       return <Calculator className="h-4 w-4" />;
   }
 };
+
+function ToolCategoryCell({ categoryId }: { categoryId?: string }) {
+  const { byId } = useToolCategories();
+  const category = categoryId ? byId.get(categoryId) : undefined;
+  if (!category) {
+    return <span className="text-muted-foreground">{categoryId ? "…" : "Uncategorised"}</span>;
+  }
+  return (
+    <span className="flex items-center gap-1.5 text-sm">
+      <span style={category.color ? { color: category.color } : undefined}>
+        <StoredIcon icon={category.icon} fallback={null} className="h-3.5 w-3.5" />
+      </span>
+      {category.name}
+    </span>
+  );
+}
 
 /**
  * Get badge variant for status
@@ -125,6 +143,20 @@ export const columns: ExtendedColumnDef<DecisionToolWithRelations>[] = [
         </Badge>
       );
     },
+  },
+  {
+    accessorKey: "category_id",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Category" canSort={false} />
+    ),
+    cell: ({ row }) => <ToolCategoryCell categoryId={row.original.category_id} />,
+  },
+  {
+    accessorKey: "risk_level",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Risk" canSort={false} />
+    ),
+    cell: ({ row }) => <RiskLevelBadge level={row.original.risk_level} />,
   },
   {
     accessorKey: "status",

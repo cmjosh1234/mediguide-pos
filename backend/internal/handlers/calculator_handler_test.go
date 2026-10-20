@@ -99,7 +99,8 @@ func TestCalculatorHandlerContentContract(t *testing.T) {
 }
 
 func TestCalculatorHandlerCreateUsesAuthenticatedUser(t *testing.T) {
-	handler, _ := testCalculatorHandler(t)
+	handler, database := testCalculatorHandler(t)
+	category := testHandlerCategory(t, database)
 	userID := uuid.New()
 	router := gin.New()
 	router.POST("/api/v2/calculators", func(c *gin.Context) {
@@ -109,7 +110,7 @@ func TestCalculatorHandlerCreateUsesAuthenticatedUser(t *testing.T) {
 	request := httptest.NewRequest(
 		http.MethodPost,
 		"/api/v2/calculators",
-		strings.NewReader(`{"name":"BMI","version":"1","type":"calculator","status":"draft","app_file_json":{"path":"bmi-calculator.html"}}`),
+		strings.NewReader(`{"name":"BMI","version":"1","type":"calculator","status":"draft","category_id":"`+category.ID.String()+`","app_file_json":{"path":"bmi-calculator.html"}}`),
 	)
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
@@ -191,11 +192,103 @@ func testCalculatorHandler(t *testing.T) (CalculatorHandler, *gorm.DB) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := database.AutoMigrate(&models.Calculator{}, &models.CalculatorUsageLog{}, &models.CalculatorVersion{}, &models.CalculatorTestCase{}, &models.CalculatorCitation{}, &models.CalculatorVersionAudit{}); err != nil {
+	if err := database.AutoMigrate(&models.Calculator{}, &models.CalculatorUsageLog{}, &models.CalculatorVersion{}, &models.CalculatorTestCase{}, &models.CalculatorCitation{}, &models.CalculatorVersionAudit{}, &models.ToolCategory{}); err != nil {
 		t.Fatal(err)
 	}
 	return CalculatorHandler{
-		Service:  services.CalculatorService{DB: database, LegacyClinicalToolsDir: t.TempDir()},
-		Versions: services.CalculatorVersionService{DB: database},
+		Service:    services.CalculatorService{DB: database, LegacyClinicalToolsDir: t.TempDir()},
+		Versions:   services.CalculatorVersionService{DB: database},
+		Categories: services.ToolCategoryService{DB: database},
 	}, database
+}
+
+func testHandlerCategory(t *testing.T, database *gorm.DB) models.ToolCategory {
+	t.Helper()
+	category := models.ToolCategory{Name: "Neurology", Slug: "neurology", Status: "active"}
+	if err := database.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+	return category
+}
+
+func TestCalculatorHandlerOnlyReviewersLowerRiskLevel(t *testing.T) {
+	handler, database := testCalculatorHandler(t)
+	category := testHandlerCategory(t, database)
+	tool := models.Calculator{AddedByUserID: uuid.New(), Name: "Glasgow Coma Scale", AppFileJSON: datatypes.JSON(`{}`), Version: "1", Type: "calculator", Status: "draft", CategoryID: &category.ID, RiskLevel: models.CalculatorRiskHigh}
+	if err := database.Create(&tool).Error; err != nil {
+		t.Fatal(err)
+	}
+	patch := func(permissions []string, body string) *httptest.ResponseRecorder {
+		router := gin.New()
+		router.PATCH("/api/v2/calculators/:id", func(c *gin.Context) {
+			c.Set(middleware.ClaimsKey, &security.Claims{UserID: uuid.New(), Perms: permissions})
+			handler.Update(c)
+		})
+		request := httptest.NewRequest(http.MethodPatch, "/api/v2/calculators/"+tool.ID.String(), strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		return response
+	}
+
+	if response := patch([]string{"calculator.write"}, `{"risk_level":"standard"}`); response.Code != http.StatusForbidden {
+		t.Fatalf("author lowered risk: %d %s", response.Code, response.Body.String())
+	}
+	if response := patch([]string{"calculator.write"}, `{"risk_level":"critical"}`); response.Code != http.StatusOK {
+		t.Fatalf("author could not raise risk: %d %s", response.Code, response.Body.String())
+	}
+	if response := patch([]string{"calculator.write", "calculator.review"}, `{"risk_level":"standard"}`); response.Code != http.StatusOK {
+		t.Fatalf("reviewer could not lower risk: %d %s", response.Code, response.Body.String())
+	}
+	var audits []models.CalculatorVersionAudit
+	if err := database.Where("calculator_id = ? AND action = ?", tool.ID, "calculator.risk_level.changed").Order("created_at").Find(&audits).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(audits) != 2 || *audits[0].ToStatus != "critical" || *audits[1].FromStatus != "critical" || *audits[1].ToStatus != "standard" {
+		t.Fatalf("risk changes not audited: %#v", audits)
+	}
+}
+
+func TestToolCategoryHandlerCRUDAndInUseDelete(t *testing.T) {
+	handler, database := testCalculatorHandler(t)
+	router := gin.New()
+	router.POST("/api/v2/tool-categories", handler.CreateToolCategory)
+	router.GET("/api/v2/tool-categories", handler.ListToolCategories)
+	router.DELETE("/api/v2/tool-categories/:id", handler.DeleteToolCategory)
+	send := func(method, path, body string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(method, path, strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		return response
+	}
+
+	created := send(http.MethodPost, "/api/v2/tool-categories", `{"name":"Fluids & Nutrition","icon":"droplets","color":"#0277BD"}`)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", created.Code, created.Body.String())
+	}
+	var envelope struct {
+		Data models.ToolCategory `json:"data"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if envelope.Data.Slug != "fluids-nutrition" || envelope.Data.Status != "active" {
+		t.Fatalf("unexpected category: %#v", envelope.Data)
+	}
+	if duplicate := send(http.MethodPost, "/api/v2/tool-categories", `{"name":"Fluids Nutrition"}`); duplicate.Code != http.StatusConflict {
+		t.Fatalf("duplicate slug accepted: %d", duplicate.Code)
+	}
+
+	tool := models.Calculator{AddedByUserID: uuid.New(), Name: "Fluid Balance", AppFileJSON: datatypes.JSON(`{}`), Version: "1", Type: "calculator", Status: "draft", CategoryID: &envelope.Data.ID}
+	if err := database.Create(&tool).Error; err != nil {
+		t.Fatal(err)
+	}
+	list := send(http.MethodGet, "/api/v2/tool-categories", "")
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"tool_count":1`) {
+		t.Fatalf("list: %d %s", list.Code, list.Body.String())
+	}
+	if inUse := send(http.MethodDelete, "/api/v2/tool-categories/"+envelope.Data.ID.String(), ""); inUse.Code != http.StatusConflict {
+		t.Fatalf("deleted a category in use: %d", inUse.Code)
+	}
 }

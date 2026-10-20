@@ -4,7 +4,7 @@
 // present their publication workflow and form errors the same way.
 
 import * as React from "react";
-import { AlertCircle, CheckCircle2, Save } from "lucide-react";
+import { AlertCircle, Save } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BackendRequestError } from "@/lib/backend-client";
 import { cn } from "@/lib/utils";
+import { WorkflowSteps as SharedWorkflowSteps } from "@/components/ui/workflow-steps";
 import { RequiredMark } from "./required-field";
 
 // The fields a backend validation error names (outbreak_validation.go), so
@@ -41,40 +42,7 @@ export function workflowStage(status?: string, approvedAt?: string) {
 
 export function WorkflowSteps({ stage, steps = WORKFLOW_STEPS }: { stage: number; steps?: string[] }) {
   if (stage < 0) return <Badge variant="destructive">Withdrawn</Badge>;
-  return (
-    <ol className="flex items-center gap-2 text-sm">
-      {steps.map((step, index) => {
-        const done = index < stage || stage === steps.length - 1;
-        const current = index === stage && !done;
-        return (
-          <li key={step} className="flex items-center gap-2">
-            <span
-              className={cn(
-                "flex h-6 w-6 items-center justify-center rounded-full border text-xs font-medium",
-                done && "border-primary bg-primary text-primary-foreground",
-                current && "border-primary text-primary ring-2 ring-primary/30",
-                !done && !current && "text-muted-foreground",
-              )}
-              aria-hidden="true"
-            >
-              {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : index + 1}
-            </span>
-            <span
-              className={cn(
-                current ? "font-medium" : "text-muted-foreground",
-              )}
-              aria-current={current ? "step" : undefined}
-            >
-              {step}
-            </span>
-            {index < steps.length - 1 ? (
-              <span className="h-px w-6 bg-border" aria-hidden="true" />
-            ) : null}
-          </li>
-        );
-      })}
-    </ol>
-  );
+  return <SharedWorkflowSteps steps={steps} current={stage} />;
 }
 
 export function UnsavedChanges({

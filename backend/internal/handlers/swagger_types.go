@@ -307,6 +307,14 @@ type GuidelineIndexEnvelope struct {
 	Success bool                       `json:"success"`
 	Data    models.GuidelineIndexEntry `json:"data"`
 }
+type ToolCategoryEnvelope struct {
+	Success bool                `json:"success"`
+	Data    models.ToolCategory `json:"data"`
+}
+type PaginatedToolCategoriesEnvelope struct {
+	Success bool                                     `json:"success"`
+	Data    services.PageResult[models.ToolCategory] `json:"data"`
+}
 type PaginatedGuidelineCategoriesEnvelope struct {
 	Success bool                                          `json:"success"`
 	Data    services.PageResult[models.GuidelineCategory] `json:"data"`

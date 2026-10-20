@@ -24,10 +24,36 @@ type Calculator struct {
 	Featured         bool           `gorm:"not null;default:false" json:"featured"`
 	RuntimeType      string         `gorm:"not null;default:legacy_html" json:"runtime_type"`
 	CurrentVersionID *uuid.UUID     `gorm:"type:uuid" json:"current_version_id,omitempty"`
+	CategoryID       *uuid.UUID     `gorm:"type:uuid" json:"category_id,omitempty"`
+	RiskLevel        string         `gorm:"not null;default:standard" json:"risk_level"`
 }
 
 func (Calculator) TableName() string {
 	return "calculators"
+}
+
+// Calculator risk levels set the clinical review rules for a tool's versions.
+const (
+	CalculatorRiskStandard = "standard"
+	CalculatorRiskHigh     = "high"
+	CalculatorRiskCritical = "critical"
+)
+
+// ToolCategory groups calculators, decision tools and checklists by clinical area.
+type ToolCategory struct {
+	Base
+	Name        string  `gorm:"not null" json:"name"`
+	Slug        string  `gorm:"not null" json:"slug"`
+	Description *string `json:"description,omitempty"`
+	SortOrder   int     `gorm:"not null;default:0" json:"sort_order"`
+	Status      string  `gorm:"not null;default:active" json:"status"`
+	Color       *string `json:"color,omitempty"`
+	Icon        *string `json:"icon,omitempty"`
+	ToolCount   int64   `gorm:"->;-:migration" json:"tool_count"`
+}
+
+func (ToolCategory) TableName() string {
+	return "tool_categories"
 }
 
 type CalculatorUsageLog struct {

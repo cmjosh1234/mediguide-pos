@@ -18,8 +18,9 @@ import (
 )
 
 type CalculatorHandler struct {
-	Service  services.CalculatorService
-	Versions services.CalculatorVersionService
+	Service    services.CalculatorService
+	Versions   services.CalculatorVersionService
+	Categories services.ToolCategoryService
 }
 
 type CalculatorVersionLockRequest struct {
@@ -123,6 +124,8 @@ func (h CalculatorHandler) PreviewVersion(c *gin.Context) {
 // @Param type query string false "Comma-separated calculator, decision_tool, or checklist values"
 // @Param status query string false "Comma-separated active, draft, or archived values"
 // @Param featured query bool false "Featured filter"
+// @Param category_id query string false "Tool category ID, or none for uncategorised tools"
+// @Param risk_level query string false "Comma-separated standard, high, or critical values"
 // @Param sort query string false "Sort field"
 // @Param order query string false "Sort direction (asc or desc)"
 // @Success 200 {object} handlers.PaginatedCalculatorsEnvelope
@@ -149,13 +152,15 @@ func (h CalculatorHandler) list(c *gin.Context, status string) {
 		featured = &value
 	}
 	result, err := h.Service.List(services.CalculatorListInput{
-		Page:     page,
-		Search:   c.Query("search"),
-		Type:     c.Query("type"),
-		Status:   status,
-		Featured: featured,
-		Sort:     c.Query("sort"),
-		Order:    c.Query("order"),
+		Page:       page,
+		Search:     c.Query("search"),
+		Type:       c.Query("type"),
+		Status:     status,
+		Featured:   featured,
+		CategoryID: c.Query("category_id"),
+		RiskLevel:  c.Query("risk_level"),
+		Sort:       c.Query("sort"),
+		Order:      c.Query("order"),
 	})
 	if err != nil {
 		h.writeError(c, err)
@@ -235,7 +240,9 @@ func (h CalculatorHandler) Update(c *gin.Context) {
 		httpx.Error(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	item, err := h.Service.Update(id, input)
+	claims := c.MustGet(middleware.ClaimsKey).(*security.Claims)
+	editor := services.CalculatorEditor{UserID: claims.UserID, CanLowerRisk: security.HasPerm(claims, "calculator.review")}
+	item, err := h.Service.Update(id, editor, input)
 	if err != nil {
 		h.writeError(c, err)
 		return
@@ -762,6 +769,10 @@ func (h CalculatorHandler) writeError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, services.ErrCalculatorInvalidPayload):
 		httpx.Error(c, http.StatusBadRequest, services.CalculatorErrorMessage(err))
+	case errors.Is(err, services.ErrCalculatorCategoryRequired):
+		httpx.Error(c, http.StatusBadRequest, err.Error())
+	case errors.Is(err, services.ErrCalculatorRiskLowerForbidden):
+		httpx.Error(c, http.StatusForbidden, err.Error())
 	case errors.Is(err, services.ErrCalculatorUsageForbidden):
 		httpx.Error(c, http.StatusForbidden, services.CalculatorErrorMessage(err))
 	case errors.Is(err, services.ErrCalculatorArtifactMissing), errors.Is(err, services.ErrCalculatorArtifactUnsafe), errors.Is(err, services.ErrCalculatorArtifactChecksum), errors.Is(err, services.ErrCalculatorArtifactDependency), errors.Is(err, gorm.ErrRecordNotFound):
@@ -781,7 +792,7 @@ func (h CalculatorHandler) writeVersionError(c *gin.Context, err error, details 
 		httpx.Error(c, http.StatusConflict, err.Error())
 	case errors.Is(err, services.ErrCalculatorVersionImmutable), errors.Is(err, services.ErrCalculatorVersionInvalidState), errors.Is(err, services.ErrCalculatorVersionTestsFailed):
 		httpx.Error(c, http.StatusConflict, err.Error())
-	case errors.Is(err, services.ErrCalculatorVersionAuthorApproval):
+	case errors.Is(err, services.ErrCalculatorVersionAuthorApproval), errors.Is(err, services.ErrCalculatorVersionAuthorPublish):
 		httpx.Error(c, http.StatusForbidden, err.Error())
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		httpx.Error(c, http.StatusNotFound, "calculator version not found")

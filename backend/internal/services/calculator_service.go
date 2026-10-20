@@ -27,7 +27,16 @@ var (
 	ErrCalculatorArtifactDependency = errors.New("calculator artifact contains a remote dependency")
 	ErrCalculatorLegacyOnly         = errors.New("HTML content is unavailable for native schema tools")
 	ErrCalculatorUsageForbidden     = errors.New("calculator usage session is not owned by the user")
+	ErrCalculatorCategoryRequired   = errors.New("choose an active tool category")
+	ErrCalculatorRiskLowerForbidden = errors.New("only clinical reviewers can lower a tool's risk level")
 )
+
+// CalculatorEditor identifies who is changing a tool and what they may change.
+type CalculatorEditor struct {
+	UserID uuid.UUID
+	// CanLowerRisk is granted to clinical reviewers (calculator.review).
+	CanLowerRisk bool
+}
 
 type CalculatorService struct {
 	DB                     *gorm.DB
@@ -40,8 +49,12 @@ type CalculatorListInput struct {
 	Type     string
 	Status   string
 	Featured *bool
-	Sort     string
-	Order    string
+	// CategoryID filters to one tool category; "none" lists uncategorised tools.
+	CategoryID string
+	// RiskLevel is a comma-separated list of standard, high or critical.
+	RiskLevel string
+	Sort      string
+	Order     string
 }
 
 type CreateCalculatorInput struct {
@@ -55,6 +68,8 @@ type CreateCalculatorInput struct {
 	Type            string          `json:"type"`
 	Status          string          `json:"status"`
 	Featured        bool            `json:"featured"`
+	CategoryID      *uuid.UUID      `json:"category_id"`
+	RiskLevel       string          `json:"risk_level" enums:"standard,high,critical"`
 }
 
 type UpdateCalculatorInput struct {
@@ -68,6 +83,8 @@ type UpdateCalculatorInput struct {
 	Type            *string          `json:"type"`
 	Status          *string          `json:"status"`
 	Featured        *bool            `json:"featured"`
+	CategoryID      *uuid.UUID       `json:"category_id"`
+	RiskLevel       *string          `json:"risk_level" enums:"standard,high,critical"`
 }
 
 type StartCalculatorUsageInput struct {
@@ -118,6 +135,21 @@ func (s CalculatorService) List(in CalculatorListInput) (*PageResult[models.Calc
 	if in.Featured != nil {
 		query = query.Where("featured = ?", *in.Featured)
 	}
+	if category := strings.TrimSpace(in.CategoryID); category == "none" {
+		query = query.Where("category_id IS NULL")
+	} else if category != "" {
+		id, err := uuid.Parse(category)
+		if err != nil {
+			return nil, ErrCalculatorInvalidPayload
+		}
+		query = query.Where("category_id = ?", id)
+	}
+	if levels := splitCalculatorFilter(in.RiskLevel); len(levels) > 0 {
+		if !allCalculatorValuesValid(levels, validCalculatorRiskLevel) {
+			return nil, ErrCalculatorInvalidPayload
+		}
+		query = query.Where("risk_level IN ?", levels)
+	}
 
 	var total int64
 	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
@@ -154,6 +186,19 @@ func (s CalculatorService) Create(userID uuid.UUID, in CreateCalculatorInput) (*
 	if status == "" {
 		status = "draft"
 	}
+	riskLevel := strings.TrimSpace(in.RiskLevel)
+	if riskLevel == "" {
+		riskLevel = models.CalculatorRiskStandard
+	}
+	if !validCalculatorRiskLevel(riskLevel) {
+		return nil, ErrCalculatorInvalidPayload
+	}
+	if in.CategoryID == nil {
+		return nil, ErrCalculatorCategoryRequired
+	}
+	if err := s.requireActiveCategory(*in.CategoryID); err != nil {
+		return nil, err
+	}
 	calculator := models.Calculator{
 		AddedByUserID:   userID,
 		Name:            strings.TrimSpace(in.Name),
@@ -166,6 +211,8 @@ func (s CalculatorService) Create(userID uuid.UUID, in CreateCalculatorInput) (*
 		Type:            strings.TrimSpace(in.Type),
 		Status:          status,
 		Featured:        in.Featured,
+		CategoryID:      in.CategoryID,
+		RiskLevel:       riskLevel,
 	}
 	if err := s.DB.Create(&calculator).Error; err != nil {
 		return nil, err
@@ -173,8 +220,37 @@ func (s CalculatorService) Create(userID uuid.UUID, in CreateCalculatorInput) (*
 	return &calculator, nil
 }
 
-func (s CalculatorService) Update(id uuid.UUID, in UpdateCalculatorInput) (*models.Calculator, error) {
+func (s CalculatorService) Update(id uuid.UUID, editor CalculatorEditor, in UpdateCalculatorInput) (*models.Calculator, error) {
 	updates := map[string]any{}
+	var current *models.Calculator
+	if in.CategoryID != nil || in.RiskLevel != nil {
+		var err error
+		if current, err = s.Get(id); err != nil {
+			return nil, err
+		}
+	}
+	// Only a change of category must point at an active one, so tools in a
+	// retired category can still be edited.
+	if in.CategoryID != nil && (current.CategoryID == nil || *current.CategoryID != *in.CategoryID) {
+		if err := s.requireActiveCategory(*in.CategoryID); err != nil {
+			return nil, err
+		}
+		updates["category_id"] = *in.CategoryID
+	}
+	var riskChange *[2]string
+	if in.RiskLevel != nil {
+		value := strings.TrimSpace(*in.RiskLevel)
+		if !validCalculatorRiskLevel(value) {
+			return nil, ErrCalculatorInvalidPayload
+		}
+		if value != current.RiskLevel {
+			if calculatorRiskRank(value) < calculatorRiskRank(current.RiskLevel) && !editor.CanLowerRisk {
+				return nil, ErrCalculatorRiskLowerForbidden
+			}
+			updates["risk_level"] = value
+			riskChange = &[2]string{current.RiskLevel, value}
+		}
+	}
 	copyCalculatorString(updates, "name", in.Name)
 	copyCalculatorString(updates, "description", in.Description)
 	copyCalculatorString(updates, "icon", in.Icon)
@@ -212,15 +288,35 @@ func (s CalculatorService) Update(id uuid.UUID, in UpdateCalculatorInput) (*mode
 	}
 	if len(updates) > 0 {
 		updates["updated_at"] = time.Now().UTC()
-		result := s.DB.Model(&models.Calculator{}).Where("id = ?", id).Updates(updates)
-		if result.Error != nil {
-			return nil, result.Error
-		}
-		if result.RowsAffected == 0 {
-			return nil, gorm.ErrRecordNotFound
+		err := s.DB.Transaction(func(tx *gorm.DB) error {
+			result := tx.Model(&models.Calculator{}).Where("id = ?", id).Updates(updates)
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				return gorm.ErrRecordNotFound
+			}
+			if riskChange == nil {
+				return nil
+			}
+			return writeCalculatorVersionAudit(tx, id, nil, editor.UserID, "calculator.risk_level.changed", &riskChange[0], &riskChange[1], nil)
+		})
+		if err != nil {
+			return nil, err
 		}
 	}
 	return s.Get(id)
+}
+
+func (s CalculatorService) requireActiveCategory(id uuid.UUID) error {
+	var count int64
+	if err := s.DB.Model(&models.ToolCategory{}).Where("id = ? AND status = ?", id, "active").Count(&count).Error; err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrCalculatorCategoryRequired
+	}
+	return nil
 }
 
 func (s CalculatorService) Delete(id uuid.UUID) error {
@@ -356,6 +452,23 @@ func validCalculatorType(value string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func validCalculatorRiskLevel(value string) bool {
+	return calculatorRiskRank(value) > 0
+}
+
+func calculatorRiskRank(value string) int {
+	switch value {
+	case models.CalculatorRiskStandard:
+		return 1
+	case models.CalculatorRiskHigh:
+		return 2
+	case models.CalculatorRiskCritical:
+		return 3
+	default:
+		return 0
 	}
 }
 

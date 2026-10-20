@@ -24,7 +24,7 @@ func TestCalculatorVersionWorkflowIsImmutableAuditedAndOptimisticallyLocked(t *t
 		t.Fatal(err)
 	}
 	author, reviewer := uuid.New(), uuid.New()
-	tool := models.Calculator{AddedByUserID: author, Name: "Emergency triage", AppFileJSON: datatypes.JSON(`{"path":"triage.html"}`), Version: "legacy", Type: "decision_tool", Status: "active", RuntimeType: "legacy_html"}
+	tool := models.Calculator{AddedByUserID: author, Name: "Emergency triage", AppFileJSON: datatypes.JSON(`{"path":"triage.html"}`), Version: "legacy", Type: "decision_tool", Status: "active", RuntimeType: "legacy_html", RiskLevel: models.CalculatorRiskCritical}
 	if err = db.Create(&tool).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -168,6 +168,117 @@ func TestDefinitionChecksumNormalizesEquivalentJSONNumbers(t *testing.T) {
 	decimal := []byte(`{"nested":{"amount":0.0},"value":1.0}`)
 	if definitionChecksum(integer) != definitionChecksum(decimal) {
 		t.Fatal("semantically equivalent JSON numbers and key order must produce one checksum")
+	}
+}
+
+func TestCalculatorRiskLevelSetsApprovalAndPublishingRules(t *testing.T) {
+	cases := []struct {
+		risk                   string
+		authorMayApprove       bool
+		authorMayPublishOnward bool
+	}{
+		{models.CalculatorRiskStandard, true, true},
+		{models.CalculatorRiskHigh, false, true},
+		{models.CalculatorRiskCritical, false, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.risk, func(t *testing.T) {
+			db, err := gorm.Open(sqlite.Open("file:calculator-risk-"+tc.risk+"?mode=memory&cache=shared"), &gorm.Config{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = db.AutoMigrate(&models.Calculator{}, &models.CalculatorVersion{}, &models.CalculatorTestCase{}, &models.CalculatorCitation{}, &models.CalculatorVersionAudit{}); err != nil {
+				t.Fatal(err)
+			}
+			author, reviewer := uuid.New(), uuid.New()
+			// A neutral name: the level alone decides the rules, not keywords.
+			tool := models.Calculator{AddedByUserID: author, Name: "Paediatric fluid calculator", AppFileJSON: datatypes.JSON(`{}`), Version: "legacy", Type: "calculator", Status: "draft", RuntimeType: "legacy_html", RiskLevel: tc.risk}
+			if err = db.Create(&tool).Error; err != nil {
+				t.Fatal(err)
+			}
+			service := CalculatorVersionService{DB: db}
+			draft, _, err := service.CreateDraft(tool.ID, author, CreateCalculatorVersionInput{Definition: versionDefinitionJSON(t, "calculator", "1.0.0")})
+			if err != nil {
+				t.Fatal(err)
+			}
+			validated, err := service.ValidateVersion(draft.ID, author, draft.LockVersion)
+			if err != nil {
+				t.Fatal(err)
+			}
+			checked, err := service.RunTests(draft.ID, author, validated.LockVersion)
+			if err != nil {
+				t.Fatal(err)
+			}
+			submitted, err := service.Submit(draft.ID, author, checked.LockVersion)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			approved, err := service.Approve(draft.ID, author, submitted.LockVersion)
+			if tc.authorMayApprove {
+				if err != nil {
+					t.Fatalf("author approval rejected: %v", err)
+				}
+			} else {
+				if !errors.Is(err, ErrCalculatorVersionAuthorApproval) {
+					t.Fatalf("expected author approval to be rejected, got %v", err)
+				}
+				if approved, err = service.Approve(draft.ID, reviewer, submitted.LockVersion); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			_, err = service.Publish(draft.ID, author, approved.LockVersion)
+			if tc.authorMayPublishOnward {
+				if err != nil {
+					t.Fatalf("author publication rejected: %v", err)
+				}
+				return
+			}
+			if !errors.Is(err, ErrCalculatorVersionAuthorPublish) {
+				t.Fatalf("expected author publication to be rejected, got %v", err)
+			}
+			if _, err = service.Publish(draft.ID, reviewer, approved.LockVersion); err != nil {
+				t.Fatalf("reviewer publication rejected: %v", err)
+			}
+		})
+	}
+}
+
+func TestCalculatorVersionAuditNamesActors(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:calculator-audit-actors?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.AutoMigrate(&models.User{}, &models.Calculator{}, &models.CalculatorVersion{}, &models.CalculatorTestCase{}, &models.CalculatorCitation{}, &models.CalculatorVersionAudit{}); err != nil {
+		t.Fatal(err)
+	}
+	author := models.User{Name: "Grace Author", Email: "grace@example.org", PasswordHash: "x"}
+	if err = db.Create(&author).Error; err != nil {
+		t.Fatal(err)
+	}
+	tool := models.Calculator{AddedByUserID: author.ID, Name: "BMI", AppFileJSON: datatypes.JSON(`{}`), Version: "1", Type: "calculator", Status: "draft", RuntimeType: "legacy_html"}
+	if err = db.Create(&tool).Error; err != nil {
+		t.Fatal(err)
+	}
+	service := CalculatorVersionService{DB: db}
+	draft, _, err := service.CreateDraft(tool.ID, author.ID, CreateCalculatorVersionInput{Definition: versionDefinitionJSON(t, "calculator", "1.0.0")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	unknown := uuid.New()
+	if err = service.AddReviewComment(draft.ID, unknown, CalculatorVersionReviewCommentInput{Comment: "Check the units."}); err != nil {
+		t.Fatal(err)
+	}
+	audit, err := service.Audit(draft.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(audit) != 2 || audit[0].ActorName != "Grace Author" || audit[0].ActorEmail != "grace@example.org" {
+		t.Fatalf("author not named: %#v", audit)
+	}
+	if audit[1].ActorName != "" || audit[1].ActorID == nil || *audit[1].ActorID != unknown {
+		t.Fatalf("unknown actor should keep only its ID: %#v", audit[1])
 	}
 }
 

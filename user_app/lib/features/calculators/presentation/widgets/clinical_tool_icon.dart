@@ -22,6 +22,7 @@ const Map<String, IconData> clinicalToolIcons = {
   'baby': LucideIcons.baby,
   'calendar-heart': LucideIcons.calendarHeart,
   'hand-heart': LucideIcons.handHeart,
+  'person-standing': LucideIcons.personStanding,
   'thermometer': LucideIcons.thermometer,
   'siren': LucideIcons.siren,
   'badge-alert': LucideIcons.badgeAlert,

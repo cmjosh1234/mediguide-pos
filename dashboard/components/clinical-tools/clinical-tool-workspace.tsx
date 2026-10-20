@@ -2,23 +2,43 @@
 
 import * as React from "react"
 import { toast } from "sonner"
-import { AlertTriangle, CheckCircle2, Download, Play, RotateCcw, Save, Send, ShieldCheck, Upload } from "lucide-react"
+import { AlertTriangle, CheckCircle2, ChevronDown, Download, Play, RotateCcw, Save, Send, ShieldCheck, Upload, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { clinicalToolService, type ClinicalToolDefinition, type ClinicalToolVersion, type ValidationIssue } from "@/services/clinical-tool.service"
+import { BackendRequestError } from "@/lib/backend-client"
+import { WorkflowSteps } from "@/components/ui/workflow-steps"
+import { DefinitionOutline } from "./definition-outline"
 import { NativeClinicalTool } from "./native-clinical-tool"
 
-const sections = ["metadata", "inputs", "calculation", "rules", "interpretations", "checklist", "warnings", "citations", "test_cases"] as const
+const workflowSteps = [
+  { status: "draft", label: "Draft" },
+  { status: "pending_review", label: "In review" },
+  { status: "approved", label: "Approved" },
+  { status: "published", label: "Published" },
+] as const
 
-function sectionValue(definition: ClinicalToolDefinition | undefined, section: (typeof sections)[number]): unknown {
-  if (!definition) return undefined
-  if (section === "metadata") return { schema_version: definition.schema_version, tool_type: definition.tool_type, title: definition.title, description: definition.description, version: definition.version, locale: definition.locale, clinical_owner: definition.clinical_owner, clinical_reviewer: definition.clinical_reviewer, minimum_app_version: definition.minimum_app_version }
-  if (section === "checklist") return { sections: definition.sections, completion: definition.completion }
-  return definition[section]
+function VersionProgress({ status }: { status?: string }) {
+  const current = workflowSteps.findIndex((step) => step.status === status)
+  if (status && current === -1) {
+    return <span className="rounded-md bg-muted px-2 py-1 text-sm capitalize">{status.replaceAll("_", " ")}</span>
+  }
+  return <WorkflowSteps steps={workflowSteps.map((step) => step.label)} current={current} />
+}
+
+function CheckState({ label, passed, saved }: { label: string; passed?: boolean; saved: boolean }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      {passed ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}
+      <span className={passed ? "text-foreground" : "text-muted-foreground"}>
+        {label} {passed ? "passed" : saved ? "not passed yet" : "after saving"}
+      </span>
+    </span>
+  )
 }
 
 function parseDefinition(raw: string): { definition?: ClinicalToolDefinition; issues: ValidationIssue[] } {
@@ -43,7 +63,22 @@ function parseDefinition(raw: string): { definition?: ClinicalToolDefinition; is
   }
 }
 
-export function ClinicalToolWorkspace({ toolId, initialVersion, onChanged }: { toolId: string; initialVersion?: ClinicalToolVersion; onChanged?: (version: ClinicalToolVersion) => void }) {
+function isValidationIssueList(value: unknown): value is ValidationIssue[] {
+  return Array.isArray(value) && value.every((item) => item && typeof item === "object" && "path" in item && "message" in item)
+}
+
+export function ClinicalToolWorkspace({ toolId, toolType, initialVersion, onChanged, versions = [], onSelectVersion, children }: {
+  toolId: string
+  /** The tool's type; the definition's tool_type must match it. */
+  toolType?: string
+  initialVersion?: ClinicalToolVersion
+  onChanged?: (version: ClinicalToolVersion) => void
+  /** Saved versions for the version picker, newest first. */
+  versions?: ClinicalToolVersion[]
+  onSelectVersion?: (version: ClinicalToolVersion) => void
+  /** Rendered under the definition, e.g. review activity. */
+  children?: React.ReactNode
+}) {
   const [version, setVersion] = React.useState(initialVersion)
   const [raw, setRaw] = React.useState(() => JSON.stringify(initialVersion?.definition ?? {}, null, 2))
   const [summary, setSummary] = React.useState(initialVersion?.change_summary ?? "")
@@ -53,7 +88,17 @@ export function ClinicalToolWorkspace({ toolId, initialVersion, onChanged }: { t
   const [previewDark, setPreviewDark] = React.useState(false)
   const [previewScale, setPreviewScale] = React.useState(1)
   const importRef = React.useRef<HTMLInputElement>(null)
-  const parsed = React.useMemo(() => parseDefinition(raw), [raw])
+  const parsed = React.useMemo(() => {
+    const result = parseDefinition(raw)
+    if (result.definition && toolType && result.definition.tool_type !== toolType) {
+      const expected = toolType.replaceAll("_", " ")
+      return {
+        definition: result.definition,
+        issues: [{ path: "$.tool_type", code: "type_mismatch", message: `This tool is a ${expected}. Set "tool_type" to "${toolType}", or create a new tool of type ${result.definition.tool_type.replaceAll("_", " ")} for this definition.` }],
+      }
+    }
+    return result
+  }, [raw, toolType])
 
   const updateVersion = (next: ClinicalToolVersion) => { setVersion(next); setRaw(JSON.stringify(next.definition, null, 2)); onChanged?.(next) }
   const action = async (name: string, work: () => Promise<void>) => {
@@ -61,10 +106,20 @@ export function ClinicalToolWorkspace({ toolId, initialVersion, onChanged }: { t
     try { await work() } catch (error) { toast.error(error instanceof Error ? error.message : `${name} failed`) } finally { setBusy("") }
   }
   const save = () => action("save", async () => {
-    if (!parsed.definition) { setIssues(parsed.issues); throw new Error("Fix the highlighted definition errors") }
-    const next = version
-      ? await clinicalToolService.update(version.id, parsed.definition, summary, version.lock_version)
-      : await clinicalToolService.create(toolId, parsed.definition, summary)
+    if (!parsed.definition || parsed.issues.length > 0) throw new Error("Fix the validation issues listed under the editor")
+    let next: ClinicalToolVersion
+    try {
+      next = version
+        ? await clinicalToolService.update(version.id, parsed.definition, summary, version.lock_version)
+        : await clinicalToolService.create(toolId, parsed.definition, summary)
+    } catch (error) {
+      // The backend returns the exact problems; list them rather than only a toast.
+      if (error instanceof BackendRequestError && isValidationIssueList(error.meta) && error.meta.length > 0) {
+        setIssues(error.meta)
+        throw new Error("The definition was not saved: see the validation issues under the editor")
+      }
+      throw error
+    }
     updateVersion(next); setIssues([]); toast.success("Draft saved")
   })
   const validate = () => action("validate", async () => {
@@ -101,32 +156,121 @@ export function ClinicalToolWorkspace({ toolId, initialVersion, onChanged }: { t
     setRaw(JSON.stringify(candidate.definition, null, 2)); setIssues([]); toast.success("Definition imported; save to persist it")
   }
 
-  return <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(340px,.7fr)]">
-    <div className="space-y-4">
-      <Card><CardContent className="flex flex-wrap items-end gap-3 pt-6">
-        <div className="min-w-64 flex-1 space-y-2"><Label htmlFor="change-summary">Change summary</Label><Input id="change-summary" value={summary} onChange={(event) => setSummary(event.target.value)} /></div>
-        <Button onClick={save} disabled={Boolean(busy)}><Save className="mr-2 h-4 w-4" />Save draft</Button>
-        <Button variant="outline" onClick={validate} disabled={!version || Boolean(busy)}><ShieldCheck className="mr-2 h-4 w-4" />Validate</Button>
-        <Button variant="outline" onClick={test} disabled={!version || Boolean(busy)}><Play className="mr-2 h-4 w-4" />Run tests</Button>
-        <input ref={importRef} className="hidden" type="file" accept="application/json,.json" onChange={importDefinition} />
-        <Button variant="outline" onClick={() => importRef.current?.click()} disabled={Boolean(busy)}><Upload className="mr-2 h-4 w-4" />Import</Button>
-        <Button variant="outline" onClick={exportDefinition}><Download className="mr-2 h-4 w-4" />Export</Button>
-      </CardContent></Card>
-      <Tabs defaultValue="metadata">
-        <TabsList className="h-auto flex-wrap justify-start">{sections.map((section) => <TabsTrigger key={section} value={section}>{section.replaceAll("_", " ")}</TabsTrigger>)}<TabsTrigger value="json">Advanced JSON</TabsTrigger></TabsList>
-        {sections.map((section) => <TabsContent key={section} value={section}><Card><CardHeader><CardTitle className="capitalize">{section.replaceAll("_", " ")}</CardTitle></CardHeader><CardContent><p className="mb-3 text-sm text-muted-foreground">Edit this typed section in Advanced JSON. Validation reports exact JSON paths here.</p><pre className="max-h-96 overflow-auto rounded-md bg-muted p-4 text-xs">{JSON.stringify(sectionValue(parsed.definition, section), null, 2)}</pre></CardContent></Card></TabsContent>)}
-        <TabsContent value="json"><Card><CardHeader><CardTitle>Schema v1 definition</CardTitle></CardHeader><CardContent><Textarea aria-label="Clinical tool JSON definition" spellCheck={false} className="min-h-[620px] font-mono text-xs" value={raw} onChange={(event) => setRaw(event.target.value)} /></CardContent></Card></TabsContent>
-      </Tabs>
-      {(parsed.issues.length > 0 || issues.length > 0) && <Card className="border-destructive"><CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5" />Validation issues</CardTitle></CardHeader><CardContent><ul className="space-y-2">{[...parsed.issues, ...issues].map((item, index) => <li key={`${item.path}-${index}`} className="text-sm"><code>{item.path}</code>: {item.message}</li>)}</ul></CardContent></Card>}
-      <Card><CardHeader><CardTitle>Clinical workflow</CardTitle></CardHeader><CardContent className="flex flex-wrap gap-2"><Button onClick={() => transition("submit")} disabled={!version || version.status !== "draft"}><Send className="mr-2 h-4 w-4" />Submit</Button><Button variant="outline" onClick={() => transition("approve")} disabled={!version || version.status !== "pending_review"}>Approve</Button><Button variant="outline" onClick={() => transition("publish")} disabled={!version || version.status !== "approved"}><Upload className="mr-2 h-4 w-4" />Publish</Button><Button variant="destructive" onClick={() => transition("withdraw")} disabled={!version || version.status !== "superseded"}>Withdraw</Button><Button variant="outline" onClick={rollbackToLegacy} disabled={Boolean(busy)}><RotateCcw className="mr-2 h-4 w-4" />Restore legacy runtime</Button></CardContent></Card>
-    </div>
-    <Card className="h-fit xl:sticky xl:top-6"><CardHeader><CardTitle>Safe native preview</CardTitle></CardHeader><CardContent className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2" aria-label="Preview settings"><select aria-label="Preview width" className="rounded-md border bg-background px-2 py-2 text-sm" value={previewWidth} onChange={(event) => setPreviewWidth(event.target.value as typeof previewWidth)}><option value="mobile">Mobile</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select><Button size="sm" variant="outline" onClick={() => setPreviewDark((value) => !value)}>{previewDark ? "Light theme" : "Dark theme"}</Button><Label className="flex items-center gap-2 text-xs">Text scale<input aria-label="Preview text scale" type="range" min="1" max="2" step="0.25" value={previewScale} onChange={(event) => setPreviewScale(Number(event.target.value))} /></Label></div>
-      <div className={`mx-auto space-y-5 rounded-lg border p-4 transition-all ${previewDark ? "dark bg-slate-950 text-slate-50" : "bg-background"} ${previewWidth === "mobile" ? "max-w-sm" : previewWidth === "tablet" ? "max-w-2xl" : "max-w-none"}`} style={{ fontSize: `${previewScale}rem` }}>
-      <div className="flex items-center gap-2 text-sm">{version?.validation_passed ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-600" />}<span>{version?.status ?? "unsaved"} · {parsed.definition?.version ?? version?.semantic_version ?? "no version"}</span></div>
-      {parsed.definition && <NativeClinicalTool definition={parsed.definition} />}
-      <p className="text-xs text-muted-foreground">Preview uses the restricted schema evaluator. The backend remains the authority for validation, fixtures and publication.</p>
+  const status = version?.status
+  const readyToSubmit = Boolean(version?.validation_passed && version?.tests_passed)
+  const allIssues = [...parsed.issues, ...issues]
+
+  return <div className="space-y-6">
+    <Card>
+      <CardContent className="space-y-4 pt-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {versions.length > 0 ? (
+              <select
+                aria-label="Version"
+                className="rounded-md border bg-background px-3 py-2 text-sm font-medium"
+                value={version?.id}
+                onChange={(event) => {
+                  const next = versions.find((item) => item.id === event.target.value)
+                  if (next) onSelectVersion?.(next)
+                }}
+              >
+                {versions.map((item) => <option key={item.id} value={item.id}>v{item.semantic_version} · {item.status.replaceAll("_", " ")}</option>)}
+              </select>
+            ) : (
+              <span className="text-sm font-medium">No saved version yet</span>
+            )}
+            <VersionProgress status={status} />
+          </div>
+          {status === "draft" && <Button onClick={() => transition("submit")} disabled={!readyToSubmit || Boolean(busy)}><Send className="mr-2 h-4 w-4" />Submit for review</Button>}
+          {status === "pending_review" && <Button onClick={() => transition("approve")} disabled={Boolean(busy)}><ShieldCheck className="mr-2 h-4 w-4" />Approve</Button>}
+          {status === "approved" && <Button onClick={() => transition("publish")} disabled={Boolean(busy)}><Upload className="mr-2 h-4 w-4" />Publish</Button>}
+          {status === "published" && <span className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />Live in the app</span>}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-4 text-sm">
+          <CheckState label="Validation" passed={version?.validation_passed} saved={Boolean(version)} />
+          <CheckState label="Tests" passed={version?.tests_passed} saved={Boolean(version)} />
+          <span className="text-muted-foreground">
+            {!version
+              ? "Write or import a definition, then save a draft."
+              : status === "draft" && !readyToSubmit
+                ? "Validate and run tests to submit for review."
+                : null}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(340px,.7fr)]">
+      <div className="space-y-6">
+        <Card>
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
+            <div className="space-y-1.5">
+              <CardTitle>Definition</CardTitle>
+              <CardDescription>Clinical Tool Schema v1, written as JSON.</CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <input ref={importRef} className="hidden" type="file" accept="application/json,.json" onChange={importDefinition} />
+              <Button size="sm" variant="outline" onClick={() => importRef.current?.click()} disabled={Boolean(busy)}><Upload className="mr-2 h-4 w-4" />Import</Button>
+              <Button size="sm" variant="outline" onClick={exportDefinition}><Download className="mr-2 h-4 w-4" />Export</Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Tabs defaultValue="editor">
+              <TabsList>
+                <TabsTrigger value="editor">Editor</TabsTrigger>
+                <TabsTrigger value="outline">Outline</TabsTrigger>
+              </TabsList>
+              <TabsContent value="editor" className="mt-4">
+                <Textarea aria-label="Clinical tool JSON definition" spellCheck={false} className="min-h-[520px] font-mono text-xs" value={raw} onChange={(event) => setRaw(event.target.value)} />
+              </TabsContent>
+              <TabsContent value="outline" className="mt-4">
+                <DefinitionOutline definition={parsed.definition} />
+              </TabsContent>
+            </Tabs>
+            {allIssues.length > 0 && (
+              <div role="alert" className="rounded-md border border-destructive/50 bg-destructive/5 p-3">
+                <p className="mb-2 flex items-center gap-2 text-sm font-medium text-destructive"><AlertTriangle className="h-4 w-4" />Validation issues</p>
+                <ul className="space-y-1">{allIssues.map((item, index) => <li key={`${item.path}-${index}`} className="text-sm"><code>{item.path}</code>: {item.message}</li>)}</ul>
+              </div>
+            )}
+            <div className="flex flex-wrap items-end gap-3 border-t pt-4">
+              <div className="min-w-56 flex-1 space-y-2"><Label htmlFor="change-summary">Change summary</Label><Input id="change-summary" placeholder="What changed in this version?" value={summary} onChange={(event) => setSummary(event.target.value)} /></div>
+              <Button variant="outline" onClick={validate} disabled={!version || Boolean(busy)}><ShieldCheck className="mr-2 h-4 w-4" />Validate</Button>
+              <Button variant="outline" onClick={test} disabled={!version || Boolean(busy)}><Play className="mr-2 h-4 w-4" />Run tests</Button>
+              <Button onClick={save} disabled={Boolean(busy)}><Save className="mr-2 h-4 w-4" />Save draft</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {children}
+
+        <details className="group rounded-lg border bg-card">
+          <summary className="flex cursor-pointer list-none items-center justify-between p-4 text-sm font-medium">
+            More actions
+            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="flex flex-wrap items-start gap-6 border-t p-4 text-sm">
+            <div className="max-w-xs space-y-2">
+              <Button variant="destructive" size="sm" onClick={() => transition("withdraw")} disabled={!version || version.status !== "superseded" || Boolean(busy)}>Withdraw version</Button>
+              <p className="text-xs text-muted-foreground">Only for superseded versions that must no longer be used.</p>
+            </div>
+            <div className="max-w-xs space-y-2">
+              <Button variant="outline" size="sm" onClick={rollbackToLegacy} disabled={Boolean(busy)}><RotateCcw className="mr-2 h-4 w-4" />Restore legacy runtime</Button>
+              <p className="text-xs text-muted-foreground">Switches the tool back to its old HTML version.</p>
+            </div>
+          </div>
+        </details>
       </div>
-    </CardContent></Card>
+
+      <Card className="h-fit xl:sticky xl:top-6"><CardHeader><CardTitle>Preview</CardTitle><CardDescription>How the definition runs, using the same restricted evaluator as the app.</CardDescription></CardHeader><CardContent className="space-y-5">
+        <div className="flex flex-wrap items-center gap-2" aria-label="Preview settings"><select aria-label="Preview width" className="rounded-md border bg-background px-2 py-2 text-sm" value={previewWidth} onChange={(event) => setPreviewWidth(event.target.value as typeof previewWidth)}><option value="mobile">Mobile</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select><Button size="sm" variant="outline" onClick={() => setPreviewDark((value) => !value)}>{previewDark ? "Light theme" : "Dark theme"}</Button><Label className="flex items-center gap-2 text-xs">Text scale<input aria-label="Preview text scale" type="range" min="1" max="2" step="0.25" value={previewScale} onChange={(event) => setPreviewScale(Number(event.target.value))} /></Label></div>
+        <div className={`mx-auto space-y-5 rounded-lg border p-4 transition-all ${previewDark ? "dark bg-slate-950 text-slate-50" : "bg-background"} ${previewWidth === "mobile" ? "max-w-sm" : previewWidth === "tablet" ? "max-w-2xl" : "max-w-none"}`} style={{ fontSize: `${previewScale}rem` }}>
+        <div className="flex items-center gap-2 text-sm">{version?.validation_passed ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-600" />}<span>{version?.status ?? "unsaved"} · {parsed.definition?.version ?? version?.semantic_version ?? "no version"}</span></div>
+        {parsed.definition ? <NativeClinicalTool definition={parsed.definition} /> : <p className="py-8 text-center text-sm text-muted-foreground">Nothing to preview yet.</p>}
+        <p className="text-xs text-muted-foreground">The backend remains the authority for validation, tests and publication.</p>
+        </div>
+      </CardContent></Card>
+    </div>
   </div>
 }

@@ -1331,6 +1331,11 @@ export interface HandlersPaginatedTherapeuticCategoriesEnvelope {
   success?: boolean;
 }
 
+export interface HandlersPaginatedToolCategoriesEnvelope {
+  data?: ServicesPageResultModelsToolCategory;
+  success?: boolean;
+}
+
 export interface HandlersPaginatedUsersEnvelope {
   data?: ServicesPageResultServicesUserView;
   /** @example true */
@@ -1625,6 +1630,11 @@ export interface HandlersTherapeuticCategoryEnvelope {
   success?: boolean;
 }
 
+export interface HandlersToolCategoryEnvelope {
+  data?: ModelsToolCategory;
+  success?: boolean;
+}
+
 export interface HandlersUpdateMarkdownInput {
   content: string;
 }
@@ -1716,6 +1726,7 @@ export interface ModelsCalculator {
   added_by_user_id?: string;
   app_file_json?: object;
   background_color?: string;
+  category_id?: string;
   color?: string;
   created_at?: string;
   current_version_id?: string;
@@ -1724,6 +1735,7 @@ export interface ModelsCalculator {
   icon?: string;
   id?: string;
   name?: string;
+  risk_level?: string;
   runtime_type?: string;
   status?: string;
   type?: string;
@@ -2743,6 +2755,20 @@ export interface ModelsTherapeuticCategory {
   updated_at?: string;
 }
 
+export interface ModelsToolCategory {
+  color?: string;
+  created_at?: string;
+  description?: string;
+  icon?: string;
+  id?: string;
+  name?: string;
+  slug?: string;
+  sort_order?: number;
+  status?: string;
+  tool_count?: number;
+  updated_at?: string;
+}
+
 export interface ModelsUser {
   address?: string;
   alternative_phone?: string;
@@ -2879,6 +2905,7 @@ export interface ServicesCalculatorReviewQueueItem {
   semantic_version?: string;
   tests_passed?: boolean;
   tool_name?: string;
+  tool_risk_level?: string;
   tool_status?: string;
   tool_type?: string;
   updated_at?: string;
@@ -2889,7 +2916,9 @@ export interface ServicesCalculatorReviewQueueItem {
 
 export interface ServicesCalculatorVersionAuditDTO {
   action?: string;
+  actor_email?: string;
   actor_id?: string;
+  actor_name?: string;
   calculator_id?: string;
   calculator_version_id?: string;
   created_at?: string;
@@ -2930,6 +2959,7 @@ export interface ServicesCalculatorVersionPreviewDTO {
   review_evidence_status?: string;
   runtime_type?: string;
   tool_name?: string;
+  tool_risk_level?: string;
   tool_status?: string;
   tool_type?: string;
   version?: ServicesCalculatorVersionDTO;
@@ -3085,15 +3115,22 @@ export interface ServicesConversationView {
 export interface ServicesCreateCalculatorInput {
   app_file_json?: object;
   background_color?: string;
+  category_id?: string;
   color?: string;
   description?: string;
   featured?: boolean;
   icon?: string;
   name?: string;
+  risk_level?: ServicesCreateCalculatorInputRiskLevelEnum;
   status?: string;
   type?: string;
   version?: string;
 }
+
+export type ServicesCreateCalculatorInputRiskLevelEnum =
+  | "standard"
+  | "high"
+  | "critical";
 
 export interface ServicesCreateCalculatorVersionInput {
   change_summary?: string;
@@ -4663,6 +4700,14 @@ export interface ServicesPageResultModelsSupportTicketReply {
   total_pages?: number;
 }
 
+export interface ServicesPageResultModelsToolCategory {
+  items?: ModelsToolCategory[];
+  page?: number;
+  per_page?: number;
+  total_items?: number;
+  total_pages?: number;
+}
+
 export interface ServicesPageResultServicesCalculatorReviewQueueItem {
   items?: ServicesCalculatorReviewQueueItem[];
   page?: number;
@@ -5242,6 +5287,10 @@ export interface ServicesReplaceContentHubDiseasesInput {
   lock_version: number;
 }
 
+export interface ServicesReportDeleteInput {
+  reason?: string;
+}
+
 export interface ServicesResolveGuidelineEditorCommentInput {
   resolved?: boolean;
 }
@@ -5458,6 +5507,16 @@ export interface ServicesTemplateVariableRule {
   type?: string;
 }
 
+export interface ServicesToolCategoryInput {
+  color?: string;
+  description?: string;
+  icon?: string;
+  name?: string;
+  slug?: string;
+  sort_order?: number;
+  status?: string;
+}
+
 export interface ServicesTransitionInput {
   lock_version?: number;
   operational_status?: string;
@@ -5477,15 +5536,22 @@ export interface ServicesTreeNode {
 export interface ServicesUpdateCalculatorInput {
   app_file_json?: object;
   background_color?: string;
+  category_id?: string;
   color?: string;
   description?: string;
   featured?: boolean;
   icon?: string;
   name?: string;
+  risk_level?: ServicesUpdateCalculatorInputRiskLevelEnum;
   status?: string;
   type?: string;
   version?: string;
 }
+
+export type ServicesUpdateCalculatorInputRiskLevelEnum =
+  | "standard"
+  | "high"
+  | "critical";
 
 export interface ServicesUpdateCalculatorVersionInput {
   change_summary?: string;

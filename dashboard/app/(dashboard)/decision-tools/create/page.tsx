@@ -27,9 +27,7 @@ export default function CreateDecisionToolPage() {
   const [duplicateData, setDuplicateData] = React.useState<CalculatorsResponse | null>(null)
   const [loadingDuplicate, setLoadingDuplicate] = React.useState(!!duplicateId)
 
-  const { create, loading } = useDomainCrud("calculators", calculatorService, () => {
-      router.push("/decision-tools")
-  })
+  const { create, loading } = useDomainCrud("calculators", calculatorService)
 
   // Fetch duplicate data if needed
   React.useEffect(() => {
@@ -69,7 +67,9 @@ export default function CreateDecisionToolPage() {
         }
       })
       
-      await create(formData)
+      const created = await create(formData)
+      // The record is only a shell: the tool's logic is authored next.
+      router.push(`/decision-tools/${created.id}/author`)
     } catch (error) {
       console.error("Failed to submit form:", error)
       throw error
@@ -119,7 +119,7 @@ export default function CreateDecisionToolPage() {
         onBack={() => router.push("/decision-tools")}
       />
 
-      <div className="bg-card rounded-lg border p-6">
+      <div>
         <DecisionToolForm
           mode="create"
           initialData={initialData}

@@ -4,17 +4,22 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { PageHeader } from "@/components/ui/page-header"
 import { ClinicalToolWorkspace } from "@/components/clinical-tools/clinical-tool-workspace"
-import { clinicalToolService, type ClinicalToolVersion } from "@/services/clinical-tool.service"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { clinicalToolService, type ClinicalToolAuditEntry, type ClinicalToolVersion } from "@/services/clinical-tool.service"
+import { ClinicalToolAuditEntryItem } from "@/components/clinical-tools/audit-entry"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { EmptyState } from "@/components/ui/empty-state"
 import { toast } from "sonner"
+import { RiskLevelNotice } from "@/components/clinical-tools/risk-level"
+import { useDomainRecord } from "@/hooks/use-domain-record"
+import { calculatorService } from "@/services/calculator.service"
 
-type AuditItem = { id: string; action: string; created_at: string; metadata?: { comment?: string } }
+type AuditItem = ClinicalToolAuditEntry
 
 export default function ClinicalToolAuthorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params)
+  const { record: tool } = useDomainRecord("calculators", id, calculatorService.get)
   const router = useRouter()
   const [version, setVersion] = React.useState<ClinicalToolVersion>()
   const [versions, setVersions] = React.useState<ClinicalToolVersion[]>([])
@@ -50,5 +55,61 @@ export default function ClinicalToolAuthorPage({ params }: { params: Promise<{ i
   }
   const changed = (next: ClinicalToolVersion) => { setVersion(next); setVersions((items) => items.some((item) => item.id === next.id) ? items.map((item) => item.id === next.id ? next : item) : [next, ...items]) }
   const published = versions.find((item) => item.status === "published")
-  return <div className="space-y-6"><PageHeader title="Clinical tool authoring" description="Build, validate, test, review and publish a native schema tool." showBackButton onBack={() => router.push(`/decision-tools/${id}`)} />{loading ? <p>Loading version history…</p> : error ? <p role="alert" className="text-destructive">{error}</p> : <><div className="grid gap-4 lg:grid-cols-2"><Card><CardHeader><CardTitle>Version history</CardTitle></CardHeader><CardContent className="flex flex-wrap gap-2">{versions.length ? versions.map((item) => <Button key={item.id} size="sm" variant={item.id === version?.id ? "default" : "outline"} onClick={() => setVersion(item)}>v{item.semantic_version} · {item.status}</Button>) : <p className="text-sm text-muted-foreground">No schema versions yet. Import or author the first draft below.</p>}</CardContent></Card><Card><CardHeader><CardTitle>Review and audit trail</CardTitle></CardHeader><CardContent className="space-y-3">{auditLoading ? <p role="status">Loading review activity…</p> : auditError ? <div role="alert"><p>{auditError}</p><Button variant="outline" size="sm" onClick={() => void loadAudit()}>Try again</Button></div> : audit.length === 0 && <EmptyState title="No review activity yet" description="Recorded changes and review comments will appear here." />}<ul className="max-h-36 space-y-1 overflow-auto text-sm">{audit.map((item) => <li key={item.id}><span>{item.action} · {new Date(item.created_at).toLocaleString()}</span>{item.metadata?.comment && <blockquote className="mt-1 border-l-2 pl-2 text-muted-foreground">{item.metadata.comment}</blockquote>}</li>)}</ul>{version && version.status !== "withdrawn" && <div className="space-y-2"><Textarea aria-label="Review comment" placeholder="Add an immutable clinical review comment…" maxLength={4000} value={comment} onChange={(event) => setComment(event.target.value)} /><Button size="sm" variant="outline" disabled={!comment.trim()} onClick={addComment}>Add review comment</Button></div>}</CardContent></Card></div>{published && version && published.id !== version.id && <details className="rounded-lg border p-4"><summary className="cursor-pointer font-medium">Compare v{version.semantic_version} with published v{published.semantic_version}</summary><div className="mt-4 grid gap-4 lg:grid-cols-2"><pre className="max-h-72 overflow-auto bg-muted p-3 text-xs">{JSON.stringify(published.definition, null, 2)}</pre><pre className="max-h-72 overflow-auto bg-muted p-3 text-xs">{JSON.stringify(version.definition, null, 2)}</pre></div></details>}<ClinicalToolWorkspace key={version?.id ?? "new"} toolId={id} initialVersion={version} onChanged={changed} /></>}</div>
+  const reviewActivity = (
+    <Card>
+      <CardHeader>
+        <CardTitle>Review activity</CardTitle>
+        <CardDescription>Changes and review comments for this version. Comments cannot be edited once added.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {auditLoading ? (
+          <p role="status" className="text-sm text-muted-foreground">Loading review activity…</p>
+        ) : auditError ? (
+          <div role="alert" className="space-y-2 text-sm"><p>{auditError}</p><Button variant="outline" size="sm" onClick={() => void loadAudit()}>Try again</Button></div>
+        ) : audit.length === 0 ? (
+          <EmptyState title="No review activity yet" description="Saved changes and review comments will appear here." />
+        ) : (
+          <ul className="max-h-[28rem] space-y-2 overflow-auto">
+            {audit.map((item) => <ClinicalToolAuditEntryItem key={item.id} item={item} />)}
+          </ul>
+        )}
+        {version && version.status !== "withdrawn" && (
+          <div className="space-y-2 border-t pt-4">
+            <Textarea aria-label="Review comment" placeholder="Add a clinical review comment…" maxLength={4000} rows={3} value={comment} onChange={(event) => setComment(event.target.value)} />
+            <div className="flex justify-end"><Button size="sm" variant="outline" disabled={!comment.trim()} onClick={addComment}>Add comment</Button></div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={tool?.name ?? "Clinical tool"}
+        description="Authoring workspace: write, test, review and publish this tool's definition."
+        showBackButton
+        onBack={() => router.push(`/decision-tools/${id}`)}
+      />
+      {tool && <RiskLevelNotice level={tool.risk_level} />}
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading version history…</p>
+      ) : error ? (
+        <p role="alert" className="text-destructive">{error}</p>
+      ) : (
+        <ClinicalToolWorkspace key={version?.id ?? "new"} toolId={id} toolType={tool?.type} initialVersion={version} onChanged={changed} versions={versions} onSelectVersion={setVersion}>
+          {reviewActivity}
+          {published && version && published.id !== version.id && (
+            <details className="rounded-lg border bg-card">
+              <summary className="cursor-pointer p-4 text-sm font-medium">Compare v{version.semantic_version} with the published v{published.semantic_version}</summary>
+              <div className="grid gap-4 border-t p-4 lg:grid-cols-2">
+                <div className="space-y-2"><p className="text-xs font-medium text-muted-foreground">Published v{published.semantic_version}</p><pre className="max-h-72 overflow-auto rounded-md bg-muted p-3 text-xs">{JSON.stringify(published.definition, null, 2)}</pre></div>
+                <div className="space-y-2"><p className="text-xs font-medium text-muted-foreground">This version, v{version.semantic_version}</p><pre className="max-h-72 overflow-auto rounded-md bg-muted p-3 text-xs">{JSON.stringify(version.definition, null, 2)}</pre></div>
+              </div>
+            </details>
+          )}
+        </ClinicalToolWorkspace>
+      )}
+    </div>
+  )
 }

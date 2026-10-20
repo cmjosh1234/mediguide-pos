@@ -31,6 +31,7 @@ func TestCalculatorServiceCRUDAndFilters(t *testing.T) {
 		Type:        "decision_tool",
 		Status:      "active",
 		Featured:    true,
+		CategoryID:  testCategoryID(t, service),
 	})
 	if err != nil {
 		t.Fatalf("create calculator: %v", err)
@@ -51,14 +52,35 @@ func TestCalculatorServiceCRUDAndFilters(t *testing.T) {
 		t.Fatalf("unexpected calculator list: %#v", result)
 	}
 
+	category := testCategoryID(t, service).String()
+	byCategory, err := service.List(CalculatorListInput{Page: PageInput{Page: 1, PerPage: 10}, CategoryID: category})
+	if err != nil || byCategory.TotalItems != 1 {
+		t.Fatalf("category filter: %v %#v", err, byCategory)
+	}
+	uncategorised, err := service.List(CalculatorListInput{Page: PageInput{Page: 1, PerPage: 10}, CategoryID: "none"})
+	if err != nil || uncategorised.TotalItems != 0 {
+		t.Fatalf("uncategorised filter: %v %#v", err, uncategorised)
+	}
+	if _, err := service.Create(userID, CreateCalculatorInput{Name: "No category", Version: "1", Type: "calculator", AppFileJSON: json.RawMessage(`{"path":"bmi-calculator.html"}`)}); !errors.Is(err, ErrCalculatorCategoryRequired) {
+		t.Fatalf("expected a category to be required, got %v", err)
+	}
+
 	name := "Emergency Triage Assessment"
 	status := "archived"
-	updated, err := service.Update(created.ID, UpdateCalculatorInput{Name: &name, Status: &status})
+	updated, err := service.Update(created.ID, CalculatorEditor{UserID: userID}, UpdateCalculatorInput{Name: &name, Status: &status})
 	if err != nil {
 		t.Fatalf("update calculator: %v", err)
 	}
 	if updated.Name != name || updated.Status != status {
 		t.Fatalf("unexpected updated calculator: %#v", updated)
+	}
+
+	if err := service.DB.Model(&models.ToolCategory{}).Where("id = ?", *testCategoryID(t, service)).Update("status", "inactive").Error; err != nil {
+		t.Fatal(err)
+	}
+	description := "Edited after its category was retired"
+	if _, err := service.Update(created.ID, CalculatorEditor{UserID: userID}, UpdateCalculatorInput{Description: &description, CategoryID: testCategoryID(t, service)}); err != nil {
+		t.Fatalf("editing a tool in a retired category: %v", err)
 	}
 
 	if err := service.Delete(created.ID); err != nil {
@@ -134,6 +156,7 @@ func TestCalculatorUsageIsOwnedByAuthenticatedUser(t *testing.T) {
 		Version:     "1",
 		Type:        "calculator",
 		Status:      "active",
+		CategoryID:  testCategoryID(t, service),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -190,16 +213,29 @@ func testCalculatorService(t *testing.T) CalculatorService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := database.AutoMigrate(&models.Calculator{}, &models.CalculatorUsageLog{}, &models.CalculatorVersion{}); err != nil {
+	if err := database.AutoMigrate(&models.Calculator{}, &models.CalculatorUsageLog{}, &models.CalculatorVersion{}, &models.ToolCategory{}, &models.CalculatorVersionAudit{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Create(&models.ToolCategory{Name: "General Assessment", Slug: "general-assessment", Status: "active"}).Error; err != nil {
 		t.Fatal(err)
 	}
 	return CalculatorService{DB: database, LegacyClinicalToolsDir: t.TempDir()}
 }
 
+// testCategoryID returns the active category every test service starts with.
+func testCategoryID(t *testing.T, s CalculatorService) *uuid.UUID {
+	t.Helper()
+	var category models.ToolCategory
+	if err := s.DB.First(&category, "slug = ?", "general-assessment").Error; err != nil {
+		t.Fatal(err)
+	}
+	return &category.ID
+}
+
 func TestCalculatorUsageRetriesValidationAndExactVersion(t *testing.T) {
 	s := testCalculatorService(t)
 	owner := uuid.New()
-	tool, err := s.Create(owner, CreateCalculatorInput{Name: "BMI", Version: "1", Type: "calculator", Status: "active", AppFileJSON: json.RawMessage(`{"path":"bmi-calculator.html"}`)})
+	tool, err := s.Create(owner, CreateCalculatorInput{Name: "BMI", Version: "1", Type: "calculator", Status: "active", CategoryID: testCategoryID(t, s), AppFileJSON: json.RawMessage(`{"path":"bmi-calculator.html"}`)})
 	if err != nil {
 		t.Fatal(err)
 	}

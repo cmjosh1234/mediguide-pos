@@ -3815,6 +3815,18 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Tool category ID, or none for uncategorised tools",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated standard, high, or critical values",
+                        "name": "risk_level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Sort field",
                         "name": "sort",
                         "in": "query"
@@ -17139,10 +17151,29 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Deletes the report with its attachments and open corrections. Deleting anything beyond a draft or a submission in review also needs situation_report.withdraw.",
                 "tags": [
                     "situation-report-administration"
                 ],
-                "summary": "Delete an unpublished situation report",
+                "summary": "Soft-delete a situation report",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Optimistic lock version",
+                        "name": "lock_version",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "Reason for deleting",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.ReportDeleteInput"
+                        }
+                    }
+                ],
                 "responses": {
                     "204": {
                         "description": "No Content"
@@ -18036,6 +18067,262 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handlers.TherapeuticCategoryEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/tool-categories": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tool-categories"
+                ],
+                "summary": "List tool categories",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name, slug, or description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "active or inactive",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "name, sort_order, created_at or updated_at",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc or desc",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PaginatedToolCategoriesEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tool-categories"
+                ],
+                "summary": "Create a tool category",
+                "parameters": [
+                    {
+                        "description": "Category",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.ToolCategoryInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ToolCategoryEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/tool-categories/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tool-categories"
+                ],
+                "summary": "Get a tool category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Category ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ToolCategoryEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "tool-categories"
+                ],
+                "summary": "Delete a tool category with no tools assigned",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Category ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tool-categories"
+                ],
+                "summary": "Update a tool category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Category ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Category changes",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.ToolCategoryInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ToolCategoryEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     }
                 }
@@ -21704,6 +21991,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.PaginatedToolCategoriesEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/services.PageResult-models_ToolCategory"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.PaginatedUsersEnvelope": {
             "type": "object",
             "properties": {
@@ -22344,6 +22642,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.ToolCategoryEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/models.ToolCategory"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.UpdateMarkdownInput": {
             "type": "object",
             "required": [
@@ -22559,6 +22868,9 @@ const docTemplate = `{
                 "background_color": {
                     "type": "string"
                 },
+                "category_id": {
+                    "type": "string"
+                },
                 "color": {
                     "type": "string"
                 },
@@ -22581,6 +22893,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "risk_level": {
                     "type": "string"
                 },
                 "runtime_type": {
@@ -25382,6 +25697,44 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ToolCategory": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tool_count": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "models.User": {
             "type": "object",
             "properties": {
@@ -25768,6 +26121,9 @@ const docTemplate = `{
                 "tool_name": {
                     "type": "string"
                 },
+                "tool_risk_level": {
+                    "type": "string"
+                },
                 "tool_status": {
                     "type": "string"
                 },
@@ -25794,7 +26150,13 @@ const docTemplate = `{
                 "action": {
                     "type": "string"
                 },
+                "actor_email": {
+                    "type": "string"
+                },
                 "actor_id": {
+                    "type": "string"
+                },
+                "actor_name": {
                     "type": "string"
                 },
                 "calculator_id": {
@@ -25914,6 +26276,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "tool_name": {
+                    "type": "string"
+                },
+                "tool_risk_level": {
                     "type": "string"
                 },
                 "tool_status": {
@@ -26348,6 +26713,9 @@ const docTemplate = `{
                 "background_color": {
                     "type": "string"
                 },
+                "category_id": {
+                    "type": "string"
+                },
                 "color": {
                     "type": "string"
                 },
@@ -26362,6 +26730,14 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "risk_level": {
+                    "type": "string",
+                    "enum": [
+                        "standard",
+                        "high",
+                        "critical"
+                    ]
                 },
                 "status": {
                     "type": "string"
@@ -30720,6 +31096,29 @@ const docTemplate = `{
                 }
             }
         },
+        "services.PageResult-models_ToolCategory": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ToolCategory"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total_items": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
         "services.PageResult-services_CalculatorReviewQueueItem": {
             "type": "object",
             "properties": {
@@ -32367,6 +32766,14 @@ const docTemplate = `{
                 }
             }
         },
+        "services.ReportDeleteInput": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
         "services.ResolveGuidelineEditorCommentInput": {
             "type": "object",
             "properties": {
@@ -32953,6 +33360,32 @@ const docTemplate = `{
                 }
             }
         },
+        "services.ToolCategoryInput": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "services.TransitionInput": {
             "type": "object",
             "properties": {
@@ -33005,6 +33438,9 @@ const docTemplate = `{
                 "background_color": {
                     "type": "string"
                 },
+                "category_id": {
+                    "type": "string"
+                },
                 "color": {
                     "type": "string"
                 },
@@ -33019,6 +33455,14 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "risk_level": {
+                    "type": "string",
+                    "enum": [
+                        "standard",
+                        "high",
+                        "critical"
+                    ]
                 },
                 "status": {
                     "type": "string"

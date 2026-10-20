@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { GuidelineCategoriesWithParent } from "@/types/expanded"
+import { StoredIcon } from "@/components/ui/stored-icon"
 
 interface CategoryViewModalProps {
   open: boolean
@@ -120,7 +121,10 @@ export function CategoryViewModal({
           </Row>
           <Row label="Icon">
             {category.icon ? (
-              <code className="text-xs">{category.icon}</code>
+              <span className="flex items-center gap-2">
+                <StoredIcon icon={category.icon} fallback={null} />
+                <code className="text-xs">{category.icon}</code>
+              </span>
             ) : (
               emptyDash
             )}

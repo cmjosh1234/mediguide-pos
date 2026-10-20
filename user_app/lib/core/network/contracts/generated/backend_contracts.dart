@@ -4877,6 +4877,28 @@ final class HandlersPaginatedTherapeuticCategoriesEnvelope {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class HandlersPaginatedToolCategoriesEnvelope {
+  HandlersPaginatedToolCategoriesEnvelope(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersPaginatedToolCategoriesEnvelope.fromJson(
+    Map<String, dynamic> json,
+  ) => HandlersPaginatedToolCategoriesEnvelope(json);
+
+  static const schemaName = 'handlers.PaginatedToolCategoriesEnvelope';
+  final Map<String, dynamic> value;
+
+  ServicesPageResultModelsToolCategory? get data {
+    final raw = value['data'];
+    if (raw is! Map) return null;
+    return ServicesPageResultModelsToolCategory.fromJson(_jsonMap(raw));
+  }
+
+  bool? get success => value['success'] as bool?;
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class HandlersPaginatedUsersEnvelope {
   HandlersPaginatedUsersEnvelope(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -5919,6 +5941,27 @@ final class HandlersTherapeuticCategoryEnvelope {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class HandlersToolCategoryEnvelope {
+  HandlersToolCategoryEnvelope(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory HandlersToolCategoryEnvelope.fromJson(Map<String, dynamic> json) =>
+      HandlersToolCategoryEnvelope(json);
+
+  static const schemaName = 'handlers.ToolCategoryEnvelope';
+  final Map<String, dynamic> value;
+
+  ModelsToolCategory? get data {
+    final raw = value['data'];
+    if (raw is! Map) return null;
+    return ModelsToolCategory.fromJson(_jsonMap(raw));
+  }
+
+  bool? get success => value['success'] as bool?;
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class HandlersUpdateMarkdownInput {
   HandlersUpdateMarkdownInput(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -6220,6 +6263,8 @@ final class ModelsCalculator {
 
   String? get backgroundColor => value['background_color']?.toString();
 
+  String? get categoryId => value['category_id']?.toString();
+
   String? get color => value['color']?.toString();
 
   String? get createdAt => value['created_at']?.toString();
@@ -6235,6 +6280,8 @@ final class ModelsCalculator {
   String? get id => value['id']?.toString();
 
   String? get name => value['name']?.toString();
+
+  String? get riskLevel => value['risk_level']?.toString();
 
   String? get runtimeTypeField => value['runtime_type']?.toString();
 
@@ -8811,6 +8858,41 @@ final class ModelsTherapeuticCategory {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ModelsToolCategory {
+  ModelsToolCategory(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ModelsToolCategory.fromJson(Map<String, dynamic> json) =>
+      ModelsToolCategory(json);
+
+  static const schemaName = 'models.ToolCategory';
+  final Map<String, dynamic> value;
+
+  String? get color => value['color']?.toString();
+
+  String? get createdAt => value['created_at']?.toString();
+
+  String? get description => value['description']?.toString();
+
+  String? get icon => value['icon']?.toString();
+
+  String? get id => value['id']?.toString();
+
+  String? get name => value['name']?.toString();
+
+  String? get slug => value['slug']?.toString();
+
+  int? get sortOrder => (value['sort_order'] as num?)?.toInt();
+
+  String? get status => value['status']?.toString();
+
+  int? get toolCount => (value['tool_count'] as num?)?.toInt();
+
+  String? get updatedAt => value['updated_at']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ModelsUser {
   ModelsUser(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -9200,6 +9282,8 @@ final class ServicesCalculatorReviewQueueItem {
 
   String? get toolName => value['tool_name']?.toString();
 
+  String? get toolRiskLevel => value['tool_risk_level']?.toString();
+
   String? get toolStatus => value['tool_status']?.toString();
 
   String? get toolType => value['tool_type']?.toString();
@@ -9228,7 +9312,11 @@ final class ServicesCalculatorVersionAuditDTO {
 
   String? get action => value['action']?.toString();
 
+  String? get actorEmail => value['actor_email']?.toString();
+
   String? get actorId => value['actor_id']?.toString();
+
+  String? get actorName => value['actor_name']?.toString();
 
   String? get calculatorId => value['calculator_id']?.toString();
 
@@ -9347,6 +9435,8 @@ final class ServicesCalculatorVersionPreviewDTO {
   String? get runtimeTypeField => value['runtime_type']?.toString();
 
   String? get toolName => value['tool_name']?.toString();
+
+  String? get toolRiskLevel => value['tool_risk_level']?.toString();
 
   String? get toolStatus => value['tool_status']?.toString();
 
@@ -9815,6 +9905,8 @@ final class ServicesCreateCalculatorInput {
 
   String? get backgroundColor => value['background_color']?.toString();
 
+  String? get categoryId => value['category_id']?.toString();
+
   String? get color => value['color']?.toString();
 
   String? get description => value['description']?.toString();
@@ -9824,6 +9916,8 @@ final class ServicesCreateCalculatorInput {
   String? get icon => value['icon']?.toString();
 
   String? get name => value['name']?.toString();
+
+  String? get riskLevel => value['risk_level']?.toString();
 
   String? get status => value['status']?.toString();
 
@@ -14686,6 +14780,37 @@ final class ServicesPageResultModelsSupportTicketReply {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ServicesPageResultModelsToolCategory {
+  ServicesPageResultModelsToolCategory(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesPageResultModelsToolCategory.fromJson(
+    Map<String, dynamic> json,
+  ) => ServicesPageResultModelsToolCategory(json);
+
+  static const schemaName = 'services.PageResult-models_ToolCategory';
+  final Map<String, dynamic> value;
+
+  List<ModelsToolCategory> get items {
+    final raw = value['items'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => ModelsToolCategory.fromJson(_jsonMap(item)))
+        .toList(growable: false);
+  }
+
+  int? get page => (value['page'] as num?)?.toInt();
+
+  int? get perPage => (value['per_page'] as num?)?.toInt();
+
+  int? get totalItems => (value['total_items'] as num?)?.toInt();
+
+  int? get totalPages => (value['total_pages'] as num?)?.toInt();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ServicesPageResultServicesCalculatorReviewQueueItem {
   ServicesPageResultServicesCalculatorReviewQueueItem(
     Map<String, dynamic> value,
@@ -16581,6 +16706,21 @@ final class ServicesReplaceContentHubDiseasesInput {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ServicesReportDeleteInput {
+  ServicesReportDeleteInput(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesReportDeleteInput.fromJson(Map<String, dynamic> json) =>
+      ServicesReportDeleteInput(json);
+
+  static const schemaName = 'services.ReportDeleteInput';
+  final Map<String, dynamic> value;
+
+  String? get reason => value['reason']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ServicesResolveGuidelineEditorCommentInput {
   ServicesResolveGuidelineEditorCommentInput(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -17206,6 +17346,33 @@ final class ServicesTemplateVariableRule {
   Map<String, dynamic> toJson() => Map.of(value);
 }
 
+final class ServicesToolCategoryInput {
+  ServicesToolCategoryInput(Map<String, dynamic> value)
+    : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
+
+  factory ServicesToolCategoryInput.fromJson(Map<String, dynamic> json) =>
+      ServicesToolCategoryInput(json);
+
+  static const schemaName = 'services.ToolCategoryInput';
+  final Map<String, dynamic> value;
+
+  String? get color => value['color']?.toString();
+
+  String? get description => value['description']?.toString();
+
+  String? get icon => value['icon']?.toString();
+
+  String? get name => value['name']?.toString();
+
+  String? get slug => value['slug']?.toString();
+
+  int? get sortOrder => (value['sort_order'] as num?)?.toInt();
+
+  String? get status => value['status']?.toString();
+
+  Map<String, dynamic> toJson() => Map.of(value);
+}
+
 final class ServicesTransitionInput {
   ServicesTransitionInput(Map<String, dynamic> value)
     : value = UnmodifiableMapView<String, dynamic>(Map.of(value));
@@ -17266,6 +17433,8 @@ final class ServicesUpdateCalculatorInput {
 
   String? get backgroundColor => value['background_color']?.toString();
 
+  String? get categoryId => value['category_id']?.toString();
+
   String? get color => value['color']?.toString();
 
   String? get description => value['description']?.toString();
@@ -17275,6 +17444,8 @@ final class ServicesUpdateCalculatorInput {
   String? get icon => value['icon']?.toString();
 
   String? get name => value['name']?.toString();
+
+  String? get riskLevel => value['risk_level']?.toString();
 
   String? get status => value['status']?.toString();
 

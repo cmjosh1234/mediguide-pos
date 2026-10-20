@@ -34,6 +34,7 @@ type CalculatorReviewQueueItem struct {
 	ToolName            string     `json:"tool_name"`
 	ToolType            string     `json:"tool_type"`
 	ToolStatus          string     `json:"tool_status"`
+	ToolRiskLevel       string     `json:"tool_risk_level"`
 	SemanticVersion     string     `json:"semantic_version"`
 	VersionStatus       string     `json:"version_status"`
 	AuthorID            *uuid.UUID `json:"author_id,omitempty"`
@@ -69,6 +70,7 @@ type CalculatorVersionPreviewDTO struct {
 	ToolName             string                       `json:"tool_name"`
 	ToolType             string                       `json:"tool_type"`
 	ToolStatus           string                       `json:"tool_status"`
+	ToolRiskLevel        string                       `json:"tool_risk_level"`
 	RuntimeType          string                       `json:"runtime_type"`
 	Fixtures             []CalculatorFixtureReviewDTO `json:"fixtures"`
 	ReviewEvidenceStatus string                       `json:"review_evidence_status"`
@@ -139,9 +141,10 @@ func (s CalculatorVersionService) ReviewQueue(input CalculatorReviewQueueInput) 
 		ToolName           string
 		ToolType           string
 		ToolStatus         string
+		ToolRiskLevel      string
 	}
 	var rows []joinedRow
-	err := query.Select("cv.id,cv.calculator_id,cv.semantic_version,cv.definition_json,cv.definition_checksum,cv.status,cv.created_by,cv.reviewed_by,cv.validation_passed,cv.tests_passed,cv.lock_version,cv.created_at,cv.updated_at,c.name AS tool_name,c.type AS tool_type,c.status AS tool_status").
+	err := query.Select("cv.id,cv.calculator_id,cv.semantic_version,cv.definition_json,cv.definition_checksum,cv.status,cv.created_by,cv.reviewed_by,cv.validation_passed,cv.tests_passed,cv.lock_version,cv.created_at,cv.updated_at,c.name AS tool_name,c.type AS tool_type,c.status AS tool_status,c.risk_level AS tool_risk_level").
 		Order(fmt.Sprintf("%s %s, cv.id DESC", sortColumn, order)).Offset(page.Offset()).Limit(page.PerPage).Scan(&rows).Error
 	if err != nil {
 		return nil, err
@@ -164,7 +167,7 @@ func (s CalculatorVersionService) ReviewQueue(input CalculatorReviewQueueInput) 
 		if auditErr != nil && !errors.Is(auditErr, gorm.ErrRecordNotFound) {
 			return nil, auditErr
 		}
-		item := CalculatorReviewQueueItem{VersionID: row.ID, CalculatorID: row.CalculatorID, ToolName: row.ToolName, ToolType: row.ToolType, ToolStatus: row.ToolStatus, SemanticVersion: row.SemanticVersion, VersionStatus: row.Status, AuthorID: row.CreatedBy, ReviewerID: row.ReviewedBy, ClinicalOwner: definition.ClinicalOwner, ClinicalReviewer: definition.ClinicalReviewer, ValidationPassed: row.ValidationPassed, TestsPassed: row.TestsPassed, FixtureCount: int(fixtureCount), FixturePassedCount: int(fixturePassed), ReviewEvidenceState: "source_controlled_review_required", DefinitionChecksum: row.DefinitionChecksum, LockVersion: row.LockVersion, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
+		item := CalculatorReviewQueueItem{VersionID: row.ID, CalculatorID: row.CalculatorID, ToolName: row.ToolName, ToolType: row.ToolType, ToolStatus: row.ToolStatus, ToolRiskLevel: row.ToolRiskLevel, SemanticVersion: row.SemanticVersion, VersionStatus: row.Status, AuthorID: row.CreatedBy, ReviewerID: row.ReviewedBy, ClinicalOwner: definition.ClinicalOwner, ClinicalReviewer: definition.ClinicalReviewer, ValidationPassed: row.ValidationPassed, TestsPassed: row.TestsPassed, FixtureCount: int(fixtureCount), FixturePassedCount: int(fixturePassed), ReviewEvidenceState: "source_controlled_review_required", DefinitionChecksum: row.DefinitionChecksum, LockVersion: row.LockVersion, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
 		if auditErr == nil {
 			item.LastAuditAction = audit.Action
 			item.LastAuditAt = &audit.CreatedAt
@@ -199,7 +202,7 @@ func (s CalculatorVersionService) Preview(versionID uuid.UUID) (*CalculatorVersi
 	if err != nil {
 		return nil, err
 	}
-	return &CalculatorVersionPreviewDTO{Version: *version, ToolName: tool.Name, ToolType: tool.Type, ToolStatus: tool.Status, RuntimeType: tool.RuntimeType, Fixtures: fixtures, ReviewEvidenceStatus: "source_controlled_review_required", Audit: audit}, nil
+	return &CalculatorVersionPreviewDTO{Version: *version, ToolName: tool.Name, ToolType: tool.Type, ToolStatus: tool.Status, ToolRiskLevel: tool.RiskLevel, RuntimeType: tool.RuntimeType, Fixtures: fixtures, ReviewEvidenceStatus: "source_controlled_review_required", Audit: audit}, nil
 }
 
 func reviewFilterValues(raw string, allowed map[string]bool) []string {

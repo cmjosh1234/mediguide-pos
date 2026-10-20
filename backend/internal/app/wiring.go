@@ -109,7 +109,7 @@ func wireRoutes(cfg config.Config, database *gorm.DB, store *storage.MinioStore,
 	protocolH := handlers.ProtocolHandler{Service: protocolSvc}
 	syncH := handlers.SyncHandler{Service: syncSvc}
 	referenceH := handlers.ReferenceHandler{Service: referenceSvc}
-	calculatorH := handlers.CalculatorHandler{Service: calculatorSvc, Versions: calculatorVersionSvc}
+	calculatorH := handlers.CalculatorHandler{Service: calculatorSvc, Versions: calculatorVersionSvc, Categories: services.ToolCategoryService{DB: database}}
 	drugH := handlers.DrugHandler{Service: drugSvc}
 	drugReferenceH := handlers.DrugReferenceHandler{Service: drugReferenceSvc}
 	userH := handlers.UserHandler{Service: userSvc}
