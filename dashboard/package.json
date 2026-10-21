@@ -61,7 +61,7 @@
     "react-resizable-panels": "^3.0.3",
     "recharts": "2.15.4",
     "remark-gfm": "^4.0.1",
-    "sanitize-html": "^2.17.7",
+    "sanitize-html": "^2.18.1",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
     "tinymce": "^8.8.2",

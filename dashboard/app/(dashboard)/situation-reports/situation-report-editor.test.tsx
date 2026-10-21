@@ -159,7 +159,7 @@ test("a correction is approved and applied, or discarded, instead of published",
   await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Correction applied", expect.any(String)));
 
   fireEvent.click(screen.getByRole("button", { name: "Discard correction" }));
-  await waitFor(() => expect(reports.remove).toHaveBeenCalledWith("r1", 3));
+  await waitFor(() => expect(reports.remove).toHaveBeenCalledWith("r1", 3, "Correction discarded"));
 });
 
 test("a new report is saved from the end of the form, not the page header", async () => {
